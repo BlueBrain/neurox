@@ -1,0 +1,8 @@
+The Blue Brain Project - Bluron 
+
+Ecole Polytechnique Federale de Lausanne
+Brain Mind Institute,
+Blue Brain Project
+(c) 2006-2012. All rights reserved.
+
+Bluron is an extension to NEURON simulator developed by the Blue Brain Project
