@@ -1,0 +1,20 @@
+/**
+@page Release_Notes Release Notes
+    -# @ref Enhancements
+    -# @ref Optimizations
+    -# @ref API_Changes
+
+    @htmlonly
+    <hr>
+    @endhtmlonly
+
+    @section Enhancements Enhancements
+        This is the initial version of the package. This sections is to be completed.
+        
+    @section API_Changes API Changes
+        This is the initial version of the package. This sections is to be completed.
+
+    @section Optimizations Optimizations
+        This is the initial version of the package. This sections is to be completed.
+
+*/
