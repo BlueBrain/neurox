@@ -10,7 +10,7 @@
     @endhtmlonly
 
     @section Software_Engineering Software Engineering
-        - Getting rid of warnings
+        - Removing warnings
         - Design documentation
         - Testing:
             -# Unit testing
@@ -20,8 +20,8 @@
         
     @section Features Features
         - Checkpoint / restore functionality with files in order to write save state
+        - Configurable stimuli
         - ISC interaction, possibly with the use of ReportingLib
-        - Stimuli
         - Monitoring
         - Gap junction
 
@@ -29,7 +29,7 @@
         - Componentization
         - Simplification of data structures to achieve more memory reduction
         - SIMD experimentation using the Cyme package
-        - Threading with different techniaqes
+        - Threading with different techniques
         - Non-blocking MPI
 
     @section Priorities Priorities
