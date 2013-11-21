@@ -1,6 +1,7 @@
 /**
 @page Developers_Guide Developer's Guide
     -# @ref General
+    -# @ref Directory_Overview
     -# @ref Known_Issues
 
     @htmlonly
@@ -8,9 +9,27 @@
     @endhtmlonly
 
     @section General General
-        To be completed
+        In this part of the documentation the ideveloper-related issues are addressed.
+
+
+    @section Directory_Overview Directory Overview
+
+    The root corebluron directory has the following structure:
+
+    -# <code>doc</code> - documentation.
+    -# <code>src</code> - source folder:
+        -# <code>main</code> - directory with generic main.cpp file.
+        -# <code>simcore</code> - the source code of core simulator. Corresponding output library: <code>libcorebluron</code>.
+        -# <code>mech</code> - the source code for mechanisms. Corresponding output library: <code>libcoremech</code>.
+            - <code>cfile</code> - .c files for the corresponding mechanisms built from .mod files. Also, necessary .h files needed for generated .c files.
+            - <code>modfile</code> - mod files of mechanisms.
+    -# <code>test</code> - tests using Boost environment:
+        -# <code>integration</code> - integration tests for various simulations.
+        -# <code>regression</code> - regression testing or unit testing.
+
 
     @section Known_Issues Known Issues
-        - Validate initial results
+        - Fix all the warnings.
+        - Validate initial results for real simulation tests.
 
 */
