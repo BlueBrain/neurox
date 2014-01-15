@@ -33,6 +33,51 @@ InterleaveInfo::InterleaveInfo() {
     child_race = NULL;
 }
 
+void InterleaveInfo::swap(InterleaveInfo& info) {
+    std::swap(nwarp, info.nwarp);
+    std::swap(nstride, info.nstride);
+
+    std::swap(stridedispl, info.stridedispl);
+    std::swap(stride, info.stride);
+    std::swap(firstnode, info.firstnode);
+    std::swap(lastnode, info.lastnode);
+    std::swap(cellsize, info.cellsize);
+
+    std::swap(nnode, info.nnode);
+    std::swap(ncycle, info.ncycle);
+    std::swap(idle, info.idle);
+    std::swap(cache_access, info.cache_access);
+    std::swap(child_race, info.child_race);
+}
+
+InterleaveInfo::InterleaveInfo(const InterleaveInfo& info) {
+    nwarp = info.nwarp;
+    nstride = info.nstride;
+
+    copy_array(stridedispl, info.stridedispl, nwarp + 1);
+    copy_array(stride, info.stride, nstride);
+    copy_array(firstnode, info.firstnode, nwarp + 1);
+    copy_array(lastnode, info.lastnode, nwarp + 1);
+    copy_array(cellsize, info.cellsize, nwarp);
+
+    copy_array(nnode, info.nnode, nwarp);
+    copy_array(ncycle, info.ncycle, nwarp);
+    copy_array(idle, info.idle, nwarp);
+    copy_array(cache_access, info.cache_access, nwarp);
+    copy_array(child_race, info.child_race, nwarp);
+}
+
+InterleaveInfo& InterleaveInfo::operator=(const InterleaveInfo& info) {
+    // self assignment
+    if (this == &info)
+        return *this;
+
+    InterleaveInfo temp(info);
+
+    this->swap(temp);
+    return *this;
+}
+
 InterleaveInfo::~InterleaveInfo() {
     if (stride) {
         delete[] stride;
@@ -229,6 +274,7 @@ static void warp_balance(int ith, InterleaveInfo& ii) {
         v[i] = ii.ncycle[i];
     }
     double bal = load_balance(v);
+#ifdef DEBUG
     printf("thread %d nwarp=%ld  balance=%g  warp_efficiency %g to %g\n", ith, nwarp, bal, emin,
            emax);
     const char* cp[4] = {"nodes", "idle", "ca", "cr"};
@@ -236,6 +282,7 @@ static void warp_balance(int ith, InterleaveInfo& ii) {
         printf("  %s=%ld (%ld:%ld)", cp[i], smm[i][0], smm[i][1], smm[i][2]);
     }
     printf("\n");
+#endif
 }
 
 int* interleave_order(int ith, int ncell, int nnode, int* parent) {
