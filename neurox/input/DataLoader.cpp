@@ -1133,7 +1133,6 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                       &runBenchmarkAndClear, sizeof(bool)
                       );
         assert(timeElapsed>0);
-        //hpx_call_sync(tempBranchAddr, Branch::Clear, NULL, 0);
         hpx_gas_clear_affinity(tempBranchAddr);
 
         //get HPX address of branch; create it if necessary, and update benchmark table
