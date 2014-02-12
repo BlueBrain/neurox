@@ -1,8 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-using namespace neurox;
-
 namespace neurox
 {
 
@@ -14,12 +12,24 @@ enum AlgorithmType {
     BackwardEulerAllReduce=1,
     BackwardEulerSlidingTimeWindow=2,
     BackwardEulerTimeDependencyLCO=3,
-    ALL=9 //All, except debug
+    All=9, //All except debug (for benchmarking)
+    None=-1 //If not instantiated
 };
 
+/**
+ * @brief The Algorithm class
+ * Virtual class describing all methods required to be implemented by all different algorithms
+ */
 class Algorithm
 {
-    constexpr virtual AlgorithmType getType() = 0;
+  public:
+    Algorithm() = delete;
+    static Algorithm * New(AlgorithmType);
+
+    virtual AlgorithmType getType()
+    {
+        return AlgorithmType::None;
+    };
 
     virtual void init(Branch*) = 0;
     virtual void clear(Branch*) = 0;
@@ -30,6 +40,11 @@ class Algorithm
     virtual void afterSpike(Branch*) = 0;
 };
 
-}; //algorithm
+}; //algorithms
 
 }; //neurox
+
+#include "neurox/algorithms/BackwardEulerAllReduceAlgorithm.h"
+#include "neurox/algorithms/BackwardEulerDebugModeAlgorithm.h"
+#include "neurox/algorithms/BackwardEulerSlidingTimeWindowAlgorithm.h"
+#include "neurox/algorithms/BackwardEulerTimeDependencyLCOAlgorithm.h"
