@@ -225,6 +225,8 @@ static int Main_handler()
     neurox::input::Debugger::CompareAllBranches();
 #endif
 
+    Algorithm * algorithm = Algorithm::New(inputParams->algorithm);
+
     //subscribe to the all-reduce LCOs
     static hpx_t * allreduces = nullptr;
     static int maxReductionsPerCommStep = 0;
