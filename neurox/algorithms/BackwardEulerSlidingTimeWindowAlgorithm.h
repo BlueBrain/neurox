@@ -25,7 +25,7 @@ class DERIVED_CLASS_NAME : public Algorithm
     double Run() override;
 
     void StepBegin(Branch*) override;
-    void StepEnd(Branch*) override;
+    void StepEnd(Branch*, hpx_t) override;
     void CommStepBegin(Branch*) override;
     void CommStepEnd(Branch*) override;
     void AfterSpike(Branch*) override;
