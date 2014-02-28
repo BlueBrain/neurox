@@ -59,4 +59,24 @@ void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
 void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
 
-void DERIVED_CLASS_NAME::AfterSpike(Branch*) {}
+hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double t)
+{
+    for (Neuron::Synapse *& s : neuron->synapses)
+    {
+        s->nextNotificationTime     = t+(s->minDelay+neuron->refractoryPeriod)*Neuron::TimeDependencies::notificationIntervalRatio;
+        spike_time_t maxTimeAllowed = t+Neuron::TimeDependencies::teps+s->minDelay+neuron->refractoryPeriod;
+
+        hpx_lco_wait_reset(s->previousSpikeLco); //reset LCO to be used next
+        //any spike or step notification happening after must wait for this spike delivery
+
+        hpx_call(s->branchAddr, Branch::AddSpikeEvent, s->previousSpikeLco,
+            &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
+            &maxTimeAllowed, sizeof(spike_time_t));
+
+#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+        printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif time =%.3f\n",
+               this->gid, tt, s->destinationGid, t, s->nextNotificationTime);
+#endif
+    }
+    return HPX_NULL;
+}
