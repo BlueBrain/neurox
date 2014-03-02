@@ -59,7 +59,17 @@ void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::Run(Branch*) {}
+void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
+{
+    int steps = *(int*)args;
+    for (int step=0; step<steps; step++)
+        b->BackwardEulerStep();
+    // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
+
+    if (b->soma) //end of comm-step (steps is the number of steps per commSize)
+        if (b->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
+            hpx_lco_wait(b->soma->commBarrier->allSpikesLco); //wait if needed
+}
 
 hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
 {
