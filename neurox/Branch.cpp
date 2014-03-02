@@ -503,6 +503,7 @@ int Branch::AddSpikeEvent_handler(
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
     const spike_time_t spikeTime  = *(const spike_time_t*) args[1];
+    spike_time_t maxTime = nargs==3 ? *(const spike_time_t*) args[2] : -1;
 
     assert(local->netcons.find(preNeuronId)!=local->netcons.end());
     auto & netcons = local->netcons.at(preNeuronId);
@@ -514,17 +515,7 @@ int Branch::AddSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
-    {
-        //inform soma of this neuron of new time dependency update
-        spike_time_t maxTime = *(const spike_time_t*) args[2];
-        hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
-        if (local->soma)
-            local->soma->timeDependencies->UpdateTimeDependency(preNeuronId, maxTime);
-        else
-            hpx_call(topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,
-                 &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
-    }
+    algorithm->afterSpikeReceival(local, target, preNeuronId, spikeTime, maxTime);
     neurox_hpx_unpin;
 }
 
@@ -635,7 +626,7 @@ int Branch::BackwardEuler_handler(const int * steps_ptr, const size_t size)
     const int steps = *steps_ptr;
     if (local->soma)
     {
-      //fixes crash for Algorithm::ALL when TimeDependency algorithm starts at t=inputParams->tend*2
+      //fixes crash for Algorithm::All when TimeDependency algorithm starts at t=inputParams->tend*2
       if (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
         {
           //increase notification and dependencies time
