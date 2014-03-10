@@ -687,7 +687,7 @@ int DataLoader::InitNeurons_handler()
         hpx_par_for_sync( DataLoader::CreateNeuron, 0, myNeuronsCount, myNeuronsTargets);
 
     if (inputParams->allReduceAtLocality)
-        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons =
+        AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons =
             new std::vector<hpx_t>(myNeuronsTargets, myNeuronsTargets+myNeuronsCount);
 
     delete [] myNeuronsGids;
@@ -1242,7 +1242,8 @@ int DataLoader::InitNetcons_handler()
                 //add this pre-syn neuron as my time-dependency
                 if (inputParams->algorithm == AlgorithmType::All || inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
                 {
-                  spike_time_t notificationTime = inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio;
+                  spike_time_t notificationTime = inputParams->tstart+minDelay*
+                          TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
                   dependencies.push_back( make_pair(srcGid, notificationTime ) );
                 }
             }

@@ -1,4 +1,4 @@
-#include "neurox/algorithms/BackwardEulerDebugModeAlgorithm.h"
+#include "neurox/algorithms/CoreneuronDebugAlgorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
@@ -7,20 +7,33 @@ DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
 
 DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 
+
+DERIVED_CLASS_NAME::CommunicationBarrier::CommunicationBarrier()
+{
+    this->allSpikesLco = HPX_NULL;
+    assert(DERIVED_CLASS_NAME::CommunicationBarrier::commStepSize <= 4);
+}
+
+DERIVED_CLASS_NAME::CommunicationBarrier::~CommunicationBarrier()
+{
+    if (allSpikesLco != HPX_NULL)
+        hpx_lco_delete_sync(allSpikesLco);
+}
+
 const AlgorithmType DERIVED_CLASS_NAME::getType()
 {
-    return AlgorithmType::BackwardEulerDebugMode;
+    return AlgorithmType::BackwardEulerCoreneuronDebug;
 }
 
 const char* DERIVED_CLASS_NAME::getTypeString()
 {
-    return "BackwardEulerDebugMode";
+    return "BackwardEulerCoreneuronDebug";
 }
 
 void DERIVED_CLASS_NAME::Init()
 {
     const int allReducesCount = 0;
-    hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::SetReductionsPerCommStep,
+    hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
                     &allReducesCount, sizeof(int));
 }
 
@@ -28,11 +41,11 @@ void DERIVED_CLASS_NAME::Clear() {}
 
 double DERIVED_CLASS_NAME::Launch()
 {
-    int commStepSize = Neuron::CommunicationBarrier::commStepSize;
+    int commStepSize = CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
     int totalSteps = Algorithm::getTotalStepsCount();
 
     hpx_time_t now = hpx_time_now();
-    for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
+    for (int s=0; s<totalSteps; s+=commStepSize)
     {
         #ifdef NEUROX_TIME_STEPPING_VERBOSE
           if (hpx_get_my_rank()==0)
@@ -67,20 +80,24 @@ void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
     // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
     if (b->soma) //end of comm-step (steps is the number of steps per commSize)
-        if (b->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
-            hpx_lco_wait(b->soma->commBarrier->allSpikesLco); //wait if needed
+    {
+        CommunicationBarrier * commBarrier = (CommunicationBarrier *) b->soma->algorithmMetaData;
+        if (commBarrier->allSpikesLco != HPX_NULL) //was set/used once
+            hpx_lco_wait(commBarrier->allSpikesLco); //wait if needed
+    }
 }
 
 hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
 {
-    if (neuron->commBarrier->allSpikesLco == HPX_NULL) //first use
-        neuron->commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses.size());
+    CommunicationBarrier * commBarrier = (CommunicationBarrier *) neuron->algorithmMetaData;
+    if (commBarrier->allSpikesLco == HPX_NULL) //first use
+        commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses.size());
     else
-        hpx_lco_reset_sync(neuron->commBarrier->allSpikesLco); //reset to use after
+        hpx_lco_reset_sync(commBarrier->allSpikesLco); //reset to use after
 
     for (Neuron::Synapse *& s : neuron->synapses)
         //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-        hpx_call(s->branchAddr, Branch::AddSpikeEvent, neuron->commBarrier->allSpikesLco,
+        hpx_call(s->branchAddr, Branch::AddSpikeEvent, commBarrier->allSpikesLco,
             &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
 
     return HPX_NULL;
