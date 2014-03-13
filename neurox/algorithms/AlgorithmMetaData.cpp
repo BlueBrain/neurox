@@ -7,8 +7,8 @@ AlgorithmMetaData* AlgorithmMetaData::New(AlgorithmType type)
 {
     switch (type)
     {
-    case AlgorithmType::BackwardEulerCoreneuronDebug:
-        return new CoreneuronDebugAlgorithm::CommunicationBarrier();
+    case AlgorithmType::BackwardEulerDebug:
+        return new DebugAlgorithm::CommunicationBarrier();
     case AlgorithmType::BackwardEulerCoreneuron:
         return new CoreneuronAlgorithm::CommunicationBarrier();
     case AlgorithmType::BackwardEulerAllReduce:
