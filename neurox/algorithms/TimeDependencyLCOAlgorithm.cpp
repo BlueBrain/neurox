@@ -62,6 +62,7 @@ void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
     // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
 #ifndef NDEBUG
+    if (b->soma)
         printf("-- neuron %d finished\n", b->soma->gid);
 #endif
 }
