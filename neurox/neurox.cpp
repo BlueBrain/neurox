@@ -24,7 +24,7 @@ Mechanism * GetMechanismFromType(int type) {
     return mechanisms[mechanismsMap[type]];
 }
 
-void SetMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependenciesIds_serial,
+void SetMechanisms(int mechsCount, Mechanism* mechanisms_serial, int * dependenciesIds_serial,
                     int * successorsIds_serial, char * sym_serial)
 {
     neurox::mechanismsCount = mechsCount;
@@ -76,85 +76,6 @@ void SetMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependen
     }
 }
 
-hpx_action_t SetMechanisms = 0;
-int SetMechanisms_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    /**
-     * nargs=4 where:
-     * args[0] = array of all mechanisms info
-     * args[1] = array of all mechanisms dependencies (parents in mechanisms tree)
-     * args[2] = array of all mechanisms successors (children in mechanisms tree)
-     * args[3] = array of all mechanisms names (sym)
-     */
-    neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
-    int mechanismsCount = sizes[0]/sizeof(Mechanism);
-    SetMechanisms2(mechanismsCount, (Mechanism*) args[0], (int*) args[1], (int*) args[2], (char*) args[3]);
-    neurox_hpx_unpin;
-}
-
-hpx_action_t SetMechanismsGlobalVars = 0;
-int SetMechanismsGlobalVars_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    /**
-     * nargs=3 where:
-     * args[0] = celsius
-     * args[1] = nrn_ion_global_map_size
-     * args[2] = flag if types has entry in nrn_ion_global_map, 1 or 0 (ie not null)
-     * args[3] = nrn_ion_global_map
-     */
-
-    neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
-    double new_celsius = *(double*) args[0];
-    int mechsCount = *(int*) args[1];
-    unsigned char * mechHasEntryInIonMap = (unsigned char*) args[2];
-    double * ionGlobalMapInfo = (double*) args[3];
-
-    int mechsOffset=0;
-    if (nrn_ion_global_map!=NULL) //this machine has the data, compare
-    {
-        assert (celsius == new_celsius);
-        assert (mechsCount == nrn_ion_global_map_size);
-        for (int i=0; i<mechsCount; i++)
-        {
-            if (mechHasEntryInIonMap[i]==0)
-            {
-                assert (nrn_ion_global_map[i] == NULL);
-            }
-            else
-            {
-                assert (mechHasEntryInIonMap[i]==1);
-                assert (nrn_ion_global_map[i][0] = ionGlobalMapInfo[mechsOffset+0]);
-                assert (nrn_ion_global_map[i][1] = ionGlobalMapInfo[mechsOffset+1]);
-                assert (nrn_ion_global_map[i][2] = ionGlobalMapInfo[mechsOffset+2]);
-                mechsOffset += 3;
-            }
-        }
-    }
-    else //this machine does not have the data, create it
-    {
-        celsius = new_celsius;
-        nrn_ion_global_map = new double*[mechsCount];
-        for (int i=0; i<mechsCount; i++)
-        {
-            if (!mechHasEntryInIonMap[i])
-            {
-                nrn_ion_global_map[i] = NULL;
-            }
-            else
-            {
-                nrn_ion_global_map[i] = new double[3];
-                nrn_ion_global_map[i][0] = ionGlobalMapInfo[mechsOffset+0];
-                nrn_ion_global_map[i][1] = ionGlobalMapInfo[mechsOffset+1];
-                nrn_ion_global_map[i][2] = ionGlobalMapInfo[mechsOffset+2];
-                mechsOffset+=3;
-            }
-        }
-    }
-    neurox_hpx_unpin;
-}
-
 void DebugMessage(const char * str)
 {
 #ifndef NDEBUG
@@ -163,25 +84,32 @@ void DebugMessage(const char * str)
 #endif
 }
 
+hpx_action_t InitMechanismsAndQuit = 0;
+static int InitMechanismsAndQuit_handler()
+{
+    DebugMessage("neurox::InitMechanismsAndQuit...\n");
+    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
+    input::DataLoader::CleanCoreneuronData(false); //clean_ion_global_map=false
+    hpx_exit(0,NULL);
+}
 
 hpx_action_t Main = 0;
 static int Main_handler()
 {
-    printf("\nneurox::main (localities: %d, threads/locality: %d, %s)\n",
+    printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
            hpx_get_num_ranks(), hpx_get_num_threads(), LAYOUT==0 ? "SoA" : "AoS");
-    if (hpx_get_num_ranks()>1 && !inputParams->parallelDataLoading)
+
+    if (!mechanisms) //if not set by neurox::LoadMechsAndQuit
     {
-      DebugMessage("ERROR: add the -m or --mpi argument for parallel data loading\n");
-      hpx_exit(0, NULL);
+      DebugMessage("neurox::Input::DataLoader::initMechanisms...\n");
+      hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     }
     DebugMessage("neurox::Input::DataLoader::init...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Init);
-    DebugMessage("neurox::Input::DataLoader::initMechanisms...\n");
-    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     DebugMessage("neurox::Input::DataLoader::initNeurons...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
     DebugMessage("neurox::Input::DataLoader::initNetcons...\n");
-    neurox_hpx_call_neurons( neurox::input::DataLoader::InitNetcons, nullptr, 0);
+    neurox_hpx_call_neurons( neurox::input::DataLoader::InitNetcons);
     DebugMessage("neurox::Input::DataLoader::finalize...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
     DebugMessage("neurox::Branch::BranchTree::initLCOs...\n");
@@ -196,7 +124,7 @@ static int Main_handler()
       //hpx_exit(0,NULL);
     }
 
-    neurox::input::Debugger::CompareMechanismsFunctionPointers();
+    neurox::input::Debugger::CompareMechanismsFunctions();
     neurox::input::Debugger::CompareAllBranches();
 
     DebugMessage("neurox::Branch::finitialize...\n");
@@ -283,10 +211,9 @@ int Clear_handler()
 
 void RegisterHpxActions()
 {
-    neurox_hpx_register_action(neurox_zero_var_action,     neurox::Main);
-    neurox_hpx_register_action(neurox_zero_var_action,     neurox::Clear);
-    neurox_hpx_register_action(neurox_several_vars_action, neurox::SetMechanisms);
-    neurox_hpx_register_action(neurox_several_vars_action, neurox::SetMechanismsGlobalVars);
+    neurox_hpx_register_action(neurox_zero_var_action, neurox::Main);
+    neurox_hpx_register_action(neurox_zero_var_action, neurox::InitMechanismsAndQuit);
+    neurox_hpx_register_action(neurox_zero_var_action, neurox::Clear);
 }
 
 }; //neurox
