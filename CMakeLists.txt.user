@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.5.1, 2017-07-25T20:45:29. -->
+<!-- Written by QtCreator 3.5.1, 2017-07-25T21:42:24. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -263,7 +263,7 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments"> -n 2 ./neurox_exec  -d ~/Workspace/PCP_circuits/1/data/ -e 1 -M -A 2</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">-n 2 ./bin/neurox_exec -d ~/Workspace/PCP_circuits/10/data/ -e 1 -A 1</value>
     <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">/usr/bin/mpirun</value>
     <value type="bool" key="ProjectExplorer.CustomExecutableRunConfiguration.UseTerminal">false</value>
     <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">/home/bmagalha/Workspace/neurox_with_libcoreneuron/build/bin</value>
