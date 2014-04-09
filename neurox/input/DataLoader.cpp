@@ -390,6 +390,10 @@ void DataLoader::InitAndLoadCoreneuronData(
         bool load_all_neurons_on_all_localities,
         bool run_setup_cleanup)
 {
+    //NOTE: This is a hack: load_all_neurons_on_all_localities will be past as
+    //nrnmpi_under_nrncontrol to nrnmpi_init, that will look for the "-mpi"
+    //cmd line parameter. Because it's not past, it assumes serial execution
+    //on all localities
     nrn_init_and_load_data(argc, argv, load_all_neurons_on_all_localities, run_setup_cleanup);
 }
 
