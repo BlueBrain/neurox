@@ -30,9 +30,12 @@ class DataLoader
     enum BranchType { Soma, AxonInitSegment, Dendrite};
 
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
-    static void InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup=false); ///> call coreneuron nrn_init_and_load_data
+    static void InitAndLoadCoreneuronData(
+            int argc, char ** argv,
+            bool nrnmpi_under_nrncontrol=false,
+            bool run_setup_cleanup=false); ///> call coreneuron nrn_init_and_load_data
     static void CleanCoreneuronData(const bool clean_ion_global_map = false); ///>removes all Nrn data structures
-    static void registerHpxActions();
+    static void RegisterHpxActions();
 
     static hpx_action_t Init;
     static hpx_action_t InitMechanisms;
@@ -93,11 +96,13 @@ class DataLoader
 
     static hpx_action_t AddSynapse;
     static hpx_action_t AddNeurons;
+    static hpx_action_t UpdateMechanismsDependencies;
 
     static int CreateNeuron(int neuron_idx, void * targets);
     static int GetMyNrnNeuronsCount();
     static int AddSynapse_handler(const int, const void *[], const size_t[]) ;
     static int AddNeurons_handler(const int, const void *[], const size_t[]) ;
+    static int UpdateMechanismsDependencies_handler(const int, const void *[], const size_t[]) ;
     static int Init_handler ();
     static int InitMechanisms_handler();
     static int InitNeurons_handler();
