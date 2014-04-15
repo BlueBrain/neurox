@@ -29,18 +29,18 @@ static int Main_handler()
 {
     printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
            hpx_get_num_ranks(), hpx_get_num_threads(), LAYOUT==0 ? "SoA" : "AoS");
-    DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     DebugMessage("neurox::Input::DataLoader::Init...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Init);
+    DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
+    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
     DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
     neurox_hpx_call_neurons( neurox::input::DataLoader::InitNetcons);
-    DebugMessage("neurox::Input::DataLoader::Finalize...\n");
-    hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
     DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
     neurox_hpx_call_neurons(Branch::BranchTree::InitLCOs);
+    DebugMessage("neurox::Input::DataLoader::Finalize...\n");
+    hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
 
     if (neurox::inputParams->outputStatistics)
     {
@@ -135,23 +135,42 @@ int Clear_handler()
     neurox_hpx_unpin;
 }
 
-void SetMechanismsDependencies(int *dependenciesCount, int * dependenciesIds,
-                               int *successorsCount  , int * successorsIds)
+void SetMechanismsDependencies(const int *dependenciesCount, const int * dependenciesIds,
+                               const int *successorsCount  , const int * successorsIds)
 {
     //make sure mechanisms have already been set
     assert(neurox::mechanismsCount>0 && neurox::mechanisms!= nullptr && neurox::mechanismsMap!=nullptr);
 
-    int offsetSuccessors=0, offsetDependencies=0;
-    for (int m=0; m<mechanismsCount; m++)
+    int successorsIdsOffset=0, dependenciessIdsOffset=0;
+
+    for (int m=0; m<neurox::mechanismsCount; m++)
     {
         int index = neurox::mechanismsMap[m];
         if (index==-1) continue;
 
         Mechanism * mech = mechanisms[index];
-        int* dependenciesIds = &dependenciesIds[offsetDependencies];
-        int* successorsIds   = &successorsIds[offsetSuccessors];
-        offsetSuccessors +=  successorsCount[index];
-        offsetDependencies +=  dependenciesCount[index];
+
+        //if I must replace dependencies
+        if (dependenciesCount!=nullptr)
+        {
+            assert(dependenciesIds!=nullptr);
+            delete [] mech->dependencies;
+            mech->dependenciesCount = dependenciesCount[m];
+            mech->dependencies = new int [dependenciesCount[m]];
+            memcpy(mech->dependencies, &dependenciesIds[dependenciessIdsOffset], sizeof(int)*dependenciesCount[m]);
+            dependenciessIdsOffset+=dependenciesCount[m];
+        }
+
+        //if I must replace successors
+        if (successorsCount!=nullptr)
+        {
+            assert(successorsIds!=nullptr);
+            delete [] mech->successors;
+            mech->successorsCount = successorsCount[m];
+            mech->successors = new int [successorsCount[m]];
+            memcpy(mech->successors, &successorsIds[successorsIdsOffset], sizeof(int)*successorsCount[m]);
+            successorsIdsOffset+=successorsCount[m];
+        }
     }
 
     //initializes parent ion index
