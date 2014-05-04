@@ -45,6 +45,8 @@ class Mechanism
     pnt_receive2_t pnt_receive_init;
     bbcore_read_t nrn_bbcore_read;
 
+    bool isUsed; ///> True if seen in any neuron
+
     enum ModFunction
     {
         //BA functions start here (of size BEFORE_AFTER_SIZE)
