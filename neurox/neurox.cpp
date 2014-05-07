@@ -37,10 +37,10 @@ static int Main_handler()
     hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
     DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
     neurox_hpx_call_neurons( neurox::input::DataLoader::InitNetcons);
-    DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
-    neurox_hpx_call_neurons(Branch::BranchTree::InitLCOs);
     DebugMessage("neurox::Input::DataLoader::Finalize...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
+    DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
+    neurox_hpx_call_neurons(Branch::BranchTree::InitLCOs);
 
     if (neurox::inputParams->outputStatistics)
     {
