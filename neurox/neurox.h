@@ -66,7 +66,6 @@ namespace neurox
 
 
     Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void SetMechanismsDependencies(int*, int*, int*, int*); ///> Set mechanisms dependencies
     void DebugMessage(const char * str); ///> outputs if in debug mode
     bool ParallelExecution();     ///> returns true if program launched in more than one locality
 
