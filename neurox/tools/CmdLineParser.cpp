@@ -56,7 +56,7 @@ void CmdLineParser::Parse(int argc, char ** argv)
         //coreneuron command line parameters
         TCLAP::ValueArg<floble_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"floble_t");
         cmd.add(tstart);
-        TCLAP::ValueArg<floble_t> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"floble_t");
+        TCLAP::ValueArg<floble_t> tstop("e","tstop","Execution stop time (msecs). The default value is 10",false, 10 ,"floble_t");
         cmd.add(tstop);
         TCLAP::ValueArg<floble_t> dt("t","dt","Execution time step (msecs). The default value is 0.025",false, DEF_dt ,"floble_t");
         cmd.add(dt);
