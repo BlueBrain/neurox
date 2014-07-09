@@ -1,0 +1,10 @@
+# User parameters
+  StartTime	0.
+  EndTime	100.
+  Dt		0.0234375
+
+# Developer parameters (do not modify)
+  Celcius	34.
+  Voltage	-65.
+  MaxDelay	10.
+  SpikeBuf	400000
