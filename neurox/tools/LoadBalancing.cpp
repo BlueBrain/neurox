@@ -64,8 +64,12 @@ tools::LoadBalancing::~LoadBalancing()
 
 void tools::LoadBalancing::PrintTable()
 {
+    if (loadBalancingTable==nullptr) return;
+    if (hpx_get_my_rank() != 0) return;
+
+    printf("neurox::tools::LoadBalancing::PrintTable()\n");
     for (int r=0; r<hpx_get_num_ranks(); r++)
-        printf("-- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
+        printf("- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
 }
 
 void tools::LoadBalancing::RegisterHpxActions()
