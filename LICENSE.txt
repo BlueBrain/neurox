@@ -1,3 +1,4 @@
+ELECTRONIC DATA (configuration files, input data, and simulation results in clear text or binary format) contained in the file system folder and subfolders where this LICENSE.TXT file is found fall under:
 Copyright (c) 2014 EPFL-BBP, All rights reserved.
 
 THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT ``AS IS''
