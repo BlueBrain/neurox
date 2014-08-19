@@ -7,7 +7,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:@CMAKE_INSTALL_PREFIX@/lib
 rm -f out.dat
 
 # Run the executable
-srun -n2 --account=proj16 @CMAKE_INSTALL_PREFIX@/bin/corebluron_exec -mpi
+srun -n2 --account=@BBPPROJECT@ @CMAKE_INSTALL_PREFIX@/bin/corebluron_exec -mpi
 
 # diff outputed files with reference
 cat out[0-9]*.dat > out_cb.dat
