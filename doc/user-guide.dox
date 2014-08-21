@@ -2,21 +2,22 @@
 /**
 @page User_Guide User Guide
     -# @ref GENERAL_INFORMATION
-        -# @ref Overview
+        -# @ref User_Overview
         -# @ref Acronyms_and_Abbreviations
     -# @ref INSTALLATION_AND_UPGRADE
         -# @ref Requirements
-        -# @ref Supported_Platforms
+        -# @ref Architechtures
         -# @ref Installation
-        -# @ref Important_Files
+            -# @ref Buildyard
+            -# @ref Manually
 
     @htmlonly
     <hr>
     @endhtmlonly
 
     @section GENERAL_INFORMATION General information
-        @subsection Overview Overview
-            This page contains information about installation, supported platforms and other features.
+        @subsection User_Overview Overview
+            This page contains information about installation, supported architectures and other features.
 
         @subsection Acronyms_and_Abbreviations Acronyms and Abbreviations
             - MPI: Message Passing Interface
@@ -25,30 +26,33 @@
         @subsection Requirements Requirements
             - CMake 2.8
             - MPI 
-
-        @subsection Supported_Platforms Supported Platforms
-            - Ubuntu 13.04
-            - Ubuntu 12.10
-            - RHEL 6
+            - Boost
 
         @subsection Architechtures Architectures
             - x86_64
             - powerpc64
 
         @subsection Installation Installation
+          Before starting the installation, set the correct MPI compilers (wrappers) with the CC and CXX environment flags.
+          Example: on a Blue Gene Q:
 
-         <i>Via Buildyard</i>
+             <b><code>
+             export CC=mpixlc <br>
+             export CXX=mpixlcxx
+             </code></b>
 
-         Clone the Buildyard package itself and clone the configuration files for all the BBP projects in order to set up all the dependencies in the .cmake correspondent package file. Then, build CoreBluron.
+         @subsubsection Buildyard Via Buildyard
+           Clone the Buildyard package itself and clone the configuration files for all the BBP projects in order to set up all the dependencies in the .cmake correspondent package file. Then, build CoreBluron.
 
          <code>
          git clone https://github.com/Eyescale/Buildyard.git <br>
          cd Buildyard <br>
          git clone ssh://bbpgit.epfl.ch/common/config.bbp.git <br>
-         make corebluron
+         make CoreBluron
          </code>
 
-         <i>Manually</i>
+         @subsubsection Manually Manually
+           In order to build a code manually, follow these steps:
 
          <code>
          git clone ssh://bbpcode.epfl.ch/sim/corebluron <br>
@@ -56,10 +60,7 @@
          mkdir build <br>
          cd build <br>
          cmake .. -DCMAKE_INSTALL_PREFIX=<i>path_to_install</i> <br>
-         make -j12 install
+         make -j install
          </code>
-
-        @subsection Important_Files Important Directories and Files
-         To be completed 
 
 */
