@@ -56,15 +56,19 @@ CMake (minimum required version 2.8) is correctly setting appropriate compilers/
 
 In order to build the simulator follow the steps below:
 
-1. Set the correct MPI compilers (wrappers) with the CC and CXX environment flags.
-   Example: on a Blue Gene Q:
-     export CC=mpixlc
+1. Set the correct MPI compilers (wrappers) with the CC and CXX environment flags. <br>
+   Example: on a Blue Gene Q: <br>
+     <b><code>
+     export CC=mpixlc <br>
      export CXX=mpixlcxx
+     </code></b>
 
-2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreBluron)
-     mkdir build && cd build
-     cmake ..
+2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreBluron) <br>
+     <b><code>
+     mkdir build && cd build <br>
+     cmake .. <br>
      make
+     </code></b>
 
 Above steps will create binaries and libraries under build/bin and build/lib folders respectively.
 
@@ -85,11 +89,13 @@ which are currently getting synced in the <code>corebluron/mech/cfile</code> fol
 @subsection Custom_Build Custom Build
 
 One can specify C++/C compilation flags spcecific to the compiler and architecture with -DCMAKE_CXX_FLAGS
-and -DCMAKE_C_FLAGS options to the CMake command:
+and -DCMAKE_C_FLAGS options to the CMake command.
 
-For example, on a Blue Gene Q:
+For example, on a Blue Gene Q: <br>
+     <b><code>
      cmake .. -DCMAKE_CXX_FLAGS="-O5 -qtune=qp -qarch=qp -q64 -qhot=simd -qsmp -qthreaded -qipa=level=2"
               -DCMAKE_C_FLAGS="-O5 -qtune=qp -qarch=qp -q64 -qhot=simd -qsmp -qthreaded -qipa=level=2"
+     </code></b>
 
 Note that one should explicitly specify the compilation flags.
 
@@ -97,16 +103,19 @@ Building on x86 and BG-Q platform should work with the above instructions.
 On other systems you might need to pass additional CMake otpions like MPI_C_COMPILER, MPI_C_INCLUDE_PATH etc.
 For example, on Cray's Piz Diant system the following command line was used to build CoreBluron:
 
-$ export CC=`which cc` export CXX=`which CC`
-$ cmake -DMPI_C_INCLUDE_PATH=$PATH_TO_MPI_C_INCLUDE_PATH -DMPI_C_LIBRARIES=$PATH_TO_MPI_C_LIBRARIES -DMPI_CXX_INCLUDE_PATH=$PATH_TO_MPI_CXX_INCLUDE_PATH -DMPI_CXX_LIBRARIES=$PATH_TO_MPI_CXX_LIBRARIES -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX
-
+  <b><code>
+  $ export CC=`which cc` export CXX=`which CC` <br>
+  $ cmake -DMPI_C_INCLUDE_PATH=$PATH_TO_MPI_C_INCLUDE_PATH -DMPI_C_LIBRARIES=$PATH_TO_MPI_C_LIBRARIES -DMPI_CXX_INCLUDE_PATH=$PATH_TO_MPI_CXX_INCLUDE_PATH -DMPI_CXX_LIBRARIES=$PATH_TO_MPI_CXX_LIBRARIES -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX
+  </code></b>
 
 @subsection Installing Installing
 
 Follow the previous steps with below modifications:
 
-1. To CMake command line, specify the installation destination:
+1. To CMake command line, specify the installation destination: <br>
+     <b><code>
      cmake .. -DCMAKE_INSTALL_PREFIX=$PATH_TO_INSTALL_FOLDER
+     </code></b>
 
 2. After building the code, install it using
      make install
@@ -126,12 +135,16 @@ Once the CoreBluron is built, one can run parallel simulator with any MPI launch
 
 1. Change to the directory containing simulation input test data (bbcore_mech.dat, files.dat, inputs.dat, *_1.dat, *_2.dat).
 
-2. Set environmental variables by adding lib folder (in build/lib or $PATH_TO_INSTALL_FOLDER/lib) to the LD_LIBRARY_PATH :
+2. Set environmental variables by adding lib folder (in build/lib or $PATH_TO_INSTALL_FOLDER/lib) to the LD_LIBRARY_PATH : <br>
+     <b><code>
      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PATH_TO_INSTALL_FOLDER/lib
+     </code></b>
 
-3. And run simulator with any MPI launcher as:
-     srun -n $NUM_MPIS $PATH_TO_COREBLURON_EXEC -mpi   (assuming slurm batch system)
+3. And run simulator with any MPI launcher as: <br>
+     <b><code>
+     srun -n $NUM_MPIS $PATH_TO_COREBLURON_EXEC -mpi   (assuming slurm batch system) <br>
      where $NUM_MPIS is number of MPI ranks and $PATH_TO_COREBLURON_EXEC is path of corebluron executable.
+     </code></b>
 
 
 @section Testing_and_Validation Testing and Validation

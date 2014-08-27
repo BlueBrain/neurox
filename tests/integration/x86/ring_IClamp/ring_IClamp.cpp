@@ -7,7 +7,7 @@ using namespace corebluron::test;
 
 BOOST_AUTO_TEST_CASE(ring_validation)
 {
-    std::string path("../../../tests/integration/x86/ring_IClamp/");
+    std::string path("../../../../tests/integration/x86/ring_IClamp/");
     reference ref(path);
     std::vector<std::pair<double, int> > res;
     char* env[256];
@@ -18,4 +18,5 @@ BOOST_AUTO_TEST_CASE(ring_validation)
 
     for(int i=0; i < res.size(); ++i)
         BOOST_CHECK_CLOSE(res[i].first, ref[i].first, 0.001 );
+
 }

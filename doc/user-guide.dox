@@ -33,7 +33,7 @@
             - powerpc64
 
         @subsection Installation Installation
-          Before starting the installation, set the correct MPI compilers (wrappers) with the CC and CXX environment flags.
+          Before starting the installation, set the correct MPI compilers (wrappers) with the CC and CXX environment flags. <br>
           Example: on a Blue Gene Q:
 
              <b><code>
