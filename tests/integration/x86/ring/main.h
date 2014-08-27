@@ -5,7 +5,7 @@ int main_ring(int argc, char** argv, char** env, std::string & path){
   mk_mech(name.c_str());
   mk_netcvode();
   int gids[1] = {0};
-  nrn_setup(1, gids, path.c_str());
+  nrn_setup(1, gids, path.c_str(), endian::little_endian);
   t = 0;
   dt = 0.025;
   double mindelay = BBS_netpar_mindelay(10.0);
