@@ -1,6 +1,6 @@
 /**
 @page Developers_Guide Developer's Guide
-    -# @ref General
+    -# @ref Developer_General
     -# @ref Directory_Overview
     -# @ref Building_and_Installing
         -# @ref Building
@@ -12,13 +12,14 @@
         -# @ref Basic_Testing
         -# @ref Results_Validation
         -# @ref Modify_Parameters
+    -# @ref Bluron2CoreBluron
     -# @ref Known_Issues
 
     @htmlonly
     <hr>
     @endhtmlonly
 
-    @section General General
+    @section Developer_General General
         In this part of the documentation the developer-related issues are addressed.
 
 
@@ -182,7 +183,8 @@ size is defined under the "SpikeBuf" variable in the file "input.dat" as follows
   Celsius       34.         => this number should not be modified <br>
   Voltage       -65.        => this number should not be modified <br>
   MaxDelay      10.         => this number should not be modified <br>
-  SpikeBuf      1000        => spike buffer size (double precision array of size SpikeBuf corresponding to the maximum number of spikes per MPI task) <br><br>
+  SpikeBuf      1000        => spike buffer size (double precision array of size SpikeBuf corresponding to the maximum number of spikes per MPI task) <br>
+  Endianness    big         => endianness of the current data set: native, little or big <br><br>
   Although parameters from this section of the file are advised to remain untouched, to avoid a segfault
 ("Assertion `spikevec_size < spikevec_buffer_size' failed.") with the increased "EndTime", one could increase the spike buffer size. <br><br>
 
@@ -209,6 +211,17 @@ fits into the memory).
   To run the test on the smaller cluster, one have to modify "files.data" file accordingly. For example, if modifying first line in
 "files.dat" to 100 will result in simulator reading only 100 cell ids data (and will distribute that among all MPI ranks).
 
+
+@section Bluron2CoreBluron Bluron and CoreBluron
+  Bluron writes the data for CoreBluron binaries using nrnbbcore_write() function, which is supposed to be called after the stdinit() function.
+In order to get the binaries for CoreBluron (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat) one should compile <b><code>special</code></b>
+executable in Neurodamus as it is described here:
+
+https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/CoreBluron+with+Neurodamus
+
+After the binaries are obtained, CoreBluron is run with <b><code>core/special</code></b> executable. It is advised to have the "inputs.dat"
+file next to all other binaries in order to be able to easily change some of the parameters, as discussed above in the \ref Modify_Parameters
+section.
 
 
 @section Known_Issues Known Issues

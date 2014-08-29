@@ -1,10 +1,10 @@
 
 /**
 @page User_Guide User Guide
-    -# @ref GENERAL_INFORMATION
+    -# @ref User_General
         -# @ref User_Overview
         -# @ref Acronyms_and_Abbreviations
-    -# @ref INSTALLATION_AND_UPGRADE
+    -# @ref Installation_and_Upgrade
         -# @ref Requirements
         -# @ref Architechtures
         -# @ref Installation
@@ -15,14 +15,14 @@
     <hr>
     @endhtmlonly
 
-    @section GENERAL_INFORMATION General information
+    @section User_General General Information
         @subsection User_Overview Overview
             This page contains information about installation, supported architectures and other features.
 
         @subsection Acronyms_and_Abbreviations Acronyms and Abbreviations
             - MPI: Message Passing Interface
 
-    @section INSTALLATION_AND_UPGRADE Installation and upgrade
+    @section Installation_and_Upgrade Installation and Upgrade
         @subsection Requirements Requirements
             - CMake 2.8
             - MPI 
