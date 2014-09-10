@@ -1,4 +1,5 @@
 int main_ring(int argc, char** argv, char** env, std::string & path){
+  (void)env; // unused
   std::string name("bbcore_mech.dat");
   name = path+name;
   nrnmpi_init(1, &argc, &argv);

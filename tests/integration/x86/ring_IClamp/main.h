@@ -1,4 +1,5 @@
 int main_ring(int argc, char** argv, char** env, std::string & path){
+  (void)env; // unused
   std::string name("bbcore_mech.dat");
   name = path+name;
   nrnmpi_init(1, &argc, &argv);
@@ -22,6 +23,6 @@ void modl_reg() {
 	// mod_func.c.
 }
 
-const char* nrn_version(int i) {
+const char* nrn_version(int) {
 	return "version id unimplemented";
 }
