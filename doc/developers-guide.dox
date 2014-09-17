@@ -44,6 +44,11 @@
 
 @section Building_and_Installing Building and Installing
 
+Note: The default build of CoreBluron does not include any production mechanisms, unless the COREBLURON_NEURODAMUS_MECHS
+flag is ON (see below). As an alternative, one could compile the code with up-to-date production mechanisms in Neurodamus.
+For guidelines on how to build the code with Neurodamus, please use the following link:
+- https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/CoreBluron+with+Neurodamus
+
 CoreBluron is using MPI for parallelization. Currently the following compilers/MPI libraries for production
 simulations are used:
 - Blue Gene/Q: XLC 12.1.0.7 (V1R2M1 drivers)
@@ -72,9 +77,6 @@ In order to build the simulator follow the steps below:
      </code></b>
 
 Above steps will create binaries and libraries under build/bin and build/lib folders respectively.
-
-For more complete guide lines on how to build the code with Neurodamus, please refer to the following link:
-https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/CoreBluron+with+Neurodamus
 
 
 @subsection Additional_configuration Additional Configuration Flags
