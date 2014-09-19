@@ -2,10 +2,10 @@
 
 #include "neurox/neurox.h"
 
-#include <map>
-#include <vector>
-#include <memory>
 #include <deque>
+#include <map>
+#include <memory>
+#include <vector>
 
 using namespace std;
 
@@ -16,23 +16,26 @@ namespace tools {
 /**
  * @brief The LoadBalancing class
  */
-class LoadBalancing
-{
-  public:
-    LoadBalancing();
-    ~LoadBalancing();
+class LoadBalancing {
+ public:
+  LoadBalancing();
+  ~LoadBalancing();
 
-    static hpx_action_t QueryLoadBalancingTable;
+  static hpx_action_t QueryLoadBalancingTable;
 
-    static void PrintTable();
-    static void RegisterHpxActions();
-    static int QueryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[]);
+  static void PrintTable();
+  static void RegisterHpxActions();
+  static int QueryLoadBalancingTable_handler(const int nargs,
+                                             const void *args[],
+                                             const size_t[]);
 
-  private:
-    static double *loadBalancingTable; ///> computation (ms) per compute node
-    static hpx_t loadBalancingMutex;;  ///> mutex for loadBalancingTable
+ private:
+  /// computation (ms) per compute node
+  static double *loadBalancingTable;
+
+  /// mutex for loadBalancingTable
+  static hpx_t loadBalancingMutex;
 };
 
-}; //Tools
-}; //NeuroX
-
+};  // Tools
+};  // NeuroX
