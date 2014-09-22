@@ -59,7 +59,7 @@ add `--mpi` for parallel execution and parallel data loading
 We follow the google coding style (https://google.github.io/styleguide/cppguide.html) and format.
 To automatically format the code recursively in all folder use `clang-format`:
 ```
-find ./neurox -iname *.h -o -iname *.cpp  | xargs clang-format -i -style=Google
+find ./neurox -iname *.h -o -iname *.cc  | xargs clang-format -i -style=Google
 ```
 
 Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
