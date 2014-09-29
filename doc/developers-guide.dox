@@ -169,29 +169,33 @@ have been used to prepare the validation test cases.
 
 @subsection Modify_Parameters Modifying Test Input Parameters
 
-  1. MODIFY SIMULATION RUNTIME <br>
-One can increase/decrease the simulation time of tests by modifying "EndTime" value in the "input.dat" file provided in each test case
-directory. The format of this file is: <br><br>
-\# User parameters <br>
-  StartTime     0.          => this number should not be modified <br>
-  EndTime       100.        => only change this number if you want to reduce the time to solution of the total simulation (for testing only) <br>
-  Dt            0.025       => this number should not be modified <br><br>
+  1. MODIFY SIMULATION RUNTIME PARAMETERS <br>
+One can change the parameters of the simulation time by setting the correspondent values from the command line.
+Also, if the "tstop" is significantly increased, the produced amount of spikes might not fit in the allocated
+buffer size "spikebug", which sould be increased as well. The following list describes the configurable
+parameters which can be set from the command line: <br><br>
+       -s TIME, \--tstart=TIME<br>
+              Set the start time to TIME (double). The default value is '0.'<br><br>
+       -e TIME, \--tstop=TIME<br>
+              Set the stop time to TIME (double). The default value is '100.'<br><br>
+       -t TIME, \--dt=TIME<br>
+              Set the dt time to TIME (double). The default value is '0.025'.<br><br>
+       -p FILE, \--pattern=FILE<br>
+              Apply patternstim with the spike file FILE (char*). The default value is 'NULL'.<br><br>
+       -b SIZE, \--spikebuf=SIZE<br>
+              Set the spike buffer to be of the size SIZE (int). The default value is '100000'.<br><br>
+       -g NUMBER, \--prcellgid=NUMBER<br>
+              Output prcellstate information for the gid NUMBER (int). The default value is '-1'.<br><br>
+       -m, --threading<br>
+              Optiong to enable threading. The default implies no threading.<br><br>
+       -d PATH, \--datpath=PATH<br>
+              Set the path with required CoreBluron data to PATH (char*). The default value is '.'.<br><br>
+       -f FILE, \--filesdat=FILE<br>
+              Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
+       -o PATH, --outpath=PATH<br>
+              Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
 
-
-  2. MODIFY SPIKE BUFFER SIZE<br>
-If the "EndTime" is significantly increased, the produced amount of spikes might not fit in the allocated buffer size. The buffer
-size is defined under the "SpikeBuf" variable in the file "input.dat" as follows: <br><br>
-\# Developer parameters <br>
-  Celsius       34.         => this number should not be modified <br>
-  Voltage       -65.        => this number should not be modified <br>
-  MaxDelay      10.         => this number should not be modified <br>
-  SpikeBuf      1000        => spike buffer size (double precision array of size SpikeBuf corresponding to the maximum number of spikes per MPI task) <br>
-  Endianness    big         => endianness of the current data set: native, little or big <br><br>
-  Although parameters from this section of the file are advised to remain untouched, to avoid a segfault
-("Assertion `spikevec_size < spikevec_buffer_size' failed.") with the increased "EndTime", one could increase the spike buffer size. <br><br>
-
-
-  3. MODIFY USE CASE SIZE (Number of cells/neurons) <br>
+  2. MODIFY USE CASE SIZE (Number of cells/neurons) <br>
 It is possible to run tests with different number of MPI ranks. In every simulation input data directory one can find the file named
 "files.dat". This file has following format (example): <br><br>
   32768      -> first line is the number of cell ids (or entries) in the file <br>
