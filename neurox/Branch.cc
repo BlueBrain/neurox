@@ -160,13 +160,14 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
                  instanceData2);  // Make sure data offsets are good so far
 
       if (mech->vdataSize > 0 || mech->pntMap > 0) {
-        assert(
-            (mech->type == IClamp && mech->vdataSize == 1 &&
-             mech->pdataSize == 2 && mech->pntMap > 0) ||
-            (mech->type == StochKv && mech->vdataSize == 1 &&
-             mech->pdataSize == 5 && mech->pntMap == 0) ||
-            ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS) &&
-             mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap > 0));
+        assert((mech->type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
+                mech->pdataSize == 2 && mech->pntMap > 0) ||
+               (mech->type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
+                mech->pdataSize == 5 && mech->pntMap == 0) ||
+               ((mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
+                 mech->type == NEUROX_PROBGABAAB_EMS_) &&
+                mech->vdataSize == 2 && mech->pdataSize == 3 &&
+                mech->pntMap > 0));
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -182,8 +183,9 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
 
         // copy Point_processes by replacing vdata pointers and pdata offset by
         // the ones referring to a copy
-        if (mech->type == IClamp || mech->type == ProbAMPANMDA_EMS ||
-            mech->type == ProbGABAAB_EMS) {
+        if (mech->type == NEUROX_ICLAMP_ ||
+            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
+            mech->type == NEUROX_PROBGABAAB_EMS_) {
           int pointProcOffsetInPdata = 1;
           Point_process *pp =
               (Point_process *)(void *)&vdataSerialized[vdataOffset];
@@ -197,9 +199,10 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
 
         // copy RNG by replacing vdata pointers and pdata offset by the ones
         // referring to a copy
-        if (mech->type == StochKv || mech->type == ProbAMPANMDA_EMS ||
-            mech->type == ProbGABAAB_EMS) {
-          int rngOffsetInPdata = mech->type == StochKv ? 3 : 2;
+        if (mech->type == NEUROX_STOCHKV_ ||
+            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
+            mech->type == NEUROX_PROBGABAAB_EMS_) {
+          int rngOffsetInPdata = mech->type == NEUROX_STOCHKV_ ? 3 : 2;
           nrnran123_State *rng =
               (nrnran123_State *)(void *)&vdataSerialized[vdataOffset];
           nrnran123_State *rngcopy = new nrnran123_State;
@@ -287,8 +290,7 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
       ml->_shadow_rhs[i] = 0;
     }
 
-    if (mechanisms[m]->dependencyIonIndex >=
-        Mechanism::Ion::kSizeWriteableIons)
+    if (mechanisms[m]->dependencyIonIndex >= Mechanism::Ion::kSizeWriteableIons)
       shadowSize = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
@@ -379,7 +381,7 @@ Branch::~Branch() {
 hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(nargs == 17 || nargs == 18);  // 16 for normal init, 17 for benchmark
                                        // (initializes, benchmarks, and clears
                                        // memory)
@@ -424,29 +426,29 @@ int Branch::Init_handler(const int nargs, const void *args[],
       local->BackwardEulerStep();
     double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    neurox_hpx_unpin_continue(timeElapsed);
+    NEUROX_MEM_UNPIN_CONTINUE_(timeElapsed);
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::InitSoma = 0;
 int Branch::InitSoma_handler(const int nargs, const void *args[],
                              const size_t[]) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(nargs == 2);
   const neuron_id_t neuronId = *(const neuron_id_t *)args[0];
   const floble_t APthreshold = *(const floble_t *)args[1];
   local->soma = new Neuron(neuronId, APthreshold);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::Clear = 0;
 int Branch::Clear_handler() {
-  neurox_hpx_pin(Branch);
-  neurox_hpx_recursive_branch_async_call(Branch::Clear);
+  NEUROX_MEM_PIN_(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::Clear);
   delete local;
-  neurox_hpx_recursive_branch_async_wait;
-  neurox_hpx_unpin;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
+  NEUROX_MEM_UNPIN_;
 }
 
 void Branch::InitVecPlayContinous() {
@@ -500,7 +502,7 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId) {
 hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(nargs == (input_params->algorithm ==
                            AlgorithmType::kBackwardEulerTimeDependencyLCO
                        ? 3
@@ -520,13 +522,13 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
   algorithm->AfterReceiveSpikes(local, target, preNeuronId, spikeTime, maxTime);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::UpdateTimeDependency = 0;
 int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
                                          const size_t[]) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(nargs == 2 || nargs == 3);
 
   // auto source = libhpx_parcel_get_source(p);
@@ -542,7 +544,7 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   timeDependencies->UpdateTimeDependency(preNeuronId, (floble_t)maxTime,
                                          local->soma ? local->soma->gid : -1,
                                          initPhase);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void Branch::Finitialize2() {
@@ -623,18 +625,17 @@ void Branch::BackwardEulerStep() {
 
 hpx_action_t Branch::BackwardEuler = 0;
 int Branch::BackwardEuler_handler(const int *steps_ptr, const size_t size) {
-  neurox_hpx_pin(Branch);
-  neurox_hpx_recursive_branch_async_call(Branch::BackwardEuler, steps_ptr,
-                                         size);
+  NEUROX_MEM_PIN_(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::BackwardEuler, steps_ptr, size);
   algorithm->Run(local, steps_ptr);
-  neurox_hpx_recursive_branch_async_wait;
-  neurox_hpx_unpin;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::BackwardEulerOnLocality = 0;
 int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   assert(input_params->allReduceAtLocality);
   assert(input_params->algorithm ==
              AlgorithmType::kBackwardEulerSlidingTimeWindow ||
@@ -677,29 +678,29 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
     }
   }
   hpx_lco_delete_sync(localityNeuronsLCO);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
-  neurox_hpx_pin(Branch);
-  neurox_hpx_recursive_branch_async_call(Branch::ThreadTableCheck);
+  NEUROX_MEM_PIN_(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::ThreadTableCheck);
   local->CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
-  neurox_hpx_recursive_branch_async_wait;
-  neurox_hpx_unpin;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Branch::Finitialize = 0;
 int Branch::Finitialize_handler() {
-  neurox_hpx_pin(Branch);
-  neurox_hpx_recursive_branch_async_call(Branch::Finitialize);
+  NEUROX_MEM_PIN_(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::Finitialize);
   local->Finitialize2();
 #if !defined(NDEBUG)
 // Input::Debugger::StepAfterStepFinitialize(local,
 // &nrn_threads[local->nt->id]);
 #endif
-  neurox_hpx_recursive_branch_async_wait;
-  neurox_hpx_unpin;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
+  NEUROX_MEM_UNPIN_;
 }
 
 void Branch::SetupTreeMatrix() {
@@ -789,7 +790,7 @@ Branch::BranchTree::~BranchTree() {
 
 hpx_action_t Branch::BranchTree::InitLCOs = 0;
 int Branch::BranchTree::InitLCOs_handler() {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   BranchTree *branchTree = local->branchTree;
   if (branchTree) {
     offset_t branchesCount = branchTree->branchesCount;
@@ -823,9 +824,9 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma)  // send my LCO to parent
-      neurox_hpx_unpin_continue(branchTree->withParentLCO);
+      NEUROX_MEM_UNPIN_CONTINUE_(branchTree->withParentLCO);
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
@@ -878,7 +879,7 @@ Branch::MechanismsGraph::~MechanismsGraph() {
 hpx_action_t Branch::MechanismsGraph::MechFunction = 0;
 int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
                                                   const size_t) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   int type = *mechType_ptr;
   assert(type != CAP);  // capacitance should be outside mechanisms graph
   assert(local->mechsGraph->mechsLCOs[mechanisms_map[type]] != HPX_NULL);
@@ -902,7 +903,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
             local->mechsGraph->mechsLCOs[mechanisms_map[mech->successors[c]]],
             sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void Branch::MechanismsGraph::AccumulateRHSandD(NrnThread *nt, Memb_list *ml,
@@ -945,23 +946,23 @@ void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunction *lhs,
 }
 
 void Branch::RegisterHpxActions() {
-  neurox_hpx_register_action(neurox_zero_var_action, Branch::Clear);
-  neurox_hpx_register_action(neurox_zero_var_action, Branch::Finitialize);
-  neurox_hpx_register_action(neurox_zero_var_action, Branch::ThreadTableCheck);
-  neurox_hpx_register_action(neurox_zero_var_action,
-                             Branch::BranchTree::InitLCOs);
-  neurox_hpx_register_action(neurox_single_var_action, Branch::BackwardEuler);
-  neurox_hpx_register_action(neurox_single_var_action,
-                             Branch::BackwardEulerOnLocality);
-  neurox_hpx_register_action(neurox_single_var_action,
-                             Branch::MechanismsGraph::MechFunction);
-  neurox_hpx_register_action(neurox_several_vars_action, Branch::Init);
-  neurox_hpx_register_action(neurox_several_vars_action, Branch::InitSoma);
-  neurox_hpx_register_action(neurox_several_vars_action, Branch::AddSpikeEvent);
-  neurox_hpx_register_action(neurox_several_vars_action,
-                             Branch::UpdateTimeDependency);
-  neurox_hpx_register_action(neurox_reduce_op_action,
-                             Branch::MechanismsGraph::Init);
-  neurox_hpx_register_action(neurox_reduce_op_action,
-                             Branch::MechanismsGraph::Reduce);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::Clear);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::Finitialize);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::ThreadTableCheck);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_,
+                          Branch::BranchTree::InitLCOs);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_, Branch::BackwardEuler);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_,
+                          Branch::BackwardEulerOnLocality);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_,
+                          Branch::MechanismsGraph::MechFunction);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::Init);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::InitSoma);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::AddSpikeEvent);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_,
+                          Branch::UpdateTimeDependency);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_REDUCE_OP_,
+                          Branch::MechanismsGraph::Init);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_REDUCE_OP_,
+                          Branch::MechanismsGraph::Reduce);
 }
