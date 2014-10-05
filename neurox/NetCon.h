@@ -19,7 +19,7 @@ class NetConX : Event {
   void Deliver(floble_t t, Branch* branch) override;  // event method
                                                       // (inherited)
 
-  EventType Type() { return EventType::kNetCon; }
+  EventTypes Type() { return EventTypes::kNetCon; }
 
   int mechType;                 ///> mechanism type associated with this synapse
   unsigned short weightsCount;  ///> size of variable args

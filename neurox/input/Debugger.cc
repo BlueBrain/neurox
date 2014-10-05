@@ -75,7 +75,7 @@ void Debugger::CompareMechanismsFunctions() {
 }
 
 void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
-  b->CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
+  b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   b->InitVecPlayContinous();
 
   // coreneuron
@@ -99,13 +99,13 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kBeforeInitialize);
+  b->CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
 
   nrn_ba(nth, BEFORE_INITIAL);
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kInitialize);
+  b->CallModFunction(Mechanism::ModFunctions::kInitialize);
 
   NrnThreadMembList *tml;
   for (tml = nth->tml; tml; tml = tml->next) {
@@ -118,7 +118,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kAfterInitialize);
+  b->CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
   b->DeliverEvents(b->nt->_t);
 
   // coreneuron
@@ -134,7 +134,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kBeforeStep);
+  b->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
   b->DeliverEvents(b->nt->_t);
 
   nrn_ba(nth, BEFORE_STEP);
@@ -194,7 +194,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   floble_t secondOrderMultiplier = input_params->secondorder ? 2.0 : 1.0;
   for (int i = 0; i < b->nt->end; i++)
     b->nt->_actual_v[i] += secondOrderMultiplier * b->nt->_actual_rhs[i];
-  b->CallModFunction(Mechanism::ModFunction::kCurrentCapacitance);
+  b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   second_order_cur(nth, secondorder);
   update(nth);
@@ -209,14 +209,14 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kState);
+  b->CallModFunction(Mechanism::ModFunctions::kState);
 
   nonvint(nth);
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::kAfterSolve);
-  b->CallModFunction(Mechanism::ModFunction::kBeforeStep);
+  b->CallModFunction(Mechanism::ModFunctions::kAfterSolve);
+  b->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
   b->DeliverEvents(b->nt->_t);
 
   nrn_ba(nth, AFTER_SOLVE);
