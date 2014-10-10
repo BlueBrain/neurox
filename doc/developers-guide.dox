@@ -194,6 +194,10 @@ parameters which can be set from the command line: <br><br>
               Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
        -o PATH, --outpath=PATH<br>
               Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
+       -k TIME, --forwardskip=TIME<br>
+              Set forwardskip to TIME (double). The default value is '0.'.<br><br>
+       -mpi<br>
+              Enable MPI. In order to initialize MPI environment this argument must be specified.<br><br>
 
   2. MODIFY USE CASE SIZE (Number of cells/neurons) <br>
 It is possible to run tests with different number of MPI ranks. In every simulation input data directory one can find the file named
