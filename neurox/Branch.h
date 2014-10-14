@@ -108,7 +108,8 @@ class Branch {
 
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
-                      std::greater_equal<TimedEvent> > eventsQueue;
+                      std::greater_equal<TimedEvent> >
+      eventsQueue;
 
   ///> mutex to protect the memory access to eventsQueue
   hpx_t eventsQueueMutex;

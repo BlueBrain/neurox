@@ -15,7 +15,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
    * args[0] = elapsedTime
    * args[1] = rank (if any)
    */
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   assert(nargs == 1 || nargs == 2);
   assert(hpx_get_my_rank() ==
          0);  // only one loadBalancingTable and only in rank zero
@@ -28,7 +28,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
     hpx_lco_sema_p(loadBalancingMutex);
     loadBalancingTable[rank] += elapsedTime;
     hpx_lco_sema_v_sync(loadBalancingMutex);
-    neurox_hpx_unpin;
+    NEUROX_MEM_UNPIN_;
   } else {
     double minElapsedTime = 99999999999;
     int rank = -1;
@@ -40,9 +40,9 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
       }
     loadBalancingTable[rank] += elapsedTime;
     hpx_lco_sema_v_sync(loadBalancingMutex);
-    neurox_hpx_unpin_continue(rank);
+    NEUROX_MEM_UNPIN_CONTINUE_(rank);
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 tools::LoadBalancing::LoadBalancing() {
@@ -68,6 +68,6 @@ void tools::LoadBalancing::PrintTable() {
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {
-  neurox_hpx_register_action(neurox_several_vars_action,
-                             QueryLoadBalancingTable);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_,
+                          QueryLoadBalancingTable);
 }
