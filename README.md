@@ -54,12 +54,17 @@ cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
 ```
 add `--mpi` for parallel execution and parallel data loading
 
-## Misc
+### Misc
 
 We follow the google coding style (https://google.github.io/styleguide/cppguide.html) and format.
-To automatically format the code recursively in all folder use `clang-format`:
+To automatically format the code recursively in all folders use `clang-format`.
 ```
 find ./neurox -iname *.h -o -iname *.cc  | xargs clang-format -i -style=Google
+```
+
+To check for coding style errors, use `ccplint.py` (https://raw.githubusercontent.com/google/styleguide/gh-pages/cpplint/cpplint.py )
+```
+find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
 
 Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
