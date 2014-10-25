@@ -1,9 +1,11 @@
 int main_ring(int argc, char** argv, char** env, std::string & path){
   nrnmpi_init(1, &argc, &argv);
+  initnrn();
   mk_mech(path.c_str());
   mk_netcvode();
   int gids[1] = {0};
-  nrn_setup(1, gids, path.c_str(), endian::big_endian, 0);
+  std::string filesdat = path+"files.dat";
+  nrn_setup(path.c_str(), filesdat.c_str(),nrn_need_byteswap, 0);
   t = 0;
   dt = 0.025;
   double mindelay = BBS_netpar_mindelay(10.0);
