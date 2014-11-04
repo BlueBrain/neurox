@@ -68,4 +68,6 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
 False positives can be ignored by putting `// NOLINT` at the end of the line or `// NOLINTNEXTLINE` in the previous line.
 
-#### Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
+## Copyright
+
+Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
