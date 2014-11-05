@@ -20,7 +20,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold)
           0 &&
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio <=
           1);
-  assert(CoreneuronAlgorithm::CommunicationBarrier::commStepSize %
+  assert(CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize %
              AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep ==
          0);
 }
