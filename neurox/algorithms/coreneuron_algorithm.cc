@@ -1,4 +1,4 @@
-#include "neurox/algorithms/CoreneuronAlgorithm.h"
+#include "neurox/algorithms/coreneuron_algorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
