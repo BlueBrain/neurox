@@ -2,17 +2,14 @@
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:@CMAKE_BINARY_DIR@/lib
 
-# clean output
-rm -f out.dat
-
 # Run the executable
 @SRUN_PREFIX@ @CMAKE_BINARY_DIR@/bin/corebluron_exec @TEST_ARGS@ 
 
 # diff outputed files with reference
-cd @CMAKE_CURRENT_BINARY_DIR@/@TEST_NAME@
+cd @CMAKE_CURRENT_BINARY_DIR@/@SIM_NAME@
 cat out[0-9]*.dat > out_cb.dat
 sort -k 1n,1n -k 2n,2n out_cb.dat > sort_out.dat
-diff sort_out.dat @CMAKE_CURRENT_SOURCE_DIR@/@TEST_NAME@/out.dat.ref > DIFF_CellSpike
+diff sort_out.dat @CMAKE_CURRENT_SOURCE_DIR@/@SIM_NAME@/out.dat.ref > DIFF_CellSpike
 
 if [ -s DIFF_CellsSpike ] 
 then
