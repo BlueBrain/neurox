@@ -1,80 +1,95 @@
 #pragma once
 
-//Coreneuron core datatypes, tools and methods
+// typedefs
+typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
+typedef double spike_time_t;  ///> spikes timing unit
+typedef int offset_t;         ///> ushort or uint (p vector, nodes indices)
+typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
+
+// Coreneuron basic datatypes, input methods, and mechs functions
 #include "coreneuron/coreneuron.h"
 
-//typedefs
-typedef double floble_t;    ///> float or double (v, matrix values and mechanisms)
-typedef double spike_time_t;///> spikes timing unit
-typedef int offset_t;       ///> ushort or uint (p vector, nodes indices)
-typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by types.h)
-                            // (neuron id is past as -1 on input params parcelgid argument)
-
-//Core datatypes
-#include "neurox/algorithms/AlgorithmMetaData.h"
+// hpx macros and typedefs
 #include "neurox/hpx.h"
-#include "neurox/Event.h"
-#include "neurox/VecPlayContinuous.h"
-#include "neurox/NetCon.h"
-#include "neurox/Mechanism.h"
-#include "neurox/Branch.h"
-#include "neurox/Neuron.h"
 
-//Fixed-step Backward-Euler solver
-#include "neurox/solver/HinesSolver.h"
+// Definition of meta data specific to a given algorithm
+#include "neurox/algorithms/algorithm_metadata.h"
 
-//CoreNeuron-based input
-#include "neurox/input/Compartment.h"
-#include "neurox/input/DataLoader.h"
-#include "neurox/input/Debugger.h"
+// auxiliary classes defining events, synapses and mechanisms
+#include "neurox/event.h"
+#include "neurox/mechanism.h"
+#include "neurox/net_con.h"
+#include "neurox/vec_play_continuous.h"
 
-//Tools
-#include "neurox/tools/Statistics.h"
-#include "neurox/tools/LoadBalancing.h"
-#include "neurox/tools/CmdLineParser.h"
-#include "neurox/tools/Vectorizer.h"
-#ifdef USE_TIM_SPTQ
-  #include "neurox/tools/sptq_node.h"
-  #include "neurox/tools/sptq_queue.hpp"
-  #include "neurox/tools/sptq_queue.ipp"
-#endif
+// morphology classes (branches and soma)
+#include "neurox/branch.h"
+#include "neurox/neuron.h"
 
-//Algorithms
-#include "neurox/algorithms/Algorithm.h"
+// Fixed-step Backward-Euler solver
+#include "neurox/solver/hines_solver.h"
 
-//hard-coded mechanism types
-#define IClamp 7
-#define ProbAMPANMDA_EMS 137
-#define ProbGABAAB_EMS 139
-#define StochKv 151
+// Tools
+#include "neurox/tools/cmd_line_parser.h"
+#include "neurox/tools/load_balancing.h"
+#include "neurox/tools/statistics.h"
+#include "neurox/tools/vectorizer.h"
 
-//Debugging output
-//#define PRINT_TIME_DEPENDENCY
+// Algorithms
+#include "neurox/algorithms/algorithm.h"
 
-#include <cstring> //std::memset
+// CoreNeuron-based input
+#include "neurox/input/compartment.h"
+#include "neurox/input/data_loader.h"
+#include "neurox/input/debugger.h"
 
-namespace neurox
-{
-    extern hpx_t *neurons; ///> hpx address of all neurons
-    extern int neurons_count; ///> length of neurox::neurons
+// Debug flags
+//#define NEUROX_PRINT_TIME_DEPENDENCY
+//#define NDEBUG
 
-    extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
-    extern int mechanisms_count; ///> length of neuronx::mechanisms
-    extern int *mechanisms_map; ///> map of mechanisms offset in 'mechanisms' by 'mechanism type'
+namespace neurox {
 
-    extern tools::CmdLineParser * input_params; ///> Parameters parsed from command line
-    extern algorithms::Algorithm * algorithm; ///> algorithm instance
+///  hpx address of all neurons
+extern hpx_t *neurons;
 
+/// length of neurox::neurons
+extern int neurons_count;
 
-    Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void DebugMessage(const char * str); ///> outputs if in debug mode
-    bool ParallelExecution();     ///> returns true if program launched in more than one locality
+/// array to all existing mechanisms
+extern neurox::Mechanism **mechanisms;
 
-    extern hpx_action_t Main;            ///> execution starting point (called via hpx_run)
-    extern hpx_action_t Clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
+/// length of neuronx::mechanisms
+extern int mechanisms_count;
 
-    static int Main_handler();
-    static int Clear_handler();
+/// map of mechanisms offset in 'mechanisms' by 'mechanism type'
+extern int *mechanisms_map;
 
-    void RegisterHpxActions(); ///> Register all HPX actions
-} ;
+/// Parameters parsed from command line
+extern tools::CmdLineParser *input_params;
+
+/// algorithm instance
+extern algorithms::Algorithm *algorithm;
+
+/// returns mechanism of type 'type'
+Mechanism *GetMechanismFromType(int type);
+
+/// printf of a given message only on debug mode
+void DebugMessage(const char *str);
+
+/// returns true if program launched in more than one locality
+bool ParallelExecution();
+
+///  execution starting point (called via hpx_run)
+extern hpx_action_t Main;
+
+/// clears all data including neurons, branches and mechanisms information
+extern hpx_action_t Clear;
+
+/// handler of HPX-action neurox::Main
+static int Main_handler();
+
+/// handler of HPX-action neurox::Clear
+static int Clear_handler();
+
+/// HPX-actions registration
+void RegisterHpxActions();
+};
