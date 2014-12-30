@@ -9,15 +9,14 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:@CMAKE_BINARY_DIR@/lib
 cd @CMAKE_CURRENT_BINARY_DIR@/@SIM_NAME@
 cat out[0-9]*.dat > out_cb.dat
 sort -k 1n,1n -k 2n,2n out_cb.dat > sort_out.dat
-diff sort_out.dat @CMAKE_CURRENT_SOURCE_DIR@/@SIM_NAME@/out.dat.ref > DIFF_CellSpike
+diff sort_out.dat @CMAKE_CURRENT_SOURCE_DIR@/@SIM_NAME@/out.dat.ref > diff.dat
 
-if [ -s DIFF_CellsSpike ] 
+if [ -s diff.out ] 
 then
-  echo "Results are different, check the file DIFF_2CellsSpike. Test failed!"
+  echo "Results are different, check the file diff.dat. Test failed!"
   exit 1
 else
   echo "Results are the same, test passed"
-  rm -f DIFF_CellsSpike 
-  rm -f sort_out.dat
+  rm -f *.dat
   exit 0
 fi
