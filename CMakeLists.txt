@@ -1,75 +1,67 @@
+# Copyright (c) 2016, Blue Brain Project
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+# THE POSSIBILITY OF SUCH DAMAGE.
+
+
+# Ecole Polytechnique Federale de Lausanne
+# Brain Mind Institute,
+# Blue Brain Project
+# (c) 2006-2017. All rights reserved.
+#
+# Author: Bruno Magalhaes
+# NeuroX
+
+
+# Initial Setup
+
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-project(neurox)
+PROJECT(neurox)
 
-## Automatically add C++11 flags (eg -libc++ or -lstdc++)
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 11) # C++11...
-set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
-set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
+set(NEUROX_DESCRIPTION "BBP NeuroX simulator")
 
+set(VERSION_MAJOR "1")
+set(VERSION_MINOR "0")
+set(VERSION_PATCH "1")
+set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
+## global options
 option(ENABLE_SOA "Enable SoA Memory Layout" ON)
+option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" ON)
 
-#Include tclap
-FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
-        /usr/local/include
-        /usr/include
-        /opt/local/include
-)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
+      ${PROJECT_SOURCE_DIR}/CMake/portability
+      ${PROJECT_SOURCE_DIR}/CMake/packages
+      ${PROJECT_SOURCE_DIR}/CMake/config)
 
-IF(TCLAP_INCLUDE_DIR)
-        message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
-ELSE()
-        message(FATAL_ERROR "Could not find TCLAP")
-ENDIF()
-include_directories(${TCLAP_INCLUDE_DIR})
+include(BlueGenePortability)
+include(DefineInstallationPaths)
+include(ReleaseDebugAutoFlags)
+include(SetRpath)
 
-# Include HPX
 include(FindPkgConfig)
-find_package(PkgConfig REQUIRED)
-message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
-pkg_check_modules(HPX REQUIRED hpx )
-IF (NOT HPX_FOUND)
-  message (FATAL_ERROR "pkg-config did not find HPX")
-ELSE()
-  #message (STATUS "pkg-config found hpx ${HPX_VERSION}:")
-  message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-  #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
-  message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
-  #message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
-  #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-  #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-  #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
-  include_directories(${HPX_INCLUDE_DIRS})
-  link_d
-
-#binary (copy from apps/CMakeLists.txt)
-include_directories(
-    ${PROJECT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}/coreneuron
-    ${PROJECT_SOURCE_DIR}/neurox
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}/coreneuron
-    ${PROJECT_BINARY_DIR}/neurox
-    )
-
-add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
-
-FILE(GLOB_RECURSE neurox_all_headers "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
-FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
-FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
-
-add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
-
-target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
-
-set_target_properties(neurox PROPERTIES
-                             VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                             SOVERSION ${VERSION_MAJOR}
-                             CLEAN_DIRECT_OUTPUT 1)
-
-install(TARGETS neurox
-             LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
-             ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+include(CTest)
 
 #Memory layout transformation: 0 for SoA and 1 for AoS
 if (ENABLE_SOA)
@@ -78,19 +70,41 @@ else()
     add_definitions("-DLAYOUT=1")
 endif()
 
-# The mechanism registration function will be defined depending on whether we
-# are using neurodamus list of mechanisms
-add_definitions(-DADDITIONAL_MECHS)
+find_package(ClangFormat)
 
-add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
+if(CLANG_FORMAT_FOUND)
+    message("clang-format : ${CLANG_FORMAT_EXECUTABLE} : ${CLANG_FORMAT_VERSION}")
+else()
+    message("clang-format executable not found")
+endif()
 
-set_target_properties(neurox_exec PROPERTIES
-                      OUTPUT_NAME "neurox_exec"
-                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+if(CLANG_FORMAT_FOUND)
+    file(COPY ${PROJECT_SOURCE_DIR}/.clang-format DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(neurox_exec neurox coreneuron ${HPX_LIBRARIES} )
+    #to indent files using clang-format
+    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT ${PROJECT_SOURCE_DIR}/neurox/*.c*
+        ${PROJECT_SOURCE_DIR}/neurox/*.h* ${PROJECT_SOURCE_DIR}/neurox/*.ipp*)
 
-install(TARGETS neurox_exec  DESTINATION ${BIN_INSTALL_DIR}/)
+    add_custom_target(formatsource COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_FILES:STRING="${SRC_FILES_FOR_CLANG_FORMAT}"
+        -DCLANG_FORMAT_EXECUTABLE=${CLANG_FORMAT_EXECUTABLE}
+        -P "${PROJECT_SOURCE_DIR}/CMake/ClangFormatUtils.cmake"
+        )
+endif()
+
+#Turn off inline assembly for PGI
+if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
+    add_definitions(-DSWAP_ENDIAN_DISABLE_ASM)
+endif()
+
+if(EXPORT_MECHS_FUNCTIONS)
+    add_definitions("-DEXPORT_MECHS_FUNCTIONS")
+endif()
+
+# Core library and application
+include_directories(${CMAKE_INSTALL_PREFIX}/include) #coreneuron includes
+link_directories(${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib64) #coreneuron libs
+add_subdirectory(neurox)
 
 # Documentation
 #include(DoxygenRule)
