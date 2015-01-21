@@ -498,7 +498,7 @@ int Branch::AddSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs == (inputParams->algorithm == AlgorithmType::BackwardEulerWithTimeDependencyLCO ? 3 : 2));
+    assert(nargs == (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? 3 : 2));
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
@@ -514,7 +514,7 @@ int Branch::AddSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerWithTimeDependencyLCO)
+    if (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
         //inform soma of this neuron of new time dependency update
         spike_time_t maxTime = *(const spike_time_t*) args[2];
@@ -583,7 +583,7 @@ void Branch::BackwardEulerStep()
     const double dt = this->nt->_dt;
     hpx_t spikesLco = HPX_NULL;
 
-    if (soma && inputParams->algorithm==AlgorithmType::BackwardEulerWithTimeDependencyLCO)
+    if (soma && inputParams->algorithm==AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
         //inform time dependants that must be notified in this step
         soma->timeDependencies->SendSteppingNotification(t, dt, this->soma->gid, this->soma->synapses);
@@ -633,8 +633,8 @@ void Branch::BackwardEulerStep()
 
     //wait for spikes sent 4 steps ago (queue has always size 3)
     if (soma)
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerWithSlidingTimeWindow
-     || inputParams->algorithm == AlgorithmType::BackwardEulerWithAllReduceBarrier)
+    if (inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
+     || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
     {
       Neuron::SlidingTimeWindow * stw = this->soma->slidingTimeWindow;
       assert(stw->spikesLcoQueue.size() == Neuron::CommunicationBarrier::commStepSize-1);
@@ -651,7 +651,7 @@ void Branch::BackwardEulerStep()
 #if !defined(NDEBUG) 
     //fixed comm barrier and serial jobs can be compared at runtime
     if (inputParams->branchingDepth==0)
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugWithCommBarrier
+    if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode
      || !inputParams->parallelDataLoading)
     {
         input::Debugger::FixedStepMinimal2(&nrn_threads[this->nt->id], inputParams->secondorder);
@@ -670,7 +670,7 @@ int Branch::BackwardEuler_handler(const int * steps_ptr, const size_t size)
     if (local->soma)
     {
       //fixes crash for Algorithm::ALL when TimeDependency algorithm starts at t=inputParams->tend*2
-      if (inputParams->algorithm == AlgorithmType::BackwardEulerWithTimeDependencyLCO)
+      if (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
         {
           //increase notification and dependencies time
           for (Neuron::Synapse *& s : local->soma->synapses)
@@ -679,8 +679,8 @@ int Branch::BackwardEuler_handler(const int * steps_ptr, const size_t size)
         }
     }
 
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerWithSlidingTimeWindow
-    ||  inputParams->algorithm == AlgorithmType::BackwardEulerWithAllReduceBarrier)
+    if (inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
+    ||  inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
     {
         const int reductionsPerCommStep = Neuron::SlidingTimeWindow::reductionsPerCommStep;
         const int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
@@ -722,12 +722,12 @@ int Branch::BackwardEuler_handler(const int * steps_ptr, const size_t size)
             // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
         if (local->soma)
-        if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugWithCommBarrier) //end of comm-step
+        if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode) //end of comm-step
             if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
                 hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
 
         #ifdef NEUROX_TIME_STEPPING_VERBOSE
-            if (local->soma && inputParams->algorithm == AlgorithmType::BackwardEulerWithTimeDependencyLCO)
+            if (local->soma && inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
                 printf("-- neuron %d finished\n", local->soma->gid);
         #endif
     }
@@ -741,8 +741,8 @@ int Branch::BackwardEulerOnLocality_handler(const int * steps_ptr, const size_t 
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
     assert(Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons);
-    assert(inputParams->algorithm == AlgorithmType::BackwardEulerWithSlidingTimeWindow
-        || inputParams->algorithm == AlgorithmType::BackwardEulerWithAllReduceBarrier);
+    assert(inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
+        || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce);
 
     const int localityNeuronsCount = Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons->size();
     const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
