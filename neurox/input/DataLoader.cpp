@@ -738,7 +738,7 @@ int DataLoader::Finalize_handler()
     hpx_lco_delete_sync(neuronsMutex);
 
 #if defined(NDEBUG) 
-    DataLoader::cleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+    DataLoader::CleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
 #else
     //print Load Balancing table
     if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
