@@ -188,16 +188,20 @@ parameters which can be set from the command line: <br><br>
               Set the spike buffer to be of the size SIZE (int). The default value is '100000'.<br><br>
        -g NUMBER, \--prcellgid=NUMBER<br>
               Output prcellstate information for the gid NUMBER (int). The default value is '-1'.<br><br>
-       -c, --threading<br>
+       -c, \--threading<br>
               Optiong to enable threading. The default implies no threading.<br><br>
        -d PATH, \--datpath=PATH<br>
               Set the path with required CoreBluron data to PATH (char*). The default value is '.'.<br><br>
        -f FILE, \--filesdat=FILE<br>
               Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
-       -o PATH, --outpath=PATH<br>
+       -o PATH, \--outpath=PATH<br>
               Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
-       -k TIME, --forwardskip=TIME<br>
+       -k TIME, \--forwardskip=TIME<br>
               Set forwardskip to TIME (double). The default value is '0.'.<br><br>
+       -z MULTIPLE, \--multiple=MULTIPLE<br>
+              Model size is normal size * MULTIPLE (int). The default value is '1'.<br><br>
+       -x EXTRACON, \--extracon=EXTRACON<br>
+              Number of extra random connections in each thread to other duplicate models (int). The default value is '0'.<br><br>
        -mpi<br>
               Enable MPI. In order to initialize MPI environment this argument must be specified.<br><br>
 
