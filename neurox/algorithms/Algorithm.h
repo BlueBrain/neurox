@@ -25,16 +25,19 @@ class Algorithm
     Algorithm() {};
     virtual ~Algorithm() {};
 
+    /// Returns an instantiated class of the given type
     static Algorithm* New(AlgorithmType);
+
+    /// Returns class type
     virtual AlgorithmType getType() = 0;
 
-    virtual void init(Branch*) {};
-    virtual void clear(Branch*) {};
-    virtual void stepBegin(Branch*) {};
-    virtual void stepEnd(Branch*) {};
-    virtual void commStepBegin(Branch*) {};
-    virtual void commStepEnd(Branch*) {};
-    virtual void afterSpike(Branch*) {};
+    virtual void Init() {};
+    virtual void Clear() {};
+    virtual void StepBegin(Branch*) {};
+    virtual void StepEnd(Branch*) {};
+    virtual void CommStepBegin(Branch*) {};
+    virtual void CommStepEnd(Branch*) {};
+    virtual void AfterSpike(Branch*) {};
 };
 
 }; //algorithms
