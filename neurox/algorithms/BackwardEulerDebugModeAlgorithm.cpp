@@ -63,4 +63,17 @@ void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
 void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
 
-void DERIVED_CLASS_NAME::AfterSpike(Branch*) {}
+hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
+{
+    if (neuron->commBarrier->allSpikesLco == HPX_NULL) //first use
+        neuron->commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses.size());
+    else
+        hpx_lco_reset_sync(neuron->commBarrier->allSpikesLco); //reset to use after
+
+    for (Neuron::Synapse *& s : neuron->synapses)
+        //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
+        hpx_call(s->branchAddr, Branch::AddSpikeEvent, neuron->commBarrier->allSpikesLco,
+            &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+
+    return HPX_NULL;
+}
