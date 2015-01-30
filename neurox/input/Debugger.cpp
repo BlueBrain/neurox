@@ -24,6 +24,7 @@
 
 using namespace std;
 using namespace neurox::input;
+using namespace neurox::algorithms;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual)
 {
@@ -151,8 +152,10 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int second
     double dt = b->nt->_dt;
     if (b->soma && inputParams->algorithm==neurox::algorithms::AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
-        b->soma->timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
-        b->soma->timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
+        TimeDependencyLCOAlgorithm::TimeDependencies * timeDependencies =
+                (TimeDependencyLCOAlgorithm::TimeDependencies*) b->soma->algorithmMetaData;
+        timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
+        timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
     }
     if (b->soma)
     {
@@ -443,9 +446,9 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
   if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::getTotalStepsCount();
-    int commStepSize = Neuron::CommunicationBarrier::commStepSize;
+    int commStepSize = algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
     DebugMessage("neurox::re-running simulation in Coreneuron to compare final result...\n");
-    for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
+    for (int s=0; s<totalSteps; s+=commStepSize)
     {
         hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &commStepSize, sizeof(int));
         hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
@@ -459,7 +462,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondo
 {
 #if !defined(NDEBUG)
     if (inputParams->parallelDataLoading
-     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebugMode)
+     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerCoreneuronDebug)
         return; //non-debug mode in parallel are compared at the end of execution instead
 
     if (inputParams->branchingDepth>0) return; //can't be compared
