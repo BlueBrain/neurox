@@ -38,13 +38,16 @@ class Algorithm
     const virtual char* getTypeString() = 0; ///> Returns class type string
 
     virtual void Init() {};
-    virtual void Finalize() {};
-    virtual double Run() = 0;
+    virtual void Clear() {};
+    virtual double Launch() = 0;
+    virtual void SimulationBegin(Branch *) {};
+    virtual void SimulationEnd(Branch *) {};
     virtual void StepBegin(Branch*) {};
     virtual void StepEnd(Branch*, hpx_t spikesLco) {};
     virtual void CommStepBegin(Branch*) {};
     virtual void CommStepEnd(Branch*) {};
     virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
+    virtual void afterSpikeReceival(Branch *, hpx_t, neuron_id_t, spike_time_t, spike_time_t) {};
 };
 
 }; //algorithms
