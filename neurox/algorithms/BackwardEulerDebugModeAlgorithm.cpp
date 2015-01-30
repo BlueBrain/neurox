@@ -59,9 +59,7 @@ void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
-
-void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::Run(Branch*) {}
 
 hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
 {
