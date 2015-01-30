@@ -26,7 +26,7 @@ class DERIVED_CLASS_NAME : public Algorithm
 
     void StepBegin(Branch*) override;
     void StepEnd(Branch*, hpx_t) override;
-    void Run(Branch*) override;
+    void Run(Branch*, const void*) override;
     hpx_t SendSpikes(Neuron*, double, double) override;
 
     const size_t allReducesCount = 2;
