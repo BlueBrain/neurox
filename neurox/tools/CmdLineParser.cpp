@@ -44,12 +44,12 @@ void CmdLineParser::Parse(int argc, char ** argv)
         TCLAP::ValueArg<int> branchingDepth("B","multisplix","depth tree-based parallelism of morphologies (0 = no branch parallelism, default)", false, 0, "int");
         cmd.add(branchingDepth);
         TCLAP::ValueArg<int> algorithm("A","algorithm",
-                                       "BackwardEulerDebugWithCommBarrier [0],\
-                                        BackwardEulerWithAllReduceBarrier [1] (default),\
-                                        BackwardEulerWithSlidingTimeWindow [2],\
-                                        BackwardEulerWithTimeDependencyLCO [3],\
+                                       "BackwardEulerDebugWithCommBarrier [-1],\
+                                        BackwardEulerWithAllReduceBarrier [0] (default),\
+                                        BackwardEulerWithSlidingTimeWindow [1],\
+                                        BackwardEulerWithTimeDependencyLCO [2],\
                                         All methods sequentially (NOTE: neurons data not reset) [9]",
-                                       false, 1, "int");
+                                       false, 0, "int");
         cmd.add(algorithm);
 
         //coreneuron command line parameters
@@ -110,10 +110,10 @@ void CmdLineParser::Parse(int argc, char ** argv)
             throw TCLAP::ArgException("time-step size (ms) should be a positive value", "dt");
         if (this->tstop<=0)
             throw TCLAP::ArgException("execution time (ms) should be a positive value", "tstop");
-        floble_t remainder_tstop_tcomm = fmod(this->tstop, Neuron::CommunicationBarrier::commStepSize*this->dt);
-        if (! (remainder_tstop_tcomm<0.00001 || remainder_tstop_tcomm>Neuron::CommunicationBarrier::commStepSize*this->dt-0.00001))
+        floble_t remainder_tstop_tcomm = fmod(this->tstop, algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize*this->dt);
+        if (! (remainder_tstop_tcomm<0.00001 || remainder_tstop_tcomm> algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize*this->dt-0.00001))
             throw TCLAP::ArgException("execution time " +to_string(this->tstop) + "ms  should be a multiple of the communication delay " +
-                                      to_string(Neuron::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
+                                      to_string( algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
     }
     catch (TCLAP::ArgException & e)
     {

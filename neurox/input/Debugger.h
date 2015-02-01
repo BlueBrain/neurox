@@ -36,6 +36,8 @@ class Debugger
     static void FixedStepMinimal2(NrnThread * nth, int secondorder); ///> calls fixed_step_minimal for single NrnThread;
     static void StepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int secondorder);
     static void StepAfterStepFinitialize(Branch *b, NrnThread *nth);
+    static void RunCoreneuronAndCompareAllBranches();
+    static void SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondorder);
 
     static void RegisterHpxActions();  ///> Register all HPX actions
 
