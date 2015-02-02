@@ -17,7 +17,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     assert(this->algorithmMetaData!=nullptr);
     assert(TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio>0
         && TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio<=1);
-    assert(CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize % AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep==0);
+    assert(CoreneuronAlgorithm::CommunicationBarrier::commStepSize % AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep==0);
 }
 
 Neuron::~Neuron()
