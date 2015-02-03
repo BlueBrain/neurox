@@ -35,10 +35,10 @@ bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual)
     return roughlyEqual ? fabs(a-b) < epsilon : a==b;
 }
 
-void Debugger::CompareMechanismsFunctionPointers()
+void Debugger::CompareMechanismsFunctions()
 {
 #if !defined(NDEBUG)
-    printf("NDEBUG::comparing Mechanisms functions...\n");
+    DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareMechanismsFunctions...\n");
     for (int m=0; m<neurox::mechanismsCount; m++)
     {
         int index = mechanisms[m]->type;
@@ -257,7 +257,7 @@ void Debugger::CompareAllBranches()
 {
 #if !defined(NDEBUG)
     if (inputParams->branchingDepth>0) return;
-    DebugMessage("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
+    DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
     neurox_hpx_call_neurons(input::Debugger::CompareBranch);
 #endif
 }
