@@ -44,12 +44,12 @@ void CmdLineParser::Parse(int argc, char ** argv)
         TCLAP::ValueArg<int> branchingDepth("B","multisplix","depth tree-based parallelism of morphologies (0 = no branch parallelism, default)", false, 0, "int");
         cmd.add(branchingDepth);
         TCLAP::ValueArg<int> algorithm("A","algorithm",
-                                       "BackwardEulerCoreneuronDebug [-1],\
-                                        BackwardEulerCoreneuron [0],\
+                                       "BackwardEulerCoreneuron [0],\
                                         BackwardEulerWithAllReduceBarrier [1] (default),\
                                         BackwardEulerWithSlidingTimeWindow [2],\
                                         BackwardEulerWithTimeDependencyLCO [3],\
-                                        All methods sequentially (NOTE: neurons data not reset) [9]",
+                                        BackwardEulerCoreneuronDebug [4],\
+                                        All methods sequentially (NOTE: neurons data does not reset) [9]",
                                        false, 1, "int");
         cmd.add(algorithm);
 
