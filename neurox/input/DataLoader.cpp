@@ -387,7 +387,7 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map)
 
 void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup)
 {
-    nrn_init_and_load_data(argc, argv, run_setup_cleanup);
+    nrn_init_and_load_data(argc, argv, /*nrnmpi_under_nrncontrol*/ false, run_setup_cleanup);
 }
 
 int DataLoader::GetMyNrnNeuronsCount()
@@ -523,7 +523,7 @@ int DataLoader::Init_handler()
     if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
         loadBalancing = new tools::LoadBalancing();
 
-    if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
+    if (neurox::ParallelExecution() //disable output of netcons for parallel loading
        && inputParams->outputNetconsDot)
     {
         inputParams->outputNetconsDot=false;
@@ -597,9 +597,6 @@ int DataLoader::InitNeurons_handler()
 {
     neurox_hpx_pin(uint64_t);
 
-    //if serial loading, and done by someone else, continue;
-    if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
-
     int myNeuronsCount =  GetMyNrnNeuronsCount();
 
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
@@ -623,7 +620,7 @@ int DataLoader::InitNeurons_handler()
 
     //allocate HPX memory space for neurons
     hpx_t myNeuronsGas = HPX_NULL;
-    if (inputParams->parallelDataLoading) //if shared pre-balanced loading, store neurons locally
+    if (neurox::ParallelExecution()) //if shared pre-balanced loading, store neurons locally
         myNeuronsGas = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
     else //if I'm the only one loading data... spread it
         myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);

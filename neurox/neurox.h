@@ -64,13 +64,15 @@ namespace neurox
     extern tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
     extern algorithms::Algorithm * algorithm; ///> algorithm instance
 
+
+    Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    void SetMechanisms(int, Mechanism*, int*, int*, char*); ///> Set mechanism variable
+    void DebugMessage(const char * str); ///> outputs if in debug mode
+    bool ParallelExecution();     ///> returns true if program launched in more than one locality
+
     extern hpx_action_t Main;            ///> execution starting point (called via hpx_run)
     extern hpx_action_t InitMechanismsAndQuit; ///> load mechanisms and exit
     extern hpx_action_t Clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
-
-    Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void SetMechanisms(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
-    void DebugMessage(const char * str);
 
     static int Main_handler();
     static int InitMechanismsAndQuit_handler();
