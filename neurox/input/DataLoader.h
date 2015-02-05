@@ -30,8 +30,8 @@ class DataLoader
     enum BranchType { Soma, AxonInitSegment, Dendrite};
 
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
-    static void InitAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
-    static void CleanCoreneuronData(); ///>removes all Nrn data structures
+    static void InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup=false); ///> call coreneuron nrn_init_and_load_data
+    static void CleanCoreneuronData(const bool clean_ion_global_map = false); ///>removes all Nrn data structures
     static void registerHpxActions();
 
     static hpx_action_t Init;
