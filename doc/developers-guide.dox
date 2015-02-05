@@ -3,6 +3,7 @@
     -# @ref Developer_General
     -# @ref Directory_Overview
     -# @ref Building_and_Installing
+        -# @ref Dependencies
         -# @ref Building
         -# @ref Additional_configuration
         -# @ref Custom_Build
@@ -31,31 +32,37 @@
         -# <b><code>nrniv</code></b> - the source code of core simulator, .cpp files.
         -# <b><code>nrnmpi</code></b> - the MPI related source code of the simulator.
         -# <b><code>nrnoc</code></b> - the source code of core simulator, .c files.
-        -# <b><code>mech</code></b> - the source code for mechanisms.
-            - <b><code>cfile</code></b> - .c files for the corresponding mechanisms built from .mod files. Also, necessary .h files needed for generated .c files.
-            - <b><code>modfile</code></b> - mod files of mechanisms.
+        -# <b><code>mech</code></b> - the source code for default mechanisms.
+            - <b><code>cfile</code></b> - Necessary .h files needed for the generated .c from .mod files.
+            - <b><code>modfile</code></b> - mod files of default Neuron mechanisms.
         -# <b><code>utils</code></b> - different utilities, some of them are for temporary use to substitute some third-party library.
       -# <b><code>doc</code></b> - documentation.
-      -# <b><code>tests</code></b> - tests using Boost environment:
+      -# <b><code>tests</code></b> - various tests configuration:
         -# <b><code>integration</code></b> - integration tests for various simulations.
-        -# <b><code>regression</code></b> - regression testing or unit testing.
+        -# <b><code>regression</code></b> - regression testing.
+        -# <b><code>unit</code></b> - unit testing.
         -# <b><code>validation</code></b> - validation tests which are run using the python scripts to verify the validity of the output.
 
 
 @section Building_and_Installing Building and Installing
 
 Note: The default build of CoreBluron does not include any production mechanisms, unless the COREBLURON_NEURODAMUS_MECHS
-flag is ON (see below). As an alternative, one could compile the code with up-to-date production mechanisms in Neurodamus.
-For guidelines on how to build the code with Neurodamus, please use the following link:
-- https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/CoreBluron+with+Neurodamus
+flag is ON or COREBLURON_ADDITIONAL_MECHS is set with the production mechanisms (see below).
 
-CoreBluron is using MPI for parallelization. Currently the following compilers/MPI libraries for production
+
+@subsection Dependencies Dependencies
+
+CoreBluron depends on <code>MPI</code> for parallelization. Currently the following compilers/MPI libraries for production
 simulations are used:
 - Blue Gene/Q: XLC 12.1.0.7 (V1R2M1 drivers)
 - x86_64: icc 13.1, mvapich 2.0
 
 One can use other compilers and MPI library distributions. Make sure that appropriate modules are loaded and
 CMake (minimum required version 2.8) is correctly setting appropriate compilers/libraries.
+
+CoreBluron also depends on <code>mod2c</code> in order to be able to convert .mod files into .c files. The
+<code>mod2c</code> is located in the <code>sim/mod2c</code> repository of the <code>bbpcode</code> portal.
+
 
 
 @subsection Building Building
@@ -72,7 +79,7 @@ In order to build the simulator follow the steps below:
 2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreBluron) <br>
      <b><code>
      mkdir build && cd build <br>
-     cmake .. <br>
+     cmake .. -DCMAKE_INSTALL_PREFIX=path_to_dependencies_install <br>
      make
      </code></b>
 
@@ -86,7 +93,13 @@ which will result in different building outputs:
   - COREBLURON_MAIN: defines whether to build the executable. Default value: ON.
   - COREBLURON_TESTS: defines whether to build the tests. Default value: ON.
   - COREBLURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
-which are currently getting synced in the <code>corebluron/mech/cfile</code> folder. Default value: OFF.
+which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
+  - COREBLURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
+which can be specified with an absolute path name, or as a bare file name.
+  - COREBLURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in COREBLURON_ADDITIONAL_MECHS.
+
+Note that .mod files specified in COREBLURON_ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
+located are reported with a warning rather than with a fatal error.
 
 
 @subsection Custom_Build Custom Build
@@ -229,7 +242,7 @@ fits into the memory).
 In order to get the binaries for CoreBluron (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat) one should compile <b><code>special</code></b>
 executable in Neurodamus as it is described here:
 
-https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/CoreBluron+with+Neurodamus
+https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/Bluron+with+Neurodamus
 
 After the binaries are obtained, CoreBluron is run with <b><code>core/special</code></b> executable. It is advised to have the "inputs.dat"
 file next to all other binaries in order to be able to easily change some of the parameters, as discussed above in the \ref Modify_Parameters
