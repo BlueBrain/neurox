@@ -41,6 +41,10 @@ int main(int argc, char** argv)
 
         neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, true, true);
         hpx_run(&neurox::InitMechanismsAndQuit, NULL);
+
+        //new approach:
+        //read all mechs metadata from mk_mech
+        //when morphologies are loaded, broadcast dependencies only
     }
 
     neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false, false);
