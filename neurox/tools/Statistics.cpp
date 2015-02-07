@@ -187,7 +187,7 @@ void Statistics::OutputMechanismsDistribution(bool writeToFile)
     fprintf(outstream, "mech-type,name,instances,avg-per-neuron\n");
 
     for (int m=0; m<mechanismsCount; m++)
-        fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type, mechanisms[m]->sym,
+        fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type, mechanisms[m]->membFunc.sym,
                 sumMechsCountPerType[m],(double)sumMechsCountPerType[m]/neurox::neurons->size());
 
     if (writeToFile)

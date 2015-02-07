@@ -66,16 +66,14 @@ namespace neurox
 
 
     Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void SetMechanisms(int, Mechanism*, int*, int*, char*); ///> Set mechanism variable
+    void SetMechanismsDependencies(int*, int*, int*, int*); ///> Set mechanisms dependencies
     void DebugMessage(const char * str); ///> outputs if in debug mode
     bool ParallelExecution();     ///> returns true if program launched in more than one locality
 
     extern hpx_action_t Main;            ///> execution starting point (called via hpx_run)
-    extern hpx_action_t InitMechanismsAndQuit; ///> load mechanisms and exit
     extern hpx_action_t Clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
 
     static int Main_handler();
-    static int InitMechanismsAndQuit_handler();
     static int Clear_handler();
 
     void RegisterHpxActions(); ///> Register all HPX actions
