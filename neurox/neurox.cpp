@@ -24,26 +24,13 @@ Mechanism * GetMechanismFromType(int type) {
     return mechanisms[mechanismsMap[type]];
 }
 
-hpx_action_t InitMechanismsAndQuit = 0;
-static int InitMechanismsAndQuit_handler()
-{
-    DebugMessage("neurox::InitMechanismsAndQuit...\n");
-    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
-    input::DataLoader::CleanCoreneuronData(false); //clean_ion_global_map=false
-    hpx_exit(0,NULL);
-}
-
 hpx_action_t Main = 0;
 static int Main_handler()
 {
     printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
            hpx_get_num_ranks(), hpx_get_num_threads(), LAYOUT==0 ? "SoA" : "AoS");
-
-    if (!mechanisms) //if not set by neurox::LoadMechsAndQuit
-    {
-      DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-      hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
-    }
+    DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
+    hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     DebugMessage("neurox::Input::DataLoader::Init...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Init);
     DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
@@ -148,39 +135,24 @@ int Clear_handler()
     neurox_hpx_unpin;
 }
 
-void SetMechanisms(int mechsCount, Mechanism* mechanisms_serial, int * dependenciesIds_serial,
-                    int * successorsIds_serial, char * sym_serial)
+void SetMechanismsDependencies(int *dependenciesCount, int * dependenciesIds,
+                               int *successorsCount  , int * successorsIds)
 {
-    neurox::mechanismsCount = mechsCount;
-    neurox::mechanisms = new Mechanism*[mechsCount];
+    //make sure mechanisms have already been set
+    assert(neurox::mechanismsCount>0 && neurox::mechanisms!= nullptr && neurox::mechanismsMap!=nullptr);
+
     int offsetSuccessors=0, offsetDependencies=0;
-    int offsetSym=0;
-    int maxMechType=-1;
     for (int m=0; m<mechanismsCount; m++)
     {
-        Mechanism & mech = mechanisms_serial[m];
-        int * dependenciesIds = mech.dependenciesCount == 0 ? nullptr : &dependenciesIds_serial[offsetDependencies];
-        int * successorsIds = mech.successorsCount == 0 ? nullptr : &successorsIds_serial[offsetSuccessors];
-        char * sym = mech.symLength == 0 ? nullptr : &sym_serial[offsetSym];
-        mechanisms[m] = new Mechanism(
-                    mech.type, mech.dataSize, mech.pdataSize,
-                    mech.isArtificial, mech.pntMap, mech.isIon,
-                    mech.symLength, sym,
-                    mech.dependenciesCount, dependenciesIds,
-                    mech.successorsCount, successorsIds);
-        offsetSuccessors +=  mech.successorsCount;
-        offsetDependencies +=  mech.dependenciesCount;
-        offsetSym += mech.symLength;
-        if (mech.type > maxMechType)
-            maxMechType = mech.type;
-    }
+        int index = neurox::mechanismsMap[m];
+        if (index==-1) continue;
 
-    //initializes map of mechanisms ids to offset
-    neurox::mechanismsMap = new int[maxMechType+1];
-    for (int i=0; i<maxMechType+1; i++)
-        neurox::mechanismsMap[i]=-1;
-    for (int m=0; m<mechanismsCount; m++)
-        neurox::mechanismsMap[mechanisms[m]->type]=m;
+        Mechanism * mech = mechanisms[index];
+        int* dependenciesIds = &dependenciesIds[offsetDependencies];
+        int* successorsIds   = &successorsIds[offsetSuccessors];
+        offsetSuccessors +=  successorsCount[index];
+        offsetDependencies +=  dependenciesCount[index];
+    }
 
     //initializes parent ion index
     for (int m=0; m<mechanismsCount; m++)
@@ -192,7 +164,7 @@ void SetMechanisms(int mechsCount, Mechanism* mechanisms_serial, int * dependenc
         for (int d=0; d<mech->dependenciesCount; d++)
         {
           Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
-          if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO hard coded exception
+          if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO hard coded exception
           if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions)
               mech->dependencyIonIndex = parent->GetIonIndex();
         }
@@ -216,7 +188,6 @@ bool ParallelExecution()
 void RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action, neurox::Main);
-    neurox_hpx_register_action(neurox_zero_var_action, neurox::InitMechanismsAndQuit);
     neurox_hpx_register_action(neurox_zero_var_action, neurox::Clear);
 }
 

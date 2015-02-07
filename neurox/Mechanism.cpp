@@ -7,15 +7,35 @@ using namespace neurox;
 
 Mechanism::Mechanism(const int type, const short int dataSize,
                      const short int pdataSize, const char isArtificial,
-                     const char pntMap, const char isIon,
+                     char pntMap, const char isIon,
                      const short int symLength, const char * sym,
+                     Memb_func & memb_func,
                      const short int dependenciesCount, const int *dependencies,
                      const short int successorsCount,   const int *successors):
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), dependencies(nullptr), successors(nullptr), sym(nullptr)
+    isIon(isIon), dependencies(nullptr), successors(nullptr)
 {
+
+    //set function pointers and name
+    memcpy(&this->membFunc, &memb_func, sizeof(Memb_func));
+    assert(symLength>0);
+    this->membFunc.sym = new char[symLength+1]; //overwrites existing (points to CN's data structures)
+    std::memcpy(this->membFunc.sym, sym, symLength);
+    this->membFunc.sym[symLength] = '\0';
+
+    this->nrn_bbcore_read = NULL;
+    //non-coreneuron functions
+    if (this->type!=CAP && !this->isIon)
+    {
+        this->membFunc.current_parallel = get_cur_parallel_function(this->membFunc.sym);
+        this->pnt_receive = get_net_receive_function(this->membFunc.sym);
+    }
+    else if (this->type == CAP) //capacitance: capac.c
+        RegisterCapacitance();
+    else if (this->isIon)  //ion: eion.c
+        RegisterIon();
 
     switch (type)
     {
@@ -32,8 +52,6 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         this->dependencies = new int[dependenciesCount];
         std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
     }
-    //ion index will be set later when all mechanisms are created
-    dependencyIonIndex = Mechanism::Ion::no_ion;
 
     if (successors != nullptr){
         assert(successorsCount>0);
@@ -41,44 +59,25 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         std::memcpy(this->successors, successors, successorsCount*sizeof(int));
     }
 
-    if (sym != nullptr)
-    {
-        assert(symLength>0);
-        this->sym = new char[symLength+1];
-        std::memcpy(this->sym, sym, symLength);
-        this->sym[symLength] = '\0';
-    }
-
-    if (sym==nullptr && successors == nullptr) //not constructing, just serialized for transmission
-        return;
-
-    DisableMechFunctions();
-    if (this->type == CAP) //capacitance: capac.c
-        RegisterCapacitance();
-    else if (this->isIon)  //ion: eion.c
-        RegisterIon();
-
-    //general mechanism: mod file registration and thread tables
-    RegisterModFunctions();
-
-    RegisterBeforeAfterFunctions();
+    //ion index will be set later when all mechanisms are created
+    dependencyIonIndex = Mechanism::Ion::no_ion;
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
         printf("- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
                "isIon %d, symLength %d, %d successors, %d dependencies\n",
-           this->sym, this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
+           this->membFunc.sym, this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
            this->isIon, this->symLength, this->successorsCount, this->dependenciesCount);
 #endif
 };
 
 Mechanism::Ion Mechanism::GetIonIndex()
 {
-    assert(this->sym);
-    if (strcmp("na_ion",  this->sym)==0) return Mechanism::Ion::na;
-    if (strcmp("k_ion",   this->sym)==0) return Mechanism::Ion::k;
-    if (strcmp("ttx_ion", this->sym)==0) return Mechanism::Ion::ttx;
-    if (strcmp("ca_ion",  this->sym)==0) return Mechanism::Ion::ca;
+    assert(this->membFunc.sym);
+    if (strcmp("na_ion",  this->membFunc.sym)==0) return Mechanism::Ion::na;
+    if (strcmp("k_ion",   this->membFunc.sym)==0) return Mechanism::Ion::k;
+    if (strcmp("ttx_ion", this->membFunc.sym)==0) return Mechanism::Ion::ttx;
+    if (strcmp("ca_ion",  this->membFunc.sym)==0) return Mechanism::Ion::ca;
     return Mechanism::Ion::no_ion;
 }
 
@@ -87,61 +86,13 @@ void Mechanism::RegisterBeforeAfterFunctions()
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-        this->BAfunctions[i] = get_BA_function(this->sym, i);
+        this->BAfunctions[i] = get_BA_function(this->membFunc.sym, i);
         //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
-}
-
-void Mechanism::DisableMechFunctions()
-{
-    for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-        this->BAfunctions[i] = NULL;
-
-    this->membFunc.alloc = NULL;
-    this->membFunc.current = NULL;
-    this->membFunc.current_parallel = NULL;
-    this->membFunc.state = NULL;
-    this->membFunc.jacob = NULL;
-    this->membFunc.initialize = NULL;
-    this->membFunc.destructor = NULL;
-    this->membFunc.thread_mem_init_ = NULL;
-    this->membFunc.thread_cleanup_ = NULL;
-    this->membFunc.thread_table_check_ = NULL;
-    this->nrn_bbcore_read = NULL;
-    this->membFunc.thread_size_ = -1;
-    this->membFunc.is_point = -1;
-    this->pnt_receive = NULL;
-    this->pnt_receive_init = NULL;
-}
-
-void Mechanism::RegisterModFunctions()
-{
-    int type = this->type;
-    //TODO this should be done by exposing pointers
-    //Even with cach-table disable, mechs (eg StockKv) use some of these functions
-    this->membFunc.is_point = memb_func[type].is_point;
-    this->membFunc.setdata_ = memb_func[type].setdata_; //TODO never used?
-    this->membFunc.thread_cleanup_ = memb_func[type].thread_cleanup_;
-    this->membFunc.thread_mem_init_ = memb_func[type].thread_mem_init_;
-    this->membFunc.thread_size_ = memb_func[type].thread_size_;
-    this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
-
-    if (this->type==CAP || this->isIon) return;
-
-    this->membFunc.alloc = NULL;  //N/A memb_func[type].alloc; //TODO never used?
-    this->membFunc.destructor = NULL; //N/A memb_func[type].destructor;
-    this->nrn_bbcore_read = NULL; //N/A nrn_bbcore_read_[type];
-
-    this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
-    this->membFunc.current_parallel = get_cur_parallel_function(this->sym);
-    this->membFunc.jacob =  NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
-    this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
-    this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
-    this->pnt_receive = get_net_receive_function(this->sym);
 }
 
 void Mechanism::RegisterCapacitance()
 {
-    assert(this->sym && strcmp("capacitance", this->sym)==0);
+    assert(this->membFunc.sym && strcmp("capacitance", this->membFunc.sym)==0);
     this->membFunc.alloc = nrn_alloc_capacitance;
     this->membFunc.initialize = nrn_init_capacitance;
     this->membFunc.current = nrn_cur_capacitance;
@@ -160,7 +111,7 @@ void Mechanism::RegisterIon()
 }
 
 Mechanism::~Mechanism(){
-    delete [] sym;
+    delete [] membFunc.sym;
     delete [] successors;
 };
 
@@ -217,7 +168,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
             if (membFunc.current) //has a current function
             {
                 if (branch->mechsGraph //parallel execution
-                 && strcmp(this->sym, "CaDynamics_E2")!=0 //not CaDynamics_E2 (no updates in cur function)
+                 && strcmp(this->membFunc.sym, "CaDynamics_E2")!=0 //not CaDynamics_E2 (no updates in cur function)
                  && !this->isIon) //not ion (updates in nrn_cur_ion function)
                 {
                     if (this->dependenciesCount>0)
