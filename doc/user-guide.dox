@@ -47,7 +47,7 @@
          <code>
          git clone https://github.com/Eyescale/Buildyard.git <br>
          cd Buildyard <br>
-         git clone ssh://bbpgit.epfl.ch/common/config.bbp.git <br>
+         git clone ssh://bbpcode.epfl.ch/common/config.bbp <br>
          make CoreBluron
          </code>
 
