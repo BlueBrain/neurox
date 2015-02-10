@@ -18,6 +18,9 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     isIon(isIon), dependencies(nullptr), successors(nullptr)
 {
 
+    //to be set by neuronx::UpdateMechanismsDependencies
+    this->dependencyIonIndex = Mechanism::Ion::no_ion;
+
     //set function pointers and name
     memcpy(&this->membFunc, &memb_func, sizeof(Memb_func));
     assert(symLength>0);
@@ -58,9 +61,6 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         this->successors = new int[successorsCount];
         std::memcpy(this->successors, successors, successorsCount*sizeof(int));
     }
-
-    //ion index will be set later when all mechanisms are created
-    dependencyIonIndex = Mechanism::Ion::no_ion;
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
