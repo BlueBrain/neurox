@@ -23,7 +23,7 @@ class Mechanism
               const char isArtificial, char pntMap, const char isIon,
               const short int symLengh, const char * sym,
               Memb_func & memb_func,
-              const short int depedenciesCount=0, const int *dependencies=nullptr,
+              const short int dependenciesCount=0, const int *dependencies=nullptr,
               const short int successorsCount=0, const int *successors=nullptr);
 
     int type;
@@ -79,8 +79,6 @@ class Mechanism
                          const NetConX * netcon = NULL, //for net_receive only
                          const floble_t tt = 0 );       //for net_receive only
   private:
-    void RegisterIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
-    void RegisterCapacitance();   ///> register mechanism of type "capacitance"
     void RegisterBeforeAfterFunctions();   ///> register Before-After functions
 
 };
