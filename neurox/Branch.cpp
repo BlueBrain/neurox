@@ -35,7 +35,7 @@ Branch::Branch(offset_t n,
                unsigned char* vdataSerialized, size_t vdataSerializedCount):
     soma(nullptr), nt(nullptr), mechsInstances(nullptr), thvar_ptr(nullptr),
     mechsGraph(nullptr), branchTree(nullptr), eventsQueueMutex(HPX_NULL)
-{
+{ 
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
 
@@ -316,7 +316,7 @@ Branch::Branch(offset_t n,
     //create data structure that defines the graph of mechanisms
     if (inputParams->multiMex)
     {
-        this->mechsGraph = new Branch::MechanismsGraph(n);
+        this->mechsGraph = new Branch::MechanismsGraph();
         this->mechsGraph->InitMechsGraph(branchHpxAddr);
     }
 
@@ -480,14 +480,13 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
         else //serial
         {
             for (int m=0; m<mechanismsCount; m++)
+            {
                 if ( mechanisms[m]->type == CAP
                    && (  functionId == Mechanism::ModFunction::current
                       || functionId == Mechanism::ModFunction::jacob))
                     continue;
-                else
-                {
-                    mechanisms[m]->CallModFunction(this, functionId);
-                }
+                mechanisms[m]->CallModFunction(this, functionId);
+            }
         }
     }
 }
@@ -818,16 +817,17 @@ int Branch::BranchTree::InitLCOs_handler()
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
 
-Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
+Branch::MechanismsGraph::MechanismsGraph()
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
     this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
     this->mechsLCOs = new hpx_t[mechanismsCount];
-    this->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
     size_t terminalMechanismsCount=0;
     for (size_t m=0; m<mechanismsCount; m++)
     {
+      this->mechsLCOs[m] = HPX_NULL;
       if (mechanisms[m]->type == CAP) continue; //exclude capacitance
+
       this->mechsLCOs[m] = hpx_lco_reduce_new(
                   max((short) 1,mechanisms[m]->dependenciesCount),
                   sizeof(Mechanism::ModFunction),
@@ -846,9 +846,11 @@ Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
 void Branch::MechanismsGraph::InitMechsGraph(hpx_t branchHpxAddr)
 {
     for (size_t m=0; m<mechanismsCount; m++)
-      if (mechanisms[m]->type != CAP) //exclude capacitance
-        hpx_call(branchHpxAddr, Branch::MechanismsGraph::MechFunction,
+    {
+      if (mechanisms[m]->type == CAP) continue; //exclude capacitance
+      hpx_call(branchHpxAddr, Branch::MechanismsGraph::MechFunction,
                this->graphLCO, &mechanisms[m]->type, sizeof(int));
+    }
 }
 
 Branch::MechanismsGraph::~MechanismsGraph()
@@ -857,7 +859,7 @@ Branch::MechanismsGraph::~MechanismsGraph()
     hpx_lco_delete_sync(graphLCO);
 
     for (int i=0; i<mechanismsCount; i++)
-        if (i != mechanismsMap[CAP]) //HPX_NULL
+        if (mechsLCOs[i] != HPX_NULL)
             hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
 
