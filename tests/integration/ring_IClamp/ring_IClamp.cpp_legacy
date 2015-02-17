@@ -7,12 +7,12 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/test_case_template.hpp>
 
-#include "corebluron/nrnconf.h"
-#include "corebluron/nrnoc/multicore.h"
-#include "corebluron/nrnoc/nrnoc_decl.h"
-#include "corebluron/nrnmpi/nrnmpi.h"
-#include "corebluron/nrniv/nrniv_decl.h"
-#include "corebluron/nrniv/output_spikes.h"
+#include "coreneuron/nrnconf.h"
+#include "coreneuron/nrnoc/multicore.h"
+#include "coreneuron/nrnoc/nrnoc_decl.h"
+#include "coreneuron/nrnmpi/nrnmpi.h"
+#include "coreneuron/nrniv/nrniv_decl.h"
+#include "coreneuron/nrniv/output_spikes.h"
 
 #include "tests/integration/ring/ring_ref_solution.h"
 

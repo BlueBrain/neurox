@@ -36,7 +36,7 @@
         - Draw a baseline
             -# Memory
             -# Time to solution
-        - Testing the output between core bluron and bluron for results matching
+        - Testing the output between core neuron and neuron for results matching
         - Refactoring with latest code standards
         - Read / write files to get the save state functionality
         - Stimuli

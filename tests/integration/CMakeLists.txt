@@ -4,7 +4,7 @@ set_source_files_properties(ring/ring.cpp ring_IClamp/ring_IClamp.cpp PROPERTIES
 include(InstallFiles)
 
 # TEST_LIBRARIES variable is used by the CommonCTest.cmake script to link against the given libraries
-set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} corebluron)
+set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} coreneuron)
 
 # CommonCTest, in the current folder recursively compiles targets for *.cpp files using TEST_LIBRARIES
 #include(CommonCTest)
@@ -33,11 +33,11 @@ foreach (args_line ${TEST_CASE_ARGS})
            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}")
 endforeach()
 
-# This test is for corebluron havign all the mechanisms integrated into the
+# This test is for coreneuron havign all the mechanisms integrated into the
 # library. Runs when the corresponding condition is utilized plus the
 # executable is built.
 # Set of 10Cells tests
-if(COREBLURON_NEURODAMUS_MECHS AND COREBLURON_MAIN)
+if(CORENEURON_NEURODAMUS_MECHS AND CORENEURON_MAIN)
 
   make_mpi_exeprefix(2 MPI_PREFIX)
   string(REPLACE ";" " " SRUN_PREFIX "${MPI_PREFIX}")
@@ -77,4 +77,4 @@ if(COREBLURON_NEURODAMUS_MECHS AND COREBLURON_MAIN)
 
 endif()
 
-#install_files(share/CoreBluron/tests FILES ${TEST_FILES} COMPONENT examples)
+#install_files(share/coreneuron/tests FILES ${TEST_FILES} COMPONENT examples)

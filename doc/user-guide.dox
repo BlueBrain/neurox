@@ -42,21 +42,21 @@
              </code></b>
 
          @subsubsection Buildyard Via Buildyard
-           Clone the Buildyard package itself and clone the configuration files for all the BBP projects in order to set up all the dependencies in the .cmake correspondent package file. Then, build CoreBluron.
+           Clone the Buildyard package itself and clone the configuration files for all the BBP projects in order to set up all the dependencies in the .cmake correspondent package file. Then, build CoreNeuron.
 
          <code>
          git clone https://github.com/Eyescale/Buildyard.git <br>
          cd Buildyard <br>
          git clone ssh://bbpcode.epfl.ch/common/config.bbp <br>
-         make CoreBluron
+         make coreneuron
          </code>
 
          @subsubsection Manually Manually
            In order to build a code manually, follow these steps:
 
          <code>
-         git clone ssh://bbpcode.epfl.ch/sim/corebluron <br>
-         cd corebluron <br>
+         git clone ssh://bbpcode.epfl.ch/sim/coreneuron <br>
+         cd coreneuron <br>
          mkdir build <br>
          cd build <br>
          cmake .. -DCMAKE_INSTALL_PREFIX=<i>path_to_install</i> <br>

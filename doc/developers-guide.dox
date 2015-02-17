@@ -13,7 +13,7 @@
         -# @ref Basic_Testing
         -# @ref Results_Validation
         -# @ref Modify_Parameters
-    -# @ref Bluron2CoreBluron
+    -# @ref Bluron2CoreNeuron
     -# @ref Known_Issues
 
     @htmlonly
@@ -25,10 +25,10 @@
 
 
     @section Directory_Overview Directory Overview
-      The root corebluron directory has the following structure:
+      The root coreneuron directory has the following structure:
 
       -# <b><code>apps</code></b> - directory with generic main.cpp file.
-      -# <b><code>corebluron</code></b> - source folder:
+      -# <b><code>coreneuron</code></b> - source folder:
         -# <b><code>nrniv</code></b> - the source code of core simulator, .cpp files.
         -# <b><code>nrnmpi</code></b> - the MPI related source code of the simulator.
         -# <b><code>nrnoc</code></b> - the source code of core simulator, .c files.
@@ -46,13 +46,13 @@
 
 @section Building_and_Installing Building and Installing
 
-Note: The default build of CoreBluron does not include any production mechanisms, unless the COREBLURON_NEURODAMUS_MECHS
-flag is ON or COREBLURON_ADDITIONAL_MECHS is set with the production mechanisms (see below).
+Note: The default build of CoreNeuron does not include any production mechanisms, unless the CORENEURON_NEURODAMUS_MECHS
+flag is ON or CORENEURON_ADDITIONAL_MECHS is set with the production mechanisms (see below).
 
 
 @subsection Dependencies Dependencies
 
-CoreBluron depends on <code>MPI</code> for parallelization. Currently the following compilers/MPI libraries for production
+CoreNeuron depends on <code>MPI</code> for parallelization. Currently the following compilers/MPI libraries for production
 simulations are used:
 - Blue Gene/Q: XLC 12.1.0.7 (V1R2M1 drivers)
 - x86_64: icc 13.1, mvapich 2.0
@@ -60,7 +60,7 @@ simulations are used:
 One can use other compilers and MPI library distributions. Make sure that appropriate modules are loaded and
 CMake (minimum required version 2.8) is correctly setting appropriate compilers/libraries.
 
-CoreBluron also depends on <code>mod2c</code> in order to be able to convert .mod files into .c files. The
+CoreNeuron also depends on <code>mod2c</code> in order to be able to convert .mod files into .c files. The
 <code>mod2c</code> is located in the <code>sim/mod2c</code> repository of the <code>bbpcode</code> portal.
 
 
@@ -76,7 +76,7 @@ In order to build the simulator follow the steps below:
      export CXX=mpixlcxx
      </code></b>
 
-2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreBluron) <br>
+2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreNeuron) <br>
      <b><code>
      mkdir build && cd build <br>
      cmake .. -DCMAKE_INSTALL_PREFIX=path_to_dependencies_install <br>
@@ -90,15 +90,15 @@ Above steps will create binaries and libraries under build/bin and build/lib fol
 
 When configuring the build environment with CMake, one can modify the value of following variables,
 which will result in different building outputs:
-  - COREBLURON_MAIN: defines whether to build the executable. Default value: ON.
-  - COREBLURON_TESTS: defines whether to build the tests. Default value: ON.
-  - COREBLURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
+  - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
+  - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
+  - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
 which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
-  - COREBLURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
+  - CORENEURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
 which can be specified with an absolute path name, or as a bare file name.
-  - COREBLURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in COREBLURON_ADDITIONAL_MECHS.
+  - CORENEURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in CORENEURON_ADDITIONAL_MECHS.
 
-Note that .mod files specified in COREBLURON_ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
+Note that .mod files specified in CORENEURON_ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
 located are reported with a warning rather than with a fatal error.
 
 
@@ -117,7 +117,7 @@ Note that one should explicitly specify the compilation flags.
 
 Building on x86 and BG-Q platform should work with the above instructions.
 On other systems you might need to pass additional CMake otpions like MPI_C_COMPILER, MPI_C_INCLUDE_PATH etc.
-For example, on Cray's Piz Diant system the following command line was used to build CoreBluron:
+For example, on Cray's Piz Diant system the following command line was used to build CoreNeuron:
 
   <b><code>
   $ export CC=`which cc` export CXX=`which CC` <br>
@@ -137,19 +137,19 @@ Follow the previous steps with below modifications:
      make install
 
 The installation folder will be $PATH_TO_INSTALL_FOLDER, and should contain:
-     -# $PATH_TO_INSTALL_FOLDER/lib/libcorebluron.so.#.#.#
-     -# $PATH_TO_INSTALL_FOLDER/lib/libcorebluron.so.#.##
-     -# $PATH_TO_INSTALL_FOLDER/lib/libcorebluron.so
-     -# $PATH_TO_INSTALL_FOLDER/bin/corebluron_exec
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so.#.#.#
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so.#.##
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so
+     -# $PATH_TO_INSTALL_FOLDER/bin/coreneuron_exec
 
 where # is the (sub) version number.
 
 
 @section Running Running
 
-Once the CoreBluron is built, one can run parallel simulator with any MPI launcher as:
+Once the CoreNeuron is built, one can run parallel simulator with any MPI launcher as:
 
-1. Change to the directory containing simulation input test data (bbcore_mech.dat, files.dat, inputs.dat, *_1.dat, *_2.dat).
+1. Change to the directory containing simulation input test data (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat).
 
 2. Set environmental variables by adding lib folder (in build/lib or $PATH_TO_INSTALL_FOLDER/lib) to the LD_LIBRARY_PATH : <br>
      <b><code>
@@ -158,8 +158,8 @@ Once the CoreBluron is built, one can run parallel simulator with any MPI launch
 
 3. And run simulator with any MPI launcher as: <br>
      <b><code>
-     srun -n $NUM_MPIS $PATH_TO_COREBLURON_EXEC -mpi   (assuming slurm batch system) <br>
-     where $NUM_MPIS is number of MPI ranks and $PATH_TO_COREBLURON_EXEC is path of corebluron executable.
+     srun -n $NUM_MPIS $PATH_TO_CORENEURON_EXEC -mpi   (assuming slurm batch system) <br>
+     where $NUM_MPIS is number of MPI ranks and $PATH_TO_CORENEURON_EXEC is path of coreneuron executable.
      </code></b>
 
 
@@ -172,7 +172,7 @@ Once the CoreBluron is built, one can run parallel simulator with any MPI launch
 
 @subsection Results_Validation Results Validation
 
-When running the simulation with CoreBluron, each MPI rank writes spike information to out.$mpi_rank file. Those files
+When running the simulation with CoreNeuron, each MPI rank writes spike information to out.$mpi_rank file. Those files
 should be combined, sorted and renamed to "out.dat.ref" file to further be able to follow the validation steps.
 
 To validate the results against the reference solution, make sure to use a default simulation time used to produce a reference
@@ -204,7 +204,7 @@ parameters which can be set from the command line: <br><br>
        -c, --threading<br>
               Optiong to enable threading. The default implies no threading.<br><br>
        -d PATH, \--datpath=PATH<br>
-              Set the path with required CoreBluron data to PATH (char*). The default value is '.'.<br><br>
+              Set the path with required CoreNeuron data to PATH (char*). The default value is '.'.<br><br>
        -f FILE, \--filesdat=FILE<br>
               Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
        -o PATH, --outpath=PATH<br>
@@ -223,7 +223,7 @@ It is possible to run tests with different number of MPI ranks. In every simulat
   .... <br>
 
   As shown above, first number is always the number of entries in the files and then there is a list of cell ids per line.
-Once the simulation has been started, CoreBluron will distribute the cell ids in round robin fashion. (Remeber that each cell id belongs to
+Once the simulation has been started, CoreNeuron will distribute the cell ids in round robin fashion. (Remeber that each cell id belongs to
 input file named cellid_1.dat and cellid_2.dat in the simulation input data directory).
 
   Note: Make sure that the number of MPI ranks is not greater than the number of cell ids in "files.dat". Also make sure that the number
@@ -237,16 +237,14 @@ fits into the memory).
 "files.dat" to 100 will result in simulator reading only 100 cell ids data (and will distribute that among all MPI ranks).
 
 
-@section Bluron2CoreBluron Bluron and CoreBluron
-  Bluron writes the data for CoreBluron binaries using nrnbbcore_write() function, which is supposed to be called after the stdinit() function.
-In order to get the binaries for CoreBluron (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat) one should compile <b><code>special</code></b>
+@section Bluron2CoreNeuron Bluron and CoreNeuron
+  Bluron writes the data for CoreNeuron binaries using nrnbbcore_write() function, which is supposed to be called after the stdinit() function.
+In order to get the binaries for CoreNeuron (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat) one should compile <b><code>special</code></b>
 executable in Neurodamus as it is described here:
 
 https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/Bluron+with+Neurodamus
 
-After the binaries are obtained, CoreBluron is run with <b><code>core/special</code></b> executable. It is advised to have the "inputs.dat"
-file next to all other binaries in order to be able to easily change some of the parameters, as discussed above in the \ref Modify_Parameters
-section.
+After the binaries are obtained, CoreNeuron is run with <b><code>coreneuron_exec</code></b> executable.
 
 
 @section Known_Issues Known Issues
