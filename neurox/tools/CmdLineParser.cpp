@@ -54,7 +54,6 @@ void CmdLineParser::Parse(int argc, char ** argv)
         cmd.add(algorithm);
 
         //coreneuron command line parameters
-        TCLAP::SwitchArg coreneuronMpiExecution("m", "mpi", "activates coreneuron MPI based execution.", cmd, false);
         TCLAP::ValueArg<floble_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"floble_t");
         cmd.add(tstart);
         TCLAP::ValueArg<floble_t> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"floble_t");
