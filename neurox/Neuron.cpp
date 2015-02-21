@@ -13,7 +13,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->refractoryPeriod=0;
-    this->algorithmMetaData = AlgorithmMetaData::New(inputParams->algorithm);
+    this->algorithmMetaData = AlgorithmMetaData::New(input_params->algorithm);
     assert(this->algorithmMetaData!=nullptr);
     assert(TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio>0
         && TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio<=1);
@@ -34,7 +34,7 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay, hpx_t topBranchAdd
 {
     const double & teps = TimeDependencyLCOAlgorithm::TimeDependencies::teps;
     const double & notifRatio = TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
-    this->nextNotificationTime=inputParams->tstart+teps+this->minDelay*notifRatio;
+    this->nextNotificationTime=input_params->tstart+teps+this->minDelay*notifRatio;
     this->previousSpikeLco = hpx_lco_future_new(0);
     hpx_lco_set_rsync(this->previousSpikeLco, 0, NULL); //starts as set and will be reset when synapses happen
 #ifndef NDEBUG

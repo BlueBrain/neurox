@@ -65,7 +65,6 @@ tools::LoadBalancing::~LoadBalancing()
 void tools::LoadBalancing::PrintTable()
 {
     if (loadBalancingTable==nullptr) return;
-    if (inputParams->branchingDepth==0) return;
     if (hpx_get_my_rank() != 0) return;
 
     printf("neurox::tools::LoadBalancing::PrintTable()\n");
