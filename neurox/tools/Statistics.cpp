@@ -44,6 +44,9 @@ class Statistics::SizeInfo
 
 void Statistics::OutputSimulationSize(bool writeToFile)
 {
+    if (hpx_get_my_rank()==0)
+        printf("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
+
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
                           + sizeof(neurox::tools::CmdLineParser) * HPX_LOCALITIES) /1024;
@@ -66,23 +69,23 @@ void Statistics::OutputSimulationSize(bool writeToFile)
         simSize += neuronSize;
     }
 
-    printf(": SUM %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
+    printf("- SUM %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
            neuronsCount, simSize.branchesCount, simSize.compartmentsCount,
            simSize.mechsInstancesCount, simSize.getTotalSize()/1024);
-    printf(": AVG per neuron: %.2f branches, %.2f compartments, %.2f mech instances, %.2f KB\n",
+    printf("- AVG per neuron: %.2f branches, %.2f compartments, %.2f mech instances, %.2f KB\n",
            simSize.branchesCount / (double) neuronsCount,
            simSize.compartmentsCount / (double) neuronsCount,
            simSize.mechsInstancesCount / (double) neuronsCount,
            simSize.getTotalSize() / (double) neuronsCount);
-    printf(": SUM morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB;\n",
+    printf("- SUM morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB;\n",
            simSize.morphologies/1024., simSize.mechanisms/1024.,
            simSize.synapses/1024, simSize.metadata/1024);
-    printf(": AVG per neuron: morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB;\n",
+    printf("- AVG per neuron: morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB;\n",
            simSize.morphologies/ (double) neuronsCount,
            simSize.mechanisms  / (double) neuronsCount,
            simSize.synapses    / (double) neuronsCount,
            simSize.metadata    / (double) neuronsCount );
-    printf(": Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
+    printf("- Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
            simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
     if (writeToFile)
         fclose(outstream);
@@ -165,6 +168,9 @@ int Statistics::GetNeuronSize_handler()
 
 void Statistics::OutputMechanismsDistribution(bool writeToFile)
 {
+    if (hpx_get_my_rank() == 0)
+        printf("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
+
     unsigned * mechsCountPerType = new unsigned[mechanismsCount];
     unsigned * sumMechsCountPerType = new unsigned[mechanismsCount]();
     unsigned long long totalMechsInstances=0;
@@ -179,7 +185,7 @@ void Statistics::OutputMechanismsDistribution(bool writeToFile)
         }
     }
     delete [] mechsCountPerType;
-    printf(": Total mechs instances: %lld\n", totalMechsInstances);
+    printf("- Total mechs instances: %lld\n", totalMechsInstances);
 
     FILE *outstream = stdout;
     if (writeToFile)
