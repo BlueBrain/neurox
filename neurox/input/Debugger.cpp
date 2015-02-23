@@ -256,7 +256,7 @@ void Debugger::FixedStepMinimal2(NrnThread * nth, int secondorder)
 void Debugger::CompareAllBranches()
 {
 #if !defined(NDEBUG)
-    if (input_params->branchingDepth>0) return;
+    if (input_params->branchingDepth>0 || input_params->loadBalancing) return;
     DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
     neurox_hpx_call_neurons(input::Debugger::CompareBranch);
 #endif
@@ -443,7 +443,7 @@ hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler()
 {
     neurox_hpx_pin(Branch);
-    if (input_params->branchingDepth>0) neurox_hpx_unpin;
+    if (input_params->branchingDepth>0 || input_params->loadBalancing) neurox_hpx_unpin;
     CompareBranch2(local); //not implemented for branch-parallelism
     neurox_hpx_unpin;
 }
@@ -451,7 +451,7 @@ int Debugger::CompareBranch_handler()
 void Debugger::RunCoreneuronAndCompareAllBranches()
 {
 #if !defined(NDEBUG)
-  if (input_params->branchingDepth>0) return;
+  if (input_params->branchingDepth>0 || input_params->loadBalancing) return;
   if (neurox::ParallelExecution()) //parallel execution only (serial execs are compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::getTotalStepsCount();
@@ -474,7 +474,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondo
      && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebug)
         return; //non-debug mode in parallel are compared at the end of execution instead
 
-    if (input_params->branchingDepth>0) return; //can't be compared
+    if (input_params->branchingDepth>0  || input_params->loadBalancing) return; //can't be compared
 
     input::Debugger::FixedStepMinimal2(nt, secondorder);
     input::Debugger::CompareBranch2(b);
