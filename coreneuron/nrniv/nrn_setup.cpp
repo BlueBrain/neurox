@@ -788,7 +788,7 @@ void nrn_cleanup(bool clean_ion_global_map) {
     gid2in.clear();
     gid2out.clear();
 
-    //clean ezOpt parserallocated memory (if any)
+    //clean ezOpt parser allocated memory (if any)
     nrnopt_delete();
 
     //clean ions global maps
