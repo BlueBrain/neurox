@@ -125,7 +125,7 @@ int Clear_handler()
     }
 
 #ifndef NDEBUG
-    neurox::input::DataLoader::CleanCoreneuronData();
+    neurox::input::DataLoader::CleanCoreneuronData(true);
 #endif
     neurox_hpx_unpin;
 }
