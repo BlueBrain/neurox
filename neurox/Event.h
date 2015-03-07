@@ -1,7 +1,7 @@
 #pragma once
 
+#include <utility>  //std::pair
 #include "neurox/neurox.h"
-#include <utility> //std::pair
 
 #define DiscreteEventType 0
 #define TstopEventType 1
@@ -12,8 +12,7 @@
 #define InputPreSynType 20
 #define VecPlayContinuousType -4
 
-namespace neurox
-{
+namespace neurox {
 
 class Branch;
 
@@ -23,11 +22,10 @@ class Branch;
  * Stores the function calls that all events must have;
  */
 class Event {
-public:
-    virtual void Deliver(floble_t t, Branch* branch)=0;
-    virtual int Type() { return DiscreteEventType; }
+ public:
+  virtual void Deliver(floble_t t, Branch* branch) = 0;
+  virtual int Type() { return DiscreteEventType; }
 };
-
 }
 
 typedef std::pair<floble_t, neurox::Event*> TimedEvent;
