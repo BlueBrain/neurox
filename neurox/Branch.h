@@ -72,7 +72,7 @@ class Branch {
 
     // for current function accumulation of shadow arrays
     hpx_t rhs_d_mutex;
-    hpx_t i_didv_mutex[Mechanism::Ion::size_writeable_ions];
+    hpx_t i_didv_mutex[Mechanism::Ion::kSizeWriteableIons];
     static void AccumulateRHSandD(NrnThread* nt, Memb_list* ml, int,
                                   void* args);
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,

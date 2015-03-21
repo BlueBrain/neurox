@@ -5,15 +5,15 @@ using namespace neurox::algorithms;
 
 AlgorithmMetaData* AlgorithmMetaData::New(AlgorithmType type) {
   switch (type) {
-    case AlgorithmType::BackwardEulerDebug:
+    case AlgorithmType::kBackwardEulerDebug:
       return new DebugAlgorithm::CommunicationBarrier();
-    case AlgorithmType::BackwardEulerCoreneuron:
+    case AlgorithmType::kBackwardEulerCoreneuron:
       return new CoreneuronAlgorithm::CommunicationBarrier();
-    case AlgorithmType::BackwardEulerAllReduce:
+    case AlgorithmType::kBackwardEulerAllReduce:
       return new AllReduceAlgorithm::AllReducesInfo();
-    case AlgorithmType::BackwardEulerSlidingTimeWindow:
+    case AlgorithmType::kBackwardEulerSlidingTimeWindow:
       return new AllReduceAlgorithm::AllReducesInfo();
-    case AlgorithmType::BackwardEulerTimeDependencyLCO:
+    case AlgorithmType::kBackwardEulerTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm::TimeDependencies();
     default:
       return nullptr;
