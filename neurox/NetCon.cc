@@ -19,5 +19,5 @@ NetConX::~NetConX() {}
 void NetConX::Deliver(floble_t tt, Branch* branch) {
   if (this->active)
     GetMechanismFromType(mechType)->CallModFunction(
-        branch, Mechanism::ModFunction::kNetReceive, this, tt);
+        branch, Mechanism::ModFunctions::kNetReceive, this, tt);
 }
