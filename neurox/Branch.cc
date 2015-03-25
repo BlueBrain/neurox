@@ -160,14 +160,14 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
                  instanceData2);  // Make sure data offsets are good so far
 
       if (mech->vdataSize > 0 || mech->pntMap > 0) {
-        assert((mech->type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
-                mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (mech->type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
-                mech->pdataSize == 5 && mech->pntMap == 0) ||
-               ((mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
-                 mech->type == NEUROX_PROBGABAAB_EMS_) &&
-                mech->vdataSize == 2 && mech->pdataSize == 3 &&
-                mech->pntMap > 0));
+        assert(
+            (mech->type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
+             mech->pdataSize == 2 && mech->pntMap > 0) ||
+            (mech->type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
+             mech->pdataSize == 5 && mech->pntMap == 0) ||
+            ((mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
+              mech->type == MechanismTypes::kProbGABAAB_EMS) &&
+             mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap > 0));
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -183,9 +183,9 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
 
         // copy Point_processes by replacing vdata pointers and pdata offset by
         // the ones referring to a copy
-        if (mech->type == NEUROX_ICLAMP_ ||
-            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
-            mech->type == NEUROX_PROBGABAAB_EMS_) {
+        if (mech->type == MechanismTypes::kIClamp ||
+            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type == MechanismTypes::kProbGABAAB_EMS) {
           int pointProcOffsetInPdata = 1;
           Point_process *pp =
               (Point_process *)(void *)&vdataSerialized[vdataOffset];
@@ -199,10 +199,10 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
 
         // copy RNG by replacing vdata pointers and pdata offset by the ones
         // referring to a copy
-        if (mech->type == NEUROX_STOCHKV_ ||
-            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
-            mech->type == NEUROX_PROBGABAAB_EMS_) {
-          int rngOffsetInPdata = mech->type == NEUROX_STOCHKV_ ? 3 : 2;
+        if (mech->type == MechanismTypes::kStochKv ||
+            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type == MechanismTypes::kProbGABAAB_EMS) {
+          int rngOffsetInPdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
           nrnran123_State *rng =
               (nrnran123_State *)(void *)&vdataSerialized[vdataOffset];
           nrnran123_State *rngcopy = new nrnran123_State;
@@ -243,7 +243,7 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
     if (mech->isIon) ionsCount++;
   }
   assert(ionsCount ==
-         Mechanism::Ion::kSizeWriteableIons +
+         Mechanism::IonTypes::kSizeWriteableIons +
              1);  // ttx excluded (no writes to ttx state)
 
   // vecplay
@@ -290,7 +290,7 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
       ml->_shadow_rhs[i] = 0;
     }
 
-    if (mechanisms[m]->dependencyIonIndex >= Mechanism::Ion::kSizeWriteableIons)
+    if (mechanisms[m]->dependencyIonIndex >= Mechanism::IonTypes::kSizeWriteableIons)
       shadowSize = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
@@ -464,12 +464,12 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->eventsQueue.push(make_pair(tt, e));
 }
 
-void Branch::CallModFunction(const Mechanism::ModFunction functionId) {
+void Branch::CallModFunction(const Mechanism::ModFunctions functionId) {
   if (functionId < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
-  if (functionId == Mechanism::ModFunction::kCurrentCapacitance ||
-      functionId == Mechanism::ModFunction::kJacobCapacitance) {
+  if (functionId == Mechanism::ModFunctions::kCurrentCapacitance ||
+      functionId == Mechanism::ModFunctions::kJacobCapacitance) {
     mechanisms[mechanisms_map[CAP]]->CallModFunction(this, functionId);
   }
   // for all others except capacitance (mechanisms graph)
@@ -489,8 +489,8 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId) {
     {
       for (int m = 0; m < mechanisms_count; m++) {
         if (mechanisms[m]->type == CAP &&
-            (functionId == Mechanism::ModFunction::kCurrent ||
-             functionId == Mechanism::ModFunction::kJacob))
+            (functionId == Mechanism::ModFunctions::kCurrent ||
+             functionId == Mechanism::ModFunctions::kJacob))
           continue;
         mechanisms[m]->CallModFunction(this, functionId);
       }
@@ -553,7 +553,7 @@ void Branch::Finitialize2() {
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
   assert(input_params->secondorder < sizeof(char));
-  CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
+  CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   InitVecPlayContinous();
   DeliverEvents(t);
 
@@ -563,15 +563,15 @@ void Branch::Finitialize2() {
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read
   // concentrations.
-  CallModFunction(Mechanism::ModFunction::kBeforeInitialize);
-  CallModFunction(Mechanism::ModFunction::kInitialize);
-  CallModFunction(Mechanism::ModFunction::kAfterInitialize);
+  CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
+  CallModFunction(Mechanism::ModFunctions::kInitialize);
+  CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
 
   // initEvents(t); //not needed because we copy the status and weights of
   // events
   DeliverEvents(t);
   SetupTreeMatrix();
-  CallModFunction(Mechanism::ModFunction::kBeforeStep);
+  CallModFunction(Mechanism::ModFunctions::kBeforeStep);
   DeliverEvents(t);
 }
 
@@ -605,15 +605,15 @@ void Branch::BackwardEulerStep() {
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateV(this);
 
-  CallModFunction(Mechanism::ModFunction::kCurrentCapacitance);
+  CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt->_dt;
   FixedPlayContinuous();
-  CallModFunction(Mechanism::ModFunction::kState);
-  CallModFunction(Mechanism::ModFunction::kAfterSolve);
-  CallModFunction(Mechanism::ModFunction::kBeforeStep);
+  CallModFunction(Mechanism::ModFunctions::kState);
+  CallModFunction(Mechanism::ModFunctions::kAfterSolve);
+  CallModFunction(Mechanism::ModFunctions::kBeforeStep);
   DeliverEvents(t);  // delivers events in the second HALF of the step
 
   // if we are at the output time instant output to file
@@ -685,7 +685,7 @@ hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
   NEUROX_MEM_PIN_(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::ThreadTableCheck);
-  local->CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
+  local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
   NEUROX_MEM_UNPIN_;
 }
@@ -708,8 +708,8 @@ void Branch::SetupTreeMatrix() {
   // multiplication
   solver::HinesSolver::ResetMatrixRHSandD(this);
 
-  this->CallModFunction(Mechanism::ModFunction::kBeforeBreakpoint);
-  this->CallModFunction(Mechanism::ModFunction::kCurrent);
+  this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
+  this->CallModFunction(Mechanism::ModFunctions::kCurrent);
 
   solver::HinesSolver::SetupMatrixRHS(this);
 
@@ -722,13 +722,13 @@ void Branch::SetupTreeMatrix() {
   // right
   // hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
-  this->CallModFunction(Mechanism::ModFunction::kJacob);
+  this->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
   // (treeset_core.c)
   // now the cap current can be computed because any change to cm
   // by another model has taken effect.
-  this->CallModFunction(Mechanism::ModFunction::kJacobCapacitance);
+  this->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
   solver::HinesSolver::SetupMatrixDiagonal(this);
 }
@@ -843,7 +843,7 @@ Branch::MechanismsGraph::MechanismsGraph() {
 
     this->mechsLCOs[m] = hpx_lco_reduce_new(
         max((short)1, mechanisms[m]->dependenciesCount),
-        sizeof(Mechanism::ModFunction), Branch::MechanismsGraph::Init,
+        sizeof(Mechanism::ModFunctions), Branch::MechanismsGraph::Init,
         Branch::MechanismsGraph::Reduce);
     if (mechanisms[m]->successorsCount == 0)  // bottom of mechs graph
       terminalMechanismsCount++;
@@ -851,7 +851,7 @@ Branch::MechanismsGraph::MechanismsGraph() {
   this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 
   this->rhs_d_mutex = hpx_lco_sema_new(1);
-  for (int i = 0; i < Mechanism::Ion::kSizeWriteableIons; i++)
+  for (int i = 0; i < Mechanism::IonTypes::kSizeWriteableIons; i++)
     this->i_didv_mutex[i] = hpx_lco_sema_new(1);
 }
 
@@ -872,7 +872,7 @@ Branch::MechanismsGraph::~MechanismsGraph() {
   delete[] mechsLCOs;
 
   hpx_lco_delete_sync(rhs_d_mutex);
-  for (int i = 0; i < Mechanism::Ion::kSizeWriteableIons; i++)
+  for (int i = 0; i < Mechanism::IonTypes::kSizeWriteableIons; i++)
     hpx_lco_delete_sync(i_didv_mutex[i]);
 }
 
@@ -885,14 +885,14 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
   assert(local->mechsGraph->mechsLCOs[mechanisms_map[type]] != HPX_NULL);
   Mechanism *mech = GetMechanismFromType(type);
 
-  Mechanism::ModFunction functionId;
+  Mechanism::ModFunctions functionId;
   while (local->mechsGraph->graphLCO != HPX_NULL) {
     // wait until all dependencies have completed, and get the argument
     //(function id) from the hpx_lco_set
     hpx_lco_get_reset(local->mechsGraph->mechsLCOs[mechanisms_map[type]],
-                      sizeof(Mechanism::ModFunction), &functionId);
-    assert(functionId != Mechanism::ModFunction::kJacobCapacitance);
-    assert(functionId != Mechanism::ModFunction::kCurrentCapacitance);
+                      sizeof(Mechanism::ModFunctions), &functionId);
+    assert(functionId != Mechanism::ModFunctions::kJacobCapacitance);
+    assert(functionId != Mechanism::ModFunctions::kCurrentCapacitance);
     mech->CallModFunction(local, functionId);
 
     if (mech->successorsCount == 0)  // bottom mechanism
@@ -922,7 +922,7 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread *nt, Memb_list *ml,
                                                  int type, void *args) {
   MechanismsGraph *mg = (MechanismsGraph *)args;
   Mechanism *mech = GetMechanismFromType(type);
-  assert(mech->dependencyIonIndex < Mechanism::Ion::kSizeWriteableIons);
+  assert(mech->dependencyIonIndex < Mechanism::IonTypes::kSizeWriteableIons);
   hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]);
   for (int n = 0; n < ml->nodecount; n++) {
     int &i_offset = ml->_shadow_i_offsets[n];
@@ -935,12 +935,12 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread *nt, Memb_list *ml,
 }
 
 hpx_action_t Branch::MechanismsGraph::Init = 0;
-void Branch::MechanismsGraph::Init_handler(Mechanism::ModFunction *,
+void Branch::MechanismsGraph::Init_handler(Mechanism::ModFunctions *,
                                            const size_t) {}
 
 hpx_action_t Branch::MechanismsGraph::Reduce = 0;
-void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunction *lhs,
-                                             const Mechanism::ModFunction *rhs,
+void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunctions *lhs,
+                                             const Mechanism::ModFunctions *rhs,
                                              const size_t) {
   *lhs = *rhs;
 }

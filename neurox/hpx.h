@@ -106,12 +106,11 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
   HPX_REGISTER_ACTION(HPX_FUNCTION, 0, func, func##_handler);
 
 // main hpx action registration method
-#define NEUROX_ACTION_ZERO_VAR_ 0               // no arguments
-#define NEUROX_ACTION_SINGLE_VAR_ 1             // one argument
-#define NEUROX_ACTION_MULTIPLE_VARS_ 2          // more than one argument
-#define NEUROX_ACTION_COMPRESSED_SINGLE_VAR_ 3  // one argument compressed
-#define NEUROX_ACTION_COMPRESSED_MULTIPLE_VARS_ \
-  4                                 // more than one argument comp.
+#define NEUROX_ACTION_ZERO_VAR_ 0                  // no arguments
+#define NEUROX_ACTION_SINGLE_VAR_ 1                // one argument
+#define NEUROX_ACTION_MULTIPLE_VARS_ 2             // more than one argument
+#define NEUROX_ACTION_COMPRESSED_SINGLE_VAR_ 3     // one argument compressed
+#define NEUROX_ACTION_COMPRESSED_MULTIPLE_VARS_ 4  // several arguments comp.
 #define NEUROX_ACTION_REDUCE_OP_ 5  // HPX_FUNCTION for reduce operation
 
 #define NEUROX_REGISTER_ACTION_(funcType, func) \

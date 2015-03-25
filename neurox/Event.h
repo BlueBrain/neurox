@@ -6,7 +6,7 @@
 namespace neurox {
 
 /// Enumerator of all (used) event types
-enum EventType {
+enum EventTypes {
   kDiscreteEvent = 0,
   // kTstopEvent=1,
   kNetCon = 2,
@@ -27,7 +27,7 @@ class Branch;
 class Event {
  public:
   virtual void Deliver(floble_t t, Branch* branch) = 0;
-  virtual EventType Type() { return EventType::kDiscreteEvent; }
+  virtual EventTypes Type() { return EventTypes::kDiscreteEvent; }
 };
 }
 
