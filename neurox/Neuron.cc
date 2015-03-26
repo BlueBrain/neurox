@@ -1,7 +1,8 @@
+#include "neurox/neurox.h"
+
 #include <algorithm>
 #include <cstring>
 #include <utility>
-#include "neurox/neurox.h"
 
 using namespace neurox;
 using namespace neurox::solver;

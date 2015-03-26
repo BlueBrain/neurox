@@ -1,6 +1,8 @@
 #pragma once
 #include "neurox.h"
 
+#include "libhpx/libhpx.h"
+
 using namespace neurox;
 
 namespace neurox {
