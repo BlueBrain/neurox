@@ -1,9 +1,10 @@
 #pragma once
 
+#include "neurox/neurox.h"
+
 #include <map>
 #include <queue>
 #include <vector>
-#include "neurox/neurox.h"
 
 namespace neurox {
 

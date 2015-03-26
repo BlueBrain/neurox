@@ -1,6 +1,7 @@
+#include "neurox/neurox.h"
+
 #include <algorithm>
 #include <cstring>
-#include "neurox/neurox.h"
 
 using namespace neurox;
 
