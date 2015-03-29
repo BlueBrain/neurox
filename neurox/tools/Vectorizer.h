@@ -27,13 +27,13 @@ class Vectorizer {
 
   /// get size of datastructure with alignment-based padding
   static size_t SizeOf(size_t size) {
-    return coreneuron::soa_padded_size<NEUROX_SOA_PADDING_>(size, LAYOUT);
+    return coreneuron::soa_padded_size<NEUROX_SOA_PADDING>(size, LAYOUT);
   }
 
   // C++11 does not support memory-aligned new[]/delete, this is a work around
   template <typename T>
   static T* New(size_t count) {
-    return (T*)coreneuron::ecalloc_align(SizeOf(count), NEUROX_MEM_ALIGNMENT_,
+    return (T*)coreneuron::ecalloc_align(SizeOf(count), NEUROX_MEM_ALIGNMENT,
                                          sizeof(T));
   }
 
