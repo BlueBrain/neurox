@@ -1,1 +1,0 @@
-cmake .. -DADDITIONAL_MECHPATH=/home/bmagalha/Workspace/neurodamus/lib/modlib -DADDITIONAL_MECHS=/home/bmagalha/Workspace/neurodamus/lib/modlib/coreneuron_modlist.txt -DCMAKE_INSTALL_PREFIX=/home/bmagalha/Workspace/neurox-install -DUNIT_TESTS=OFF -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_BUILD_TYPE=Debug -DEXPORT_MECHS_FUNCTIONS=ON -DENABLE_SOA=OFF
