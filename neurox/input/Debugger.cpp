@@ -371,7 +371,7 @@ void Debugger::CompareBranch2(Branch * branch)
                 int ptype = memb_func[type].dparam_semantics[i];
                 bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
                 if (isPointer)
-                    assert(nt._data[ml->pdata[offset]] == branch->nt->_data[instances.pdata[offset]]);
+                {   assert(IsEqual(nt._data[ml->pdata[offset]], branch->nt->_data[instances.pdata[offset]], multiMex)); }
                 assert(ml->pdata[offset] == instances.pdata[offset]);
             }
 
