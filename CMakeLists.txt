@@ -45,6 +45,7 @@ set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+add_definitions("-DVERSION_STRING=\"${VERSION_STRING}\"")
 
 ## global options
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
