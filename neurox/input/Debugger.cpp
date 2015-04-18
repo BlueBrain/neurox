@@ -272,8 +272,8 @@ void Debugger::CompareBranch2(Branch * branch)
     assert(branch->nt->_ndata == nt._ndata);
     assert(secondorder == inputParams->secondorder);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
-    assert(*(branch->thvar_ptr) == nt._actual_v[nt.presyns[0].thvar_index_]);
     assert(branch->soma->gid == nt.presyns[0].gid_);
+    assert(IsEqual(*(branch->thvar_ptr), nt._actual_v[nt.presyns[0].thvar_index_], multiMex));
 
     //vecplay
     assert(branch->nt->n_vecplay == nt.n_vecplay);
