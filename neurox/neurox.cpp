@@ -228,7 +228,7 @@ static int Main_handler()
     //subscribe to the all-reduce LCOs
     static hpx_t * allreduces = nullptr;
     static int maxReductionsPerCommStep = 0;
-    if (inputParams->algorithm == AlgorithmType::ALL
+    if (inputParams->algorithm == AlgorithmType::All
      || inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
      || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
     {
@@ -252,7 +252,7 @@ static int Main_handler()
     }
 
     hpx_time_t now = hpx_time_now();
-    if (inputParams->algorithm == AlgorithmType::ALL)
+    if (inputParams->algorithm == AlgorithmType::All)
     {
         RunAlgorithm(AlgorithmType::BackwardEulerAllReduce );
         RunAlgorithm(AlgorithmType::BackwardEulerSlidingTimeWindow);
@@ -265,7 +265,7 @@ static int Main_handler()
            neurons->size(), inputParams->tstop/1000.0, hpx_time_elapsed_ms(now)/1e3);
 
     //Clean up all-reduce LCOs
-    if ( inputParams->algorithm == ALL
+    if ( inputParams->algorithm == All
       || inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
       || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
     {
@@ -290,7 +290,7 @@ void RunAlgorithm(AlgorithmType algorithm)
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
     printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps)\n",
             algorithm == AlgorithmType::BackwardEulerDebugMode  ? "BackwardEulerDebugWithCommBarrier" :
-           (algorithm == AlgorithmType::ALL                                ? "ALL" :
+           (algorithm == AlgorithmType::All                                ? "ALL" :
            (algorithm == AlgorithmType::BackwardEulerAllReduce  ? "BackwardEulerWithAllReduceBarrier" :
            (algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
            (algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
