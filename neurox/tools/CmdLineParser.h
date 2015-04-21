@@ -4,14 +4,6 @@
 namespace neurox
 {
 
-enum Algorithm {
-    BackwardEulerDebugWithCommBarrier=0,
-    BackwardEulerWithAllReduceBarrier=1,
-    BackwardEulerWithSlidingTimeWindow=2,
-    BackwardEulerWithTimeDependencyLCO=3,
-    ALL=9 //All, except debug
-};
-
 namespace tools
 {
 /**
@@ -52,7 +44,7 @@ class CmdLineParser
     bool allReduceAtLocality;    ///> whether we perform HPX all-reduce LCOs at neuron or node level
     bool parallelDataLoading;    ///> coreneuron mpi-based execution
     int branchingDepth;          ///> depth tree-based parallelism of morphologies (0 = none)
-    neurox::Algorithm algorithm; ///> neurons sychronization algorithm
+    neurox::algorithms::AlgorithmType algorithm; ///> neurons sychronization algorithm
 
   private:
     /// Parses command line arguments and populates structure
