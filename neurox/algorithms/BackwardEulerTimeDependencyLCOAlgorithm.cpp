@@ -12,16 +12,16 @@ AlgorithmType DERIVED_CLASS_NAME::getType()
     return AlgorithmType::BackwardEulerTimeDependencyLCO;
 }
 
-void DERIVED_CLASS_NAME::init(Branch*) {}
+void DERIVED_CLASS_NAME::Init() {}
 
-void DERIVED_CLASS_NAME::clear(Branch*) {}
+void DERIVED_CLASS_NAME::Clear() {}
 
-void DERIVED_CLASS_NAME::stepBegin(Branch*) {}
+void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::stepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::StepEnd(Branch*) {}
 
-void DERIVED_CLASS_NAME::commStepBegin(Branch*) {}
+void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::commStepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
 
-void DERIVED_CLASS_NAME::afterSpike(Branch*) {}
+void DERIVED_CLASS_NAME::AfterSpike(Branch*) {}
