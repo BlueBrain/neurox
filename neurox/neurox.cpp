@@ -76,19 +76,6 @@ void SetMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependen
     }
 }
 
-hpx_action_t SetAlgorithmVariables = 0;
-int SetAlgorithmVariables_handler(const AlgorithmType * algorithm_ptr, const size_t)
-{
-    neurox_hpx_pin(uint64_t);
-    inputParams->algorithm = *algorithm_ptr;
-    Neuron::SlidingTimeWindow::reductionsPerCommStep = 0;
-    if (*algorithm_ptr==AlgorithmType::BackwardEulerSlidingTimeWindow)
-        Neuron::SlidingTimeWindow::reductionsPerCommStep = 2;
-    else if ( *algorithm_ptr==AlgorithmType::BackwardEulerAllReduce)
-        Neuron::SlidingTimeWindow::reductionsPerCommStep = 1;
-    neurox_hpx_unpin;
-}
-
 hpx_action_t SetMechanisms = 0;
 int SetMechanisms_handler(const int nargs, const void *args[], const size_t sizes[])
 {
@@ -226,24 +213,42 @@ static int Main_handler()
     neurox::input::Debugger::CompareAllBranches();
 #endif
 
-    algorithm = Algorithm::New(inputParams->algorithm);
-    DebugMessage("neurox::Algorithm::init...\n");
-    algorithm->Init();
-
-    hpx_time_t now = hpx_time_now();
+    double totalTimeElapsed = 0;
     if (inputParams->algorithm == AlgorithmType::All)
     {
-        algorithm->Run(AlgorithmType::BackwardEulerAllReduce);
-        algorithm->Run(AlgorithmType::BackwardEulerSlidingTimeWindow);
-        algorithm->Run(AlgorithmType::BackwardEulerTimeDependencyLCO);
+        for (int type = 0; type<AlgorithmType::BenchmarkEnd; type++)
+        {
+            algorithm = Algorithm::New((AlgorithmType) type);
+            algorithm->Init();
+            algorithm->PrintStartInfo();
+            double timeElapsed = algorithm->Run();
+            totalTimeElapsed += timeElapsed;
+            algorithm->Finalize();
+            delete algorithm;
+
+#ifdef NDEBUG
+    //output benchmark info
+    double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
+    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurons->size(), hpx_get_num_ranks(),
+        hpx_get_num_threads(), neurons->size() / (double) hpx_get_num_ranks(), inputParams->tstop,
+        algorithm->getType(), inputParams->multiMex ? 1:0, inputParams->branchingDepth,
+        inputParams->allReduceAtLocality ? 1:0, timeElapsed);
+    fflush(stdout);
+#endif
+        }
     }
     else
-        algorithm->Run(inputParams->algorithm);
-
-    algorithm->Clear();
+    {
+        algorithm = Algorithm::New(inputParams->algorithm);
+        algorithm->Init();
+        algorithm->PrintStartInfo();
+        totalTimeElapsed = algorithm->Run();
+        algorithm->Finalize();
+        delete algorithm;
+    }
 
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
-           neurons->size(), inputParams->tstop/1000.0, hpx_time_elapsed_ms(now)/1e3);
+           neurons->size(), inputParams->tstop/1000.0, totalTimeElapsed);
 
     neurox_hpx_call_neurons(Branch::Clear);
     hpx_bcast_rsync(neurox::Clear);
@@ -279,7 +284,6 @@ void RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action,     neurox::Main);
     neurox_hpx_register_action(neurox_zero_var_action,     neurox::Clear);
-    neurox_hpx_register_action(neurox_single_var_action,   neurox::SetAlgorithmVariables);
     neurox_hpx_register_action(neurox_several_vars_action, neurox::SetMechanisms);
     neurox_hpx_register_action(neurox_several_vars_action, neurox::SetMechanismsGlobalVars);
 }

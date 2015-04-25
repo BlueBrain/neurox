@@ -436,6 +436,24 @@ int Debugger::CompareBranch_handler()
     neurox_hpx_unpin;
 }
 
+void Debugger::RunCoreneuronAndCompareAllBranches()
+{
+#if !defined(NDEBUG)
+  if (inputParams->branchingDepth==0)
+  if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
+  {
+    int totalSteps = algorithms::Algorithm::getTotalStepsCount();
+    int commStepSize = Neuron::CommunicationBarrier::commStepSize;
+    DebugMessage("neurox::re-running simulation in Coreneuron to compare final result...\n");
+    for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
+    {
+        hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &commStepSize, sizeof(int));
+        hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
+    }
+    neurox::input::Debugger::CompareAllBranches();
+  }
+#endif
+}
 void Debugger::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action,   Debugger::CompareBranch);
