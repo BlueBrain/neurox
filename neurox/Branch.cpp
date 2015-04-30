@@ -405,7 +405,7 @@ int Branch::Init_handler( const int nargs, const void *args[],
 
         //benchmark execution time of a communication-step time-frame
         hpx_time_t now = hpx_time_now();
-        for (int i=0; i< Neuron::CommunicationBarrier::commStepSize; i++)
+        for (int i=0; i< CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize; i++)
             local->BackwardEulerStep();
         double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
         delete local;
@@ -531,8 +531,10 @@ int Branch::UpdateTimeDependency_handler(
     const bool initPhase = nargs==3 ? *(const bool*) args[2] : false;
 
     assert(local->soma);
-    assert(local->soma->timeDependencies);
-    local->soma->timeDependencies->UpdateTimeDependency(
+    assert(local->soma->algorithmMetaData);
+    TimeDependencyLCOAlgorithm::TimeDependencies * timeDependencies =
+            (TimeDependencyLCOAlgorithm::TimeDependencies*) local->soma->algorithmMetaData;
+    timeDependencies->UpdateTimeDependency(
                 preNeuronId, (floble_t) maxTime, local->soma ? local->soma->gid : -1, initPhase);
     neurox_hpx_unpin;
 }
@@ -631,15 +633,14 @@ int Branch::BackwardEulerOnLocality_handler(const int * steps_ptr, const size_t 
 {
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
-    assert(Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons);
     assert(inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
         || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce);
 
-    const int localityNeuronsCount = Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons->size();
+    const int localityNeuronsCount = AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->size();
     const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
-    const int commStepSize = Neuron::CommunicationBarrier::commStepSize;
-    const int reductionsPerCommStep = Neuron::SlidingTimeWindow::reductionsPerCommStep;
-    const int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
+    const int commStepSize = CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    const int reductionsPerCommStep = AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
+    const int stepsPerReduction = commStepSize / reductionsPerCommStep;
     const int steps = *steps_ptr;
 
     for (int s=0; s<steps; s+= commStepSize)
@@ -647,17 +648,17 @@ int Branch::BackwardEulerOnLocality_handler(const int * steps_ptr, const size_t 
         for (int r=0; r< reductionsPerCommStep; r++)
         {
             if (s>= commStepSize) //first comm-window does not wait
-                hpx_lco_wait_reset(Neuron::SlidingTimeWindow::AllReduceLocality::allReduceFuture[r]);
+                hpx_lco_wait_reset( AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceFuture[r]);
             else
                 //fixes crash for Algorithm::ALL when running two hpx-reduce -based algorithms in a row
-                hpx_lco_reset_sync(Neuron::SlidingTimeWindow::AllReduceLocality::allReduceFuture[r]);
+                hpx_lco_reset_sync( AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceFuture[r]);
 
             hpx_process_collective_allreduce_join(
-                        Neuron::SlidingTimeWindow::AllReduceLocality::allReduceLco[r],
-                        Neuron::SlidingTimeWindow::AllReduceLocality::allReduceId[r], NULL, 0);
+                        AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceLco[r],
+                        AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceId[r], NULL, 0);
 
             for (int i=0; i<localityNeuronsCount; i++)
-               hpx_call(Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons->at(i), Branch::BackwardEuler,
+               hpx_call(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->at(i), Branch::BackwardEuler,
                         localityNeuronsLCO, &stepsPerReduction, sizeof(int));
             hpx_lco_wait_reset(localityNeuronsLCO);
         }

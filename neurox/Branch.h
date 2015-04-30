@@ -10,6 +10,7 @@
 using namespace neurox;
 
 namespace  neurox {
+
 class Neuron;
 
 /**
