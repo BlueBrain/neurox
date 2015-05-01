@@ -10,10 +10,10 @@ int main(int argc, char** argv)
 {
     neurox::RegisterHpxActions();
     neurox::Branch::registerHpxActions();
-    neurox::Neuron::registerHpxActions();
     neurox::tools::Statistics::RegisterHpxActions();
     neurox::tools::LoadBalancing::RegisterHpxActions();
     neurox::input::DataLoader::registerHpxActions();
+    neurox::algorithms::AllReduceAlgorithm::AllReducesInfo::registerHpxActions();
 #if !defined(NDEBUG)
     neurox::input::Debugger::RegisterHpxActions();
 #endif

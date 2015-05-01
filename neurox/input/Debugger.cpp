@@ -24,6 +24,7 @@
 
 using namespace std;
 using namespace neurox::input;
+using namespace neurox::algorithms;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual)
 {
@@ -151,8 +152,10 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int second
     double dt = b->nt->_dt;
     if (b->soma && inputParams->algorithm==neurox::algorithms::AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
-        b->soma->timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
-        b->soma->timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
+        TimeDependencyLCOAlgorithm::TimeDependencies * timeDependencies =
+                (TimeDependencyLCOAlgorithm::TimeDependencies*) b->soma->algorithmMetaData;
+        timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
+        timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
     }
     if (b->soma)
     {
@@ -434,6 +437,38 @@ int Debugger::CompareBranch_handler()
     if (inputParams->branchingDepth==0)
         CompareBranch2(local); //not implemented for branch-parallelism
     neurox_hpx_unpin;
+}
+
+void Debugger::RunCoreneuronAndCompareAllBranches()
+{
+#if !defined(NDEBUG)
+  if (inputParams->branchingDepth==0)
+  if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
+  {
+    int totalSteps = algorithms::Algorithm::getTotalStepsCount();
+    int commStepSize = algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    DebugMessage("neurox::re-running simulation in Coreneuron to compare final result...\n");
+    for (int s=0; s<totalSteps; s+=commStepSize)
+    {
+        hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &commStepSize, sizeof(int));
+        hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
+    }
+    neurox::input::Debugger::CompareAllBranches();
+  }
+#endif
+}
+
+void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondorder)
+{
+#if !defined(NDEBUG)
+    if (inputParams->parallelDataLoading
+     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerCoreneuronDebug)
+        return; //non-debug mode in parallel are compared at the end of execution instead
+
+    if (inputParams->branchingDepth>0) return; //can't be compared
+    input::Debugger::FixedStepMinimal2(nt, secondorder);
+    input::Debugger::CompareBranch2(b);
+#endif
 }
 
 void Debugger::RegisterHpxActions()
