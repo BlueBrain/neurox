@@ -446,7 +446,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
   if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::getTotalStepsCount();
-    int commStepSize = algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    int commStepSize = algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     DebugMessage("neurox::re-running simulation in Coreneuron to compare final result...\n");
     for (int s=0; s<totalSteps; s+=commStepSize)
     {
