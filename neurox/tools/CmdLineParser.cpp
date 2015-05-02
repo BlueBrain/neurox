@@ -103,6 +103,7 @@ void CmdLineParser::Parse(int argc, char ** argv)
         this->parallelDataLoading = coreneuronMpiExecution.getValue();
         this->branchingDepth = branchingDepth.getValue();
         this->algorithm = (algorithms::AlgorithmType) algorithm.getValue();
+        neurox::algorithm = algorithms::Algorithm::New(this->algorithm);
 
         if (this->branchingDepth<0)
             throw TCLAP::ArgException("branching depth should be zero or a positive value", "branchingdepth");
