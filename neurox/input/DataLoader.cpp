@@ -380,14 +380,14 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
     return 0;
 }
 
-void DataLoader::CleanCoreneuronData()
+void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map)
 {
-    nrn_cleanup();
+    nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv)
+void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup)
 {
-    nrn_init_and_load_data(argc, argv, false);
+    nrn_init_and_load_data(argc, argv, run_setup_cleanup);
 }
 
 int DataLoader::GetMyNrnNeuronsCount()
@@ -401,10 +401,9 @@ int DataLoader::InitMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
 
-    //if serial loading and I'mn ot the one who loaded the data... do nothing.
-    if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
     int myNeuronsCount = GetMyNrnNeuronsCount();
-    assert(myNeuronsCount>0);
+
+    if (myNeuronsCount==0) neurox_hpx_unpin;
 
     for (int i=0; i<myNeuronsCount; i++)
     {   assert(nrn_threads[i].ncell == 1); }
@@ -506,45 +505,41 @@ int DataLoader::InitMechanisms_handler()
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
-    //if only one CPU (me) loaded the data, then share it with others
-    if (!inputParams->parallelDataLoading && hpx_get_num_ranks()>1)
-    {
-      printf("neurox::setMechanisms...\n");
-      vector<unsigned char> mechHasEntryInIonMap;
-      vector<double> mechsMapInfo;
-      for (int type=0; type<nrn_ion_global_map_size; type++)
-      {
-        if (nrn_ion_global_map[type]==NULL)
-            mechHasEntryInIonMap.push_back(0);
-        else
-        {
-            mechHasEntryInIonMap.push_back(1);
-            mechsMapInfo.push_back(nrn_ion_global_map[type][0]);
-            mechsMapInfo.push_back(nrn_ion_global_map[type][1]);
-            mechsMapInfo.push_back(nrn_ion_global_map[type][2]);
-        }
-      }
-
-      hpx_bcast_rsync(neurox::SetMechanisms,
-                    mechsData.data(), sizeof(Mechanism)*mechsData.size(),
-                    mechsDependenciesId.data(), sizeof(int)* mechsDependenciesId.size(),
-                    mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
-                    mechsSym.data(), sizeof(char)*mechsSym.size());
-
-      assert(0); //TODO need to share static _na_type_ etc inside mechanisms!
-      printf("neurox::setMechanismsGlobarVars...\n");
-      hpx_bcast_rsync(neurox::SetMechanismsGlobalVars,
-                    &celsius, sizeof(double),
-                    &nrn_ion_global_map_size, sizeof(int),
-                    mechHasEntryInIonMap.data(), sizeof(unsigned char)*mechHasEntryInIonMap.size(),
-                    mechsMapInfo.data(), sizeof(double)*mechsMapInfo.size());
-    }
-    else  //set mechanisms local to my node
-    {
-        SetMechanisms2(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
-                           mechsSuccessorsId.data(), mechsSym.data());
-    }
+    //set mechanisms
+    SetMechanisms(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
+                   mechsSuccessorsId.data(), mechsSym.data());
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
+    neurox_hpx_unpin;
+}
+
+hpx_action_t DataLoader::Init =0;
+int DataLoader::Init_handler()
+{
+    neurox_hpx_pin(uint64_t);
+    neurox::neurons = new std::vector<hpx_t>();
+    neuronsGids  = new std::vector<int>();
+    neuronsMutex = hpx_lco_sema_new(1);
+
+    if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
+        loadBalancing = new tools::LoadBalancing();
+
+    if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
+       && inputParams->outputNetconsDot)
+    {
+        inputParams->outputNetconsDot=false;
+        if (hpx_get_my_rank()==0)
+            printf("Warning: output of netcons.dot disabled for parallel loading\n");
+    }
+
+    if (inputParams->outputNetconsDot)
+    {
+      assert(HPX_LOCALITIES == 1);
+      fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
+      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+      #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
+        fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
+      #endif
+    }
 
     if (inputParams->outputMechanismsDot)
     {
@@ -593,37 +588,6 @@ int DataLoader::InitMechanisms_handler()
       }
       fprintf(fileMechs, "}\n");
       fclose(fileMechs);
-    }
-    neurox_hpx_unpin;
-}
-
-hpx_action_t DataLoader::Init =0;
-int DataLoader::Init_handler()
-{
-    neurox_hpx_pin(uint64_t);
-    neurox::neurons = new std::vector<hpx_t>();
-    neuronsGids  = new std::vector<int>();
-    neuronsMutex = hpx_lco_sema_new(1);
-
-    if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
-        loadBalancing = new tools::LoadBalancing();
-
-    if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
-       && inputParams->outputNetconsDot)
-    {
-        inputParams->outputNetconsDot=false;
-        if (hpx_get_my_rank()==0)
-            printf("Warning: output of netcons.dot disabled for parallel loading\n");
-    }
-
-    if (inputParams->outputNetconsDot)
-    {
-      assert(HPX_LOCALITIES == 1);
-      fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-      #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
-        fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
-      #endif
     }
 
     neurox_hpx_unpin;

@@ -24,7 +24,7 @@ class Debugger
 
     static void CompareAllBranches(); ///> compares all branches wth Coreneuron
     static void CompareBranch2(Branch * branch); ///> compares a branch to Coreneuron data structures
-    static void CompareMechanismsFunctionPointers();
+    static void CompareMechanismsFunctions();
 
     static hpx_action_t CompareBranch; ///> compares a branch to CoreNeuron data structures
     static hpx_action_t Finitialize;   ///> calls finitialize (on a compute node, not Branch)
