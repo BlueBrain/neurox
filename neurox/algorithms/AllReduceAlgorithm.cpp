@@ -140,7 +140,7 @@ void DERIVED_CLASS_NAME::Run2(Branch *b, const void *args)
     for (int s=0; s<steps; s += commStepSize) //for every communication step
     {
       #ifndef NDEBUG
-          if (hpx_get_my_rank()==0 && b->nt->id == 0)
+          if (hpx_get_my_rank()==0 && b->nt->id == 0 && b->soma)
           {
               printf("-- t=%.4f ms\n", inputParams->dt*s);
               fflush(stdout);
