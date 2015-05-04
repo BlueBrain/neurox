@@ -1,4 +1,4 @@
-#include "neurox/algorithms/CoreneuronDebugAlgorithm.h"
+#include "neurox/algorithms/DebugAlgorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
@@ -22,7 +22,7 @@ DERIVED_CLASS_NAME::CommunicationBarrier::~CommunicationBarrier()
 
 const AlgorithmType DERIVED_CLASS_NAME::getType()
 {
-    return AlgorithmType::BackwardEulerCoreneuronDebug;
+    return AlgorithmType::BackwardEulerDebug;
 }
 
 const char* DERIVED_CLASS_NAME::getTypeString()
