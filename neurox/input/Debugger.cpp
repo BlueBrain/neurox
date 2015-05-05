@@ -443,7 +443,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
 {
 #if !defined(NDEBUG)
   if (inputParams->branchingDepth==0)
-  if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
+  if (neurox::ParallelExecution()) //parallel execution only (serial execs are compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::getTotalStepsCount();
     int commStepSize = algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
@@ -461,11 +461,12 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
 void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondorder)
 {
 #if !defined(NDEBUG)
-    if (inputParams->parallelDataLoading
+    if (neurox::ParallelExecution()
      && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebug)
         return; //non-debug mode in parallel are compared at the end of execution instead
 
     if (inputParams->branchingDepth>0) return; //can't be compared
+
     input::Debugger::FixedStepMinimal2(nt, secondorder);
     input::Debugger::CompareBranch2(b);
 #endif
