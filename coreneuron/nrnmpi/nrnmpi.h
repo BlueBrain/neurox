@@ -28,6 +28,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef nrnmpi_h
 #define nrnmpi_h
+#include <mpi.h>
 #include "coreneuron/nrnmpi/nrnmpiuse.h"
 
 /* by default nrnmpi_numprocs_world = nrnmpi_numprocs = nrnmpi_numsubworlds and
