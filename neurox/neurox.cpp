@@ -41,25 +41,25 @@ static int Main_handler()
 
     if (!mechanisms) //if not set by neurox::LoadMechsAndQuit
     {
-      DebugMessage("neurox::Input::DataLoader::initMechanisms...\n");
+      DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
       hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
     }
-    DebugMessage("neurox::Input::DataLoader::init...\n");
+    DebugMessage("neurox::Input::DataLoader::Init...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Init);
-    DebugMessage("neurox::Input::DataLoader::initNeurons...\n");
+    DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
-    DebugMessage("neurox::Input::DataLoader::initNetcons...\n");
+    DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
     neurox_hpx_call_neurons( neurox::input::DataLoader::InitNetcons);
-    DebugMessage("neurox::Input::DataLoader::finalize...\n");
+    DebugMessage("neurox::Input::DataLoader::Finalize...\n");
     hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
-    DebugMessage("neurox::Branch::BranchTree::initLCOs...\n");
+    DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
     neurox_hpx_call_neurons(Branch::BranchTree::InitLCOs);
 
     if (neurox::inputParams->outputStatistics)
     {
-      DebugMessage("neurox::Misc::Statistics::outputMechanismsDistribution...\n");
+      DebugMessage("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
       tools::Statistics::OutputMechanismsDistribution();
-      DebugMessage("neurox::Misc::Statistics::outputSimulationSize...\n");
+      DebugMessage("neurox::tools::Statistics::OutputSimulationSize...\n");
       tools::Statistics::OutputSimulationSize();
       //hpx_exit(0,NULL);
     }
@@ -67,7 +67,7 @@ static int Main_handler()
     neurox::input::Debugger::CompareMechanismsFunctions();
     neurox::input::Debugger::CompareAllBranches();
 
-    DebugMessage("neurox::Branch::finitialize...\n");
+    DebugMessage("neurox::Branch::Finitialize...\n");
     neurox_hpx_call_neurons(Branch::Finitialize);
 #ifndef NDEBUG
     hpx_bcast_rsync(neurox::input::Debugger::Finitialize);

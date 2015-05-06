@@ -599,12 +599,14 @@ int DataLoader::InitNeurons_handler()
 
     int myNeuronsCount =  GetMyNrnNeuronsCount();
 
+    if (myNeuronsCount==0) neurox_hpx_unpin;
+
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
     if (inputParams->outputCompartmentsDot)
     {
       for (int i=0; i<myNeuronsCount; i++)
       {
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
+        neuron_id_t neuronId = GetNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
@@ -641,6 +643,7 @@ int DataLoader::InitNeurons_handler()
 
     //If there is branch parallelism, neurons are generated in serial
     //(otherwise branches benchmark is affected by scheduler and running threads)
+    //TODO I dont think so, a benchmark thread will run until it finishes!
     if (inputParams->branchingDepth>0)
         for (int i=0; i<myNeuronsCount; i++)
             CreateNeuron(i, myNeuronsTargets);
