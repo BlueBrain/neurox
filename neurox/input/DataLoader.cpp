@@ -385,9 +385,12 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map)
     nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup)
+void DataLoader::InitAndLoadCoreneuronData(
+        int argc, char ** argv,
+        bool load_all_neurons_on_all_localities,
+        bool run_setup_cleanup)
 {
-    nrn_init_and_load_data(argc, argv, /*nrnmpi_under_nrncontrol*/ false, run_setup_cleanup);
+    nrn_init_and_load_data(argc, argv, load_all_neurons_on_all_localities, run_setup_cleanup);
 }
 
 int DataLoader::GetMyNrnNeuronsCount()
