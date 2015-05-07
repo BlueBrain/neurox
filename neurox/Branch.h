@@ -129,7 +129,7 @@ class Branch
     void Finitialize2();
     void BackwardEulerStep();
 
-    static void registerHpxActions(); ///> Register all HPX actions
+    static void RegisterHpxActions(); ///> Register all HPX actions
 
   private:
     static int Init_handler(const int, const void *[], const size_t[]);
