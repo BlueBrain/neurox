@@ -44,7 +44,7 @@ class DERIVED_CLASS_NAME : public Algorithm
         AllReducesInfo();
         ~AllReducesInfo();
 
-        static void registerHpxActions(); ///> Register all HPX actions
+        static void RegisterHpxActions(); ///> Register all HPX actions
 
         //set by initNodeLevelInformaion
         static int reductionsPerCommStep;
