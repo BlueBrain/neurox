@@ -575,56 +575,6 @@ int DataLoader::Init_handler()
         fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
       #endif
     }
-
-    if (inputParams->outputMechanismsDot)
-    {
-      FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
-      fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", DOT_PNG_BACKGROUND_COLOR,
-              !inputParams->multiMex ? "layout=circo; scale=0.23;" : "");
-      fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
-      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
-      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
-      fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            GetMechanismFromType(CAP)->membFunc.sym, CAP);
-      if (!inputParams->multiMex)
-      {
-        fprintf(fileMechs, "end -> start [color=transparent];\n");
-        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->membFunc.sym, CAP);
-      }
-      for (int m =0; m< mechanismsCount; m++)
-      {
-        Mechanism * mech = neurox::mechanisms[m];
-
-        if (mech->pntMap > 0) //if is point process make it dotted
-            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
-
-        if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
-            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
-
-        if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
-            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
-
-        for (int s=0; s<mech->successorsCount; s++)
-        {
-            Mechanism * successor = GetMechanismFromType(mech->successors[s]);
-            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
-                    mech->membFunc.sym, mech->type, successor->membFunc.sym, successor->type);
-        }
-
-        if (inputParams->multiMex)
-        for (int d=0; d<mech->dependenciesCount; d++)
-        {
-            Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
-            if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO: hardcoded exception
-            if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
-                fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
-                        mech->membFunc.sym, mech->type, parent->membFunc.sym, parent->type);
-        }
-      }
-      fprintf(fileMechs, "}\n");
-      fclose(fileMechs);
-    }
-
     neurox_hpx_unpin;
 }
 
@@ -781,6 +731,73 @@ int DataLoader::Finalize_handler()
       fprintf(fileNetcons, "}\n");
       fclose(fileNetcons);
     }
+
+    if (inputParams->outputMechanismsDot)
+    {
+      FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
+      fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", DOT_PNG_BACKGROUND_COLOR,
+              !inputParams->multiMex ? "layout=circo; scale=0.23;" : "");
+      fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
+      fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
+            GetMechanismFromType(CAP)->membFunc.sym, CAP);
+      if (!inputParams->multiMex)
+      {
+        fprintf(fileMechs, "end -> start [color=transparent];\n");
+        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->membFunc.sym, CAP);
+      }
+      for (int m =0; m< mechanismsCount; m++)
+      {
+        Mechanism * mech = neurox::mechanisms[m];
+
+        //mech is unused
+        if (mech->dependencies==0 && mech->successorsCount==0)
+            fprintf(fileMechs, "#\"%s (%d)\" %s;\n", mech->membFunc.sym, mech->type, mech->pntMap>0 ? "[style=dashed]" : "");
+
+        if (mech->pntMap > 0 && (mech->dependencies>0 || mech->successorsCount>0)) //if is point process make it dotted
+            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
+
+        if (mech->dependenciesCount==0 && mech->successorsCount>0 && mech->type!=CAP) //top mechanism
+            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
+
+        if (mech->successorsCount==0 && mech->dependenciesCount>0 && mech->type!= CAP) //bottom mechanism
+            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
+
+        for (int s=0; s<mech->successorsCount; s++)
+        {
+            Mechanism * successor = GetMechanismFromType(mech->successors[s]);
+            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
+                    mech->membFunc.sym, mech->type, successor->membFunc.sym, successor->type);
+        }
+
+        if (inputParams->multiMex)
+        for (int d=0; d<mech->dependenciesCount; d++)
+        {
+            Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
+            if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO: hardcoded exception
+            if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
+                fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
+                        mech->membFunc.sym, mech->type, parent->membFunc.sym, parent->type);
+        }
+      }
+      fprintf(fileMechs, "}\n");
+      fclose(fileMechs);
+    }
+
+#ifndef NDEBUG
+    if (HPX_LOCALITY_ID ==0)
+    {
+        for (int m=0; m<neurox::mechanismsCount; m++)
+        {
+            Mechanism * mech = neurox::mechanisms[m];
+            printf("- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
+                   "isIon %d, symLength %d, %d successors, %d dependencies\n",
+                   mech->membFunc.sym, mech->type, mech->dataSize, mech->pdataSize, mech->isArtificial, mech->pntMap,
+                   mech->isIon, mech->symLength, mech->successorsCount, mech->dependenciesCount);
+        }
+    }
+#endif
 
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
     nrn_setup_cleanup();
