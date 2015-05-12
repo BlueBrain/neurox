@@ -135,7 +135,8 @@ int Clear_handler()
     neurox_hpx_unpin;
 }
 
-void SetMechanismsDependencies(const int *dependenciesCount, const int * dependenciesIds,
+void SetMechanismsDependencies(const char *mechUsed,
+                               const int *dependenciesCount, const int * dependenciesIds,
                                const int *successorsCount  , const int * successorsIds)
 {
     //make sure mechanisms have already been set
@@ -147,11 +148,16 @@ void SetMechanismsDependencies(const int *dependenciesCount, const int * depende
     {
         Mechanism * mech = mechanisms[m];
 
+        //if this mech is used by this of other locality, mark it as useful
+        if (mechUsed[m]) neurox::mechanisms[m]->isUsed = true;
+
         //if I know about more dependencies dependencies
         if (dependenciesCount!=nullptr)
         {
             assert(dependenciesIds!=nullptr);
-            if (mech->dependenciesCount<dependenciesCount[m])
+            //Less of equal because if its a single dependency (eg on non graph mechs)
+            //we are updating it to a new value
+            if (mech->dependenciesCount<=dependenciesCount[m])
             {
                 delete [] mech->dependencies;
                 mech->dependenciesCount = dependenciesCount[m];
@@ -165,7 +171,7 @@ void SetMechanismsDependencies(const int *dependenciesCount, const int * depende
         if (successorsCount!=nullptr)
         {
             assert(successorsIds!=nullptr);
-            if (mech->successorsCount<successorsCount[m])
+            if (mech->successorsCount<=successorsCount[m])
             {
                 delete [] mech->successors;
                 mech->successorsCount = successorsCount[m];
