@@ -23,7 +23,7 @@ class Mechanism
               const char isArtificial, char pntMap, const char isIon,
               const short int symLengh, const char * sym,
               Memb_func & memb_func,
-              const short int depedenciesCount=0, const int *dependencies=nullptr,
+              const short int dependenciesCount=0, const int *dependencies=nullptr,
               const short int successorsCount=0, const int *successors=nullptr);
 
     int type;
@@ -44,8 +44,6 @@ class Mechanism
     pnt_receive2_t pnt_receive;
     pnt_receive2_t pnt_receive_init;
     bbcore_read_t nrn_bbcore_read;
-
-    bool isUsed; ///> True if seen in any neuron
 
     enum ModFunction
     {
