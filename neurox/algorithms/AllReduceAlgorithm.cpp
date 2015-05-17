@@ -3,36 +3,36 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-hpx_t* DERIVED_CLASS_NAME::allReduces = nullptr;
+hpx_t* AllReduceAlgorithm::allReduces = nullptr;
 
-DERIVED_CLASS_NAME::DERIVED_CLASS_NAME()
+AllReduceAlgorithm::AllReduceAlgorithm()
 {
-    AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = DERIVED_CLASS_NAME::allReducesCount;
+    AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = AllReduceAlgorithm::allReducesCount;
 }
 
-DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
+AllReduceAlgorithm::~AllReduceAlgorithm() {}
 
-const AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType AllReduceAlgorithm::getType()
 {
     return AlgorithmType::BackwardEulerAllReduce;
 }
 
-const char* DERIVED_CLASS_NAME::getTypeString()
+const char* AllReduceAlgorithm::getTypeString()
 {
     return "BackwardEulerAllReduce";
 }
 
-void DERIVED_CLASS_NAME::Init() {
-    SubscribeAllReduces(DERIVED_CLASS_NAME::allReduces,
-                        DERIVED_CLASS_NAME::allReducesCount);
+void AllReduceAlgorithm::Init() {
+    SubscribeAllReduces(AllReduceAlgorithm::allReduces,
+                        AllReduceAlgorithm::allReducesCount);
 }
 
-void DERIVED_CLASS_NAME::Clear() {
-    UnsubscribeAllReduces(DERIVED_CLASS_NAME::allReduces,
-                          DERIVED_CLASS_NAME::allReducesCount);
+void AllReduceAlgorithm::Clear() {
+    UnsubscribeAllReduces(AllReduceAlgorithm::allReduces,
+                          AllReduceAlgorithm::allReducesCount);
 }
 
-double DERIVED_CLASS_NAME::Launch()
+double AllReduceAlgorithm::Launch()
 {
     int totalSteps = Algorithm::getTotalStepsCount();
     hpx_time_t now = hpx_time_now();
@@ -45,25 +45,25 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
+void AllReduceAlgorithm::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t spikesLco)
+void AllReduceAlgorithm::StepEnd(Branch* b, hpx_t spikesLco)
 {
     WaitForSpikesDelivery(b, spikesLco);
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::Run(Branch*b, const void* args)
+void AllReduceAlgorithm::Run(Branch*b, const void* args)
 {
     Run2(b, args);
 }
 
-hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* b, double tt, double)
+hpx_t AllReduceAlgorithm::SendSpikes(Neuron* b, double tt, double)
 {
     return SendSpikes2(b,tt);
 }
 
-void DERIVED_CLASS_NAME::SubscribeAllReduces(hpx_t *& allReduces, size_t allReducesCount)
+void AllReduceAlgorithm::SubscribeAllReduces(hpx_t *& allReduces, size_t allReducesCount)
 {
     assert(allReduces==nullptr);
     allReduces = new hpx_t[allReducesCount];
@@ -85,7 +85,7 @@ void DERIVED_CLASS_NAME::SubscribeAllReduces(hpx_t *& allReduces, size_t allRedu
         hpx_process_collective_allreduce_subscribe_finalize(allReduces[i]);
 }
 
-void DERIVED_CLASS_NAME::UnsubscribeAllReduces(hpx_t *& allReduces, size_t allReducesCount)
+void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t *& allReduces, size_t allReducesCount)
 {
     assert(allReduces!=nullptr);
     if (inputParams->allReduceAtLocality)
@@ -101,7 +101,7 @@ void DERIVED_CLASS_NAME::UnsubscribeAllReduces(hpx_t *& allReduces, size_t allRe
     delete [] allReduces; allReduces=nullptr;
 }
 
-void DERIVED_CLASS_NAME::WaitForSpikesDelivery(Branch *b, hpx_t spikesLco)
+void AllReduceAlgorithm::WaitForSpikesDelivery(Branch *b, hpx_t spikesLco)
 {
     //wait for spikes sent 4 steps ago (queue has always size 3)
     if (b->soma)
@@ -120,7 +120,7 @@ void DERIVED_CLASS_NAME::WaitForSpikesDelivery(Branch *b, hpx_t spikesLco)
     }
 }
 
-hpx_t DERIVED_CLASS_NAME::SendSpikes2(Neuron *neuron, double tt)
+hpx_t AllReduceAlgorithm::SendSpikes2(Neuron *neuron, double tt)
 {
     hpx_t newSynapsesLco = hpx_lco_and_new(neuron->synapses.size());
     for (Neuron::Synapse *& s : neuron->synapses)
@@ -129,7 +129,7 @@ hpx_t DERIVED_CLASS_NAME::SendSpikes2(Neuron *neuron, double tt)
     return newSynapsesLco;
 }
 
-void DERIVED_CLASS_NAME::Run2(Branch *b, const void *args)
+void AllReduceAlgorithm::Run2(Branch *b, const void *args)
 {
     int steps = *(int*)args;
     const int reductionsPerCommStep = AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
@@ -167,13 +167,13 @@ void DERIVED_CLASS_NAME::Run2(Branch *b, const void *args)
 }
 
 
-DERIVED_CLASS_NAME::AllReducesInfo::AllReducesInfo()
+AllReduceAlgorithm::AllReducesInfo::AllReducesInfo()
 {
     for (int s=0; s< CoreneuronAlgorithm::CommunicationBarrier::commStepSize-1; s++)
         this->spikesLcoQueue.push(HPX_NULL);
 }
 
-DERIVED_CLASS_NAME::AllReducesInfo::~AllReducesInfo()
+AllReduceAlgorithm::AllReducesInfo::~AllReducesInfo()
 {
     for (int i=0; i<spikesLcoQueue.size(); i++)
     {
@@ -184,8 +184,8 @@ DERIVED_CLASS_NAME::AllReducesInfo::~AllReducesInfo()
     }
 }
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::SubscribeAllReduce = 0;
-int DERIVED_CLASS_NAME::AllReducesInfo::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce = 0;
+int AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(Branch);
     AllReducesInfo * stw = (AllReducesInfo*) local->soma->algorithmMetaData;
@@ -202,8 +202,8 @@ int DERIVED_CLASS_NAME::AllReducesInfo::SubscribeAllReduce_handler(const hpx_t *
     neurox_hpx_unpin;
 }
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::UnsubscribeAllReduce = 0;
-int DERIVED_CLASS_NAME::AllReducesInfo::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce = 0;
+int AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(Branch);
     AllReducesInfo * stw = (AllReducesInfo*) local->soma->algorithmMetaData;
@@ -219,22 +219,22 @@ int DERIVED_CLASS_NAME::AllReducesInfo::UnsubscribeAllReduce_handler(const hpx_t
     neurox_hpx_unpin;
 }
 
-int DERIVED_CLASS_NAME::AllReducesInfo::reductionsPerCommStep = -1;
-std::vector<hpx_t>* DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::localityNeurons = nullptr;
-hpx_t* DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::allReduceFuture = nullptr;
-hpx_t* DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::allReduceLco = nullptr;
-int* DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::allReduceId = nullptr;
+int AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = -1;
+std::vector<hpx_t>* AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons = nullptr;
+hpx_t* AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceFuture = nullptr;
+hpx_t* AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceLco = nullptr;
+int* AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceId = nullptr;
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::SetReductionsPerCommStep = 0;
-int DERIVED_CLASS_NAME::AllReducesInfo::SetReductionsPerCommStep_handler(const int* val, const size_t)
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep = 0;
+int AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep_handler(const int* val, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     reductionsPerCommStep = *val;
     neurox_hpx_unpin;
 }
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::SubscribeAllReduce = 0;
-int DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::SubscribeAllReduce = 0;
+int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
@@ -251,8 +251,8 @@ int DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::SubscribeAllReduce_ha
     neurox_hpx_unpin;
 }
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce = 0;
-int DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce = 0;
+int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
@@ -267,16 +267,16 @@ int DERIVED_CLASS_NAME::AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce_
     neurox_hpx_unpin;
 }
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::Init = 0;
-void DERIVED_CLASS_NAME::AllReducesInfo::Init_handler
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::Init = 0;
+void AllReduceAlgorithm::AllReducesInfo::Init_handler
     (const void*, const size_t) {}
 
-hpx_action_t DERIVED_CLASS_NAME::AllReducesInfo::Reduce = 0;
-void DERIVED_CLASS_NAME::AllReducesInfo::Reduce_handler
+hpx_action_t AllReduceAlgorithm::AllReducesInfo::Reduce = 0;
+void AllReduceAlgorithm::AllReducesInfo::Reduce_handler
     (void* , const void* , const size_t) {}
 
 
-void DERIVED_CLASS_NAME::AllReducesInfo::RegisterHpxActions()
+void AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_single_var_action, AllReducesInfo::SubscribeAllReduce);
     neurox_hpx_register_action(neurox_single_var_action, AllReducesInfo::UnsubscribeAllReduce);
