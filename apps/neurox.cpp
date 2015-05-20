@@ -1,14 +1,6 @@
 #include "neurox/neurox.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
 
-/// if  ADDITIONAL_MECHS is defined, this is automatically generated  by CMake in build/coreneuron/mod_func.c
-extern "C" {extern void modl_reg(void);}
-
-/// Declare an empty function if Neurodamus mechanisms are not used, otherwise register them in mechs/cfile/mod_func.c
-#ifndef ADDITIONAL_MECHS
-void modl_reg() {}
-#endif
-
 int main(int argc, char** argv)
 {
     neurox::RegisterHpxActions();
