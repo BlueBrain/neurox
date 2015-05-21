@@ -27,8 +27,6 @@ class DataLoader
     DataLoader()=delete;
     ~DataLoader()=delete;
 
-    enum BranchType { Soma, AxonInitSegment, Dendrite};
-
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
     static void InitAndLoadCoreneuronData(
             int argc, char ** argv,
@@ -53,9 +51,10 @@ class DataLoader
 
   private:
 
-    static hpx_t CreateBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType, int thvar_index,
+    static hpx_t CreateBranch(int nrnThreadId,  hpx_t somaBranchAddr,
                               deque<Compartment*> & allCompartments, Compartment * topCompartment,
-                              vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDept=0);
+                              vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth,
+                              int thvar_index=-1 /*AIS*/, floble_t APthreshold=0 /*AIS*/);
 
     static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(
@@ -104,8 +103,8 @@ class DataLoader
     static hpx_action_t AddNeurons;
     static hpx_action_t SetMechanisms;
 
-    static int CreateNeuron(int neuron_idx, void * targets);
-    static int GetMyNrnNeuronsCount();
+    static int CreateNeuron(int neuron_idx, void *);
+    static int GetMyNrnThreadsCount();
     static int AddSynapse_handler(const int, const void *[], const size_t[]) ;
     static int AddNeurons_handler(const int, const void *[], const size_t[]) ;
     static int SetMechanisms_handler(const int, const void *[], const size_t[]) ;
