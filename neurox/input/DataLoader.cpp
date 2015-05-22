@@ -32,8 +32,7 @@ static hpx_t all_neurons_mutex = HPX_NULL;
 static std::vector<hpx_t> * my_neurons_addr = nullptr;
 static std::vector<int>   * my_neurons_gids = nullptr;
 
-static std::vector<hpx_t> * all_neurons_addr = nullptr;
-static std::vector<int>   * all_neurons_gids = nullptr;
+static std::vector<int> * all_neurons_gids = nullptr;
 
 static tools::LoadBalancing* loadBalancing = nullptr;
 
@@ -541,7 +540,6 @@ hpx_action_t DataLoader::Init =0;
 int DataLoader::Init_handler()
 {
     neurox_hpx_pin(uint64_t);
-    all_neurons_addr  = new std::vector<hpx_t>();
     all_neurons_gids  = new std::vector<int>();
     all_neurons_mutex   = hpx_lco_sema_new(1);
 
@@ -630,17 +628,27 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[], const si
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==3);
-    const int recvNeuronsCount = sizes[0]/sizeof(int);
-    const int * neuronsGids_serial = (const int*) args[0];
-    const hpx_t * neuronsAddr_serial = (const hpx_t*) args[1];
+    assert(nargs==2);
+    assert(sizes[0]/sizeof(int) == sizes[1]/sizeof(hpx_t));
+
+    const int recv_neurons_count = sizes[0]/sizeof(int);
+    const int * neurons_gids = (const int*) args[0];
+    const hpx_t * neurons_addr = (const hpx_t*) args[1];
 
     hpx_lco_sema_p(all_neurons_mutex);
-    for (int i=0; i<recvNeuronsCount; i++)
-    {
-        all_neurons_addr->push_back(neuronsAddr_serial[i]);
-        all_neurons_gids->push_back(neuronsGids_serial[i]);
-    }
+
+    all_neurons_gids->insert(all_neurons_gids->end(), neurons_gids, neurons_gids+recv_neurons_count);
+
+    //add the values to neurox::neurons
+    hpx_t * neurons_new = new hpx_t[neurox::neurons_count + recv_neurons_count];
+    copy(neurox::neurons, neurox::neurons+neurox::neurons_count, neurons_new);
+    copy(neurons_addr   , neurons_addr+recv_neurons_count, neurons_new + neurox::neurons_count);
+
+    delete [] neurox::neurons;
+    neurox::neurons_count += recv_neurons_count;
+    neurox::neurons = neurons_new;
+
+    assert(all_neurons_gids->size() == neurox::neurons_count);
     hpx_lco_sema_v_sync(all_neurons_mutex);
     neurox_hpx_unpin;
 }
@@ -823,9 +831,6 @@ int DataLoader::Finalize_handler()
 #endif
 
     all_neurons_gids->clear(); delete all_neurons_gids; all_neurons_gids = nullptr;
-
-    neurox::neurons = all_neurons_addr->data();
-    neurox::neurons_count = all_neurons_addr->size();
 
     nrn_setup_cleanup();
     hpx_lco_delete_sync(all_neurons_mutex);
@@ -1236,7 +1241,7 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaBranchAddr,
     }
 
     //allocate and initialize branch on the respective owner
-    hpx_t branchAddr = hpx_gas_alloc_local_at_sync(neuronRank, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_HERE);
+    hpx_t branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_THERE(neuronRank));
 
     //update hpx address of soma
     somaBranchAddr = isSoma ? branchAddr : somaBranchAddr;
@@ -1278,8 +1283,10 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaBranchAddr,
                       &neuronId, sizeof(neuron_id_t),
                       &APthreshold, sizeof(floble_t));
 
+        hpx_lco_sema_p(all_neurons_mutex);
         my_neurons_addr->push_back(branchAddr);
         my_neurons_gids->push_back(neuronId);
+        hpx_lco_sema_v_sync(all_neurons_mutex);
     }
     return branchAddr;
 }
@@ -1304,7 +1311,7 @@ int DataLoader::InitNetcons_handler()
         //if I'm connected to it (ie is not artificial or non-existent)
         if (local->netcons.find(srcGid) != local->netcons.end())
         {
-            hpx_t srcAddr = all_neurons_addr->at(i);
+            hpx_t srcAddr = neurox::neurons[i];
             floble_t minDelay = impossiblyLargeDelay;
             for (NetConX *& nc : local->netcons.at(srcGid))
                 if (nc->active)
