@@ -12,16 +12,17 @@ using namespace neurox::algorithms;
 namespace neurox
 {
 
-std::vector<hpx_t> * neurons = nullptr;
-int mechanismsCount = -1;
-int * mechanismsMap = nullptr;
+hpx_t *neurons = nullptr;
+int neurons_count = 0;
+int mechanisms_count = -1;
+int * mechanisms_map = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
-neurox::tools::CmdLineParser * inputParams = nullptr;
+neurox::tools::CmdLineParser * input_params = nullptr;
 neurox::algorithms::Algorithm * algorithm = nullptr;
 
 Mechanism * GetMechanismFromType(int type) {
-    assert(mechanismsMap[type]!=-1);
-    return mechanisms[mechanismsMap[type]];
+    assert(mechanisms_map[type]!=-1);
+    return mechanisms[mechanisms_map[type]];
 }
 
 hpx_action_t Main = 0;
@@ -42,11 +43,9 @@ static int Main_handler()
     DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
     neurox_hpx_call_neurons(Branch::BranchTree::InitLCOs);
 
-    if (neurox::inputParams->outputStatistics)
+    if (neurox::input_params->outputStatistics)
     {
-      DebugMessage("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
       tools::Statistics::OutputMechanismsDistribution();
-      DebugMessage("neurox::tools::Statistics::OutputSimulationSize...\n");
       tools::Statistics::OutputSimulationSize();
       //hpx_exit(0,NULL);
     }
@@ -69,7 +68,7 @@ static int Main_handler()
 #endif
 
     double totalTimeElapsed = 0;
-    if (inputParams->algorithm == AlgorithmType::All)
+    if (input_params->algorithm == AlgorithmType::All)
     {
         //TODO for this to work, we have to re-set algorothm in all cpus?
         for (int type = 0; type<AlgorithmType::BenchmarkEnd; type++)
@@ -94,7 +93,7 @@ static int Main_handler()
     }
     else
     {
-        algorithm = Algorithm::New(inputParams->algorithm);
+        algorithm = Algorithm::New(input_params->algorithm);
         algorithm->Init();
         algorithm->PrintStartInfo();
         totalTimeElapsed = algorithm->Launch();
@@ -103,7 +102,7 @@ static int Main_handler()
     }
 
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
-           neurons->size(), inputParams->tstop/1000.0, totalTimeElapsed);
+           neurox::neurons_count, input_params->tstop/1000.0, totalTimeElapsed);
 
     neurox_hpx_call_neurons(Branch::Clear);
     hpx_bcast_rsync(neurox::Clear);
@@ -114,15 +113,11 @@ hpx_action_t Clear = 0;
 int Clear_handler()
 {
     neurox_hpx_pin(uint64_t);
-    delete [] mechanisms;
-    if (neurox::neurons)
-    {
-        neurox::neurons->clear();
-        delete neurox::neurons;
-        neurox::neurons = nullptr;
-    }
+    delete [] neurox::mechanisms;
+    delete [] neurox::neurons;
+    delete [] neurox::mechanisms_map;
 
-    if (inputParams->allReduceAtLocality)
+    if (input_params->allReduceAtLocality)
     {
         AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->clear();
         delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons;
