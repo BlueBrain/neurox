@@ -83,10 +83,10 @@ static int Main_handler()
 
 #ifdef NDEBUG
             //output benchmark info
-            printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurons->size(),
-                   hpx_get_num_ranks(), hpx_get_num_threads(), neurons->size() / (double) hpx_get_num_ranks(),
-                   inputParams->tstop, algorithm->getType(), inputParams->multiMex ? 1:0,
-                   inputParams->branchingDepth, inputParams->allReduceAtLocality ? 1:0, timeElapsed);
+            printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurox::neurons_count,
+                   hpx_get_num_ranks(), hpx_get_num_threads(), neurox::neurons_count / (double) hpx_get_num_ranks(),
+                   input_params->tstop, algorithm->getType(), input_params->multiMex ? 1:0,
+                   input_params->branchingDepth, input_params->allReduceAtLocality ? 1:0, timeElapsed);
             fflush(stdout);
 #endif
         }
