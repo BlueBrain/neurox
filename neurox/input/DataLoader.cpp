@@ -837,7 +837,8 @@ int DataLoader::Finalize_handler()
     hpx_lco_delete_sync(all_neurons_mutex);
 
 #if defined(NDEBUG) 
-    DataLoader::CleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+    //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now, except global_ion_map
+    DataLoader::CleanCoreneuronData(false);
 #endif
 
     if (input_params->outputStatistics)
