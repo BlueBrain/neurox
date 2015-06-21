@@ -3,16 +3,20 @@
 #include <utility>  //std::pair
 #include "neurox/neurox.h"
 
-#define DiscreteEventType 0
-#define TstopEventType 1
-#define NetConType 2
-#define SelfEventType 3
-#define PreSynType 4
-#define NetParEventType 7
-#define InputPreSynType 20
-#define VecPlayContinuousType -4
-
 namespace neurox {
+
+/// Enumerator of all (used) event types
+enum EventType
+{
+  kDiscreteEvent=0,
+  //kTstopEvent=1,
+  kNetCon=2,
+  //kSelfEvent=3,
+  //kPreSyn=4,
+  //kNetParEvent=7,
+  //kInputPreSyn=20,
+  kVecPlayContinuous=-4
+};
 
 class Branch;
 
@@ -24,7 +28,7 @@ class Branch;
 class Event {
  public:
   virtual void Deliver(floble_t t, Branch* branch) = 0;
-  virtual int Type() { return DiscreteEventType; }
+  virtual EventType Type() { return EventType::kDiscreteEvent; }
 };
 }
 

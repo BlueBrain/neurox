@@ -68,10 +68,10 @@ static int Main_handler()
 #endif
 
     double totalTimeElapsed = 0;
-    if (input_params->algorithm == AlgorithmType::All)
+    if (input_params->algorithm == AlgorithmType::kBenchmarkAll)
     {
         //TODO for this to work, we have to re-set algorothm in all cpus?
-        for (int type = 0; type<AlgorithmType::BenchmarkEnd; type++)
+        for (int type = 0; type<4; type++)
         {
             algorithm = Algorithm::New((AlgorithmType) type);
             algorithm->Init();
