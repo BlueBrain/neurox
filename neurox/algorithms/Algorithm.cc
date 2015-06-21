@@ -5,15 +5,15 @@ using namespace neurox::algorithms;
 
 Algorithm* Algorithm::New(AlgorithmType type) {
   switch (type) {
-    case AlgorithmType::BackwardEulerDebug:
+    case AlgorithmType::kBackwardEulerDebug:
       return new DebugAlgorithm();
-    case AlgorithmType::BackwardEulerCoreneuron:
+    case AlgorithmType::kBackwardEulerCoreneuron:
       return new CoreneuronAlgorithm();
-    case AlgorithmType::BackwardEulerAllReduce:
+    case AlgorithmType::kBackwardEulerAllReduce:
       return new AllReduceAlgorithm();
-    case AlgorithmType::BackwardEulerSlidingTimeWindow:
+    case AlgorithmType::kBackwardEulerSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
-    case AlgorithmType::BackwardEulerTimeDependencyLCO:
+    case AlgorithmType::kBackwardEulerTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm();
     default:
       return nullptr;
@@ -23,7 +23,7 @@ Algorithm* Algorithm::New(AlgorithmType type) {
 
 void Algorithm::PrintStartInfo() {
   printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
-         getTypeString(), neurox::neurons_count, input_params->tstop / 1000,
+         GetTypeString(), neurox::neurons_count, input_params->tstop / 1000,
          input_params->dt);
   fflush(stdout);
 }

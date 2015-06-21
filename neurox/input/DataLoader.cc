@@ -184,7 +184,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   // information about offsets in data and node ifs of all instances of all ions
   vector<DataLoader::IonInstancesInfo> ionsInstancesInfo(
-      Mechanism::Ion::size_all_ions);
+      Mechanism::Ion::kSizeAllIons);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -780,7 +780,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
               strcmp("ca_ion", parent->membFunc.sym) == 0)
             continue;  // TODO hard coded exception
 
-          if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions)
+          if (parent->GetIonIndex() < Mechanism::Ion::kSizeWriteableIons)
             mech->dependencyIonIndex = parent->GetIonIndex();
         }
       }
@@ -851,7 +851,7 @@ int DataLoader::Finalize_handler() {
               strcmp("ca_ion", parent->membFunc.sym) == 0)
             continue;  // TODO: hardcoded exception
           if (parent->GetIonIndex() <
-              Mechanism::Ion::size_writeable_ions)  // ie is writeable
+              Mechanism::Ion::kSizeWriteableIons)  // ie is writeable
             fprintf(
                 fileMechs,
                 "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
@@ -1444,9 +1444,9 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(srcAddr, minDelay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params->algorithm == AlgorithmType::All ||
+        if (input_params->algorithm == AlgorithmType::kBenchmarkAll ||
             input_params->algorithm ==
-                AlgorithmType::BackwardEulerTimeDependencyLCO) {
+                AlgorithmType::kBackwardEulerTimeDependencyLCO) {
           spike_time_t notificationTime =
               input_params->tstart +
               minDelay * TimeDependencyLCOAlgorithm::TimeDependencies::
