@@ -35,7 +35,7 @@ class Mechanism {
   int type;
   short dataSize, pdataSize, vdataSize;
   short successorsCount;    ///> number of mechanisms succedding this one on a
-                            ///parallel execution
+                            /// parallel execution
   short dependenciesCount;  ///> number of mechanisms it depends on
   short symLength;          ///> length of the name of the mechanism;
   char pntMap, isArtificial;

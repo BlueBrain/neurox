@@ -59,16 +59,16 @@ Mechanism::Mechanism(const int type, const short int dataSize,
   }
 
   switch (type) {
-    case IClamp:
+    case NEUROX_ICLAMP_:
       vdataSize = 1;
       break;
-    case ProbAMPANMDA_EMS:
+    case NEUROX_PROBAMPANMDA_EMS_:
       vdataSize = 2;
       break;
-    case ProbGABAAB_EMS:
+    case NEUROX_PROBGABAAB_EMS_:
       vdataSize = 2;
       break;
-    case StochKv:
+    case NEUROX_STOCHKV_:
       vdataSize = 1;
       break;
     default:

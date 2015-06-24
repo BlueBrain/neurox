@@ -20,7 +20,8 @@ class VecPlayContinuousX : Event {
   /// delivers this event at a given branch and time
   void Deliver(floble_t t, Branch* branch);
 
-  /// play - every f(y, t) or res(y', y, t); record - advance_tn and initialize flag
+  /// play - every f(y, t) or res(y', y, t); record - advance_tn and initialize
+  /// flag
   void Continuous(floble_t tt);
   void PlayInit(Branch* branch);  ///> called near beginning of finitialize
 

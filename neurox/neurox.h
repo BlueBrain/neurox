@@ -1,10 +1,10 @@
 #pragma once
 
 // hard-coded mechanism types
-#define IClamp 7
-#define ProbAMPANMDA_EMS 137
-#define ProbGABAAB_EMS 139
-#define StochKv 151
+#define NEUROX_ICLAMP_ 7
+#define NEUROX_PROBAMPANMDA_EMS_ 137
+#define NEUROX_PROBGABAAB_EMS_ 139
+#define NEUROX_STOCHKV_ 151
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
@@ -23,9 +23,9 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 
 // auxiliary classes defining events, synapses and mechanisms
 #include "neurox/Event.h"
-#include "neurox/VecPlayContinuous.h"
-#include "neurox/NetCon.h"
 #include "neurox/Mechanism.h"
+#include "neurox/NetCon.h"
+#include "neurox/VecPlayContinuous.h"
 
 // morphology classes (branches and soma)
 #include "neurox/Branch.h"
@@ -48,7 +48,9 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 // Algorithms
 #include "neurox/algorithms/Algorithm.h"
 
-//#define PRINT_TIME_DEPENDENCY
+// Debug flags
+#define NEUROX_PRINT_TIME_DEPENDENCY_
+//#define NDEBUG
 
 namespace neurox {
 
