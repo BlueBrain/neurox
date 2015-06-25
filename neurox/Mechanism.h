@@ -5,13 +5,24 @@
 
 namespace neurox {
 
+class NetConX;
+
+/// hard-coded mechanism types
+enum MechanismTypes {
+  kIClamp = 7,
+  kProbAMPANMDA_EMS = 137,
+  kProbGABAAB_EMS = 139,
+  kStochKv = 151
+};
+
 /**
  * @brief The Mechanisms class
  * Stores the unique metadata of each mechanism
  */
 class Mechanism {
  public:
-  enum Ion {
+  /// unique id identifying ion mechanisms
+  enum IonTypes {
     kNa = 0,
     kK = 1,
     kCa = 2,
@@ -52,7 +63,7 @@ class Mechanism {
   pnt_receive2_t pnt_receive_init;
   bbcore_read_t nrn_bbcore_read;
 
-  enum ModFunction {
+  enum ModFunctions {
     // BA functions start here (of size BEFORE_AFTER_SIZE)
     kBeforeInitialize = 0,
     kAfterInitialize = 1,
@@ -78,10 +89,10 @@ class Mechanism {
     kNetReceiveInit = 18
   };
 
-  Mechanism::Ion GetIonIndex();
+  Mechanism::IonTypes GetIonIndex();
 
   void CallModFunction(const void *branch,
-                       const Mechanism::ModFunction functionId,
+                       const Mechanism::ModFunctions functionId,
                        const NetConX *netcon = NULL,  // for net_receive only
                        const floble_t tt = 0);        // for net_receive only
  private:
