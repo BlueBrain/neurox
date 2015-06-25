@@ -184,7 +184,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   // information about offsets in data and node ifs of all instances of all ions
   vector<DataLoader::IonInstancesInfo> ionsInstancesInfo(
-      Mechanism::Ion::kSizeAllIons);
+      Mechanism::IonTypes::kSizeAllIons);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -256,12 +256,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
       if (mech->pntMap > 0 || mech->vdataSize > 0)  // vdata
       {
-        assert((type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
+        assert((type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
                 mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
+               (type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
                 mech->pdataSize == 5 && mech->pntMap == 0) ||
-               ((type == NEUROX_PROBAMPANMDA_EMS_ ||
-                 type == NEUROX_PROBGABAAB_EMS_) &&
+               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
+                 type == MechanismTypes::kProbGABAAB_EMS) &&
                 mech->vdataSize == 2 && mech->pdataSize == 3 &&
                 mech->pntMap > 0));
 
@@ -277,8 +277,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         // pdata[3]: offset for RNG in vdata[0]
         // pdata[4]: offset in data (area)
 
-        if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-            type == NEUROX_PROBGABAAB_EMS_) {
+        if (type == MechanismTypes::kIClamp ||
+            type == MechanismTypes::kProbAMPANMDA_EMS ||
+            type == MechanismTypes::kProbGABAAB_EMS) {
           const int pointProcOffsetInPdata = 1;
           Point_process *ppn = &nt->pntprocs[pointProcTotalOffset++];
           assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
@@ -288,16 +289,17 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                                           sizeof(Point_process));
         }
 
-        if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-            type == NEUROX_PROBGABAAB_EMS_) {
-          int rngOffsetInPdata = mech->type == NEUROX_STOCHKV_ ? 3 : 2;
-          int rngOffsetInVdata = mech->type == NEUROX_STOCHKV_ ? 0 : 1;
+        if (type == MechanismTypes::kStochKv ||
+            type == MechanismTypes::kProbAMPANMDA_EMS ||
+            type == MechanismTypes::kProbGABAAB_EMS) {
+          int rngOffsetInPdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
+          int rngOffsetInVdata = mech->type == MechanismTypes::kStochKv ? 0 : 1;
           assert(nt->_vdata[pdata[rngOffsetInPdata]] ==
                  vdata[rngOffsetInVdata]);
           nrnran123_State *RNG = (nrnran123_State *)vdata[rngOffsetInVdata];
 
           // TODO: manual hack: StochKv's current state has NULL pointers, why?
-          if (RNG == NULL && type == NEUROX_STOCHKV_)
+          if (RNG == NULL && type == MechanismTypes::kStochKv)
             compartment->AddSerializedVdata(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
           else {
@@ -781,7 +783,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
               strcmp("ca_ion", parent->membFunc.sym) == 0)
             continue;  // TODO hard coded exception
 
-          if (parent->GetIonIndex() < Mechanism::Ion::kSizeWriteableIons)
+          if (parent->GetIonIndex() < Mechanism::IonTypes::kSizeWriteableIons)
             mech->dependencyIonIndex = parent->GetIonIndex();
         }
       }
@@ -851,7 +853,7 @@ int DataLoader::Finalize_handler() {
               strcmp("ca_ion", parent->membFunc.sym) == 0)
             continue;  // TODO: hardcoded exception
           if (parent->GetIonIndex() <
-              Mechanism::Ion::kSizeWriteableIons)  // ie is writeable
+              Mechanism::IonTypes::kSizeWriteableIons)  // ie is writeable
             fprintf(
                 fileMechs,
                 "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
@@ -1059,21 +1061,23 @@ int DataLoader::GetBranchData(
       compDataOffset += mech->dataSize;
       compPdataOffset += mech->pdataSize;
       if (mech->pntMap > 0 || mech->vdataSize > 0) {
-        assert((type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
+        assert((type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
                 mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
+               (type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
                 mech->pdataSize == 5 && mech->pntMap == 0) ||
-               ((type == NEUROX_PROBAMPANMDA_EMS_ ||
-                 type == NEUROX_PROBGABAAB_EMS_) &&
+               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
+                 type == MechanismTypes::kProbGABAAB_EMS) &&
                 mech->vdataSize == 2 && mech->pdataSize == 3 &&
                 mech->pntMap > 0));
 
         size_t totalVdataSize = 0;
-        if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-            type == NEUROX_PROBGABAAB_EMS_)
+        if (type == MechanismTypes::kIClamp ||
+            type == MechanismTypes::kProbAMPANMDA_EMS ||
+            type == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(Point_process);
-        if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-            type == NEUROX_PROBGABAAB_EMS_)
+        if (type == MechanismTypes::kStochKv ||
+            type == MechanismTypes::kProbAMPANMDA_EMS ||
+            type == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(nrnran123_State);
         vdataMechs[mechOffset].insert(
             vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset],
@@ -1106,13 +1110,13 @@ int DataLoader::GetBranchData(
 
       if (mech->pntMap > 0 || mech->vdataSize > 0) {
         int totalVdataSize = 0;
-        if (mech->type == NEUROX_ICLAMP_ ||
-            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
-            mech->type == NEUROX_PROBGABAAB_EMS_)
+        if (mech->type == MechanismTypes::kIClamp ||
+            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(Point_process);
-        if (mech->type == NEUROX_STOCHKV_ ||
-            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
-            mech->type == NEUROX_PROBGABAAB_EMS_)
+        if (mech->type == MechanismTypes::kStochKv ||
+            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(nrnran123_State);
         assert(totalVdataSize > 0);
         vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset],
@@ -1159,7 +1163,7 @@ int DataLoader::GetBranchData(
                 // (converted before)
 
                 Mechanism *ion = neurox::GetMechanismFromType(ptype);
-                Mechanism::Ion ionOffset = ion->GetIonIndex();
+                Mechanism::IonTypes ionOffset = ion->GetIonIndex();
                 IonInstancesInfo &ionInfo =
                     ionsInstancesInfo.at((int)ionOffset);
                 int dataStart = ionInfo.dataStart;
