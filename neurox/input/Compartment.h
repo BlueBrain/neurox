@@ -1,8 +1,9 @@
 #pragma once
 
+#include "neurox/neurox.h"
+
 #include <memory>
 #include <vector>
-#include "neurox/neurox.h"
 
 using namespace std;
 
