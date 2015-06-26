@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vector>
 #include "neurox/neurox.h"
+
+#include <vector>
 
 namespace neurox {
 
@@ -22,6 +23,7 @@ enum MechanismTypes {
 class Mechanism {
  public:
   /// unique id identifying ion mechanisms
+  /// TODO these types could be merged with the above?!
   enum IonTypes {
     kNa = 0,
     kK = 1,

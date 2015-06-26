@@ -1,7 +1,8 @@
 #pragma once
 
-#include <utility>  //std::pair
 #include "neurox/neurox.h"
+
+#include <utility>  //std::pair
 
 namespace neurox {
 
