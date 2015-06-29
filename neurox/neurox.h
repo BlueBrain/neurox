@@ -28,11 +28,6 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 // Fixed-step Backward-Euler solver
 #include "neurox/solver/HinesSolver.h"
 
-// CoreNeuron-based input
-#include "neurox/input/Compartment.h"
-#include "neurox/input/DataLoader.h"
-#include "neurox/input/Debugger.h"
-
 // Tools
 #include "neurox/tools/CmdLineParser.h"
 #include "neurox/tools/LoadBalancing.h"
@@ -41,6 +36,11 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 
 // Algorithms
 #include "neurox/algorithms/Algorithm.h"
+
+// CoreNeuron-based input
+#include "neurox/input/Compartment.h"
+#include "neurox/input/DataLoader.h"
+#include "neurox/input/Debugger.h"
 
 // Debug flags
 #define NEUROX_PRINT_TIME_DEPENDENCY_
