@@ -113,7 +113,7 @@ void Statistics::OutputSimulationSize(bool writeToFile) {
 
 hpx_action_t Statistics::GetNeuronSize = 0;
 int Statistics::GetNeuronSize_handler() {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(local->nt->end > 0);
   SizeInfo branchSize;
   int n = local->nt->end;
@@ -198,7 +198,7 @@ int Statistics::GetNeuronSize_handler() {
 
     delete[] subBranchSizes;
   }
-  NEUROX_MEM_UNPIN_CONTINUE_(branchSize);
+  NEUROX_MEM_UNPIN_CONTINUE(branchSize);
 }
 
 void Statistics::OutputMechanismsDistribution(bool writeToFile) {
@@ -237,7 +237,7 @@ void Statistics::OutputMechanismsDistribution(bool writeToFile) {
 
 hpx_action_t Statistics::GetNeuronMechanismsDistribution = 0;
 int Statistics::GetNeuronMechanismsDistribution_handler() {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   unsigned mechsCountPerType[mechanisms_count];
   for (int m = 0; m < mechanisms_count; m++)
     mechsCountPerType[m] = local->mechsInstances[m].nodecount;
@@ -274,11 +274,11 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
     for (int c = 0; c < branchesCount; c++) delete[] mechsCountPerTypeChild[c];
     delete[] mechsCountPerTypeChild;
   }
-  NEUROX_MEM_UNPIN_CONTINUE_(mechsCountPerType);
+  NEUROX_MEM_UNPIN_CONTINUE(mechsCountPerType);
 }
 
 void Statistics::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Statistics::GetNeuronSize);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Statistics::GetNeuronSize);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR,
                           Statistics::GetNeuronMechanismsDistribution);
 }
