@@ -1,4 +1,4 @@
-#include "neurox/algorithms/AllReduceAlgorithm.h"
+#include "neurox/algorithms/all_reduce_algorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
