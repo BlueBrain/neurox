@@ -25,7 +25,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         case StochKv          :	vdataSize=1; break;
         default               : vdataSize = 0;
     }
-    this->membFunc.is_point = pntMap > 0 ? 1 : 0; //TODO never used
+    this->membFunc.is_point = pntMap > 0 ? 1 : 0;
 
     if (dependencies != nullptr){
         assert(dependenciesCount>0);
@@ -263,7 +263,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
                 membFunc.destructor();
         break;
         case Mechanism::ModFunction::threadMemInit:
-            assert(0); //TODO should be called only by constructor Branch(...)
+            assert(0); //should be called only by constructor Branch(...)
             if (membFunc.thread_mem_init_)
                 membFunc.thread_mem_init_(membList->_thread);
         break;
@@ -274,7 +274,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
                      membList->_thread, nrnThread, type);
         break;
         case Mechanism::ModFunction::threadCleanup:
-            assert(0); //TODO should only be called by destructor ~Branch(...)
+            assert(0); //should only be called by destructor ~Branch(...)
             if (membFunc.thread_cleanup_)
                 membFunc.thread_cleanup_(membList->_thread);
         break;
