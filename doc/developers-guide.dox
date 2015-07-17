@@ -39,6 +39,7 @@
       -# <b><code>doc</code></b> - documentation.
       -# <b><code>tests</code></b> - various tests configuration:
         -# <b><code>integration</code></b> - integration tests for various simulations.
+        -# <b><code>production</code></b> - production tests for bigger scale runs. 
         -# <b><code>regression</code></b> - regression testing.
         -# <b><code>unit</code></b> - unit testing.
         -# <b><code>validation</code></b> - validation tests which are run using the python scripts to verify the validity of the output.
@@ -46,8 +47,8 @@
 
 @section Building_and_Installing Building and Installing
 
-Note: The default build of CoreNeuron does not include any production mechanisms, unless the CORENEURON_NEURODAMUS_MECHS
-flag is ON or CORENEURON_ADDITIONAL_MECHS is set with the production mechanisms (see below).
+Note: The default build of CoreNeuron includes production mechanisms from Neurodamus, unless the CORENEURON_NEURODAMUS_MECHS
+flag is OFF. Additional mechanisms can be set with the CORENEURON_ADDITIONAL_MECHS variable (see below).
 
 
 @subsection Dependencies Dependencies
@@ -55,10 +56,10 @@ flag is ON or CORENEURON_ADDITIONAL_MECHS is set with the production mechanisms 
 CoreNeuron depends on <code>MPI</code> for parallelization. Currently the following compilers/MPI libraries for production
 simulations are used:
 - Blue Gene/Q: XLC 12.1.0.7 (V1R2M1 drivers)
-- x86_64: icc 13.1, mvapich 2.0
+- x86_64: icc 13.1, mvapich 2.0.1-nocuda
 
 One can use other compilers and MPI library distributions. Make sure that appropriate modules are loaded and
-CMake (minimum required version 2.8) is correctly setting appropriate compilers/libraries.
+CMake (minimum required version is 2.8) is correctly setting appropriate compilers/libraries.
 
 CoreNeuron also depends on <code>mod2c</code> in order to be able to convert .mod files into .c files. The
 <code>mod2c</code> is located in the <code>sim/mod2c</code> repository of the <code>bbpcode</code> portal.
@@ -94,6 +95,7 @@ which will result in different building outputs:
   - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
   - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
 which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
+  - CORENEURON_PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
   - CORENEURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
 which can be specified with an absolute path name, or as a bare file name.
   - CORENEURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in CORENEURON_ADDITIONAL_MECHS.
@@ -109,8 +111,8 @@ and -DCMAKE_C_FLAGS options to the CMake command.
 
 For example, on a Blue Gene Q: <br>
      <b><code>
-     cmake .. -DCMAKE_CXX_FLAGS="-O5 -qtune=qp -qarch=qp -q64 -qhot=simd -qsmp -qthreaded -qipa=level=2"
-              -DCMAKE_C_FLAGS="-O5 -qtune=qp -qarch=qp -q64 -qhot=simd -qsmp -qthreaded -qipa=level=2"
+     cmake .. -DCMAKE_CXX_FLAGS="-O3 -qtune=qp -qarch=qp -q64 -qhot -qsimd=auto -qsmp -qthreaded"
+              -DCMAKE_C_FLAGS="-O3 -qtune=qp -qarch=qp -q64 -qhot -qsimd=auto -qsmp -qthreaded"
      </code></b>
 
 Note that one should explicitly specify the compilation flags.
@@ -158,8 +160,9 @@ Once the CoreNeuron is built, one can run parallel simulator with any MPI launch
 
 3. And run simulator with any MPI launcher as: <br>
      <b><code>
-     srun -n $NUM_MPIS $PATH_TO_CORENEURON_EXEC -mpi   (assuming slurm batch system) <br>
-     where $NUM_MPIS is number of MPI ranks and $PATH_TO_CORENEURON_EXEC is path of coreneuron executable.
+     srun -n $NUM_MPIS $PATH_TO_CORENEURON_EXEC $ARGS  (assuming slurm batch system) <br>
+     where $NUM_MPIS is number of MPI ranks, $PATH_TO_CORENEURON_EXEC is the path of coreneuron executable
+     and $ARGS are the arguments for the executable.
      </code></b>
 
 
@@ -183,7 +186,7 @@ have been used to prepare the validation test cases.
 @subsection Modify_Parameters Modifying Test Input Parameters
 
   1. MODIFY SIMULATION RUNTIME PARAMETERS <br>
-One can change the parameters of the simulation time by setting the correspondent values from the command line.
+One can change the parameters of the simulation by setting the correspondent values from the command line ($ARGS).
 Also, if the "tstop" is significantly increased, the produced amount of spikes might not fit in the allocated
 buffer size "spikebug", which sould be increased as well. The following list describes the configurable
 parameters which can be set from the command line: <br><br>
