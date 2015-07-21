@@ -11,7 +11,7 @@ namespace algorithms
 
 class BackwardEulerDebugMode : Algorithm
 {
-    constexpr virtual AlgorithmType getType() override
+    virtual AlgorithmType getType() override
     {
         return AlgorithmType::BackwardEulerDebugMode;
     };
