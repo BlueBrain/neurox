@@ -8,18 +8,15 @@ Algorithm* Algorithm::New(AlgorithmType type)
     switch (type)
     {
     case AlgorithmType::BackwardEulerDebugMode:
-        return new BackwardEulerAllReduce();
-        break;
+        return new BackwardEulerDebugModeAlgorithm();
     case AlgorithmType::BackwardEulerAllReduce:
-        return new BackwardEulerAllReduce();
-        break;
+        return new BackwardEulerAllReduceAlgorithm();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
-        return new BackwardEulerSlidingTimeWindow();
-        break;
+        return new BackwardEulerSlidingTimeWindowAlgorithm();
     case AlgorithmType::BackwardEulerTimeDependencyLCO:
-        return new BackwardEulerTimeDependencyLCO();
-        break;
+        return new BackwardEulerTimeDependencyLCOAlgorithm();
     default:
         return nullptr;
     }
+    return nullptr;
 }
