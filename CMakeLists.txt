@@ -58,7 +58,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
 
 include(BlueGenePortability)
 include(DefineInstallationPaths)
-include(ReleaseDebugAutoFlags)
+#include(ReleaseDebugAutoFlags) #not including -DNDEBUG for Release mode
 include(SetRpath)
 
 include(FindPkgConfig)

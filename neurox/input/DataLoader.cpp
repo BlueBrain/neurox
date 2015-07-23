@@ -24,6 +24,7 @@
 
 using namespace std;
 using namespace neurox::input;
+using namespace neurox::algorithms;
 
 static FILE *fileNetcons;
 static hpx_t neuronsMutex = HPX_NULL;
@@ -738,7 +739,7 @@ int DataLoader::Finalize_handler()
     hpx_lco_delete_sync(neuronsMutex);
 
 #if defined(NDEBUG) 
-    DataLoader::cleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+    DataLoader::CleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
 #else
     //print Load Balancing table
     if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
@@ -1239,7 +1240,7 @@ int DataLoader::InitNetcons_handler()
                 netcons.push_back(make_pair(srcAddr,minDelay));
 
                 //add this pre-syn neuron as my time-dependency
-                if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
+                if (inputParams->algorithm == AlgorithmType::All || inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
                 {
                   spike_time_t notificationTime = inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio;
                   dependencies.push_back( make_pair(srcGid, notificationTime ) );
