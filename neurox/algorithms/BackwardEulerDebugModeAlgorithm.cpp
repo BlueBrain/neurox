@@ -9,7 +9,7 @@ DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 
 AlgorithmType DERIVED_CLASS_NAME::getType()
 {
-    return AlgorithmType::BackwardEulerAllReduce;
+    return AlgorithmType::BackwardEulerDebugMode;
 }
 
 void DERIVED_CLASS_NAME::init(Branch*) {}
