@@ -18,13 +18,13 @@ class DERIVED_CLASS_NAME : public Algorithm
     ~DERIVED_CLASS_NAME();
 
     AlgorithmType getType() override;
-    void init(Branch*) override;
-    void clear(Branch*) override;
-    void stepBegin(Branch*) override;
-    void stepEnd(Branch*) override;
-    void commStepBegin(Branch*) override;
-    void commStepEnd(Branch*) override;
-    void afterSpike(Branch*) override;
+    void Init() override;
+    void Clear() override;
+    void StepBegin(Branch*) override;
+    void StepEnd(Branch*) override;
+    void CommStepBegin(Branch*) override;
+    void CommStepEnd(Branch*) override;
+    void AfterSpike(Branch*) override;
 };
 
 }; //algorithm
