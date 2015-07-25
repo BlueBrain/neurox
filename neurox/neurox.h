@@ -72,7 +72,6 @@ namespace neurox
     Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void SetMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
     void DebugMessage(const char * str);
-    void RunAlgorithm(algorithms::AlgorithmType algorithm);
 
     static int Main_handler();
     static int Clear_handler();

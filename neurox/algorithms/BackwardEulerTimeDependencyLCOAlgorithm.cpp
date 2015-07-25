@@ -7,9 +7,14 @@ DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
 
 DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 
-AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType DERIVED_CLASS_NAME::getType()
 {
     return AlgorithmType::BackwardEulerTimeDependencyLCO;
+}
+
+const char* DERIVED_CLASS_NAME::getTypeString()
+{
+    return "BackwardEulerTimeDependencyLCO";
 }
 
 void DERIVED_CLASS_NAME::Init() {}

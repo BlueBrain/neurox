@@ -25,11 +25,13 @@ class Algorithm
     Algorithm() {};
     virtual ~Algorithm() {};
 
+    virtual void Run(AlgorithmType);
+
     /// Returns an instantiated class of the given type
     static Algorithm* New(AlgorithmType);
 
-    /// Returns class type
-    virtual AlgorithmType getType() = 0;
+    const virtual AlgorithmType getType() = 0; ///> Returns class type
+    const virtual char* getTypeString() = 0; ///> Returns class type string
 
     virtual void Init() {};
     virtual void Clear() {};

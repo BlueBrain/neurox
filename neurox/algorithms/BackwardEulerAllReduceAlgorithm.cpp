@@ -9,9 +9,14 @@ DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
 
 DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 
-AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType DERIVED_CLASS_NAME::getType()
 {
     return AlgorithmType::BackwardEulerAllReduce;
+}
+
+const char* DERIVED_CLASS_NAME::getTypeString()
+{
+    return "BackwardEulerAllReduce";
 }
 
 void DERIVED_CLASS_NAME::Init() {
