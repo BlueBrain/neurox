@@ -21,7 +21,9 @@ class DERIVED_CLASS_NAME : public Algorithm
     const char* getTypeString() override;
 
     void Init() override;
-    void Clear() override;
+    void Finalize() override;
+    double Run() override;
+
     void StepBegin(Branch*) override;
     void StepEnd(Branch*) override;
     void CommStepBegin(Branch*) override;
