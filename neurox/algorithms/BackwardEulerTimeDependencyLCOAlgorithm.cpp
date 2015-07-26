@@ -39,9 +39,18 @@ double DERIVED_CLASS_NAME::Run()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
+void DERIVED_CLASS_NAME::StepBegin(Branch* b)
+{
+    if (b->soma)
+    {
+        //inform time dependants that must be notified in this step
+        b->soma->timeDependencies->SendSteppingNotification(b->nt->_t, b->nt->_dt, b->soma->gid, b->soma->synapses);
+        //wait until Im sure I can start and finalize this step at t+dt
+        b->soma->timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, b->nt->_dt, b->soma->gid);
+    }
+}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::StepEnd(Branch*, hpx_t) {}
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
