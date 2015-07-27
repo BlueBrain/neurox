@@ -454,6 +454,20 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
   }
 #endif
 }
+
+void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondorder)
+{
+#if !defined(NDEBUG)
+    if (inputParams->parallelDataLoading
+     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebugMode)
+        return; //non-debug mode in parallel are compared at the end of execution instead
+
+    if (inputParams->branchingDepth>0) return; //can't be compared
+    input::Debugger::FixedStepMinimal2(nt, secondorder);
+    input::Debugger::CompareBranch2(b);
+#endif
+}
+
 void Debugger::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action,   Debugger::CompareBranch);

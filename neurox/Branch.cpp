@@ -625,17 +625,6 @@ void Branch::BackwardEulerStep()
     if (fmod(t, inputParams->dt_io) == 0) {}
 
     algorithm->StepEnd(this, spikesLco);
-
-#if !defined(NDEBUG) 
-    //fixed comm barrier and serial jobs can be compared at runtime
-    if (inputParams->branchingDepth==0)
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode
-     || !inputParams->parallelDataLoading)
-    {
-        input::Debugger::FixedStepMinimal2(&nrn_threads[this->nt->id], inputParams->secondorder);
-        input::Debugger::CompareBranch2(this);
-    }
-#endif
 }
 
 hpx_action_t Branch::BackwardEuler = 0;

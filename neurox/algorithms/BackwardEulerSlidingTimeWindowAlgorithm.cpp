@@ -52,6 +52,7 @@ void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
 void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t spikesLco)
 {
     BackwardEulerAllReduceAlgorithm::waitForSpikesDelivery(b, spikesLco);
+    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
