@@ -49,7 +49,7 @@ void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
 
 void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t spikesLco)
 {
-    waitForSpikesDelivery(b, spikesLco);
+    WaitForSpikesDelivery(b, spikesLco);
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
@@ -57,7 +57,10 @@ void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
 void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
 
-void DERIVED_CLASS_NAME::AfterSpike(Branch*) {}
+hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* b, double tt, double)
+{
+    return SendSpikes2(b,tt);
+}
 
 void DERIVED_CLASS_NAME::SubscribeAllReduces(hpx_t *& allReduces, size_t allReducesCount)
 {
@@ -96,7 +99,7 @@ void DERIVED_CLASS_NAME::UnsubscribeAllReduces(hpx_t *& allReduces, size_t allRe
     delete [] allReduces; allReduces=nullptr;
 }
 
-void DERIVED_CLASS_NAME::waitForSpikesDelivery(Branch *b, hpx_t spikesLco)
+void DERIVED_CLASS_NAME::WaitForSpikesDelivery(Branch *b, hpx_t spikesLco)
 {
     //wait for spikes sent 4 steps ago (queue has always size 3)
     if (b->soma)
@@ -112,4 +115,13 @@ void DERIVED_CLASS_NAME::waitForSpikesDelivery(Branch *b, hpx_t spikesLco)
           hpx_lco_delete_sync(queuedSpikesLco);
       }
     }
+}
+
+hpx_t DERIVED_CLASS_NAME::SendSpikes2(Neuron *neuron, double tt)
+{
+    hpx_t newSynapsesLco = hpx_lco_and_new(neuron->synapses.size());
+    for (Neuron::Synapse *& s : neuron->synapses)
+        hpx_call(s->branchAddr, Branch::AddSpikeEvent, newSynapsesLco,
+            &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+    return newSynapsesLco;
 }
