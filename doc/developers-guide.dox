@@ -196,6 +196,8 @@ parameters which can be set from the command line: <br><br>
               Set the stop time to TIME (double). The default value is '100.'<br><br>
        -t TIME, \--dt=TIME<br>
               Set the dt time to TIME (double). The default value is '0.025'.<br><br>
+       -i TIME, --dt_io=TIME<br>
+               Set the dt of I/O to TIME (double). The default value is '0.1'.<br><br>
        -l NUMBER, --celsius=NUMBER<br>
               Set the celsius temperature to NUMBER (double). The default value is '34.'.<br><br>
        -p FILE, \--pattern=FILE<br>
