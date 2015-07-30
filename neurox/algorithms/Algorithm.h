@@ -1,20 +1,12 @@
 #pragma once
 #include "neurox.h"
+#include "neurox/algorithms/AlgorithmMetaData.h"
 
 namespace neurox
 {
 
 namespace algorithms
 {
-
-enum AlgorithmType {
-    BackwardEulerDebugMode=-1, //For debug only
-    BackwardEulerAllReduce=0,
-    BackwardEulerSlidingTimeWindow=1,
-    BackwardEulerTimeDependencyLCO=2,
-    BenchmarkEnd=3,
-    All=9 //Benchmark of all non-debug modes
-};
 
 /**
  * @brief The Algorithm class
@@ -70,7 +62,7 @@ class Algorithm
 
 }; //neurox
 
-#include "neurox/algorithms/BackwardEulerAllReduceAlgorithm.h"
-#include "neurox/algorithms/BackwardEulerDebugModeAlgorithm.h"
-#include "neurox/algorithms/BackwardEulerSlidingTimeWindowAlgorithm.h"
-#include "neurox/algorithms/BackwardEulerTimeDependencyLCOAlgorithm.h"
+#include "neurox/algorithms/AllReduceAlgorithm.h"
+#include "neurox/algorithms/CoreneuronDebugAlgorithm.h"
+#include "neurox/algorithms/SlidingTimeWindowAlgorithm.h"
+#include "neurox/algorithms/TimeDependencyLCOAlgorithm.h"

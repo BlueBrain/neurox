@@ -1,7 +1,7 @@
 #pragma once
 #include "neurox.h"
 
-#define DERIVED_CLASS_NAME BackwardEulerDebugModeAlgorithm
+#define DERIVED_CLASS_NAME SlidingTimeWindowAlgorithm
 
 using namespace neurox;
 
@@ -28,6 +28,11 @@ class DERIVED_CLASS_NAME : public Algorithm
     void StepEnd(Branch*, hpx_t) override;
     void Run(Branch*, const void*) override;
     hpx_t SendSpikes(Neuron*, double, double) override;
+
+    const size_t allReducesCount = 2;
+    static hpx_t * allReduces;
+
+  private:
 };
 
 }; //algorithm
