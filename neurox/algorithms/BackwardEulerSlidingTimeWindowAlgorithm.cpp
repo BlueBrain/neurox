@@ -28,13 +28,13 @@ void DERIVED_CLASS_NAME::Init() {
                 DERIVED_CLASS_NAME::allReducesCount);
 }
 
-void DERIVED_CLASS_NAME::Finalize() {
+void DERIVED_CLASS_NAME::Clear() {
     BackwardEulerAllReduceAlgorithm::UnsubscribeAllReduces(
                 DERIVED_CLASS_NAME::allReduces,
                 DERIVED_CLASS_NAME::allReducesCount);
 }
 
-double DERIVED_CLASS_NAME::Run()
+double DERIVED_CLASS_NAME::Launch()
 {
     int totalSteps = Algorithm::getTotalStepsCount();
     hpx_time_t now = hpx_time_now();
