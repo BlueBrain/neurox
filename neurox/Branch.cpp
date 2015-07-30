@@ -621,72 +621,7 @@ int Branch::BackwardEuler_handler(const int * steps_ptr, const size_t size)
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::BackwardEuler, steps_ptr, size);
-
-    const int steps = *steps_ptr;
-    if (local->soma)
-    {
-      //fixes crash for Algorithm::All when TimeDependency algorithm starts at t=inputParams->tend*2
-      if (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
-        {
-          //increase notification and dependencies time
-          for (Neuron::Synapse *& s : local->soma->synapses)
-              s->nextNotificationTime += local->nt->_t;
-          local->soma->timeDependencies->IncreseDependenciesTime(local->nt->_t);
-        }
-    }
-
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
-    ||  inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
-    {
-        const int reductionsPerCommStep = Neuron::SlidingTimeWindow::reductionsPerCommStep;
-        const int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
-        const int commStepSize = Neuron::CommunicationBarrier::commStepSize;
-        const Neuron::SlidingTimeWindow * stw = local->soma ? local->soma->slidingTimeWindow : nullptr;
-
-        for (int s=0; s<steps; s += commStepSize) //for every communication step
-        {
-          #ifdef NEUROX_TIME_STEPPING_VERBOSE
-              if (hpx_get_my_rank()==0 && target == neurox::neurons->at(0))
-              {
-                  printf("-- t=%.4f ms\n", inputParams->dt*s);
-                  fflush(stdout);
-              }
-          #endif
-          for (int r=0; r<reductionsPerCommStep; r++) //for every reduction step
-          {
-              if (local->soma)
-              {
-                  if (s>= commStepSize) //first comm-window does not wait
-                    hpx_lco_wait_reset(stw->allReduceFuture[r]);
-                  else
-                    //fixes crash for Algorithm::ALL when running two hpx-reduce -based algorithms in a row
-                    hpx_lco_reset_sync(stw->allReduceFuture[r]);
-
-                  hpx_process_collective_allreduce_join(stw->allReduceLco[r], stw->allReduceId[r], NULL, 0);
-              }
-
-              for (int n=0; n<stepsPerReduction; n++)
-                  local->BackwardEulerStep();
-                  // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-          }
-        }
-    }
-    else
-    {
-        for (int step=0; step<steps; step++)
-            local->BackwardEulerStep();
-            // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-
-        if (local->soma)
-        if (inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode) //end of comm-step
-            if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
-                hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
-
-        #ifdef NEUROX_TIME_STEPPING_VERBOSE
-            if (local->soma && inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
-                printf("-- neuron %d finished\n", local->soma->gid);
-        #endif
-    }
+    algorithm->Run(local, steps_ptr);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
