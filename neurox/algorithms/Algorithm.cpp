@@ -7,16 +7,28 @@ Algorithm* Algorithm::New(AlgorithmType type)
 {
     switch (type)
     {
-    case AlgorithmType::BackwardEulerDebugMode:
-        return new BackwardEulerDebugModeAlgorithm();
+    case AlgorithmType::BackwardEulerCoreneuronDebug:
+        return new CoreneuronDebugAlgorithm();
     case AlgorithmType::BackwardEulerAllReduce:
-        return new BackwardEulerAllReduceAlgorithm();
+        return new AllReduceAlgorithm();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
-        return new BackwardEulerSlidingTimeWindowAlgorithm();
+        return new SlidingTimeWindowAlgorithm();
     case AlgorithmType::BackwardEulerTimeDependencyLCO:
-        return new BackwardEulerTimeDependencyLCOAlgorithm();
+        return new TimeDependencyLCOAlgorithm();
     default:
         return nullptr;
     }
     return nullptr;
+};
+
+void Algorithm::PrintStartInfo()
+{
+    printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
+           getTypeString(), neurons->size(), inputParams->tstop/1000, inputParams->dt);
+    fflush(stdout);
+}
+
+int Algorithm::getTotalStepsCount()
+{
+    return (inputParams->tstop - inputParams->tstart) / inputParams->dt;
 }
