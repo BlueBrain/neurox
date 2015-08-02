@@ -9,6 +9,8 @@ Algorithm* Algorithm::New(AlgorithmType type)
     {
     case AlgorithmType::BackwardEulerCoreneuronDebug:
         return new CoreneuronDebugAlgorithm();
+    case AlgorithmType::BackwardEulerCoreneuron:
+        return new CoreneuronAlgorithm();
     case AlgorithmType::BackwardEulerAllReduce:
         return new AllReduceAlgorithm();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
