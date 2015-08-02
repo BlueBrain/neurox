@@ -10,9 +10,10 @@ namespace algorithms
 
 enum AlgorithmType {
     BackwardEulerCoreneuronDebug=-1, //For debug only
-    BackwardEulerAllReduce=0,
-    BackwardEulerSlidingTimeWindow=1,
-    BackwardEulerTimeDependencyLCO=2,
+    BackwardEulerCoreneuron=0,
+    BackwardEulerAllReduce=1,
+    BackwardEulerSlidingTimeWindow=2,
+    BackwardEulerTimeDependencyLCO=3,
     BenchmarkEnd=3,
     All=9 //Benchmark of all non-debug modes
 };
