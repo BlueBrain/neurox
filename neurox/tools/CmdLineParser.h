@@ -42,7 +42,6 @@ class CmdLineParser
     bool outputCompartmentsDot;  ///> outputs compartments*.dot files
     bool multiMex;               ///> graph-based parallelism of mechanisms
     bool allReduceAtLocality;    ///> whether we perform HPX all-reduce LCOs at neuron or node level
-    bool parallelDataLoading;    ///> coreneuron mpi-based execution
     int branchingDepth;          ///> depth tree-based parallelism of morphologies (0 = none)
     neurox::algorithms::AlgorithmType algorithm; ///> neurons sychronization algorithm
 
