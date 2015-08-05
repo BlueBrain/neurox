@@ -35,10 +35,10 @@ bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual)
     return roughlyEqual ? fabs(a-b) < epsilon : a==b;
 }
 
-void Debugger::CompareMechanismsFunctionPointers()
+void Debugger::CompareMechanismsFunctions()
 {
 #if !defined(NDEBUG)
-    printf("NDEBUG::comparing Mechanisms functions...\n");
+    DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareMechanismsFunctions...\n");
     for (int m=0; m<neurox::mechanismsCount; m++)
     {
         int index = mechanisms[m]->type;
@@ -257,7 +257,7 @@ void Debugger::CompareAllBranches()
 {
 #if !defined(NDEBUG)
     if (inputParams->branchingDepth>0) return;
-    DebugMessage("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
+    DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
     neurox_hpx_call_neurons(input::Debugger::CompareBranch);
 #endif
 }
@@ -446,7 +446,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches()
   if (inputParams->parallelDataLoading) //parallel execution only (serial execs are compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::getTotalStepsCount();
-    int commStepSize = algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    int commStepSize = algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     DebugMessage("neurox::re-running simulation in Coreneuron to compare final result...\n");
     for (int s=0; s<totalSteps; s+=commStepSize)
     {
@@ -462,7 +462,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondo
 {
 #if !defined(NDEBUG)
     if (inputParams->parallelDataLoading
-     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerCoreneuronDebug)
+     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebug)
         return; //non-debug mode in parallel are compared at the end of execution instead
 
     if (inputParams->branchingDepth>0) return; //can't be compared

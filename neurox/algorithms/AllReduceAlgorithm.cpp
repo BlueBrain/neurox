@@ -108,7 +108,7 @@ void DERIVED_CLASS_NAME::WaitForSpikesDelivery(Branch *b, hpx_t spikesLco)
     {
       AllReducesInfo * stw = (AllReducesInfo*) b->soma->algorithmMetaData;
       std::queue<hpx_t> q = stw->spikesLcoQueue;
-      assert(stw->spikesLcoQueue.size() == CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize-1);
+      assert(stw->spikesLcoQueue.size() == CoreneuronAlgorithm::CommunicationBarrier::commStepSize-1);
       stw->spikesLcoQueue.push(spikesLco);
       hpx_t queuedSpikesLco = stw->spikesLcoQueue.front();
       stw->spikesLcoQueue.pop();
@@ -133,14 +133,14 @@ void DERIVED_CLASS_NAME::Run2(Branch *b, const void *args)
 {
     int steps = *(int*)args;
     const int reductionsPerCommStep = AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
-    const int commStepSize = CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    const int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     const int stepsPerReduction = commStepSize / reductionsPerCommStep;
     const AllReducesInfo * stw = b->soma ? (AllReducesInfo*) b->soma->algorithmMetaData : nullptr;
 
     for (int s=0; s<steps; s += commStepSize) //for every communication step
     {
       #ifndef NDEBUG
-          if (hpx_get_my_rank()==0 && b->nt->id == 0)
+          if (hpx_get_my_rank()==0 && b->nt->id == 0 && b->soma)
           {
               printf("-- t=%.4f ms\n", inputParams->dt*s);
               fflush(stdout);
@@ -169,7 +169,7 @@ void DERIVED_CLASS_NAME::Run2(Branch *b, const void *args)
 
 DERIVED_CLASS_NAME::AllReducesInfo::AllReducesInfo()
 {
-    for (int s=0; s< CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize-1; s++)
+    for (int s=0; s< CoreneuronAlgorithm::CommunicationBarrier::commStepSize-1; s++)
         this->spikesLcoQueue.push(HPX_NULL);
 }
 
