@@ -91,6 +91,7 @@ Above steps will create binaries and libraries under build/bin and build/lib fol
 
 When configuring the build environment with CMake, one can modify the value of following variables,
 which will result in different building outputs:
+  - CORENEURON_OPENMP: OpenMP threading. Default value: ON.
   - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
   - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
   - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
@@ -164,6 +165,9 @@ Once the CoreNeuron is built, one can run parallel simulator with any MPI launch
      where $NUM_MPIS is number of MPI ranks, $PATH_TO_CORENEURON_EXEC is the path of coreneuron executable
      and $ARGS are the arguments for the executable.
      </code></b>
+
+Note: Keep in mind that the OpenMP threading is ON by default. Thus, make sure to set the OMP_NUM_THREADS
+      environmental variable correctly.
 
 
 @section Testing_and_Validation Testing and Validation
