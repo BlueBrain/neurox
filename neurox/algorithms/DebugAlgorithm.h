@@ -1,7 +1,7 @@
 #pragma once
 #include "neurox.h"
 
-#define DERIVED_CLASS_NAME CoreneuronDebugAlgorithm
+#define DERIVED_CLASS_NAME DebugAlgorithm
 
 using namespace neurox;
 
@@ -36,7 +36,6 @@ class DERIVED_CLASS_NAME : public Algorithm
         ~CommunicationBarrier();
 
         hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
-        static constexpr int commStepSize = 4; ///> Fixed communication step size
     };
 };
 

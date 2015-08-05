@@ -7,8 +7,10 @@ Algorithm* Algorithm::New(AlgorithmType type)
 {
     switch (type)
     {
-    case AlgorithmType::BackwardEulerCoreneuronDebug:
-        return new CoreneuronDebugAlgorithm();
+    case AlgorithmType::BackwardEulerDebug:
+        return new DebugAlgorithm();
+    case AlgorithmType::BackwardEulerCoreneuron:
+        return new CoreneuronAlgorithm();
     case AlgorithmType::BackwardEulerAllReduce:
         return new AllReduceAlgorithm();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
