@@ -77,7 +77,7 @@ void nrn_init_and_load_data(int argc, char* argv[],
 
     // mpi initialisation
 #if NRNMPI
-    nrnmpi_init(nrnmpi_under_nrncontrol, &argc, &argv);
+    nrnmpi_init(nrnmpi_under_nrncontrol ? 1 : 0, &argc, &argv);
 #endif
 
     // memory footprint after mpi initialisation
