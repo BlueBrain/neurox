@@ -39,11 +39,11 @@ int main(int argc, char** argv)
         //(This is because mechs have static variables that can't be accessed
         //by or communicated to other cpus, so mechs info can't be serialized)
 
-        neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, true);
+        neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, true, true);
         hpx_run(&neurox::InitMechanismsAndQuit, NULL);
     }
 
-    neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false);
+    neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false, false);
     int e = hpx_run(&neurox::Main, NULL);
     hpx_finalize();
     return e;
