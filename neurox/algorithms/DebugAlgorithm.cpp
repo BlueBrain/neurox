@@ -56,7 +56,7 @@ double DERIVED_CLASS_NAME::Launch()
         neurox_hpx_call_neurons_lco(Branch::BackwardEuler, &commStepSize, sizeof(int));
 
         #ifndef NDEBUG
-          if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
+          if (neurox::ParallelExecution()) //if parallel execution... spike exchange
             hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
         #endif
     }
