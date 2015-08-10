@@ -145,30 +145,33 @@ void SetMechanismsDependencies(const int *dependenciesCount, const int * depende
 
     for (int m=0; m<neurox::mechanismsCount; m++)
     {
-        int index = neurox::mechanismsMap[m];
-        if (index==-1) continue;
+        Mechanism * mech = mechanisms[m];
 
-        Mechanism * mech = mechanisms[index];
-
-        //if I must replace dependencies
+        //if I know about more dependencies dependencies
         if (dependenciesCount!=nullptr)
         {
             assert(dependenciesIds!=nullptr);
-            delete [] mech->dependencies;
-            mech->dependenciesCount = dependenciesCount[m];
-            mech->dependencies = new int [dependenciesCount[m]];
-            memcpy(mech->dependencies, &dependenciesIds[dependenciessIdsOffset], sizeof(int)*dependenciesCount[m]);
+            if (mech->dependenciesCount<dependenciesCount[m])
+            {
+                delete [] mech->dependencies;
+                mech->dependenciesCount = dependenciesCount[m];
+                mech->dependencies = new int [dependenciesCount[m]];
+                memcpy(mech->dependencies, &dependenciesIds[dependenciessIdsOffset], sizeof(int)*dependenciesCount[m]);
+            }
             dependenciessIdsOffset+=dependenciesCount[m];
         }
 
-        //if I must replace successors
+        //if I know about more successors
         if (successorsCount!=nullptr)
         {
             assert(successorsIds!=nullptr);
-            delete [] mech->successors;
-            mech->successorsCount = successorsCount[m];
-            mech->successors = new int [successorsCount[m]];
-            memcpy(mech->successors, &successorsIds[successorsIdsOffset], sizeof(int)*successorsCount[m]);
+            if (mech->successorsCount<successorsCount[m])
+            {
+                delete [] mech->successors;
+                mech->successorsCount = successorsCount[m];
+                mech->successors = new int [successorsCount[m]];
+                memcpy(mech->successors, &successorsIds[successorsIdsOffset], sizeof(int)*successorsCount[m]);
+            }
             successorsIdsOffset+=successorsCount[m];
         }
     }
@@ -177,7 +180,6 @@ void SetMechanismsDependencies(const int *dependenciesCount, const int * depende
     for (int m=0; m<mechanismsCount; m++)
     {
       Mechanism * mech = mechanisms[m];
-      mech->dependencyIonIndex = Mechanism::Ion::no_ion;
       if (inputParams->multiMex)
       {
         for (int d=0; d<mech->dependenciesCount; d++)
