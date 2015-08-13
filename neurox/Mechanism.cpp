@@ -15,7 +15,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), dependencies(nullptr), successors(nullptr), isUsed(false)
+    isIon(isIon), dependencies(nullptr), successors(nullptr)
 {
 
     //to be set by neuronx::UpdateMechanismsDependencies
@@ -42,10 +42,15 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     }
     else if (this->type == CAP) //capacitance: capac.c
     {
+        //these are not registered by capac.c
+        this->membFunc.current = nrn_cur_capacitance;
         this->membFunc.current_parallel = nrn_cur_parallel_capacitance;
+        this->membFunc.jacob = nrn_jacob_capacitance;
     }
     else if (this->isIon)  //ion: eion.c
     {
+        //these are not registered by eion.c
+        this->membFunc.current = nrn_cur_ion;
         this->membFunc.current_parallel = nrn_cur_parallel_ion;
     }
 
@@ -94,6 +99,7 @@ void Mechanism::RegisterBeforeAfterFunctions()
 Mechanism::~Mechanism(){
     delete [] membFunc.sym;
     delete [] successors;
+    delete [] dependencies;
 };
 
 void Mechanism::CallModFunction(const void * branch_ptr,
@@ -106,7 +112,6 @@ void Mechanism::CallModFunction(const void * branch_ptr,
     assert(branch);
     NrnThread * nrnThread = branch->nt;
     assert(nrnThread);
-    assert(this->isUsed);
 
     if (functionId == Mechanism::ModFunction::netReceive
      || functionId == Mechanism::ModFunction::netReceiveInit)

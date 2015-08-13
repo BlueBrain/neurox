@@ -89,6 +89,12 @@ class DataLoader
             deque<Compartment*> & compartments,
             vector<map<int,int>> & mechsInstancesMap);
 
+
+    static void SetMechanisms2(
+            const int mechsCount, const int* mechsIds,
+            const int* dependenciesCount, const int* dependencies,
+            const int* successorsCount, const int* successors); ///> Set Mechanisms
+
     static void PrintSubClustersToFile(
             FILE * fileCompartments, Compartment *topCompartment);
 
@@ -96,13 +102,13 @@ class DataLoader
 
     static hpx_action_t AddSynapse;
     static hpx_action_t AddNeurons;
-    static hpx_action_t UpdateMechanismsDependencies;
+    static hpx_action_t SetMechanisms;
 
     static int CreateNeuron(int neuron_idx, void * targets);
     static int GetMyNrnNeuronsCount();
     static int AddSynapse_handler(const int, const void *[], const size_t[]) ;
     static int AddNeurons_handler(const int, const void *[], const size_t[]) ;
-    static int UpdateMechanismsDependencies_handler(const int, const void *[], const size_t[]) ;
+    static int SetMechanisms_handler(const int, const void *[], const size_t[]) ;
     static int Init_handler ();
     static int InitMechanisms_handler();
     static int InitNeurons_handler();
