@@ -81,8 +81,6 @@ class Mechanism
                          const NetConX * netcon = NULL, //for net_receive only
                          const floble_t tt = 0 );       //for net_receive only
   private:
-    void RegisterIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
-    void RegisterCapacitance();   ///> register mechanism of type "capacitance"
     void RegisterBeforeAfterFunctions();   ///> register Before-After functions
 
 };
