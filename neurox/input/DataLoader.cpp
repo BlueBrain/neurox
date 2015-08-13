@@ -544,7 +544,7 @@ int DataLoader::InitMechanisms_handler()
     {
         //broadcast dependencies, most complete dependency graph will be used across the network
         //(this solves issue of localities loading morphologies without all mechanisms,
-        //and processing branches of other localities with the missing mechanisms)
+        //and processing branches of other localities where those missing mechanisms exist)
         hpx_bcast_rsync(DataLoader::UpdateMechanismsDependencies,
                         mechUsed.data(),                 sizeof(char)*mechUsed.size(),
                         dependenciesCount_serial.data(), sizeof(int)*dependenciesCount_serial.size(),
