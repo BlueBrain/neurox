@@ -1,8 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-#define DERIVED_CLASS_NAME AllReduceAlgorithm
-
 using namespace neurox;
 
 namespace neurox
@@ -11,11 +9,11 @@ namespace neurox
 namespace algorithms
 {
 
-class DERIVED_CLASS_NAME : public Algorithm
+class AllReduceAlgorithm : public Algorithm
 {
   public:
-    DERIVED_CLASS_NAME();
-    ~DERIVED_CLASS_NAME();
+    AllReduceAlgorithm();
+    ~AllReduceAlgorithm();
 
     const AlgorithmType getType() override;
     const char* getTypeString() override;
