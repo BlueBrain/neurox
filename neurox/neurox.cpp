@@ -13,7 +13,7 @@ namespace neurox
 {
 
 hpx_t *neurons = nullptr;
-int neurons_count = -1;
+int neurons_count = 0;
 int mechanisms_count = -1;
 int * mechanisms_map = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
