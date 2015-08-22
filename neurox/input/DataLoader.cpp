@@ -1254,6 +1254,9 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaBranchAddr,
                 isSoma && c==0 ? thvar_index - n : -1)); /*offset in AIS = offset in soma - nt->end */
 
 
+    //if branching, soma has not threshold var (it was past to AIS above)
+    thvar_index = isSoma && input_params->branchingDepth>0 ? -1 : thvar_index;
+
     hpx_call_sync(branchAddr, Branch::Init,
                   NULL, 0, //no timing
                   &n, sizeof(offset_t),
