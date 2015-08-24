@@ -20,7 +20,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    size_t newDataSize  = 6*SizeOf(N);
    assert(newDataSize % NEUROX_SOA_PADDING==0);
 
-   for (int m=0; m<mechanismsCount; m++)
+   for (int m=0; m<mechanisms_count; m++)
    {
        b->mechsInstances[m]._nodecount_padded = SizeOf(b->mechsInstances[m].nodecount);
        newDataSize  += b->mechsInstances[m]._nodecount_padded * mechanisms[m]->dataSize;
@@ -61,7 +61,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    unsigned oldOffsetAcc = N*6;
    unsigned newOffsetAcc = SizeOf(N)*6;
 
-   for (int m=0; m<neurox::mechanismsCount; m++)
+   for (int m=0; m<neurox::mechanisms_count; m++)
    {
        Memb_list * instances = &b->mechsInstances[m];
        double* instanceDataNew = &dataNew[newOffsetAcc];
@@ -89,7 +89,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
                pdataNew[newOffset] = pdataOld[oldOffset];
 
                //get correct pdata offset: without branching, offsets are already correct for both LAYOUTs and padding
-               if (inputParams->branchingDepth>0)
+               if (input_params->branchingDepth>0)
                {
                  int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
                  bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);

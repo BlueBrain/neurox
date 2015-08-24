@@ -119,7 +119,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
         assert(functionId != Mechanism::ModFunction::netReceiveInit); //N/A yet
         assert(this->pnt_receive);
 
-        Memb_list * membList = &branch->mechsInstances[mechanismsMap[netcon->mechType]];
+        Memb_list * membList = &branch->mechsInstances[mechanisms_map[netcon->mechType]];
         assert(membList);
         int iml = netcon->mechInstance;
         int weightIndex = netcon->weightIndex;
@@ -128,7 +128,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
         return;
     }
 
-    Memb_list * membList = &branch->mechsInstances[mechanismsMap[this->type]];
+    Memb_list * membList = &branch->mechsInstances[mechanisms_map[this->type]];
     assert(membList);
     if (membList->nodecount>0)
     switch(functionId)
@@ -154,7 +154,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
             assert(type != CAP);
             if (membFunc.current) //has a current function
             {
-                if (inputParams->multiMex //parallel execution
+                if (input_params->multiMex //parallel execution
                  && strcmp(this->membFunc.sym, "CaDynamics_E2")!=0 //not CaDynamics_E2 (no updates in cur function)
                  && !this->isIon) //not ion (updates in nrn_cur_ion function)
                 {
