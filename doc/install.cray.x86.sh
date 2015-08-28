@@ -26,12 +26,15 @@ mkdir -p $INSTALL_DIR
 CORENEURON_SRC=$SRC_DIR/coreneuron
 cd $CORENEURON_SRC
 
+#use sandbox/kumbhar/dev from work at Woodshole
+git checkout sandbox/kumbhar/dev
+
 export MODLUNIT=$SRC_DIR/mod2c/share/nrnunits.lib
 export PATH=$PATH:$INSTALL_DIR/bin
 
-#sed -i 's/-Wno-error//' $CORENEURON_SRC/coreneuron/CMakeLists.txt
-#sed -i 's/corebluron/sandbox\/kumbhar\/hpcopt/' $CORENEURON_SRC/.gitexternals
-#sed -i 's/-std=c++11//' CMake/common/Compiler.cmake
+sed -i 's/-Wno-error//' $CORENEURON_SRC/coreneuron/CMakeLists.txt
+sed -i 's/corebluron/sandbox\/kumbhar\/hpcopt_stochkv_tmp/' $CORENEURON_SRC/.gitexternals
+sed -i 's/-std=c++11//' CMake/common/Compiler.cmake
 
 export CC=`which cc`
 export CXX=`which CC`
