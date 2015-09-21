@@ -240,7 +240,7 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
     if (mech->isIon) ionsCount++;
   }
   assert(ionsCount ==
-         Mechanism::Ion::size_writeable_ions +
+         Mechanism::Ion::kSizeWriteableIons +
              1);  // ttx excluded (no writes to ttx state)
 
   // vecplay
@@ -288,7 +288,7 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
     }
 
     if (mechanisms[m]->dependencyIonIndex >=
-        Mechanism::Ion::size_writeable_ions)
+        Mechanism::Ion::kSizeWriteableIons)
       shadowSize = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
@@ -466,8 +466,8 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId) {
   if (functionId < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
-  if (functionId == Mechanism::ModFunction::currentCapacitance ||
-      functionId == Mechanism::ModFunction::jacobCapacitance) {
+  if (functionId == Mechanism::ModFunction::kCurrentCapacitance ||
+      functionId == Mechanism::ModFunction::kJacobCapacitance) {
     mechanisms[mechanisms_map[CAP]]->CallModFunction(this, functionId);
   }
   // for all others except capacitance (mechanisms graph)
@@ -487,8 +487,8 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId) {
     {
       for (int m = 0; m < mechanisms_count; m++) {
         if (mechanisms[m]->type == CAP &&
-            (functionId == Mechanism::ModFunction::current ||
-             functionId == Mechanism::ModFunction::jacob))
+            (functionId == Mechanism::ModFunction::kCurrent ||
+             functionId == Mechanism::ModFunction::kJacob))
           continue;
         mechanisms[m]->CallModFunction(this, functionId);
       }
@@ -502,7 +502,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   neurox_hpx_pin(Branch);
   assert(nargs == (input_params->algorithm ==
-                           AlgorithmType::BackwardEulerTimeDependencyLCO
+                           AlgorithmType::kBackwardEulerTimeDependencyLCO
                        ? 3
                        : 2));
 
@@ -551,7 +551,7 @@ void Branch::Finitialize2() {
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
   assert(input_params->secondorder < sizeof(char));
-  CallModFunction(Mechanism::ModFunction::threadTableCheck);
+  CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
   InitVecPlayContinous();
   DeliverEvents(t);
 
@@ -561,15 +561,15 @@ void Branch::Finitialize2() {
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read
   // concentrations.
-  CallModFunction(Mechanism::ModFunction::before_initialize);
-  CallModFunction(Mechanism::ModFunction::initialize);
-  CallModFunction(Mechanism::ModFunction::after_initialize);
+  CallModFunction(Mechanism::ModFunction::kBeforeInitialize);
+  CallModFunction(Mechanism::ModFunction::kInitialize);
+  CallModFunction(Mechanism::ModFunction::kAfterInitialize);
 
   // initEvents(t); //not needed because we copy the status and weights of
   // events
   DeliverEvents(t);
   SetupTreeMatrix();
-  CallModFunction(Mechanism::ModFunction::before_step);
+  CallModFunction(Mechanism::ModFunction::kBeforeStep);
   DeliverEvents(t);
 }
 
@@ -603,15 +603,15 @@ void Branch::BackwardEulerStep() {
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateV(this);
 
-  CallModFunction(Mechanism::ModFunction::currentCapacitance);
+  CallModFunction(Mechanism::ModFunction::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt->_dt;
   FixedPlayContinuous();
-  CallModFunction(Mechanism::ModFunction::state);
-  CallModFunction(Mechanism::ModFunction::after_solve);
-  CallModFunction(Mechanism::ModFunction::before_step);
+  CallModFunction(Mechanism::ModFunction::kState);
+  CallModFunction(Mechanism::ModFunction::kAfterSolve);
+  CallModFunction(Mechanism::ModFunction::kBeforeStep);
   DeliverEvents(t);  // delivers events in the second HALF of the step
 
   // if we are at the output time instant output to file
@@ -637,8 +637,8 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
   neurox_hpx_pin(uint64_t);
   assert(input_params->allReduceAtLocality);
   assert(input_params->algorithm ==
-             AlgorithmType::BackwardEulerSlidingTimeWindow ||
-         input_params->algorithm == AlgorithmType::BackwardEulerAllReduce);
+             AlgorithmType::kBackwardEulerSlidingTimeWindow ||
+         input_params->algorithm == AlgorithmType::kBackwardEulerAllReduce);
 
   const int localityNeuronsCount =
       AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
@@ -684,7 +684,7 @@ hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
   neurox_hpx_pin(Branch);
   neurox_hpx_recursive_branch_async_call(Branch::ThreadTableCheck);
-  local->CallModFunction(Mechanism::ModFunction::threadTableCheck);
+  local->CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
   neurox_hpx_recursive_branch_async_wait;
   neurox_hpx_unpin;
 }
@@ -707,8 +707,8 @@ void Branch::SetupTreeMatrix() {
   // multiplication
   solver::HinesSolver::ResetMatrixRHSandD(this);
 
-  this->CallModFunction(Mechanism::ModFunction::before_breakpoint);
-  this->CallModFunction(Mechanism::ModFunction::current);
+  this->CallModFunction(Mechanism::ModFunction::kBeforeBreakpoint);
+  this->CallModFunction(Mechanism::ModFunction::kCurrent);
 
   solver::HinesSolver::SetupMatrixRHS(this);
 
@@ -721,13 +721,13 @@ void Branch::SetupTreeMatrix() {
   // right
   // hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
-  this->CallModFunction(Mechanism::ModFunction::jacob);
+  this->CallModFunction(Mechanism::ModFunction::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
   // (treeset_core.c)
   // now the cap current can be computed because any change to cm
   // by another model has taken effect.
-  this->CallModFunction(Mechanism::ModFunction::jacobCapacitance);
+  this->CallModFunction(Mechanism::ModFunction::kJacobCapacitance);
 
   solver::HinesSolver::SetupMatrixDiagonal(this);
 }
@@ -850,7 +850,7 @@ Branch::MechanismsGraph::MechanismsGraph() {
   this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 
   this->rhs_d_mutex = hpx_lco_sema_new(1);
-  for (int i = 0; i < Mechanism::Ion::size_writeable_ions; i++)
+  for (int i = 0; i < Mechanism::Ion::kSizeWriteableIons; i++)
     this->i_didv_mutex[i] = hpx_lco_sema_new(1);
 }
 
@@ -871,7 +871,7 @@ Branch::MechanismsGraph::~MechanismsGraph() {
   delete[] mechsLCOs;
 
   hpx_lco_delete_sync(rhs_d_mutex);
-  for (int i = 0; i < Mechanism::Ion::size_writeable_ions; i++)
+  for (int i = 0; i < Mechanism::Ion::kSizeWriteableIons; i++)
     hpx_lco_delete_sync(i_didv_mutex[i]);
 }
 
@@ -890,8 +890,8 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
     //(function id) from the hpx_lco_set
     hpx_lco_get_reset(local->mechsGraph->mechsLCOs[mechanisms_map[type]],
                       sizeof(Mechanism::ModFunction), &functionId);
-    assert(functionId != Mechanism::ModFunction::jacobCapacitance);
-    assert(functionId != Mechanism::ModFunction::currentCapacitance);
+    assert(functionId != Mechanism::ModFunction::kJacobCapacitance);
+    assert(functionId != Mechanism::ModFunction::kCurrentCapacitance);
     mech->CallModFunction(local, functionId);
 
     if (mech->successorsCount == 0)  // bottom mechanism
@@ -921,7 +921,7 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread *nt, Memb_list *ml,
                                                  int type, void *args) {
   MechanismsGraph *mg = (MechanismsGraph *)args;
   Mechanism *mech = GetMechanismFromType(type);
-  assert(mech->dependencyIonIndex < Mechanism::Ion::size_writeable_ions);
+  assert(mech->dependencyIonIndex < Mechanism::Ion::kSizeWriteableIons);
   hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]);
   for (int n = 0; n < ml->nodecount; n++) {
     int &i_offset = ml->_shadow_i_offsets[n];

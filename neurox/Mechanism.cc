@@ -24,7 +24,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
       dependencies(nullptr),
       successors(nullptr) {
   // to be set by neuronx::UpdateMechanismsDependencies
-  this->dependencyIonIndex = Mechanism::Ion::no_ion;
+  this->dependencyIonIndex = Mechanism::Ion::kNoIon;
 
   // set function pointers
   memcpy(&this->membFunc, &memb_func, sizeof(Memb_func));
@@ -92,11 +92,11 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 
 Mechanism::Ion Mechanism::GetIonIndex() {
   assert(this->membFunc.sym);
-  if (strcmp("na_ion", this->membFunc.sym) == 0) return Mechanism::Ion::na;
-  if (strcmp("k_ion", this->membFunc.sym) == 0) return Mechanism::Ion::k;
-  if (strcmp("ttx_ion", this->membFunc.sym) == 0) return Mechanism::Ion::ttx;
-  if (strcmp("ca_ion", this->membFunc.sym) == 0) return Mechanism::Ion::ca;
-  return Mechanism::Ion::no_ion;
+  if (strcmp("na_ion", this->membFunc.sym) == 0) return Mechanism::Ion::kNa;
+  if (strcmp("k_ion", this->membFunc.sym) == 0) return Mechanism::Ion::kK;
+  if (strcmp("ttx_ion", this->membFunc.sym) == 0) return Mechanism::Ion::kTTX;
+  if (strcmp("ca_ion", this->membFunc.sym) == 0) return Mechanism::Ion::kCa;
+  return Mechanism::Ion::kNoIon;
 }
 
 void Mechanism::RegisterBeforeAfterFunctions() {
@@ -124,9 +124,9 @@ void Mechanism::CallModFunction(const void *branch_ptr,
   NrnThread *nrnThread = branch->nt;
   assert(nrnThread);
 
-  if (functionId == Mechanism::ModFunction::netReceive ||
-      functionId == Mechanism::ModFunction::netReceiveInit) {
-    assert(functionId != Mechanism::ModFunction::netReceiveInit);  // N/A yet
+  if (functionId == Mechanism::ModFunction::kNetReceive ||
+      functionId == Mechanism::ModFunction::kNetReceiveInit) {
+    assert(functionId != Mechanism::ModFunction::kNetReceiveInit);  // N/A yet
     assert(this->pnt_receive);
 
     Memb_list *membList =
@@ -142,24 +142,24 @@ void Mechanism::CallModFunction(const void *branch_ptr,
   Memb_list *membList = &branch->mechsInstances[mechanisms_map[this->type]];
   assert(membList);
   if (membList->nodecount > 0) switch (functionId) {
-      case Mechanism::before_initialize:
-      case Mechanism::after_initialize:
-      case Mechanism::before_breakpoint:
-      case Mechanism::after_solve:
-      case Mechanism::before_step:
+      case Mechanism::kBeforeInitialize:
+      case Mechanism::kAfterInitialize:
+      case Mechanism::kBeforeBreakpoint:
+      case Mechanism::kAfterSolve:
+      case Mechanism::kBeforeStep:
         if (BAfunctions[(int)functionId])
           BAfunctions[(int)functionId](nrnThread, membList, type);
         break;
-      case Mechanism::ModFunction::alloc:
+      case Mechanism::ModFunction::kAlloc:
         if (membFunc.alloc)
           membFunc.alloc(membList->data, membList->pdata, type);
         break;
-      case Mechanism::ModFunction::currentCapacitance:
+      case Mechanism::ModFunction::kCurrentCapacitance:
         assert(type == CAP);
         assert(membFunc.current != NULL);
         membFunc.current(nrnThread, membList, type);
         break;
-      case Mechanism::ModFunction::current:
+      case Mechanism::ModFunction::kCurrent:
         assert(type != CAP);
         if (membFunc.current)  // has a current function
         {
@@ -185,15 +185,15 @@ void Mechanism::CallModFunction(const void *branch_ptr,
             membFunc.current(nrnThread, membList, type);
         }
         break;
-      case Mechanism::ModFunction::state:
+      case Mechanism::ModFunction::kState:
         if (membFunc.state) membFunc.state(nrnThread, membList, type);
         break;
-      case Mechanism::ModFunction::jacobCapacitance:
+      case Mechanism::ModFunction::kJacobCapacitance:
         assert(type == CAP);
         assert(membFunc.jacob != NULL);
         membFunc.jacob(nrnThread, membList, type);
         break;
-      case Mechanism::ModFunction::jacob:
+      case Mechanism::ModFunction::kJacob:
         assert(type != CAP);
         if (membFunc.jacob) {
           assert(0);  // No jacob function pointers yet
@@ -201,24 +201,24 @@ void Mechanism::CallModFunction(const void *branch_ptr,
           membFunc.jacob(nrnThread, membList, type);
         }
         break;
-      case Mechanism::ModFunction::initialize:
+      case Mechanism::ModFunction::kInitialize:
         if (membFunc.initialize) membFunc.initialize(nrnThread, membList, type);
         break;
-      case Mechanism::ModFunction::destructor:
+      case Mechanism::ModFunction::kDestructor:
         if (membFunc.destructor) membFunc.destructor();
         break;
-      case Mechanism::ModFunction::threadMemInit:
+      case Mechanism::ModFunction::kThreadMemInit:
         assert(0);  // should be called only by constructor Branch(...)
         if (membFunc.thread_mem_init_)
           membFunc.thread_mem_init_(membList->_thread);
         break;
-      case Mechanism::ModFunction::threadTableCheck:
+      case Mechanism::ModFunction::kThreadTableCheck:
         if (membFunc.thread_table_check_)
           membFunc.thread_table_check_(0, membList->nodecount, membList->data,
                                        membList->pdata, membList->_thread,
                                        nrnThread, type);
         break;
-      case Mechanism::ModFunction::threadCleanup:
+      case Mechanism::ModFunction::kThreadCleanup:
         assert(0);  // should only be called by destructor ~Branch(...)
         if (membFunc.thread_cleanup_)
           membFunc.thread_cleanup_(membList->_thread);

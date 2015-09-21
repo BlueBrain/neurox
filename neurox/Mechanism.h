@@ -12,13 +12,13 @@ namespace neurox {
 class Mechanism {
  public:
   enum Ion {
-    na = 0,
-    k = 1,
-    ca = 2,
-    size_writeable_ions = 3,
-    ttx = 3,
-    size_all_ions = 4,
-    no_ion = 9
+    kNa = 0,
+    kK = 1,
+    kCa = 2,
+    kSizeWriteableIons = 3,
+    kTTX = 3,
+    kSizeAllIons = 4,
+    kNoIon = 9
   };
 
   Mechanism() = delete;
@@ -54,28 +54,28 @@ class Mechanism {
 
   enum ModFunction {
     // BA functions start here (of size BEFORE_AFTER_SIZE)
-    before_initialize = 0,
-    after_initialize = 1,
-    before_breakpoint = 2,
-    after_solve = 3,
-    before_step = 4,
+    kBeforeInitialize = 0,
+    kAfterInitialize = 1,
+    kBeforeBreakpoint = 2,
+    kAfterSolve = 3,
+    kBeforeStep = 4,
     // memb_func functions start here
-    alloc = 5,
-    current = 6,
-    state = 7,
-    jacob = 8,
-    initialize = 9,
-    destructor = 10,
-    threadMemInit = 11,
-    threadCleanup = 12,
-    threadTableCheck = 13,
-    setData = 14,
+    kAlloc = 5,
+    kCurrent = 6,
+    kState = 7,
+    kJacob = 8,
+    kInitialize = 9,
+    kDestructor = 10,
+    kThreadMemInit = 11,
+    kThreadCleanup = 12,
+    kThreadTableCheck = 13,
+    kSetData = 14,
     // capacitance functions start here
-    currentCapacitance = 15,  // not in mod files, it's in capac.c
-    jacobCapacitance = 16,
+    kCurrentCapacitance = 15,  // not in mod files, it's in capac.c
+    kJacobCapacitance = 16,
     // net_receive
-    netReceive = 17,
-    netReceiveInit = 18
+    kNetReceive = 17,
+    kNetReceiveInit = 18
   };
 
   Mechanism::Ion GetIonIndex();
