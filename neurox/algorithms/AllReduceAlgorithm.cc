@@ -12,11 +12,11 @@ AllReduceAlgorithm::AllReduceAlgorithm() {
 
 AllReduceAlgorithm::~AllReduceAlgorithm() {}
 
-const AlgorithmType AllReduceAlgorithm::getType() {
-  return AlgorithmType::BackwardEulerAllReduce;
+const AlgorithmType AllReduceAlgorithm::GetType() {
+  return AlgorithmType::kBackwardEulerAllReduce;
 }
 
-const char* AllReduceAlgorithm::getTypeString() {
+const char* AllReduceAlgorithm::GetTypeString() {
   return "BackwardEulerAllReduce";
 }
 
