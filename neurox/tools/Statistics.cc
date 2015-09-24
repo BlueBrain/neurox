@@ -113,7 +113,7 @@ void Statistics::OutputSimulationSize(bool writeToFile) {
 
 hpx_action_t Statistics::GetNeuronSize = 0;
 int Statistics::GetNeuronSize_handler() {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(local->nt->end > 0);
   SizeInfo branchSize;
   int n = local->nt->end;
@@ -161,9 +161,11 @@ int Statistics::GetNeuronSize_handler() {
           1024;
 
     int type = mechanisms[m]->type;
-    if (type == IClamp || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+    if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+        type == NEUROX_PROBGABAAB_EMS_)
       branchSize.synapses += ((double)sizeof(Point_process)) / 1024;
-    if (type == StochKv || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+    if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+        type == NEUROX_PROBGABAAB_EMS_)
       branchSize.synapses += ((double)sizeof(nrnran123_State)) / 1024;
   }
 
@@ -194,7 +196,7 @@ int Statistics::GetNeuronSize_handler() {
 
     delete[] subBranchSizes;
   }
-  neurox_hpx_unpin_continue(branchSize);
+  NEUROX_MEM_UNPIN_CONTINUE_(branchSize);
 }
 
 void Statistics::OutputMechanismsDistribution(bool writeToFile) {
@@ -233,7 +235,7 @@ void Statistics::OutputMechanismsDistribution(bool writeToFile) {
 
 hpx_action_t Statistics::GetNeuronMechanismsDistribution = 0;
 int Statistics::GetNeuronMechanismsDistribution_handler() {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   unsigned mechsCountPerType[mechanisms_count];
   for (int m = 0; m < mechanisms_count; m++)
     mechsCountPerType[m] = local->mechsInstances[m].nodecount;
@@ -270,11 +272,11 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
     for (int c = 0; c < branchesCount; c++) delete[] mechsCountPerTypeChild[c];
     delete[] mechsCountPerTypeChild;
   }
-  neurox_hpx_unpin_continue(mechsCountPerType);
+  NEUROX_MEM_UNPIN_CONTINUE_(mechsCountPerType);
 }
 
 void Statistics::RegisterHpxActions() {
-  neurox_hpx_register_action(neurox_zero_var_action, Statistics::GetNeuronSize);
-  neurox_hpx_register_action(neurox_zero_var_action,
-                             Statistics::GetNeuronMechanismsDistribution);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Statistics::GetNeuronSize);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_,
+                          Statistics::GetNeuronMechanismsDistribution);
 }
