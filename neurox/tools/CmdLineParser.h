@@ -17,7 +17,7 @@ class CmdLineParser {
 
   // Execution parameters (cn_input_parameters)
   char secondorder;  ///> 0 means crank-nicolson. 2 means currents adjusted to
-                     ///t+dt/2
+                     /// t+dt/2
   neuron_id_t prcellgid;  ///> gid of cell for prcellstate
   floble_t dt;            ///> time step ie delta-t (msecs)
   floble_t rev_dt;        ///> reverse of delta t (1/msecs)
@@ -31,7 +31,7 @@ class CmdLineParser {
   char inputPath[512];    ///> path of input directory
   char outputPath[512];   ///> path of output directory
   char patternStim[512];  ///> patternStim file path (the filename of an
-                          ///output_spikes.h format raster file.)
+                          /// output_spikes.h format raster file.)
 
   // neurox specific options
   bool outputStatistics;       ///> outputs statistics file
@@ -40,9 +40,9 @@ class CmdLineParser {
   bool outputCompartmentsDot;  ///> outputs compartments*.dot files
   bool multiMex;               ///> graph-based parallelism of mechanisms
   bool allReduceAtLocality;    ///> whether to perform HPX all-reduce LCOs at
-                               ///neuron or node level
+                               /// neuron or node level
   bool loadBalancing;  ///> Whether to perform dynamic load balancing of bodes
-                       ///and branches
+                       /// and branches
   int branchingDepth;  ///> depth tree-based parallelism of morphologies
   neurox::algorithms::AlgorithmType
       algorithm;  ///> neurons sychronization algorithm
