@@ -161,11 +161,13 @@ int Statistics::GetNeuronSize_handler() {
           1024;
 
     int type = mechanisms[m]->type;
-    if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-        type == NEUROX_PROBGABAAB_EMS_)
+    if (type == MechanismTypes::kIClamp ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS)
       branchSize.synapses += ((double)sizeof(Point_process)) / 1024;
-    if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
-        type == NEUROX_PROBGABAAB_EMS_)
+    if (type == MechanismTypes::kStochKv ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS)
       branchSize.synapses += ((double)sizeof(nrnran123_State)) / 1024;
   }
 
