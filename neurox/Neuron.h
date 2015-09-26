@@ -1,8 +1,8 @@
 #pragma once
 
-#include <deque>
-#include "libhpx/libhpx.h"
 #include "neurox/neurox.h"
+
+#include <deque>
 
 namespace neurox {
 

@@ -1,11 +1,12 @@
 #pragma once
 
+#include "neurox/neurox.h"
+
 #include <functional>  //std::greater_equal
 #include <map>
 #include <new>  //placement new
 #include <queue>
 #include <vector>
-#include "neurox/neurox.h"
 
 using namespace neurox;
 
