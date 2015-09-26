@@ -1,6 +1,6 @@
 #pragma once
+
 #include "neurox.h"
-#include "neurox/algorithms/AlgorithmMetaData.h"
 
 namespace neurox {
 
