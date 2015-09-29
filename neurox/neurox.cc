@@ -37,11 +37,11 @@ static int Main_handler() {
   DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
   hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
   DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
-  NEUROX_CALL_ALL_NEURONS_(neurox::input::DataLoader::InitNetcons);
+  NEUROX_CALL_ALL_NEURONS(neurox::input::DataLoader::InitNetcons);
   DebugMessage("neurox::Input::DataLoader::Finalize...\n");
   hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
-  NEUROX_CALL_ALL_NEURONS_(Branch::BranchTree::InitLCOs);
+  NEUROX_CALL_ALL_NEURONS(Branch::BranchTree::InitLCOs);
 
   if (neurox::input_params->outputStatistics) {
     tools::Statistics::OutputMechanismsDistribution();
@@ -53,14 +53,14 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 
   DebugMessage("neurox::Branch::Finitialize...\n");
-  NEUROX_CALL_ALL_NEURONS_(Branch::Finitialize);
+  NEUROX_CALL_ALL_NEURONS(Branch::Finitialize);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
   neurox::input::Debugger::CompareAllBranches();
 #endif
 
   DebugMessage("neurox::Branch::threadTableCheck...\n");
-  NEUROX_CALL_ALL_NEURONS_(Branch::ThreadTableCheck);
+  NEUROX_CALL_ALL_NEURONS(Branch::ThreadTableCheck);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
   neurox::input::Debugger::CompareAllBranches();
@@ -103,14 +103,14 @@ static int Main_handler() {
       "secs).\n",
       neurox::neurons_count, input_params->tstop / 1000.0, totalTimeElapsed);
 
-  NEUROX_CALL_ALL_NEURONS_(Branch::Clear);
+  NEUROX_CALL_ALL_NEURONS(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);
 }
 
 hpx_action_t Clear = 0;
 int Clear_handler() {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
   delete[] neurox::mechanisms;
   delete[] neurox::neurons;
   delete[] neurox::mechanisms_map;
@@ -127,7 +127,7 @@ int Clear_handler() {
 #ifndef NDEBUG
   neurox::input::DataLoader::CleanCoreneuronData(true);
 #endif
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void DebugMessage(const char *str) {
@@ -140,8 +140,8 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, neurox::Main);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, neurox::Clear);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, neurox::Main);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, neurox::Clear);
 }
 
 };  // neurox

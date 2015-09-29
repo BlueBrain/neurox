@@ -9,7 +9,7 @@ DebugAlgorithm::~DebugAlgorithm() {}
 
 DebugAlgorithm::CommunicationBarrier::CommunicationBarrier() {
   this->allSpikesLco = HPX_NULL;
-  assert(CoreneuronAlgorithm::CommunicationBarrier::commStepSize <= 4);
+  assert(CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize <= 4);
 }
 
 DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
@@ -33,7 +33,7 @@ void DebugAlgorithm::Init() {
 void DebugAlgorithm::Clear() {}
 
 double DebugAlgorithm::Launch() {
-  int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
+  int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
   int totalSteps = Algorithm::getTotalStepsCount();
 
   hpx_time_t now = hpx_time_now();
@@ -47,7 +47,7 @@ double DebugAlgorithm::Launch() {
 
     // Reduction at locality is not implemented (this mode is for debugging
     // only)
-    NEUROX_CALL_ALL_NEURONS_LCO_(Branch::BackwardEuler, &commStepSize,
+    NEUROX_CALL_ALL_NEURONS_LCO(Branch::BackwardEuler, &commStepSize,
                                  sizeof(int));
 
 #ifndef NDEBUG
