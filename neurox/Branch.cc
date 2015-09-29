@@ -291,7 +291,8 @@ Branch::Branch(offset_t n, int nrnThreadId, int thresholdVoffset,
       ml->_shadow_rhs[i] = 0;
     }
 
-    if (mechanisms[m]->dependencyIonIndex >= Mechanism::IonTypes::kSizeWriteableIons)
+    if (mechanisms[m]->dependencyIonIndex >=
+        Mechanism::IonTypes::kSizeWriteableIons)
       shadowSize = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =

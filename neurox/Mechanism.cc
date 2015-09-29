@@ -94,10 +94,13 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 
 Mechanism::IonTypes Mechanism::GetIonIndex() {
   assert(this->membFunc.sym);
-  if (strcmp("na_ion", this->membFunc.sym) == 0) return Mechanism::IonTypes::kNa;
+  if (strcmp("na_ion", this->membFunc.sym) == 0)
+    return Mechanism::IonTypes::kNa;
   if (strcmp("k_ion", this->membFunc.sym) == 0) return Mechanism::IonTypes::kK;
-  if (strcmp("ttx_ion", this->membFunc.sym) == 0) return Mechanism::IonTypes::kTTX;
-  if (strcmp("ca_ion", this->membFunc.sym) == 0) return Mechanism::IonTypes::kCa;
+  if (strcmp("ttx_ion", this->membFunc.sym) == 0)
+    return Mechanism::IonTypes::kTTX;
+  if (strcmp("ca_ion", this->membFunc.sym) == 0)
+    return Mechanism::IonTypes::kCa;
   return Mechanism::IonTypes::kNoIon;
 }
 
