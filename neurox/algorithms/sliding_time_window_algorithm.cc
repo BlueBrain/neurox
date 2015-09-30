@@ -1,4 +1,4 @@
-#include "neurox/algorithms/SlidingTimeWindowAlgorithm.h"
+#include "neurox/algorithms/sliding_time_window_algorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
