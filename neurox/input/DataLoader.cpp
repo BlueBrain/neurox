@@ -104,10 +104,13 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
         size_t dataSizePadded  = 6*tools::Vectorizer::SizeOf(N);
         for (NrnThreadMembList* tml = nt->tml; tml!=NULL; tml = tml->next)
             dataSizePadded += tools::Vectorizer::SizeOf(tml->ml->nodecount) * mechanisms[mechanismsMap[tml->index]]->dataSize;
-        std::vector<int> dataOffsets(dataSizePadded, -99999); //TODO only if no depth, otherwise empty
 
-        /***if (inputParams->branchingDepth>0) ****/ //TODO UNCOMMENT
-        for (int n=0; n<N; n++)
+        //map of post- to pre-padding values of pdata
+        //only used for branched neurons, otherwise pointers for padded and non-padded layouts are the same
+        std::vector<int> dataOffsets(inputParams->branchingDepth>0 ? dataSizePadded : 0, -99999);
+
+        if (inputParams->branchingDepth>0)
+          for (int n=0; n<N; n++)
             for (int i=0; i<6; i++)
             {
                 int offsetPadded = tools::Vectorizer::SizeOf(N)*i+n;
@@ -197,7 +200,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     int offsetPadded = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
                     data.push_back(ml->data[offsetPadded]);
                     assert(ml->data[offsetPadded]==nt->_data[dataTotalPaddedOffset+offsetPadded]);
-                    /***if (inputParams->branchingDepth>0) ****/ //TODO UNCOMMENT
+                    if (inputParams->branchingDepth>0)
                         dataOffsets[dataTotalPaddedOffset+offsetPadded] = dataTotalOffset+offsetNonPadded;
 #endif
                 }
@@ -215,7 +218,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     int ptype = memb_func[mech->type].dparam_semantics[i];
 
                     //remove extra space added by padding (for pointer to area or ion mech instance)
-                    if (/**** TODO UNCOMMENT inputParams->branchingDepth>0 && **/ (ptype==-1 || (ptype>0 && ptype<1000)))
+                    if (inputParams->branchingDepth>0 && (ptype==-1 || (ptype>0 && ptype<1000)))
                     {
                         assert(dataOffsets.at(pd)!=-99999);
                         pdata.push_back(dataOffsets.at(pd)); //offset to non-padded SoA value
@@ -927,7 +930,7 @@ int DataLoader::GetBranchData(
         for (int i=0; i<nodesIndicesMechs[m].size(); i++) //for all instances
         {
             assert(ionInstanceToDataOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == ionInstanceToDataOffset.end() );
-            if (mech->isIon /**TODO UNCOMMENT && inputParams->branchingDepth>0 **/) //for pdata calculation
+            if (mech->isIon && inputParams->branchingDepth>0) //for pdata calculation
                 ionInstanceToDataOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
             data.insert ( data.end(), &dataMechs[m][dataOffset], &dataMechs[m][dataOffset+mech->dataSize ]);
             nodesIndices.push_back(nodesIndicesMechs[m][i]);
@@ -945,8 +948,7 @@ int DataLoader::GetBranchData(
                 vdataOffset += totalVdataSize;
             }
 
-            /*** TODO UNCOMMENT **/
-            //if (inputParams->branchingDepth>0) //if we need to recalculate offsets or remove padding
+            if (inputParams->branchingDepth>0) //if we need to recalculate offsets or remove padding
             {
               for (int p=pdataOffset; p<pdataOffset+mech->pdataSize; p++)
               {
@@ -1131,7 +1133,7 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                       &runBenchmarkAndClear, sizeof(bool)
                       );
         assert(timeElapsed>0);
-        hpx_gas_clear_affinity(tempBranchAddr); //TODO is this enough to deallocate mem?
+        hpx_gas_clear_affinity(tempBranchAddr);
 
         //get HPX address of branch; create it if necessary, and update benchmark table
         int rank = hpx_get_my_rank();
