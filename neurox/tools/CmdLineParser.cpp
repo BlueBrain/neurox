@@ -27,20 +27,33 @@ CmdLineParser::CmdLineParser (int argc, char** argv):
 void CmdLineParser::Parse(int argc, char ** argv)
 {
     try {
-        //message printed (help text, text delimiter, version)
-        TCLAP::CmdLine cmd("neurox simulator.", ' ', "0.1");
+#ifndef VERSION_STRING
+        TCLAP::CmdLine cmd("neurox simulator.", ' ');
+#else
+        TCLAP::CmdLine cmd("neurox simulator.", ' ', VERSION_STRING);
+#endif
 
-        //neurox only command line arguments (switches dont require cmd.add() )
-        TCLAP::SwitchArg allReduceAtLocality("9", "reduce-by-locality", "perform HPX all-reduce operation at locality level instead of neuron level (better for small cluster).", cmd, false);
-        TCLAP::SwitchArg outputCompartmentsDot("5", "output-compartments", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
-        TCLAP::SwitchArg outputNetconsDot("4", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
-        TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
-        TCLAP::SwitchArg outputStatistics("2", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
-        TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
+        //neurox only command line arguments (NOTE: SwitchArg does not require cmd.add())
+        TCLAP::SwitchArg multiMex("M", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
+        TCLAP::SwitchArg allReduceAtLocality("L", "reduce-by-locality", "perform HPX all-reduce operation at locality level instead of neuron level (better for small cluster).", cmd, false);
+        TCLAP::SwitchArg outputStatistics("1", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
+        TCLAP::SwitchArg outputMechanismsDot("2", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
+        TCLAP::SwitchArg outputNetconsDot("3", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
+        TCLAP::SwitchArg outputCompartmentsDot("4", "output-compartments", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
 
-        TCLAP::SwitchArg coreneuronMpiExecution("m", "mpi", "activates coreneuron MPI based execution.", cmd, false);
+        TCLAP::ValueArg<int> branchingDepth("B","multisplix","depth tree-based parallelism of morphologies (0 = no branch parallelism, default)", false, 0, "int");
+        cmd.add(branchingDepth);
+        TCLAP::ValueArg<int> algorithm("A","algorithm",
+                                       "BackwardEulerDebugWithCommBarrier [0],\
+                                        BackwardEulerWithAllReduceBarrier [1] (default),\
+                                        BackwardEulerWithSlidingTimeWindow [2],\
+                                        BackwardEulerWithTimeDependencyLCO [3],\
+                                        All methods sequentially (NOTE: neurons data not reset) [9]",
+                                       false, 1, "int");
+        cmd.add(algorithm);
 
         //coreneuron command line parameters
+        TCLAP::SwitchArg coreneuronMpiExecution("m", "mpi", "activates coreneuron MPI based execution.", cmd, false);
         TCLAP::ValueArg<floble_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"floble_t");
         cmd.add(tstart);
         TCLAP::ValueArg<floble_t> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"floble_t");
@@ -61,16 +74,6 @@ void CmdLineParser::Parse(int argc, char ** argv)
         cmd.add(inputPath);
         TCLAP::ValueArg<std::string> outputPath("o","outputpath","Path to output directory. The default value is ./output",false,"./output","string");
         cmd.add(outputPath);
-        TCLAP::ValueArg<int> branchingDepth("j","branchingdepth","depth tree-based parallelism of morphologies (0 = no branch parallelism, default)", false, 0, "int");
-        cmd.add(branchingDepth);
-        TCLAP::ValueArg<int> algorithm("y","algorithm",
-                                       "BackwardEulerDebugWithCommBarrier [0],\
-                                        BackwardEulerWithAllReduceBarrier [1] (default),\
-                                        BackwardEulerWithSlidingTimeWindow [2],\
-                                        BackwardEulerWithTimeDependencyLCO [3],\
-                                        All methods sequentially (NOTE: neurons data not reset) [9]",
-                                       false, 1, "int");
-        cmd.add(algorithm);
 
         //parse command line arguments
         cmd.parse( argc, argv );
