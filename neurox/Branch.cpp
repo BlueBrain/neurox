@@ -32,7 +32,8 @@ Branch::Branch(offset_t n,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *weights, size_t weightsCount,
                unsigned char* vdataSerialized, size_t vdataSerializedCount):
-    soma(nullptr),nt(nullptr), thvar_ptr(nullptr)
+    soma(nullptr), nt(nullptr), mechsInstances(nullptr), thvar_ptr(nullptr),
+    mechsGraph(nullptr), branchTree(nullptr), eventsQueueMutex(HPX_NULL)
 {
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
@@ -305,12 +306,18 @@ Branch::Branch(offset_t n,
         assert(weightsOffset == netcons[nc].weightIndex);
         weightsOffset += netcons[nc].weightsCount;
     }
-
-    //create branchTree and MechsGraph
-    this->branchTree = inputParams->branchingDepth>0 ? new Branch::BranchTree(topBranchAddr, branches,branchesCount) : nullptr;
-    this->mechsGraph = inputParams->multiMex         ? new Branch::MechanismsGraph(n)         : nullptr;
-    if (this->mechsGraph) mechsGraph->InitMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
+
+    //create data structure that defines branching
+    if (inputParams->branchingDepth>0)
+        this->branchTree = new Branch::BranchTree(topBranchAddr, branches,branchesCount);
+
+    //create data structure that defines the graph of mechanisms
+    if (inputParams->multiMex)
+    {
+        this->mechsGraph = new Branch::MechanismsGraph(n);
+        this->mechsGraph->InitMechsGraph(branchHpxAddr);
+    }
 
 #if LAYOUT==0
     tools::Vectorizer::ConvertToSOA(this);
