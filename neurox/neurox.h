@@ -25,7 +25,7 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 //Algorithms
 #include "neurox/algorithms/Algorithm.h"
 
-//CoreNeuron-based input datatypes
+//CoreNeuron-based input
 #include "neurox/input/Compartment.h"
 #include "neurox/input/DataLoader.h"
 #include "neurox/input/Debugger.h"
