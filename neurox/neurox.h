@@ -1,6 +1,6 @@
 #pragma once
 
-//Coreneuron core datatypes
+//Coreneuron core datatypes, tools and methods
 #include "coreneuron/coreneuron.h"
 
 //typedefs
