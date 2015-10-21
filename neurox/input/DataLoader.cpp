@@ -1240,7 +1240,7 @@ int DataLoader::InitNetcons_handler()
                 netcons.push_back(make_pair(srcAddr,minDelay));
 
                 //add this pre-syn neuron as my time-dependency
-                if (inputParams->algorithm == AlgorithmType::ALL || inputParams->algorithm == AlgorithmType::BackwardEulerWithTimeDependencyLCO)
+                if (inputParams->algorithm == AlgorithmType::ALL || inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO)
                 {
                   spike_time_t notificationTime = inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio;
                   dependencies.push_back( make_pair(srcGid, notificationTime ) );
