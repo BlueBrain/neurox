@@ -18,11 +18,11 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
             inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode
             ? new CommunicationBarrier() : NULL;
     this->timeDependencies =
-            inputParams->algorithm == AlgorithmType::ALL ||
+            inputParams->algorithm == AlgorithmType::All ||
             inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO
             ? new TimeDependencies() : NULL;
     this->slidingTimeWindow =
-            inputParams->algorithm == AlgorithmType::ALL ||
+            inputParams->algorithm == AlgorithmType::All ||
             inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow ||
             inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce
             ? new SlidingTimeWindow() : NULL;
