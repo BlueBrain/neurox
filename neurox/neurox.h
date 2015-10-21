@@ -22,6 +22,9 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 //Fixed-step Backward-Euler solver
 #include "neurox/solver/HinesSolver.h"
 
+//Algorithms
+#include "neurox/algorithms/Algorithm.h"
+
 //CoreNeuron-based input datatypes
 #include "neurox/input/Compartment.h"
 #include "neurox/input/DataLoader.h"
@@ -68,13 +71,13 @@ namespace neurox
     Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void SetMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
     void DebugMessage(const char * str);
-    void RunAlgorithm(Algorithm algorithm);
+    void RunAlgorithm(algorithms::AlgorithmType algorithm);
 
     static int Main_handler();
     static int Clear_handler();
     static int SetMechanisms_handler (const int nargs, const void *args[], const size_t[]);
     static int SetMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
-    static int SetAlgorithmVariables_handler(const neurox::Algorithm * algorithm_ptr, const size_t);
+    static int SetAlgorithmVariables_handler(const algorithms::AlgorithmType * algorithm_ptr, const size_t);
 
     void RegisterHpxActions(); ///> Register all HPX actions
 } ;
