@@ -12,8 +12,7 @@ enum AlgorithmType {
     BackwardEulerAllReduce=1,
     BackwardEulerSlidingTimeWindow=2,
     BackwardEulerTimeDependencyLCO=3,
-    All=9, //All except debug (for benchmarking)
-    None=-1 //If not instantiated
+    All=9 //All except debug (for benchmarking)
 };
 
 /**
@@ -23,21 +22,19 @@ enum AlgorithmType {
 class Algorithm
 {
   public:
-    Algorithm() = delete;
-    static Algorithm * New(AlgorithmType);
+    Algorithm() {};
+    virtual ~Algorithm() {};
 
-    virtual AlgorithmType getType()
-    {
-        return AlgorithmType::None;
-    };
+    static Algorithm* New(AlgorithmType);
+    virtual AlgorithmType getType() = 0;
 
-    virtual void init(Branch*) = 0;
-    virtual void clear(Branch*) = 0;
-    virtual void stepBegin(Branch*) = 0;
-    virtual void stepEnd(Branch*) = 0;
-    virtual void commStepBegin(Branch*) = 0;
-    virtual void commStepEnd(Branch*) = 0;
-    virtual void afterSpike(Branch*) = 0;
+    virtual void init(Branch*) {};
+    virtual void clear(Branch*) {};
+    virtual void stepBegin(Branch*) {};
+    virtual void stepEnd(Branch*) {};
+    virtual void commStepBegin(Branch*) {};
+    virtual void commStepEnd(Branch*) {};
+    virtual void afterSpike(Branch*) {};
 };
 
 }; //algorithms
