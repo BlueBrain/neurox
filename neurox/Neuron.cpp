@@ -5,6 +5,7 @@
 
 using namespace neurox;
 using namespace neurox::solver;
+using namespace neurox::algorithms;
 
 Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     gid(neuronId), threshold(APthreshold),
@@ -14,16 +15,16 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->refractoryPeriod=0;
     this->commBarrier =
-            inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
+            inputParams->algorithm == AlgorithmType::BackwardEulerDebugMode
             ? new CommunicationBarrier() : NULL;
     this->timeDependencies =
-            inputParams->algorithm == Algorithm::ALL ||
-            inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO
+            inputParams->algorithm == AlgorithmType::All ||
+            inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO
             ? new TimeDependencies() : NULL;
     this->slidingTimeWindow =
-            inputParams->algorithm == Algorithm::ALL ||
-            inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ||
-            inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier
+            inputParams->algorithm == AlgorithmType::All ||
+            inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow ||
+            inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce
             ? new SlidingTimeWindow() : NULL;
     assert(TimeDependencies::notificationIntervalRatio>0 && TimeDependencies::notificationIntervalRatio<=1);
     assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::reductionsPerCommStep==0);
@@ -98,7 +99,7 @@ hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
         printf("== Neuron gid %d spiked at %.3f ms\n", this->gid, tt);
 #endif
 
-    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebugWithCommBarrier)
+    if (inputParams->algorithm==AlgorithmType::BackwardEulerDebugMode)
     {
         if (this->commBarrier->allSpikesLco == HPX_NULL) //first use
             this->commBarrier->allSpikesLco = hpx_lco_and_new(synapses.size());
@@ -110,8 +111,8 @@ hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
             hpx_call(s->branchAddr, Branch::AddSpikeEvent, this->commBarrier->allSpikesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
     }
-    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithSlidingTimeWindow
-          || inputParams->algorithm==neurox::Algorithm::BackwardEulerWithAllReduceBarrier)
+    else if (inputParams->algorithm==AlgorithmType::BackwardEulerSlidingTimeWindow
+          || inputParams->algorithm==AlgorithmType::BackwardEulerAllReduce)
     {
         hpx_t newSynapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
@@ -119,7 +120,7 @@ hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
         return newSynapsesLco;
     }
-    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithTimeDependencyLCO)
+    else if (inputParams->algorithm==AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
         for (Synapse *& s : synapses)
         {
