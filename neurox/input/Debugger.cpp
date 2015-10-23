@@ -149,7 +149,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth)
 void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int secondorder)
 {
     double dt = b->nt->_dt;
-    if (b->soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithTimeDependencyLCO)
+    if (b->soma && inputParams->algorithm==neurox::algorithms::AlgorithmType::BackwardEulerTimeDependencyLCO)
     {
         b->soma->timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
         b->soma->timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
