@@ -17,6 +17,7 @@ int mechanismsCount = -1;
 int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
 neurox::tools::CmdLineParser * inputParams = nullptr;
+neurox::algorithms::Algorithm * algorithm = nullptr;
 
 Mechanism * GetMechanismFromType(int type) {
     assert(mechanismsMap[type]!=-1);
@@ -225,33 +226,9 @@ static int Main_handler()
     neurox::input::Debugger::CompareAllBranches();
 #endif
 
-    Algorithm * algorithm = Algorithm::New(inputParams->algorithm);
-
-    //subscribe to the all-reduce LCOs
-    static hpx_t * allreduces = nullptr;
-    static int maxReductionsPerCommStep = 0;
-    if (inputParams->algorithm == AlgorithmType::All
-     || inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
-     || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
-    {
-        DebugMessage("neurox::Neuron::SlidingTimeWindow::init...\n");
-        maxReductionsPerCommStep = inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce ? 1 : 2;
-        hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::SetReductionsPerCommStep, &maxReductionsPerCommStep, sizeof(int));
-
-        allreduces = new hpx_t[maxReductionsPerCommStep];
-        for (int i=0; i<maxReductionsPerCommStep; i++)
-            allreduces[i] = hpx_process_collective_allreduce_new(0, Neuron::SlidingTimeWindow::Init, Neuron::SlidingTimeWindow::Reduce);
-
-        if (inputParams->allReduceAtLocality)
-            hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::AllReduceLocality::SubscribeAllReduce,
-                            allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-        else
-            neurox_hpx_call_neurons(Neuron::SlidingTimeWindow::SubscribeAllReduce,
-                            allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-
-        for (int i=0; i<maxReductionsPerCommStep; i++)
-            hpx_process_collective_allreduce_subscribe_finalize(allreduces[i]);
-    }
+    algorithm = Algorithm::New(inputParams->algorithm);
+    DebugMessage("neurox::Algorithm::init...\n");
+    algorithm->Init();
 
     hpx_time_t now = hpx_time_now();
     if (inputParams->algorithm == AlgorithmType::All)
@@ -263,24 +240,10 @@ static int Main_handler()
     else
         RunAlgorithm(inputParams->algorithm);
 
+    algorithm->Clear();
+
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neurons->size(), inputParams->tstop/1000.0, hpx_time_elapsed_ms(now)/1e3);
-
-    //Clean up all-reduce LCOs
-    if ( inputParams->algorithm == All
-      || inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
-      || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
-    {
-        if (inputParams->allReduceAtLocality)
-            hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::AllReduceLocality::UnsubscribeAllReduce,
-                            allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-        else
-            neurox_hpx_call_neurons(Neuron::SlidingTimeWindow::UnsubscribeAllReduce, allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-
-        for (int i=0; i<maxReductionsPerCommStep; i++)
-            hpx_process_collective_allreduce_delete(allreduces[i]);
-        delete [] allreduces; allreduces=nullptr;
-    }
 
     neurox_hpx_call_neurons(Branch::Clear);
     hpx_bcast_rsync(neurox::Clear);
@@ -292,7 +255,7 @@ void RunAlgorithm(AlgorithmType algorithm)
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
     printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps)\n",
             algorithm == AlgorithmType::BackwardEulerDebugMode  ? "BackwardEulerDebugWithCommBarrier" :
-           (algorithm == AlgorithmType::All                                ? "ALL" :
+           (algorithm == AlgorithmType::All                     ? "ALL" :
            (algorithm == AlgorithmType::BackwardEulerAllReduce  ? "BackwardEulerWithAllReduceBarrier" :
            (algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
            (algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
@@ -301,8 +264,6 @@ void RunAlgorithm(AlgorithmType algorithm)
 
     AlgorithmType previousAlgorithm = inputParams->algorithm;
     hpx_bcast_rsync(neurox::SetAlgorithmVariables, &algorithm, sizeof(AlgorithmType));
-
-    hpx_t mainLCO = hpx_lco_and_new(neurons->size());
 
 #ifdef NDEBUG //benchmark info
     hpx_time_t now = hpx_time_now();
@@ -319,7 +280,7 @@ void RunAlgorithm(AlgorithmType algorithm)
             #endif
 
             //Reduction at locality is not implemented (this mode is for debugging only)
-            neurox_hpx_call_neurons_lco(Branch::BackwardEuler, mainLCO, &commStepSize, sizeof(int));
+            neurox_hpx_call_neurons_lco(Branch::BackwardEuler, &commStepSize, sizeof(int));
 
             #ifndef NDEBUG
               if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
@@ -334,7 +295,7 @@ void RunAlgorithm(AlgorithmType algorithm)
             || inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow))
             hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
         else
-            neurox_hpx_call_neurons_lco(Branch::BackwardEuler, mainLCO, &totalSteps, sizeof(int));
+            neurox_hpx_call_neurons_lco(Branch::BackwardEuler, &totalSteps, sizeof(int));
     }
 
 #ifdef NDEBUG
@@ -365,7 +326,6 @@ void RunAlgorithm(AlgorithmType algorithm)
 #endif
 
     hpx_bcast_rsync(neurox::SetAlgorithmVariables, &previousAlgorithm, sizeof(AlgorithmType));
-    hpx_lco_delete_sync(mainLCO);
 }
 
 hpx_action_t Clear = 0;
