@@ -61,6 +61,7 @@ namespace neurox
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
     extern tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
+    extern algorithms::Algorithm * algorithm; ///> algorithm instance
 
     extern hpx_action_t Main;            ///> execution starting point (called via hpx_run)
     extern hpx_action_t Clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
