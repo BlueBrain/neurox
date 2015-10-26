@@ -583,13 +583,7 @@ void Branch::BackwardEulerStep()
     const double dt = this->nt->_dt;
     hpx_t spikesLco = HPX_NULL;
 
-    if (soma && inputParams->algorithm==AlgorithmType::BackwardEulerTimeDependencyLCO)
-    {
-        //inform time dependants that must be notified in this step
-        soma->timeDependencies->SendSteppingNotification(t, dt, this->soma->gid, this->soma->synapses);
-        //wait until Im sure I can start and finalize this step at t+dt
-        soma->timeDependencies->WaitForTimeDependencyNeurons(t, dt, this->soma->gid);
-    }
+    algorithm->StepBegin(this);
 
     //cvodestb.cpp::deliver_net_events()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
@@ -604,7 +598,6 @@ void Branch::BackwardEulerStep()
     else if (this->thvar_ptr)
         //Axon Initial Segment send threshold  V to parent
         HinesSolver::SynchronizeThresholdV(this);
-
 
     //netcvode.cpp::NetCvode::deliver_net_events()
     t += .5*dt;
@@ -631,22 +624,7 @@ void Branch::BackwardEulerStep()
     //if we are at the output time instant output to file
     if (fmod(t, inputParams->dt_io) == 0) {}
 
-    //wait for spikes sent 4 steps ago (queue has always size 3)
-    if (soma)
-    if (inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
-     || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce)
-    {
-      Neuron::SlidingTimeWindow * stw = this->soma->slidingTimeWindow;
-      assert(stw->spikesLcoQueue.size() == Neuron::CommunicationBarrier::commStepSize-1);
-      stw->spikesLcoQueue.push(spikesLco);
-      hpx_t queuedSpikesLco = stw->spikesLcoQueue.front();
-      stw->spikesLcoQueue.pop();
-      if (queuedSpikesLco != HPX_NULL)
-      {
-          hpx_lco_wait(queuedSpikesLco);
-          hpx_lco_delete_sync(queuedSpikesLco);
-      }
-    }
+    algorithm->StepEnd(this, spikesLco);
 
 #if !defined(NDEBUG) 
     //fixed comm barrier and serial jobs can be compared at runtime

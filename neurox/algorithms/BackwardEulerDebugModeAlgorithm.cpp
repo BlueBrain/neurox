@@ -54,7 +54,7 @@ double DERIVED_CLASS_NAME::Run()
 
 void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::StepEnd(Branch*, hpx_t) {}
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
