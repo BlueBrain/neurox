@@ -44,7 +44,7 @@ class Algorithm
     virtual void StepEnd(Branch*, hpx_t spikesLco) {};
     virtual void CommStepBegin(Branch*) {};
     virtual void CommStepEnd(Branch*) {};
-    virtual void AfterSpike(Branch*) {};
+    virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
 };
 
 }; //algorithms
