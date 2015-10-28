@@ -580,7 +580,6 @@ void Branch::Finitialize2()
 void Branch::BackwardEulerStep()
 {
     double & t  = this->nt->_t;
-    const double dt = this->nt->_dt;
     hpx_t spikesLco = HPX_NULL;
 
     algorithm->StepBegin(this);
@@ -600,7 +599,7 @@ void Branch::BackwardEulerStep()
         HinesSolver::SynchronizeThresholdV(this);
 
     //netcvode.cpp::NetCvode::deliver_net_events()
-    t += .5*dt;
+    t += .5*this->nt->_dt;
     DeliverEvents(t); //delivers events in the first HALF of the step
     FixedPlayContinuous();
     SetupTreeMatrix();
@@ -614,7 +613,7 @@ void Branch::BackwardEulerStep()
 
     ////// fadvance_core.::nrn_fixed_step_lastpart()
     //callModFunction(Mechanism::ModFunction::jacob);
-    t += .5*dt;
+    t += .5*this->nt->_dt;
     FixedPlayContinuous();
     CallModFunction(Mechanism::ModFunction::state);
     CallModFunction(Mechanism::ModFunction::after_solve);
