@@ -92,13 +92,12 @@ bool Neuron::CheckAPthresholdAndTransmissionFlag(floble_t v)
 
 hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 {
-    if (synapses.size() == 0) return HPX_NULL; 
-
     const spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
 #if !defined(NDEBUG)
         printf("== Neuron gid %d spiked at %.3f ms\n", this->gid, tt);
 #endif
 
+    if (synapses.size() == 0) return HPX_NULL;
     return algorithm->SendSpikes(this, tt, t);
 }
 
