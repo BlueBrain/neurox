@@ -21,14 +21,14 @@ class DERIVED_CLASS_NAME : public Algorithm
     const char* getTypeString() override;
 
     void Init() override;
-    void Finalize() override;
-    double Run() override;
+    void Clear() override;
+    double Launch() override;
 
     void StepBegin(Branch*) override;
     void StepEnd(Branch*, hpx_t) override;
-    void CommStepBegin(Branch*) override;
-    void CommStepEnd(Branch*) override;
     hpx_t SendSpikes(Neuron* b, double tt, double t) override;
+    void afterSpikeReceival( Branch *local, hpx_t target, neuron_id_t preNeuronId,
+                             spike_time_t spikeTime, spike_time_t maxTime) override;
 };
 
 }; //algorithm

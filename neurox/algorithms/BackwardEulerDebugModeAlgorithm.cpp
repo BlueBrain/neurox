@@ -24,9 +24,9 @@ void DERIVED_CLASS_NAME::Init()
                     &allReducesCount, sizeof(int));
 }
 
-void DERIVED_CLASS_NAME::Finalize() {}
+void DERIVED_CLASS_NAME::Clear() {}
 
-double DERIVED_CLASS_NAME::Run()
+double DERIVED_CLASS_NAME::Launch()
 {
     int commStepSize = Neuron::CommunicationBarrier::commStepSize;
     int totalSteps = Algorithm::getTotalStepsCount();
