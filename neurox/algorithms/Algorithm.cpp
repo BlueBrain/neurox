@@ -7,19 +7,19 @@ Algorithm* Algorithm::New(AlgorithmType type)
 {
     switch (type)
     {
-    case AlgorithmType::BackwardEulerDebugMode:
-        return new BackwardEulerDebugModeAlgorithm();
+    case AlgorithmType::BackwardEulerCoreneuronDebug:
+        return new CoreneuronDebugAlgorithm();
     case AlgorithmType::BackwardEulerAllReduce:
-        return new BackwardEulerAllReduceAlgorithm();
+        return new AllReduceAlgorithm();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
-        return new BackwardEulerSlidingTimeWindowAlgorithm();
+        return new SlidingTimeWindowAlgorithm();
     case AlgorithmType::BackwardEulerTimeDependencyLCO:
-        return new BackwardEulerTimeDependencyLCOAlgorithm();
+        return new TimeDependencyLCOAlgorithm();
     default:
         return nullptr;
     }
     return nullptr;
-}
+};
 
 void Algorithm::PrintStartInfo()
 {

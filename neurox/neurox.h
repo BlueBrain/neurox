@@ -11,6 +11,7 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
                             // (neuron id is past as -1 on input params parcelgid argument)
 
 //Core datatypes
+#include "neurox/algorithms/AlgorithmMetaData.h"
 #include "neurox/hpx.h"
 #include "neurox/Event.h"
 #include "neurox/VecPlayContinuous.h"
@@ -21,9 +22,6 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 
 //Fixed-step Backward-Euler solver
 #include "neurox/solver/HinesSolver.h"
-
-//Algorithms
-#include "neurox/algorithms/Algorithm.h"
 
 //CoreNeuron-based input
 #include "neurox/input/Compartment.h"
@@ -40,6 +38,9 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
   #include "neurox/tools/sptq_queue.hpp"
   #include "neurox/tools/sptq_queue.ipp"
 #endif
+
+//Algorithms
+#include "neurox/algorithms/Algorithm.h"
 
 //hard-coded mechanism types
 #define IClamp 7
