@@ -39,6 +39,8 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
+void DERIVED_CLASS_NAME::Run(Branch*) {}
+
 void DERIVED_CLASS_NAME::StepBegin(Branch* b)
 {
     if (b->soma)
@@ -55,7 +57,7 @@ void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::afterSpikeReceival(
+void DERIVED_CLASS_NAME::AfterReceiveSpikes(
         Branch *local, hpx_t target, neuron_id_t preNeuronId,
         spike_time_t spikeTime, spike_time_t maxTime)
 {
@@ -67,10 +69,6 @@ void DERIVED_CLASS_NAME::afterSpikeReceival(
         hpx_call(topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,
              &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
 }
-
-void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
-
-void DERIVED_CLASS_NAME::CommStepEnd(Branch*) {}
 
 hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double t)
 {
