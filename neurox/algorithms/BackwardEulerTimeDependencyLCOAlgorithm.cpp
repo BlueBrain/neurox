@@ -39,7 +39,27 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::Run(Branch*) {}
+void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
+{
+    int steps = *(int*)args;
+
+    if (b->soma)
+    {
+      //fixes crash for Algorithm::All when TimeDependency algorithm starts at t=inputParams->tend*2
+      //increase notification and dependencies time
+      for (Neuron::Synapse *& s : b->soma->synapses)
+          s->nextNotificationTime += b->nt->_t;
+      b->soma->timeDependencies->IncreseDependenciesTime(b->nt->_t);
+    }
+
+    for (int step=0; step<steps; step++)
+        b->BackwardEulerStep();
+    // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
+
+#ifndef NDEBUG
+        printf("-- neuron %d finished\n", b->soma->gid);
+#endif
+}
 
 void DERIVED_CLASS_NAME::StepBegin(Branch* b)
 {
