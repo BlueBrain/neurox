@@ -405,7 +405,7 @@ int Branch::Init_handler( const int nargs, const void *args[],
 
         //benchmark execution time of a communication-step time-frame
         hpx_time_t now = hpx_time_now();
-        for (int i=0; i< CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize; i++)
+        for (int i=0; i< CoreneuronAlgorithm::CommunicationBarrier::commStepSize; i++)
             local->BackwardEulerStep();
         double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
         delete local;
@@ -638,7 +638,7 @@ int Branch::BackwardEulerOnLocality_handler(const int * steps_ptr, const size_t 
 
     const int localityNeuronsCount = AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->size();
     const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
-    const int commStepSize = CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    const int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     const int reductionsPerCommStep = AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
     const int stepsPerReduction = commStepSize / reductionsPerCommStep;
     const int steps = *steps_ptr;

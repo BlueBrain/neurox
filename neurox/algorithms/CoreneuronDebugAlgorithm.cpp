@@ -11,7 +11,7 @@ DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 DERIVED_CLASS_NAME::CommunicationBarrier::CommunicationBarrier()
 {
     this->allSpikesLco = HPX_NULL;
-    assert(DERIVED_CLASS_NAME::CommunicationBarrier::commStepSize <= 4);
+    assert(CoreneuronAlgorithm::CommunicationBarrier::commStepSize <= 4);
 }
 
 DERIVED_CLASS_NAME::CommunicationBarrier::~CommunicationBarrier()
@@ -41,7 +41,7 @@ void DERIVED_CLASS_NAME::Clear() {}
 
 double DERIVED_CLASS_NAME::Launch()
 {
-    int commStepSize = CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize;
+    int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     int totalSteps = Algorithm::getTotalStepsCount();
 
     hpx_time_t now = hpx_time_now();
