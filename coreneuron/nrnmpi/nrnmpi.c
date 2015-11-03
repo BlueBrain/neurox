@@ -63,12 +63,6 @@ static int nrnmpi_under_nrncontrol_;
 
 void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv) {
     int i, b, flag;
-    static int called = 0;
-
-    if (called) {
-        return;
-    }
-    called = 1;
     nrnmpi_use = 1;
     nrnmpi_under_nrncontrol_ = nrnmpi_under_nrncontrol;
     if (nrnmpi_under_nrncontrol_) {
