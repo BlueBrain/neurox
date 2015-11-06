@@ -80,9 +80,7 @@ void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv) {
                 b = 1;
                 break;
             }
-            if (strcmp("-m", (*pargv)[i]) == 0 ||
-                strcmp("-mpi", (*pargv)[i]) == 0 ||
-                strcmp("--mpi", (*pargv)[i]) == 0 ) {
+            if (strcmp("-mpi", (*pargv)[i]) == 0) {
                 b = 1;
                 break;
             }
