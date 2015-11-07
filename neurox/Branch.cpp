@@ -938,7 +938,7 @@ void Branch::MechanismsGraph::Reduce_handler
     (Mechanism::ModFunction * lhs, const Mechanism::ModFunction *rhs, const size_t)
 { *lhs = *rhs; }
 
-void Branch::registerHpxActions()
+void Branch::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::Clear);
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::Finitialize);
