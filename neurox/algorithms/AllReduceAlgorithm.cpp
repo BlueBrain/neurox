@@ -276,7 +276,7 @@ void DERIVED_CLASS_NAME::AllReducesInfo::Reduce_handler
     (void* , const void* , const size_t) {}
 
 
-void DERIVED_CLASS_NAME::AllReducesInfo::registerHpxActions()
+void DERIVED_CLASS_NAME::AllReducesInfo::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_single_var_action, AllReducesInfo::SubscribeAllReduce);
     neurox_hpx_register_action(neurox_single_var_action, AllReducesInfo::UnsubscribeAllReduce);
