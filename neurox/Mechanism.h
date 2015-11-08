@@ -20,8 +20,9 @@ class Mechanism
     ~Mechanism();
 
     Mechanism(const int type, const short dataSize, const short pdataSize,
-              const char isArtificial, const char pntMap, const char isIon,
-              const short int symLengh=0, const char * sym = nullptr,
+              const char isArtificial, char pntMap, const char isIon,
+              const short int symLengh, const char * sym,
+              Memb_func & memb_func,
               const short int depedenciesCount=0, const int *dependencies=nullptr,
               const short int successorsCount=0, const int *successors=nullptr);
 
@@ -36,8 +37,6 @@ class Mechanism
     int * successors; ///> mechanism id for successors mechanisms
 
     int dependencyIonIndex; ///> index of parent ion (if any)
-
-    char *sym; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)
     Memb_func membFunc;
@@ -80,11 +79,9 @@ class Mechanism
                          const NetConX * netcon = NULL, //for net_receive only
                          const floble_t tt = 0 );       //for net_receive only
   private:
-    void DisableMechFunctions(); ///> sets to NULL all function pointers
     void RegisterIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
     void RegisterCapacitance();   ///> register mechanism of type "capacitance"
     void RegisterBeforeAfterFunctions();   ///> register Before-After functions
-    void RegisterModFunctions(); ///> register mechanisms functions (mod_t_f type)
 
 };
 };
