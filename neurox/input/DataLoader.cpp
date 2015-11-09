@@ -438,8 +438,8 @@ int DataLoader::InitMechanisms_handler()
     {   assert(nrn_threads[i].ncell == 1); }
 
     // Reconstructs unique data related to each mechanism
-    std::vector<int> successorsCount(neurox::mechanismsCount), dependenciesCount(neurox::mechanismsCount);
-    std::vector<int> successorsIds(1000), dependenciesIds(1000);
+    std::vector<int> successorsCount(neurox::mechanismsCount,0), dependenciesCount(neurox::mechanismsCount,0);
+    std::vector<int> successorsIds(1000, -1), dependenciesIds(1000, -1);
 
     //Different nrn_threads[i] have diff mechanisms; we'll get the union of all neurons' mechs
     std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
@@ -511,11 +511,11 @@ int DataLoader::InitMechanisms_handler()
           }
         }
 
-        successorsCount.push_back(successors.size());
-        successorsIds.insert(successorsIds.end(), successors.begin(), successors.end());
-
-        dependenciesCount.push_back(dependencies.size());
+        dependenciesCount.at(neurox::mechanismsMap[type]) = dependenciesCount.size();
         dependenciesIds.insert(dependenciesIds.end(), dependencies.begin(), dependencies.end());
+
+        successorsCount.at(neurox::mechanismsMap[type]) = successors.size();
+        successorsIds.insert(successorsIds.end(), successors.begin(), successors.end());
     }
 
     if (inputParams->patternStim[0]!='\0') //"initialized"
@@ -531,10 +531,10 @@ int DataLoader::InitMechanisms_handler()
         //(this solves issue of localities loading morphologies without all mechanisms,
         //and processing branches of other localities with the missing mechanisms)
         hpx_bcast_rsync(DataLoader::UpdateMechanismsDependencies,
-                        successorsCount.data(),   sizeof(int)*successorsCount.size(),
-                        successorsIds.data(),     sizeof(int)*successorsIds.size(),
                         dependenciesCount.data(), sizeof(int)*dependenciesCount.size(),
-                        dependenciesIds.data(),   sizeof(int)*dependenciesIds.size()
+                        dependenciesIds.data(),   sizeof(int)*dependenciesIds.size(),
+                        successorsCount.data(),   sizeof(int)*successorsCount.size(),
+                        successorsIds.data(),     sizeof(int)*successorsIds.size()
                         );
     }
     else
@@ -723,6 +723,10 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[], const si
     neurox_hpx_unpin;
 }
 
+static hpx_t dependenciesMutex = HPX_NULL;
+static int maxDependenciesCount = 0;
+static int maxSuccessorsCount = 0;
+
 hpx_action_t DataLoader::UpdateMechanismsDependencies = 0;
 int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void *args[], const size_t[])
 {
@@ -736,6 +740,34 @@ int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void
 
     neurox_hpx_pin(uint64_t);
     assert(nargs==4);
+
+    const int * dependenciesCount = (const int*)args[0];
+    const int * dependenciesIds   = (const int*)args[1];
+    const int * successorsCount   = (const int*)args[2];
+    const int * successorsIds     = (const int*)args[3];
+
+    hpx_lco_sema_p(neuronsMutex);
+    int dependenciesTotalCount=0, successorsTotalCount=0;
+
+    for (int m=0; m<neurox::mechanismsCount; m++)
+    {
+        dependenciesTotalCount += dependenciesCount[m];
+        successorsTotalCount   += successorsCount[m];
+    };
+
+    //if there are more dependencies that the ones I know
+    if (dependenciesTotalCount>maxDependenciesCount)
+    {
+        maxDependenciesCount = dependenciesTotalCount;
+        neurox::SetMechanismsDependencies(dependenciesCount, dependenciesIds, nullptr, nullptr);
+    }
+
+    if (successorsTotalCount>maxSuccessorsCount)
+    {
+        maxSuccessorsCount = successorsTotalCount;
+        neurox::SetMechanismsDependencies(nullptr, nullptr, successorsCount, successorsIds);
+    }
+    hpx_lco_sema_v_sync(neuronsMutex);
 
     neurox_hpx_unpin;
 }
