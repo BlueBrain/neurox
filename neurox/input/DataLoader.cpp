@@ -411,7 +411,7 @@ int DataLoader::InitMechanisms_handler()
     for (int type=0; type<n_memb_func; type++)
     {
         neurox::mechanismsMap[type]=-1;
-        if (!memb_func[type].alloc) continue;
+        if (memb_func[type].alloc == NULL) continue;
         neurox::mechanismsMap[type] = neurox::mechanismsCount++;
     }
 
@@ -439,7 +439,7 @@ int DataLoader::InitMechanisms_handler()
 
     // Reconstructs unique data related to each mechanism
     std::vector<int> successorsCount(neurox::mechanismsCount,0), dependenciesCount(neurox::mechanismsCount,0);
-    std::vector<int> successorsIds(1000, -1), dependenciesIds(1000, -1);
+    std::vector<int> successorsIds, dependenciesIds;
 
     //Different nrn_threads[i] have diff mechanisms; we'll get the union of all neurons' mechs
     std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
@@ -511,7 +511,7 @@ int DataLoader::InitMechanisms_handler()
           }
         }
 
-        dependenciesCount.at(neurox::mechanismsMap[type]) = dependenciesCount.size();
+        dependenciesCount.at(neurox::mechanismsMap[type]) = dependencies.size();
         dependenciesIds.insert(dependenciesIds.end(), dependencies.begin(), dependencies.end());
 
         successorsCount.at(neurox::mechanismsMap[type]) = successors.size();
