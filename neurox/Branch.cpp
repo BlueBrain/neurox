@@ -35,7 +35,7 @@ Branch::Branch(offset_t n,
                unsigned char* vdataSerialized, size_t vdataSerializedCount):
     soma(nullptr), nt(nullptr), mechsInstances(nullptr), thvar_ptr(nullptr),
     mechsGraph(nullptr), branchTree(nullptr), eventsQueueMutex(HPX_NULL)
-{
+{ 
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
 
