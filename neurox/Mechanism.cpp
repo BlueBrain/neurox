@@ -61,14 +61,6 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         this->successors = new int[successorsCount];
         std::memcpy(this->successors, successors, successorsCount*sizeof(int));
     }
-
-#ifndef NDEBUG
-    if (HPX_LOCALITY_ID ==0)
-        printf("- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
-               "isIon %d, symLength %d, %d successors, %d dependencies\n",
-           this->membFunc.sym, this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
-           this->isIon, this->symLength, this->successorsCount, this->dependenciesCount);
-#endif
 };
 
 Mechanism::Ion Mechanism::GetIonIndex()
