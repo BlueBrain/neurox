@@ -55,7 +55,7 @@ class Branch
     class MechanismsGraph
     {
       public:
-        MechanismsGraph(int); ///> creates mechanisms instance graph based on global var 'mechanisms'
+        MechanismsGraph(); ///> creates mechanisms instance graph based on global var 'mechanisms'
         ~MechanismsGraph();
         void InitMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
 
