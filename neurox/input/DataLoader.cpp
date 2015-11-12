@@ -438,8 +438,10 @@ int DataLoader::InitMechanisms_handler()
     {   assert(nrn_threads[i].ncell == 1); }
 
     // Reconstructs unique data related to each mechanism
-    std::vector<int> successorsCount(neurox::mechanismsCount,0), dependenciesCount(neurox::mechanismsCount,0);
-    std::vector<int> successorsIds, dependenciesIds;
+    std::vector<std::vector<int>> dependenciesIds (neurox::mechanismsCount);
+    std::vector<std::vector<int>> successorsIds (neurox::mechanismsCount);
+    //std::vector<bool> mechUsed(neurox::mechanismsCount, false);
+    std::vector<char> mechUsed(neurox::mechanismsCount, 0);
 
     //Different nrn_threads[i] have diff mechanisms; we'll get the union of all neurons' mechs
     std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
@@ -475,7 +477,10 @@ int DataLoader::InitMechanisms_handler()
     {
         auto & tml = *tml_it;
         int type = tml->index;
-        vector<int> successors, dependencies;
+
+        mechUsed.at(neurox::mechanismsMap[type]) = 1;
+        vector<int> & successors   = successorsIds.at(neurox::mechanismsMap[type]);
+        vector<int> & dependencies = dependenciesIds.at(neurox::mechanismsMap[type]);
         assert(nrn_watch_check[type] == NULL); //not supported yet
 
         if (inputParams->multiMex)
@@ -487,11 +492,15 @@ int DataLoader::InitMechanisms_handler()
             {
               int ptype = memb_func[otherType].dparam_semantics[d];
               if (otherType == type && ptype>0 && ptype<1000)
+              {
                 if (std::find(dependencies.begin(), dependencies.end(), ptype) == dependencies.end())
                   dependencies.push_back(ptype); //parent on dependency graph
+              }
               if (otherType!= type && ptype==type)
+              {
                 if (std::find(successors.begin(), successors.end(), otherType) == successors.end())
                   successors.push_back(otherType); //children on dependency graph
+              }
             }
           }
         }
@@ -510,12 +519,18 @@ int DataLoader::InitMechanisms_handler()
               dependencies.push_back((*tml_prev_it)->index);
           }
         }
+    }
 
-        dependenciesCount.at(neurox::mechanismsMap[type]) = dependencies.size();
-        dependenciesIds.insert(dependenciesIds.end(), dependencies.begin(), dependencies.end());
-
-        successorsCount.at(neurox::mechanismsMap[type]) = successors.size();
-        successorsIds.insert(successorsIds.end(), successors.begin(), successors.end());
+    //serialize all previous information
+    vector<int> dependenciesCount_serial, dependenciesIds_serial, successorsCount_serial, successorsIds_serial;
+    for (int m=0; m < neurox::mechanismsCount; m++)
+    {
+        vector<int> & dependencies = dependenciesIds.at(m);
+        vector<int> & successors   = successorsIds.at(m);
+        dependenciesCount_serial.push_back(dependencies.size());
+        successorsCount_serial.push_back(successors.size());
+        dependenciesIds_serial.insert(dependenciesIds_serial.end(), dependencies.begin(), dependencies.end());
+        successorsIds_serial.insert(successorsIds_serial.end(), successors.begin(), successors.end());
     }
 
     if (inputParams->patternStim[0]!='\0') //"initialized"
@@ -531,18 +546,22 @@ int DataLoader::InitMechanisms_handler()
         //(this solves issue of localities loading morphologies without all mechanisms,
         //and processing branches of other localities with the missing mechanisms)
         hpx_bcast_rsync(DataLoader::UpdateMechanismsDependencies,
-                        dependenciesCount.data(), sizeof(int)*dependenciesCount.size(),
-                        dependenciesIds.data(),   sizeof(int)*dependenciesIds.size(),
-                        successorsCount.data(),   sizeof(int)*successorsCount.size(),
-                        successorsIds.data(),     sizeof(int)*successorsIds.size()
+                        mechUsed.data(),                 sizeof(char)*mechUsed.size(),
+                        dependenciesCount_serial.data(), sizeof(int)*dependenciesCount_serial.size(),
+                        dependenciesIds_serial.data(),   sizeof(int)*dependenciesIds_serial.size(),
+                        successorsCount_serial.data(),   sizeof(int)*successorsCount_serial.size(),
+                        successorsIds_serial.data(),     sizeof(int)*successorsIds_serial.size()
                         );
     }
     else
     {
         //regular setting of mechanisms: all localities have the dependency graph for their morphologies
         neurox::SetMechanismsDependencies(
-                dependenciesCount.data(), dependenciesIds.data(),
-                successorsCount.data(),   successorsIds.data());
+                    mechUsed.data(),
+                    dependenciesCount_serial.data(),
+                    dependenciesIds_serial.data(),
+                    successorsCount_serial.data(),
+                    successorsIds_serial.data());
     }
     neurox_hpx_unpin;
 }
@@ -681,20 +700,22 @@ hpx_action_t DataLoader::UpdateMechanismsDependencies = 0;
 int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void *args[], const size_t[])
 {
     /**
-     * nargs=4 where
-     * args[0] = successors count per mechanism
-     * args[1] = successors ids
-     * args[2] = dependendencies count per mechanism
-     * args[3] = dependendencies ids
+     * nargs=5 where
+     * args[0] = whether mech is used by sender's morphologies
+     * args[1] = successors count per mechanism
+     * args[2] = successors ids
+     * args[3] = dependendencies count per mechanism
+     * args[4] = dependendencies ids
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
+    assert(nargs==5);
 
-    const int * dependenciesCount = (const int*)args[0];
-    const int * dependenciesIds   = (const int*)args[1];
-    const int * successorsCount   = (const int*)args[2];
-    const int * successorsIds     = (const int*)args[3];
+    const char* mechUsed          = (const char*)args[0];
+    const int * dependenciesCount = (const int*) args[1];
+    const int * dependenciesIds   = (const int*) args[2];
+    const int * successorsCount   = (const int*) args[3];
+    const int * successorsIds     = (const int*) args[4];
 
     hpx_lco_sema_p(neuronsMutex);
     int dependenciesTotalCount=0, successorsTotalCount=0;
@@ -705,17 +726,19 @@ int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void
         successorsTotalCount   += successorsCount[m];
     };
 
-    //if there are more dependencies that the ones I know
+    //if there are more dependencies that the ones I know (or more mechs)
     if (dependenciesTotalCount>maxDependenciesCount)
     {
         maxDependenciesCount = dependenciesTotalCount;
-        neurox::SetMechanismsDependencies(dependenciesCount, dependenciesIds, nullptr, nullptr);
+        neurox::SetMechanismsDependencies(
+                    mechUsed, dependenciesCount, dependenciesIds, nullptr, nullptr);
     }
 
     if (successorsTotalCount>maxSuccessorsCount)
     {
         maxSuccessorsCount = successorsTotalCount;
-        neurox::SetMechanismsDependencies(nullptr, nullptr, successorsCount, successorsIds);
+        neurox::SetMechanismsDependencies(
+                    mechUsed, nullptr, nullptr, successorsCount, successorsIds);
     }
     hpx_lco_sema_v_sync(neuronsMutex);
 
@@ -751,17 +774,19 @@ int DataLoader::Finalize_handler()
       {
         Mechanism * mech = neurox::mechanisms[m];
 
-        //mech is unused
-        if (mech->dependencies==0 && mech->successorsCount==0)
-            fprintf(fileMechs, "#\"%s (%d)\" %s;\n", mech->membFunc.sym, mech->type, mech->pntMap>0 ? "[style=dashed]" : "");
+        if (!mech->isUsed)
+        {
+            fprintf(fileMechs, "//\"%s (%d)\" %s;\n", mech->membFunc.sym, mech->type, mech->pntMap>0 ? "[style=dashed]" : "");
+            continue;
+        }
 
-        if (mech->pntMap > 0 && (mech->dependencies>0 || mech->successorsCount>0)) //if is point process make it dotted
+        if (mech->pntMap > 0) //if is point process make it dotted
             fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
 
-        if (mech->dependenciesCount==0 && mech->successorsCount>0 && mech->type!=CAP) //top mechanism
+        if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
             fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
 
-        if (mech->successorsCount==0 && mech->dependenciesCount>0 && mech->type!= CAP) //bottom mechanism
+        if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
             fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
 
         for (int s=0; s<mech->successorsCount; s++)
