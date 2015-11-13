@@ -135,69 +135,6 @@ int Clear_handler()
     neurox_hpx_unpin;
 }
 
-void SetMechanismsDependencies(const char *mechUsed,
-                               const int *dependenciesCount, const int * dependenciesIds,
-                               const int *successorsCount  , const int * successorsIds)
-{
-    //make sure mechanisms have already been set
-    assert(neurox::mechanismsCount>0 && neurox::mechanisms!= nullptr && neurox::mechanismsMap!=nullptr);
-
-    int successorsIdsOffset=0, dependenciessIdsOffset=0;
-
-    for (int m=0; m<neurox::mechanismsCount; m++)
-    {
-        Mechanism * mech = mechanisms[m];
-
-        //if this mech is used by this of other locality, mark it as useful
-        if (mechUsed[m]) neurox::mechanisms[m]->isUsed = true;
-
-        //if I know about more dependencies dependencies
-        if (dependenciesCount!=nullptr)
-        {
-            assert(dependenciesIds!=nullptr);
-            //Less of equal because if its a single dependency (eg on non graph mechs)
-            //we are updating it to a new value
-            if (mech->dependenciesCount<=dependenciesCount[m])
-            {
-                delete [] mech->dependencies;
-                mech->dependenciesCount = dependenciesCount[m];
-                mech->dependencies = new int [dependenciesCount[m]];
-                memcpy(mech->dependencies, &dependenciesIds[dependenciessIdsOffset], sizeof(int)*dependenciesCount[m]);
-            }
-            dependenciessIdsOffset+=dependenciesCount[m];
-        }
-
-        //if I know about more successors
-        if (successorsCount!=nullptr)
-        {
-            assert(successorsIds!=nullptr);
-            if (mech->successorsCount<=successorsCount[m])
-            {
-                delete [] mech->successors;
-                mech->successorsCount = successorsCount[m];
-                mech->successors = new int [successorsCount[m]];
-                memcpy(mech->successors, &successorsIds[successorsIdsOffset], sizeof(int)*successorsCount[m]);
-            }
-            successorsIdsOffset+=successorsCount[m];
-        }
-    }
-
-    //initializes parent ion index
-    for (int m=0; m<mechanismsCount; m++)
-    {
-      Mechanism * mech = mechanisms[m];
-      if (inputParams->multiMex)
-      {
-        for (int d=0; d<mech->dependenciesCount; d++)
-        {
-          Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
-          if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO hard coded exception
-          if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions)
-              mech->dependencyIonIndex = parent->GetIonIndex();
-        }
-      }
-    }
-}
 
 void DebugMessage(const char * str)
 {
