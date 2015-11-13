@@ -21,14 +21,19 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     //to be set by neuronx::UpdateMechanismsDependencies
     this->dependencyIonIndex = Mechanism::Ion::no_ion;
 
-    //set function pointers and name
+    //set function pointers
     memcpy(&this->membFunc, &memb_func, sizeof(Memb_func));
     assert(symLength>0);
-    this->membFunc.sym = new char[symLength+1]; //overwrites existing (points to CN's data structures)
+
+    //set name (overwrites existing, pointing to CN data structures)
+    this->membFunc.sym = new char[symLength+1];
     std::memcpy(this->membFunc.sym, sym, symLength);
     this->membFunc.sym[symLength] = '\0';
 
-    this->nrn_bbcore_read = NULL;
+    //copy dparam_semantics (overwrites existing, pointing to CN data structures)
+    this->membFunc.dparam_semantics = new int[pdataSize];
+    memcpy(this->membFunc.dparam_semantics, memb_func.dparam_semantics, sizeof(int)*pdataSize);
+
     //non-coreneuron functions
     if (this->type!=CAP && !this->isIon)
     {
@@ -36,9 +41,13 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         this->pnt_receive = get_net_receive_function(this->membFunc.sym);
     }
     else if (this->type == CAP) //capacitance: capac.c
-        RegisterCapacitance();
+    {
+        this->membFunc.current_parallel = nrn_cur_parallel_capacitance;
+    }
     else if (this->isIon)  //ion: eion.c
-        RegisterIon();
+    {
+        this->membFunc.current_parallel = nrn_cur_parallel_ion;
+    }
 
     switch (type)
     {
@@ -78,28 +87,8 @@ void Mechanism::RegisterBeforeAfterFunctions()
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-        this->BAfunctions[i] = get_BA_function(this->membFunc.sym, i);
+        this->BAfunctions[i] = get_BA_function(this->membFunc.sym, i); //NULL at the moment
         //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
-}
-
-void Mechanism::RegisterCapacitance()
-{
-    assert(this->membFunc.sym && strcmp("capacitance", this->membFunc.sym)==0);
-    this->membFunc.alloc = nrn_alloc_capacitance;
-    this->membFunc.initialize = nrn_init_capacitance;
-    this->membFunc.current = nrn_cur_capacitance;
-    this->membFunc.current_parallel = nrn_cur_parallel_capacitance;
-    this->membFunc.jacob = nrn_jacob_capacitance;
-}
-
-void Mechanism::RegisterIon()
-{
-    assert(this->isIon);
-    assert(nrn_ion_global_map);
-    //this->membFunc.alloc = ion_alloc; //assert(0) should never be called
-    this->membFunc.initialize = nrn_init_ion;
-    this->membFunc.current = nrn_cur_ion;
-    this->membFunc.current_parallel = nrn_cur_parallel_ion;
 }
 
 Mechanism::~Mechanism(){
