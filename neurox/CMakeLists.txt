@@ -66,13 +66,6 @@ install(TARGETS neurox
              LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
              ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
 
-
-# The mechanism registration function will be defined depending on whether we
-# are using neurodamus list of mechanisms
-if(ADDITIONAL_MECHS)
-    add_definitions(-DADDITIONAL_MECHS)
-endif()
-
 add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
 
 set_target_properties(neurox_exec PROPERTIES

@@ -3,38 +3,38 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
+CoreneuronAlgorithm::CoreneuronAlgorithm() {}
 
-DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
+CoreneuronAlgorithm::~CoreneuronAlgorithm() {}
 
-DERIVED_CLASS_NAME::CommunicationBarrier::CommunicationBarrier()
+CoreneuronAlgorithm::CommunicationBarrier::CommunicationBarrier()
 {
     assert(0);
 }
 
-DERIVED_CLASS_NAME::CommunicationBarrier::~CommunicationBarrier()
+CoreneuronAlgorithm::CommunicationBarrier::~CommunicationBarrier()
 {
     assert(0);
 }
 
-const AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType CoreneuronAlgorithm::getType()
 {
     return AlgorithmType::BackwardEulerCoreneuron;
 }
 
-const char* DERIVED_CLASS_NAME::getTypeString()
+const char* CoreneuronAlgorithm::getTypeString()
 {
     return "BackwardEulerCoreneuron";
 }
 
-void DERIVED_CLASS_NAME::Init()
+void CoreneuronAlgorithm::Init()
 {
     assert(0);
 }
 
-void DERIVED_CLASS_NAME::Clear() {}
+void CoreneuronAlgorithm::Clear() {}
 
-double DERIVED_CLASS_NAME::Launch()
+double CoreneuronAlgorithm::Launch()
 {
     int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     int totalSteps = Algorithm::getTotalStepsCount();
@@ -45,22 +45,22 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::StepBegin(Branch*)
+void CoreneuronAlgorithm::StepBegin(Branch*)
 {
     assert(0);
 }
 
-void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
+void CoreneuronAlgorithm::StepEnd(Branch* b, hpx_t)
 {
     assert(0);
 }
 
-void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
+void CoreneuronAlgorithm::Run(Branch* b, const void* args)
 {
     assert(0);
 }
 
-hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
+hpx_t CoreneuronAlgorithm::SendSpikes(Neuron* neuron, double tt, double)
 {
     assert(0);
     return HPX_NULL;
