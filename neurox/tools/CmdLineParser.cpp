@@ -35,22 +35,22 @@ void CmdLineParser::Parse(int argc, char ** argv)
 
         //neurox only command line arguments (NOTE: SwitchArg does not require cmd.add())
         TCLAP::SwitchArg multiMex("M", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
-        TCLAP::SwitchArg allReduceAtLocality("L", "reduce-by-locality", "perform HPX all-reduce operation at locality level instead of neuron level (better for small cluster).", cmd, false);
+        TCLAP::SwitchArg allReduceAtLocality("R", "reduce-by-locality", "perform HPX all-reduce operation at locality level instead of neuron level (better for small cluster).", cmd, false);
         TCLAP::SwitchArg outputStatistics("1", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
         TCLAP::SwitchArg outputMechanismsDot("2", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
         TCLAP::SwitchArg outputNetconsDot("3", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
         TCLAP::SwitchArg outputCompartmentsDot("4", "output-compartments", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
-
-        TCLAP::ValueArg<int> branchingDepth("B","multisplix","depth tree-based parallelism of morphologies (0 = no branch parallelism, default)", false, 0, "int");
-        cmd.add(branchingDepth);
+        TCLAP::SwitchArg loadBalancing("L", "load-balancing", "performs dynamic load balancing of neurons and branches.", cmd, false);
+        TCLAP::ValueArg<int> branchingDepth("B","branching-depth", "Depth of branches parallelism (0: none, default)", false, 0, "int");
         TCLAP::ValueArg<int> algorithm("A","algorithm",
-                                       "BackwardEulerCoreneuron [0],\
-                                        BackwardEulerWithAllReduceBarrier [1] (default),\
-                                        BackwardEulerWithSlidingTimeWindow [2],\
-                                        BackwardEulerWithTimeDependencyLCO [3],\
-                                        BackwardEulerCoreneuronDebug [4],\
-                                        All methods sequentially (NOTE: neurons data does not reset) [9]",
+                                       "[0] BackwardEulerCoreneuron \
+                                        [1] BackwardEulerWithAllReduceBarrier (default), \
+                                        [2] BackwardEulerWithSlidingTimeWindow \
+                                        [3] BackwardEulerWithTimeDependencyLCO \
+                                        [4] BackwardEulerCoreneuronDebug \
+                                        [9] All methods sequentially (NOTE: neurons data does not reset)",
                                        false, 1, "int");
+        cmd.add(branchingDepth);
         cmd.add(algorithm);
 
         //coreneuron command line parameters
@@ -100,12 +100,13 @@ void CmdLineParser::Parse(int argc, char ** argv)
         this->outputCompartmentsDot = outputCompartmentsDot.getValue();
         this->multiMex = multiMex.getValue();
         this->allReduceAtLocality = allReduceAtLocality.getValue();
+        this->loadBalancing = loadBalancing.getValue();
         this->branchingDepth = branchingDepth.getValue();
         this->algorithm = (algorithms::AlgorithmType) algorithm.getValue();
         neurox::algorithm = algorithms::Algorithm::New(this->algorithm);
 
         if (this->branchingDepth<0)
-            throw TCLAP::ArgException("branching depth should be zero or a positive value", "branchingdepth");
+            throw TCLAP::ArgException("branching depth should be >= 0", "branching-depth");
         if (this->dt<=0)
             throw TCLAP::ArgException("time-step size (ms) should be a positive value", "dt");
         if (this->tstop<=0)
