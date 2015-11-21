@@ -55,13 +55,14 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 
 namespace neurox
 {
-    extern std::vector<hpx_t> * neurons; ///> hpx address of all neurons
+    extern hpx_t *neurons; ///> hpx address of all neurons
+    extern int neurons_count; ///> length of neurox::neurons
 
-    extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
-    extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
+    extern int mechanisms_count; ///> length of neuronx::mechanisms
+    extern int *mechanisms_map; ///> map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
-    extern tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
+    extern tools::CmdLineParser * input_params; ///> Parameters parsed from command line
     extern algorithms::Algorithm * algorithm; ///> algorithm instance
 
 
