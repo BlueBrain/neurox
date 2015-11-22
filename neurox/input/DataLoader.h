@@ -38,6 +38,7 @@ class DataLoader
     static hpx_action_t Init;
     static hpx_action_t InitMechanisms;
     static hpx_action_t InitNeurons;
+    static hpx_action_t setNeurons;
     static hpx_action_t InitNetcons;
     static hpx_action_t Finalize;
 
@@ -111,6 +112,7 @@ class DataLoader
     static int Init_handler ();
     static int InitMechanisms_handler();
     static int InitNeurons_handler();
+    static int setNeurons_handler();
     static int InitNetcons_handler();
     static int Finalize_handler();
 };
