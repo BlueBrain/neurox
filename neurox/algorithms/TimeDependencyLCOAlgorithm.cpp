@@ -22,7 +22,7 @@ const char* TimeDependencyLCOAlgorithm::getTypeString()
 
 void TimeDependencyLCOAlgorithm::Init()
 {
-    if (inputParams->allReduceAtLocality)
+    if (input_params->allReduceAtLocality)
         throw std::runtime_error("Cant run BackwardEulerTimeDependencyLCO with allReduceAtLocality\n");
 
     const int allReducesCount = 0;
@@ -81,7 +81,7 @@ void TimeDependencyLCOAlgorithm::StepBegin(Branch* b)
 
 void TimeDependencyLCOAlgorithm::StepEnd(Branch* b, hpx_t)
 {
-    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
+    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, input_params->secondorder);
 }
 
 void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(
