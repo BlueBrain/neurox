@@ -1,5 +1,7 @@
 #pragma once
 
+#define NDEBUG
+
 //Coreneuron core datatypes, tools and methods
 #include "coreneuron/coreneuron.h"
 
