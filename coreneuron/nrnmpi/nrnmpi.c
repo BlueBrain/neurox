@@ -61,7 +61,7 @@ extern void nrnmpi_checkbufleak();
 
 static int nrnmpi_under_nrncontrol_;
 
-void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv, MPI_Comm mpi_comm) {
+void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv) {
     int i, b, flag;
     nrnmpi_use = 1;
     nrnmpi_under_nrncontrol_ = nrnmpi_under_nrncontrol;
@@ -110,7 +110,7 @@ void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv, MPI_Com
     }
     grp_bbs = MPI_GROUP_NULL;
     grp_net = MPI_GROUP_NULL;
-    nrn_assert(MPI_Comm_dup(mpi_comm, &nrnmpi_world_comm) == MPI_SUCCESS);
+    nrn_assert(MPI_Comm_dup(MPI_COMM_WORLD, &nrnmpi_world_comm) == MPI_SUCCESS);
     nrn_assert(MPI_Comm_dup(nrnmpi_world_comm, &nrnmpi_comm) == MPI_SUCCESS);
     nrn_assert(MPI_Comm_dup(nrnmpi_world_comm, &nrn_bbs_comm) == MPI_SUCCESS);
     nrn_assert(MPI_Comm_rank(nrnmpi_world_comm, &nrnmpi_myid_world) == MPI_SUCCESS);
