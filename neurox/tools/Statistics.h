@@ -2,26 +2,34 @@
 
 #include "neurox/neurox.h"
 
-namespace neurox{
-namespace tools{
+namespace neurox {
+namespace tools {
 
 /**
  * @brief The Neuron class
  * Represents a neuron as its metadata and a tree-based orphology
  */
-class Statistics
-{
-  public:
-    static void RegisterHpxActions(); ///> Register all HPX actions
-    static void OutputSimulationSize(bool writeToFile = true); ///> returns total simulation size
-    static void OutputMechanismsDistribution(bool writeToFile = true); ///> print the statistics about mechanisms distribution per type
-    static hpx_action_t GetNeuronSize; ///> returns branch size, including branches, in KB
-    static hpx_action_t GetNeuronMechanismsDistribution; ///> returns mechanisms count per type
+class Statistics {
+ public:
+  /// Register all HPX actions
+  static void RegisterHpxActions();
 
-  private:
-    static int GetNeuronSize_handler();
-    static int GetNeuronMechanismsDistribution_handler();
-    class SizeInfo;
+  /// returns total simulation size
+  static void OutputSimulationSize(bool writeToFile = true);
+
+  /// print the statistics about mechanisms distribution per type
+  static void OutputMechanismsDistribution(bool writeToFile = true);
+
+  /// returns branch size, including branches, in KB
+  static hpx_action_t GetNeuronSize;
+
+  /// returns mechanisms count per type
+  static hpx_action_t GetNeuronMechanismsDistribution;
+
+ private:
+  static int GetNeuronSize_handler();
+  static int GetNeuronMechanismsDistribution_handler();
+  class SizeInfo;
 };
-} //Tools
-} //neurox
+}  // Tools
+}  // neurox
