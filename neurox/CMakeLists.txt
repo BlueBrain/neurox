@@ -66,7 +66,7 @@ install(TARGETS neurox
              LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
              ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
 
-add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
+add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cc")
 
 set_target_properties(neurox_exec PROPERTIES
                       OUTPUT_NAME "neurox_exec"
