@@ -106,16 +106,12 @@ class Branch {
   std::map<neuron_id_t, std::vector<NetConX*> >
       netcons;  ///> map of incoming netcons per pre-synaptic gid
 
-/// priority queue of incoming events sorted per delivery time
-#ifdef USE_TIM_SPTQ
-  tools::sptq_queue<TimedEvent, std::greater_equal<TimedEvent> > eventsQueue;
-#else
+  /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
-                      std::greater_equal<TimedEvent> >
-      eventsQueue;
-#endif
-  hpx_t
-      eventsQueueMutex;  ///> mutex to protect the memory access to eventsQueue
+                      std::greater_equal<TimedEvent> > eventsQueue;
+
+  ///> mutex to protect the memory access to eventsQueue
+  hpx_t eventsQueueMutex;
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 

@@ -44,11 +44,6 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 #include "neurox/tools/LoadBalancing.h"
 #include "neurox/tools/Statistics.h"
 #include "neurox/tools/Vectorizer.h"
-#ifdef USE_TIM_SPTQ
-#include "neurox/tools/sptq_node.h"
-#include "neurox/tools/sptq_queue.h"
-#include "neurox/tools/sptq_queue.ipp"
-#endif
 
 // Algorithms
 #include "neurox/algorithms/Algorithm.h"
