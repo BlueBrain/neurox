@@ -31,7 +31,7 @@ class VecPlayContinuousX : Event {
   }
   void Search(double tt);
 
-  virtual int Type() { return VecPlayContinuousType; }
+  EventType Type() { return EventType::kVecPlayContinuous; }
 
   // PlayRecord vars:
   floble_t* pd_;  ///>index to last value pointed by function continuous()

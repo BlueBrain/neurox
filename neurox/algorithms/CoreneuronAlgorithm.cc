@@ -13,11 +13,11 @@ CoreneuronAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
   assert(0);
 }
 
-const AlgorithmType CoreneuronAlgorithm::getType() {
-  return AlgorithmType::BackwardEulerCoreneuron;
+const AlgorithmType CoreneuronAlgorithm::GetType() {
+  return AlgorithmType::kBackwardEulerCoreneuron;
 }
 
-const char* CoreneuronAlgorithm::getTypeString() {
+const char* CoreneuronAlgorithm::GetTypeString() {
   return "BackwardEulerCoreneuron";
 }
 
