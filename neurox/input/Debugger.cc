@@ -253,7 +253,7 @@ void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params->branchingDepth > 0 || input_params->loadBalancing) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
-  neurox_hpx_call_neurons(input::Debugger::CompareBranch);
+  NEUROX_CALL_ALL_NEURONS_(input::Debugger::CompareBranch);
 #endif
 }
 
@@ -397,43 +397,43 @@ void Debugger::CompareBranch2(Branch *branch) {
 
 hpx_action_t Debugger::FixedStepMinimal = 0;
 int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   for (int n = 0; n < nrn_nthread; n++)
     for (int i = 0; i < *steps_ptr; i++)
       Debugger::FixedStepMinimal2(&nrn_threads[n], input_params->secondorder);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   nrn_finitialize(input_params->voltage != 1000., input_params->voltage);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Debugger::ThreadTableCheck = 0;
 int Debugger::ThreadTableCheck_handler() {
   // beginning of fadvance_core.c::nrn_fixed_step_group_minimal
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   dt2thread(dt);  // does nothing
   nrn_thread_table_check();
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   nrn_spike_exchange(nrn_threads);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   if (input_params->branchingDepth > 0 || input_params->loadBalancing)
-    neurox_hpx_unpin;
+    NEUROX_MEM_UNPIN_;
   CompareBranch2(local);  // not implemented for branch-parallelism
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
@@ -475,12 +475,10 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
 }
 
 void Debugger::RegisterHpxActions() {
-  neurox_hpx_register_action(neurox_zero_var_action, Debugger::CompareBranch);
-  neurox_hpx_register_action(neurox_zero_var_action, Debugger::Finitialize);
-  neurox_hpx_register_action(neurox_zero_var_action,
-                             Debugger::NrnSpikeExchange);
-  neurox_hpx_register_action(neurox_zero_var_action,
-                             Debugger::ThreadTableCheck);
-  neurox_hpx_register_action(neurox_single_var_action,
-                             Debugger::FixedStepMinimal);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Debugger::CompareBranch);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Debugger::Finitialize);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Debugger::NrnSpikeExchange);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Debugger::ThreadTableCheck);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_,
+                          Debugger::FixedStepMinimal);
 }
