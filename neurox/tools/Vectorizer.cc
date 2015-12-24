@@ -17,7 +17,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
   int N = b->nt->end;
   size_t oldDataSize = 6 * N;
   size_t newDataSize = 6 * SizeOf(N);
-  assert(newDataSize % NEUROX_SOA_PADDING == 0);
+  assert(newDataSize % NEUROX_SOA_PADDING_ == 0);
 
   for (int m = 0; m < mechanisms_count; m++) {
     b->mechsInstances[m]._nodecount_padded =
