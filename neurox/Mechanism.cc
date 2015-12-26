@@ -1,6 +1,8 @@
 #include <cstring>
-#include "coreneuron/nrnoc/membfunc.h"
+
 #include "neurox/neurox.h"
+
+#include "coreneuron/nrnoc/membfunc.h"
 
 using namespace std;
 using namespace neurox;

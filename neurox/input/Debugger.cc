@@ -1,3 +1,5 @@
+#include "neurox/neurox.h"
+
 #include <stdio.h>
 #include <algorithm>
 #include <list>
@@ -19,8 +21,6 @@
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"  //nrn_is_ion()
 #include "coreneuron/utils/memory_utils.h"
-
-#include "neurox/neurox.h"
 
 using namespace std;
 using namespace neurox::input;
