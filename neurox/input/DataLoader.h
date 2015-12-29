@@ -52,6 +52,24 @@ class DataLoader {
   };
 
  private:
+  /// pointer of netcons.dot file
+  static FILE *fileNetcons;
+
+  /// mutex controlling multi-threaded write of data structs
+  static hpx_t all_neurons_mutex;
+
+  /// temporary hpx address of neurons read by this locality
+  static std::vector<hpx_t> *my_neurons_addr;
+
+  /// temporary gid of neurons read by this locality
+  static std::vector<int> *my_neurons_gids;
+
+  /// gids of all neurons in the system
+  static std::vector<int> *all_neurons_gids;
+
+  /// pointer to load balancing instantiated class (if any)
+  static tools::LoadBalancing *loadBalancing;
+
   static hpx_t CreateBranch(
       int nrnThreadId, hpx_t somaBranchAddr,
       deque<Compartment *> &allCompartments, Compartment *topCompartment,
