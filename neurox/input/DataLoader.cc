@@ -363,7 +363,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                 neuronId, nc.second.size(), minDelay);
       }
     }
-#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS_ == true
+#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS == true
     if (netConsFromOthers > 0)
       fprintf(fileNetcons,
               "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee "
@@ -426,13 +426,13 @@ int DataLoader::GetMyNrnThreadsCount() {
 
 hpx_action_t DataLoader::InitMechanisms = 0;
 int DataLoader::InitMechanisms_handler() {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
 
   // To insert mechanisms in the right order, we must first calculate
   // dependencies
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN_;
+  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN;
 
   for (int i = 0; i < myNrnThreadsCount; i++) {
     assert(nrn_threads[i].ncell == 1);
@@ -564,12 +564,12 @@ int DataLoader::InitMechanisms_handler() {
         dependenciesCount_serial.data(), dependencies_serial.data(),
         successorsCount_serial.data(), successors_serial.data());
   }
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::Init = 0;
 int DataLoader::Init_handler() {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
   all_neurons_gids = new std::vector<int>();
   all_neurons_mutex = hpx_lco_sema_new(1);
 
@@ -592,22 +592,22 @@ int DataLoader::Init_handler() {
     fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n",
             "transparent");
-#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS_ == true
+#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS == true
     fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
 #endif
   }
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::InitNeurons = 0;
 int DataLoader::InitNeurons_handler() {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
 
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN_;
+  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN;
 
-#if NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS_ == true
+#if NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS == true
   if (inputParams->outputCompartmentsDot) {
     for (int i = 0; i < myNrnThreadsCount; i++) {
       neuron_id_t neuronId = GetNeuronIdFromNrnThreadId(i);
@@ -655,7 +655,7 @@ int DataLoader::InitNeurons_handler() {
                                my_neurons_addr->end());
   }
 
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::AddNeurons = 0;
@@ -667,7 +667,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
    * args[2] = neurons hpx addr
    */
 
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
   assert(nargs == 2);
   assert(sizes[0] / sizeof(int) == sizes[1] / sizeof(hpx_t));
 
@@ -692,7 +692,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   assert(all_neurons_gids->size() == neurox::neurons_count);
   hpx_lco_sema_v_sync(all_neurons_mutex);
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::SetMechanisms = 0;
@@ -707,7 +707,7 @@ int DataLoader::SetMechanisms_handler(const int nargs, const void *args[],
    * args[4] = dependendencies ids
    */
 
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
   assert(nargs == 5);
 
   const int *orderedMechs = (const int *)args[0];
@@ -721,7 +721,7 @@ int DataLoader::SetMechanisms_handler(const int nargs, const void *args[],
   SetMechanisms2(mechsCount, orderedMechs, dependenciesCount, dependencies,
                  successorsCount, successors);
 
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
@@ -791,7 +791,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
 
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
 
   if (input_params->allReduceAtLocality)
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
@@ -894,7 +894,7 @@ int DataLoader::Finalize_handler() {
 
   delete loadBalancing;
   loadBalancing = nullptr;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void DataLoader::GetAllChildrenCompartments(deque<Compartment *> &subSection,
@@ -1290,7 +1290,7 @@ hpx_t DataLoader::CreateBranch(
     // Note: we do this after children creation so that we use top (lighter)
     // branches to balance work load
     hpx_t tempBranchAddr =
-        hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT_);
+        hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
     bool runBenchmarkAndClear = true;
     int dumbThresholdOffset = 0;
     double timeElapsed = -1;
@@ -1349,7 +1349,7 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate and initialize branch on the respective owner
   hpx_t branchAddr = hpx_gas_alloc_local_at_sync(
-      1, sizeof(Branch), NEUROX_MEM_ALIGNMENT_, HPX_THERE(neuronRank));
+      1, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_THERE(neuronRank));
 
   // update hpx address of soma
   somaBranchAddr = isSoma ? branchAddr : somaBranchAddr;
@@ -1409,8 +1409,8 @@ hpx_t DataLoader::CreateBranch(
 
 hpx_action_t DataLoader::InitNetcons = 0;
 int DataLoader::InitNetcons_handler() {
-  NEUROX_MEM_PIN_(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(DataLoader::InitNetcons);
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
   if (local->soma && input_params->outputNetconsDot)
     fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n",
@@ -1482,14 +1482,14 @@ int DataLoader::InitNetcons_handler() {
   hpx_lco_wait_reset(dependenciesLCO);
   hpx_lco_delete_sync(dependenciesLCO);
 
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::AddSynapse = 0;
 int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(local->soma);
   assert(nargs == 4);
   hpx_t addr = *(const hpx_t *)args[0];
@@ -1498,17 +1498,17 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   int destinationGid = *(const int *)args[3];
   local->soma->AddSynapse(
       new Neuron::Synapse(addr, minDelay, topBranchAddr, destinationGid));
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void DataLoader::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::Init);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitMechanisms);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitNeurons);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitNetcons);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::Finalize);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, DataLoader::AddSynapse);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, DataLoader::AddNeurons);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::Init);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitMechanisms);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitNeurons);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitNetcons);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::Finalize);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddSynapse);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddNeurons);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
                           DataLoader::SetMechanisms);
 }
