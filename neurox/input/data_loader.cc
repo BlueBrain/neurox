@@ -810,7 +810,7 @@ int DataLoader::Finalize_handler() {
               "wt");
     fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
             !input_params->multiMex ? "layout=circo; scale=0.23;" : "");
-    fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
+    fprintf(fileMechs, "graph [ratio=0.3];\n");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
             "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",

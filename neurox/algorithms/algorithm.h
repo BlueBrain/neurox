@@ -62,8 +62,8 @@ class Algorithm {
 };  // neurox
 
 //TODO can we get rid of this?
-#include "neurox/algorithms/AllReduceAlgorithm.h"
-#include "neurox/algorithms/CoreneuronAlgorithm.h"
-#include "neurox/algorithms/DebugAlgorithm.h"
-#include "neurox/algorithms/SlidingTimeWindowAlgorithm.h"
-#include "neurox/algorithms/TimeDependencyLCOAlgorithm.h"
+#include "neurox/algorithms/all_reduce_algorithm.h"
+#include "neurox/algorithms/coreneuron_algorithm.h"
+#include "neurox/algorithms/debug_algorithm.h"
+#include "neurox/algorithms/sliding_time_window_algorithm.h"
+#include "neurox/algorithms/time_dependency_lco_algorithm.h"
