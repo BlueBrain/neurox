@@ -1,4 +1,4 @@
-#include "neurox/algorithms/DebugAlgorithm.h"
+#include "neurox/algorithms/debug_algorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;
