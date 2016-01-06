@@ -86,27 +86,31 @@ utils/sdprintf.cpp
 # Include HPX
 #As a requirement for pkg_check_modules we need to provide the path of PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
 set(PKG_CONFIG_EXECUTABLE pkg-config)
-pkg_check_modules(HPX REQUIRED hpx )
-
 IF (NOT PKG_CONFIG_FOUND)
   message (FATAL_ERROR "pkg-config not found")
 ELSE()
-  message ("-- pkg-config ${PKG_CONFIG_VERSION_STRING} found: ${PKG_CONFIG_EXECUTABLE}")
+  #use pkg-config to find hpx
+  message (STATUS "pkg-config ${PKG_CONFIG_VERSION_STRING} found: ${PKG_CONFIG_EXECUTABLE}")
+  pkg_check_modules(HPX REQUIRED hpx )
   IF (NOT HPX_FOUND)
-    message (FATAL_ERROR "pkg-config not found")
+    message (FATAL_ERROR "pkg-config did not find HPX")
   ELSE()
-    message ("-- hpx ${HPX_VERSION} found by pkg-config")
-    message ("   include_dirs: ${HPX_INCLUDE_DIRS}")
-    message ("   libraries: ${HPX_LIBRARIES}")
-    message ("   library_dirs: ${HPX_LIBRARY_DIRS}")
-    message ("   ldflags: ${HPX_LDFLAGS}")
-    message ("   ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    message ("   cflags: ${HPX_CFLAGS}")
-    message ("   cflags_other: ${HPX_CFLAGS_OTHER}")
+    message (STATUS "hpx ${HPX_VERSION} found by pkg-config:")
+    message (STATUS "  include_dirs: ${HPX_INCLUDE_DIRS}")
+    message (STATUS "  libraries: ${HPX_LIBRARIES}")
+    message (STATUS "  library_dirs: ${HPX_LIBRARY_DIRS}")
+    message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
+    #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
+    message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
+    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}")
+ 
     include_directories(${HPX_INCLUDE_DIRS})
-    #target_link_libraries(${HPX_LIBRARY_DIRS})
+    link_directories(${HPX_LIBRARY_DIRS})
   ENDIF()
+  #message (STATUS "New CFLAGS after HPX: ${CMAKE_CXX_FLAGS}")
+  #message (STATUS "New LDFLAGS after HPX: ${CMAKE_EXE_LINKER_FLAGS}")
 ENDIF()
+
 
 # Compile and include MOD files
 
@@ -258,6 +262,7 @@ set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "
 
 set(CORENEURON_SOURCES ${CORENEURON_SOURCES} ${GENERATED_MECH_C_FILES})
 
+SET(CORENEURON_LINK_LIBRARIES ${HPX_LIBRARIES})
 common_library(coreneuron)
 
 install(FILES ${CMAKE_BINARY_DIR}/coreneuron/CMakeFiles/coreneuron.dir/nrniv/coreneuron_main.cpp.o DESTINATION lib)

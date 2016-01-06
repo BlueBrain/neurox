@@ -55,8 +55,16 @@ int main1( int argc, char **argv, char **env )
     nrn_feenableexcept();
 #endif
 
-    // mpi initialisation
+    // mpi initialisation //TODO
     nrnmpi_init( 1, &argc, &argv );
+
+    //hpx initialisation
+    if (hpx_init(&argc, &argv) != 0)
+    {
+        printf("HPX failed to initialize!\n");
+        return -1;
+    }
+
 
     // initialise default coreneuron parameters
     initnrn();
