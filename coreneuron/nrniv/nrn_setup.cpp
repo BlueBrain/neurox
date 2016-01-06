@@ -641,6 +641,7 @@ void nrn_cleanup() {
   nrn_threads_free();
 }
 
+//BM: this is where data is loaded
 void read_phase2(data_reader &F, NrnThread& nt) {
   NrnThreadMembList* tml;
   int n_outputgid = F.read_int();
@@ -660,6 +661,7 @@ void read_phase2(data_reader &F, NrnThread& nt) {
   // can be freed after that update.
   Memb_list* unpadded_ml_list = (Memb_list*)ecalloc(n_memb_func, sizeof(Memb_list));
 
+  //BM: creates linked list of all mechanisms
   int shadow_rhs_cnt = 0;
   for (int i=0; i < nmech; ++i) {
     tml = (NrnThreadMembList*)emalloc(sizeof(NrnThreadMembList));
@@ -682,7 +684,6 @@ void read_phase2(data_reader &F, NrnThread& nt) {
       nt.tml = tml;
     }
     tml_last = tml;
-
   }
 
   if (shadow_rhs_cnt) {
@@ -692,10 +693,10 @@ void read_phase2(data_reader &F, NrnThread& nt) {
       NRN_SOA_BYTE_ALIGN, sizeof(double));
   }
 
-  nt._ndata = F.read_int();
-  nt._nidata = F.read_int();
-  nt._nvdata = F.read_int();
-  nt.n_weight = F.read_int();
+  nt._ndata = F.read_int();   //double data
+  nt._nidata = F.read_int();  //number of ints
+  nt._nvdata = F.read_int();  //number of data related to pointers
+  nt.n_weight = F.read_int(); //weights for neuron netcon
 
   nt._data = NULL; // allocated below after padding
 
@@ -711,7 +712,7 @@ void read_phase2(data_reader &F, NrnThread& nt) {
 
   // The data format begins with the matrix data
   int ne = nrn_soa_padded_size(nt.end, MATRIX_LAYOUT);
-  size_t offset = 6*ne;
+  size_t offset = 6*ne; //6 = rhs+d+a+b+v+area
   size_t unpadded_offset = 6*nt.end;
 
   // Memb_list.data points into the nt.data array.

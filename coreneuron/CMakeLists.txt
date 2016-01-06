@@ -14,6 +14,8 @@ utils/swap_endian.h
 utils/memory_utils.h
 utils/sdprintf.h
 mech/cfile/scoplib.h
+hpx/settings.h
+hpx/datatypes.h
 )
 
 set(CORENEURON_HEADERS
@@ -80,6 +82,31 @@ utils/randoms/nrnran123.c
 utils/memory_utils.cpp
 utils/sdprintf.cpp
 )
+
+# Include HPX
+#As a requirement for pkg_check_modules we need to provide the path of PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
+set(PKG_CONFIG_EXECUTABLE pkg-config)
+pkg_check_modules(HPX REQUIRED hpx )
+
+IF (NOT PKG_CONFIG_FOUND)
+  message (FATAL_ERROR "pkg-config not found")
+ELSE()
+  message ("-- pkg-config ${PKG_CONFIG_VERSION_STRING} found: ${PKG_CONFIG_EXECUTABLE}")
+  IF (NOT HPX_FOUND)
+    message (FATAL_ERROR "pkg-config not found")
+  ELSE()
+    message ("-- hpx ${HPX_VERSION} found by pkg-config")
+    message ("   include_dirs: ${HPX_INCLUDE_DIRS}")
+    message ("   libraries: ${HPX_LIBRARIES}")
+    message ("   library_dirs: ${HPX_LIBRARY_DIRS}")
+    message ("   ldflags: ${HPX_LDFLAGS}")
+    message ("   ldflags_others: ${HPX_LDFLAGS_OTHERS}")
+    message ("   cflags: ${HPX_CFLAGS}")
+    message ("   cflags_other: ${HPX_CFLAGS_OTHER}")
+    include_directories(${HPX_INCLUDE_DIRS})
+    #target_link_libraries(${HPX_LIBRARY_DIRS})
+  ENDIF()
+ENDIF()
 
 # Compile and include MOD files
 
@@ -230,7 +257,6 @@ set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMEC
 set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "-Wno-error")
 
 set(CORENEURON_SOURCES ${CORENEURON_SOURCES} ${GENERATED_MECH_C_FILES})
-
 
 common_library(coreneuron)
 

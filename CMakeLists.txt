@@ -68,7 +68,6 @@ endif(MPI_FOUND)
 
 add_subdirectory(coreneuron)
 
-
 # Main
 
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)

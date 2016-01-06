@@ -33,6 +33,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/utils/sdprintf.h"
 #include "coreneuron/nrniv/nrn_stats.h"
 
+#include "coreneuron/hpx/settings.h"
+
 #if 0
 #include <fenv.h>
 #define NRN_FEEXCEPT (FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW )
