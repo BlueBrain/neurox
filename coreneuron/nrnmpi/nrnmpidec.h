@@ -77,7 +77,6 @@ extern void nrnmpi_abort(int errcode);
 extern void nrnmpi_subworld_size(int n);
 extern int nrn_wrap_mpi_init(int* flag);
 extern void nrnmpi_fatal_error(const char *msg);
-extern void nrnmpi_check_threading_support();
 
 /* from mpispike.c */
 extern void nrnmpi_spike_initialize(void);

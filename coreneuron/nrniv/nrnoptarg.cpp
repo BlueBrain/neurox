@@ -7,7 +7,7 @@
 extern "C" void nrn_exit( int );
 extern int nrnmpi_myid;
 
-cb_parameters::cb_parameters()
+cn_parameters::cn_parameters()
 {
     tstart = 0.0;
     tstop = 100.0;
@@ -33,13 +33,14 @@ cb_parameters::cb_parameters()
     filesdat = "files.dat";
 }
 
-sd_ptr cb_parameters::get_filesdat_path( char *path_buf, size_t bufsz )
+sd_ptr cn_parameters::get_filesdat_path( char *path_buf, size_t bufsz )
 {
     // shouldn't we check if filesdat is absolute or relative? -- sgy 20150119
     return sdprintf( path_buf, bufsz, "%s/%s", datpath, filesdat );
 }
 
-void cb_parameters::show_cb_opts()
+//TODO: tclap this
+void cn_parameters::show_cb_opts()
 {
     if ( nrnmpi_myid == 0 ) {
         printf( "\n Configuration Parameters" );
@@ -61,11 +62,12 @@ void cb_parameters::show_cb_opts()
 }
 
 
-void cb_parameters::show_cb_opts_help()
+//TODO: tclap this
+void cn_parameters::show_cb_opts_help()
 {
     printf( "\nWelcome to CoreNeuron!\n\nOPTIONS\n\
        -h, -?, --help Print a usage message briefly summarizing these command-line options \
-		and the bug-reporting address, then exit.\n\n\
+        and the bug-reporting address, then exit.\n\n\
        -s TIME, --tstart=TIME\n\
               Set the start time to TIME (double). The default value is '0.'\n\n\
        -e TIME, --tstop=TIME\n\
@@ -96,7 +98,8 @@ void cb_parameters::show_cb_opts_help()
               Enable MPI. In order to initialize MPI environment this argument must be specified.\n" );
 }
 
-void cb_parameters::read_cb_opts( int argc, char **argv )
+//TODO: tclap this
+void cn_parameters::read_cb_opts( int argc, char **argv )
 {
     optind = 1;
     int c;

@@ -35,53 +35,14 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "coreneuron/hpx/settings.h"
 
-#if 0
-#include <fenv.h>
-#define NRN_FEEXCEPT (FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW )
-int nrn_feenableexcept() {
-  int result = -1;
-  result = feenableexcept(NRN_FEEXCEPT);
-  return result;
-}
-#endif
-
-int main1( int argc, char **argv, char **env )
+static hpx_action_t main_hpx = 0;
+static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params_size )
 {
+    cn_input_params input_params = *input_params_ptr;
+
     char prcellname[1024], filesdat_buf[1024];
 
-    ( void )env; /* unused */
-
-#if defined(NRN_FEEXCEPT)
-    nrn_feenableexcept();
-#endif
-
-    // mpi initialisation //TODO
-    nrnmpi_init( 1, &argc, &argv );
-
-    //hpx initialisation
-    if (hpx_init(&argc, &argv) != 0)
-    {
-        printf("HPX failed to initialize!\n");
-        return -1;
-    }
-
-
-    // initialise default coreneuron parameters
-    initnrn();
-
-    // create mutex for nrn123, protect instance_count_
-    nrnran123_mutconstruct();
-
-    // handles coreneuron configuration parameters
-    cb_input_params input_params;
-
-    // read command line parameters
-    input_params.read_cb_opts( argc, argv );
-
-    // if multi-threading enabled, make sure mpi library supports it
-    if ( input_params.threading ) {
-        nrnmpi_check_threading_support();
-    }
+    printf("\nHPX localities: %d, HPX threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
 
     // set global variables for start time, timestep and temperature
     t = input_params.tstart;
@@ -92,8 +53,8 @@ int main1( int argc, char **argv, char **env )
     // full path of files.dat file
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
 
-    // memory footprint after mpi initialisation
-    report_mem_usage( "After MPI_Init" );
+    // memory footprint after HPX initialisation
+    report_mem_usage( "After hpx_init" );
 
     // reads mechanism information from bbcore_mech.dat
     mk_mech( input_params.datpath );
@@ -126,7 +87,7 @@ int main1( int argc, char **argv, char **env )
     // find mindelay and set configuration parameter
     double mindelay = BBS_netpar_mindelay( input_params.maxdelay );
 
-    input_params.set_mindelay( mindelay );
+    input_params.mindelay = mindelay;
 
     // show all configuration parameters for current run
     input_params.show_cb_opts();
@@ -168,13 +129,42 @@ int main1( int argc, char **argv, char **env )
 
     // Cleaning the memory
     nrn_cleanup();
-
-    // mpi finalize
-    nrnmpi_finalize();
-
     return 0;
 }
 
+int main1( int argc, char **argv, char **ev )
+{
+    //hpx initialisation
+    if (hpx_init(&argc, &argv) != 0)
+    {
+        printf("HPX failed to initialize!\n");
+        return -1;
+    }
+
+    // initialise default coreneuron parameters
+    initnrn();
+
+    // create mutex for nrn123, protect instance_count_
+    //TODO: nrnran123_mutconstruct();
+
+    // handles coreneuron configuration parameters
+    cn_input_params input_params;
+
+    // read command line parameters
+    input_params.read_cb_opts( argc, argv );
+
+    //register main HPX methods
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_SIZE_T);
+    //HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, init_global_data, init_global_data_handler, HPX_POINTER, HPX_SIZE_T);
+    //HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, clear_global_data, clear_global_data_handler, HPX_POINTER, HPX_SIZE_T);
+
+    //start HPX
+    int e = hpx_run(&main_hpx, &input_params, sizeof(input_params));
+
+    //clean up
+    hpx_finalize();
+    return e;
+}
 
 /* perform forwardskip and call prcellstate for prcellgid */
 void handle_forward_skip( double forwardskip, int prcellgid )

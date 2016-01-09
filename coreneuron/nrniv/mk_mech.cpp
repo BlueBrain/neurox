@@ -51,7 +51,7 @@ void mk_mech(const char* datpath) {
   sd_ptr fname=sdprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", datpath, "bbcore_mech.dat");
   FILE* f;
   f = fopen(fname, "r");
-  assert(f);
+  nrn_assert(f);
 //  printf("reading %s\n", fname);
   int n=0;
   nrn_assert(fscanf(f, "%d\n", &n) == 1);
@@ -63,7 +63,6 @@ void mk_mech(const char* datpath) {
   for (int i=2; i < n; ++i) {
     char mname[100];
     int type=0, pnttype=0, is_art=0, is_ion=0, dsize=0, pdsize=0;
-    //BM: Name of mech, type/id, point type ??, is artificial (real cell of extra functionality (eg clamp)), is ion channel, number of double variables for the mech, number of indices being used in this mechs
     nrn_assert(fscanf(f, "%s %d %d %d %d %d %d\n", mname, &type, &pnttype, &is_art, &is_ion, &dsize, &pdsize) == 7);
     nrn_assert(i == type);
 #ifdef DEBUG
@@ -97,7 +96,7 @@ void mk_mech(const char* datpath) {
     BYTEHEADER;
     nrn_need_byteswap = 1;
     BYTESWAP(x, int32_t);
-    assert(x == 1);
+    nrn_assert(x == 1);
   }
 
   fclose(f);
