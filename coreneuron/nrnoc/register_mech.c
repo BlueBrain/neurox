@@ -104,7 +104,7 @@ void  add_nrn_artcell(int type, int qi){
 
 
 void alloc_mech(int n) {
-	memb_func_size_ = n;
+    memb_func_size_ = n; //TODO what's the difference between these 2 vars?
 	n_memb_func = n;
 	memb_func = (Memb_func*)ecalloc(memb_func_size_, sizeof(Memb_func));
 	memb_list = (Memb_list*)ecalloc(memb_func_size_, sizeof(Memb_list));

@@ -80,7 +80,7 @@ void mk_mech(const char* datpath) {
       // strip the _ion
       char iname[100];
       strcpy(iname, mname);
-      iname[strlen(iname) - 4] = '\0';
+      iname[strlen(iname) - 4] = '\0'; //TODO what's the -4?
       //printf("%s %s\n", mname, iname);
       ion_reg(iname, charge);
     }

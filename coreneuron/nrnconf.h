@@ -65,11 +65,12 @@ extern void* emalloc_align(size_t size, size_t alignment);
 extern void* ecalloc_align(size_t n, size_t alignment, size_t size);
 extern double hoc_Exp(double x);
 
+//TODO: why will this go away at some point?
 /* will go away at some point */
 typedef struct Point_process {
 	void* _presyn; /* for artificial cell net_event */
 	int _i_instance;
-	short _type;
+    short _type; //Type (id) of mechanism
 	short _tid; /* NrnThread id */
 } Point_process;
 

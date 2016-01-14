@@ -1,6 +1,7 @@
 #pragma once
-
 #include "hpx/hpx.h"
+
+void convert_from_coreneuron_to_hpx_datatypes();
 
 typedef struct neuronData
 {

@@ -125,6 +125,7 @@ private:
     std::vector<std::vector<TQItem*> > vec_bins;
 };
 
+//TODO: what's this, a thread safe queue?
 class TQueue {
 public:
   TQueue();

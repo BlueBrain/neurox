@@ -160,6 +160,7 @@ void nrn_read_filesdat(int &ngrp, int * &grp, const char *filesdat)
     }
 
     ngrp = 0;
+    //TODO: dodgy operation here..
     grp = new int[iNumFiles / nrnmpi_numprocs + 1];
 
     // irerate over gids in files.dat
@@ -201,7 +202,6 @@ void nrn_setup(const char *path, const char *filesdat, int byte_swap, int thread
   /// Reserve vector of maps of size ngroup for negative gid-s
   /// std::vector< std::map<int, PreSyn*> > neg_gid2out;
   neg_gid2out.resize(ngroup);
-
 
   // bug fix. gid2out is cumulative over all threads and so do not
   // know how many there are til after phase1

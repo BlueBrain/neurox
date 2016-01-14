@@ -216,6 +216,7 @@ void nrn_p_construct() {
 }
 
 
+//BM: n==0 is destructor, n>0 is constructor?
 void NetCvode::p_construct(int n) {
 	int i;
 	if (pcnt_ != n) {

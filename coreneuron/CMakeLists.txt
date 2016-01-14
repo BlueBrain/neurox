@@ -46,6 +46,8 @@ nrniv/prcellstate.cpp
 nrniv/sptbinq.h
 nrniv/vrecitem.h
 mech/cfile/cabvars.h
+hpx/settings.h
+hpx/datatypes.h
 )
 
 set(CORENEURON_SOURCES
@@ -81,6 +83,7 @@ nrniv/vrecord.cpp
 utils/randoms/nrnran123.c
 utils/memory_utils.cpp
 utils/sdprintf.cpp
+hpx/datatypes.cpp
 )
 
 # Include HPX
@@ -96,19 +99,16 @@ ELSE()
     message (FATAL_ERROR "pkg-config did not find HPX")
   ELSE()
     message (STATUS "hpx ${HPX_VERSION} found by pkg-config:")
-    message (STATUS "  include_dirs: ${HPX_INCLUDE_DIRS}")
-    message (STATUS "  libraries: ${HPX_LIBRARIES}")
-    message (STATUS "  library_dirs: ${HPX_LIBRARY_DIRS}")
+    message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
+    #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
+    #message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
     message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
     #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}")
- 
+    #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
+    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
     include_directories(${HPX_INCLUDE_DIRS})
-    link_directories(${HPX_LIBRARY_DIRS})
+    SET(CORENEURON_LINK_LIBRARIES ${HPX_LDFLAGS})
   ENDIF()
-  #message (STATUS "New CFLAGS after HPX: ${CMAKE_CXX_FLAGS}")
-  #message (STATUS "New LDFLAGS after HPX: ${CMAKE_EXE_LINKER_FLAGS}")
 ENDIF()
 
 
@@ -260,8 +260,7 @@ endforeach()
 set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "-Wno-error")
 
-set(CORENEURON_SOURCES ${CORENEURON_SOURCES} ${GENERATED_MECH_C_FILES})
-SET(CORENEURON_LINK_LIBRARIES ${HPX_LIBRARIES})
+SET(CORENEURON_SOURCES ${CORENEURON_SOURCES} ${GENERATED_MECH_C_FILES})
 common_library(coreneuron)
 
 install(FILES ${CMAKE_BINARY_DIR}/coreneuron/CMakeFiles/coreneuron.dir/nrniv/coreneuron_main.cpp.o DESTINATION lib)

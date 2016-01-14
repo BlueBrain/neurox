@@ -1,6 +1,6 @@
 #pragma once
   
-#include "datatypes.h"
+#include "coreneuron/hpx/datatypes.h"
 
 #define THREAD_ID hpx_thread_get_tls_id()
 
@@ -12,9 +12,6 @@
 
 //Global variables
 extern GlobalVars * globalVars;
-extern unsigned int seed; //random seed for plasticity
  
 #define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
  
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
