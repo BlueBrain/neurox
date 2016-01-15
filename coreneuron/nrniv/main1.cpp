@@ -86,16 +86,13 @@ static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params
 
     // find mindelay and set configuration parameter
     double mindelay = BBS_netpar_mindelay( input_params.maxdelay );
-
     input_params.mindelay = mindelay;
 
     // show all configuration parameters for current run
     input_params.show_cb_opts();
 
-    // alloctae buffer for mpi communication
-    mk_spikevec_buffer( input_params.spikebuf );
-
-    report_mem_usage( "After mk_spikevec_buffer" );
+    //We take all CoreNeuron data types and convert to hpx based data types
+    convert_from_coreneuron_to_hpx_datatypes();
 
     nrn_finitialize( 1, input_params.voltage );
 

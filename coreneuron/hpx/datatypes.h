@@ -1,20 +1,10 @@
 #pragma once
+
 #include "hpx/hpx.h"
 
-void convert_from_coreneuron_to_hpx_datatypes();
+typedef hpx_addr_t hpx_t;
 
-typedef struct neuronData
-{
-    int n;
-    double *b;
-    double *d;
-    double *a;
-    double *rhs;
-    int *p;
-    char path[2048];
-    int branchesCount;
-    int terminalBranchesCount;
-} Neuron_serial;
+void convert_from_coreneuron_to_hpx_datatypes();
 
 typedef struct fwSubFutureData
 {
@@ -24,13 +14,11 @@ typedef struct fwSubFutureData
 
 typedef struct neuron
 {
-    int solversCount;
-    hpx_addr_t solvers_addr;
-    int compartmentsCount;
-    char path[2048];
-} Neuron_GAS;
+    hpx_t topBranch;
+    int neuronMetaData;
+} Neuron;
 
-typedef struct solverData
+typedef struct branch
 {   
     short int n;
     short int id;
@@ -42,29 +30,36 @@ typedef struct solverData
     
     //List of children
     int childrenCount;
-    hpx_addr_t * children;
+    hpx_t * children;
     
     //semaphore
-    hpx_addr_t mutex;
+    hpx_t mutex;
     
 #if USE_LCO_FUTURE_ARRAY==0
     //For fwSub Method
-    hpx_addr_t * futures;	 
-    int * sizes;	 
-    void** addrs;	 
+    hpx_t * futures;
+    int * futuresSizes;
+    void** futuresAddrs;
     FwSubFutureData * futuresData;
 #endif    
-} Solver;
+} Branch;
 
 typedef struct globalVarsStruct
 {
-    //This mutex forces only one hdf5 to be opened at a time. localities hold a diff value
-    hpx_addr_t mutex_io_h5;
-
     //global vars: all localities hold the same value
-    int multiSplit;
     int neuronsCount;
-    hpx_addr_t neurons_addr;
-    char inputFolder[2048];
+    hpx_t neuronsAddr;
+    int totalCompartmentsCount;
+    int totalBranchesCount;
+
+    //This mutex forces only one hdf5 to be opened at a time. localities hold a diff value
+    hpx_t mutex_io_h5;
+
+    struct settings
+    {
+      int multiSplit;
+      int neuronsCount;
+    } Settings;
+
 } GlobalVars;
 

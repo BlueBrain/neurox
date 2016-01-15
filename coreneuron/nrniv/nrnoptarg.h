@@ -24,7 +24,6 @@ typedef struct cn_parameters {
 
     double forwardskip;
 
-    int spikebuf;		/**< internal buffer used on evry rank for spikes */
     int prcellgid; 		/**< gid of cell for prcellstate */
 
     int threading;		/**< enable pthread/openmp  */
