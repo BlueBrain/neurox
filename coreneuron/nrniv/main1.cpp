@@ -72,7 +72,7 @@ static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params
     report_mem_usage( "Before nrn_setup" );
 
     // reading *.dat files and setting up the data structures
-    nrn_setup( input_params.datpath, filesdat, nrn_need_byteswap, input_params.threading );
+    nrn_setup( input_params, filesdat, nrn_need_byteswap);
 
     report_mem_usage( "After nrn_setup " );
 
@@ -83,10 +83,6 @@ static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params
 
     /// Setting the timeout
     nrn_set_timeout(200.);
-
-    // find mindelay and set configuration parameter
-    double mindelay = BBS_netpar_mindelay( input_params.maxdelay );
-    input_params.mindelay = mindelay;
 
     // show all configuration parameters for current run
     input_params.show_cb_opts();
@@ -162,6 +158,7 @@ int main1( int argc, char **argv, char **ev )
     hpx_finalize();
     return e;
 }
+
 
 /* perform forwardskip and call prcellstate for prcellgid */
 void handle_forward_skip( double forwardskip, int prcellgid )

@@ -9,34 +9,32 @@
 #include "coreneuron/nrniv/nrn_assert.h"
 
 
-#define PP2NT(pp) (nrn_threads + (pp)->_tid)
-
-void convert_from_coreneuron_to_hpx_datatypes(double tt, NetCvode* ns, NrnThread* nt)
+void convert_from_coreneuron_to_hpx_datatypes()
 {
     //map of parent node hpx address, per id (for branching)
     std::map<int, hpx_t> parentsAddrPerNode;
-    std::map<int, std::queue<Memb_list*>> mechsPerNode;
+    std::map<int, std::deque<Memb_list*>> mechsPerNode;
     //std::map<int, std::queue<NrnThreadMembList*>> dependenciesPerMech;
 
     //for all NrnThread in this group
-    for (int t=0; t<nrn_nthread; t++)
+    for (int k=0; k<nrn_nthread; k++)
     {
-        NrnThread * nt = &nrn_threads[t];
+        NrnThread * nt = &nrn_threads[k];
         double * nt_data = nt->_data; //nt->_ndata;
         //nidata, etc etc
 
         //for all mechanisms on this NrnThread
-        for (NrnThreadMembList* tml = nt.tml; tml; tml = tml->next)
+        for (NrnThreadMembList* tml = nt->tml; tml; tml = tml->next)
         {
             int type = tml->index;
 
             int is_art = nrn_is_artificial_[type];
-            int layout = nrn_mech_data_layout_[mtype];
+            int layout = nrn_mech_data_layout_[type];
             char pntype = pnt_map[type];
             int is_ion = nrn_is_ion(type); //mem_func[type]...
 
             //Member functions (see declaration of initialize, etc)
-            Memb_func* memfunc = &memb_func[index];
+            Memb_func* memfunc = &memb_func[type];
 
             /* TODO: dependencies not used on the code */
             //for (int d=0; d<tml->ndependencies; d++)
@@ -75,10 +73,9 @@ void convert_from_coreneuron_to_hpx_datatypes(double tt, NetCvode* ns, NrnThread
         }
 
         //traverse preSyns (local spike exchange / event delivery)
-        PreSyn * nt->presyns;
-        for (int s=0; s<nt->n_presyn; n++)
+        for (int s=0; s<nt->n_presyn; s++)
         {
-            PreSyn * preSyn = nt->presyns[s];
+            PreSyn * preSyn = &nt->presyns[s];
             for (int c=0; c<preSyn->nc_cnt_; c++)
             {
                 NetCon * nc = netcon_in_presyn_order_[preSyn->nc_index_+c];
@@ -93,27 +90,28 @@ void convert_from_coreneuron_to_hpx_datatypes(double tt, NetCvode* ns, NrnThread
         //Remote spike exchange:
         //1. sender sends to a gid (cell id) i.e. a compute node
         //2. that compute node knows which node takes the incoming spike on that cell
-
         //(remote spike exchange / event delivery)
-        gid2
 
-        nt->tbl; //table for mechanism updates
+        //traverse all incoming events
+        //gid2in returns the correspondence between sending gid and inputPreSyn
+        for (std::map<int, InputPreSyn*>::iterator it = gid2in.begin(); it!= gid2in.end(); it++)
+        {
+            int sender = it->first;
+            InputPreSyn * inputPreSyn = it->second;
+
+            for (int c=0; c<inputPreSyn->nc_cnt_; c++)
+            {
+                NetCon * nc = netcon_in_presyn_order_[inputPreSyn->nc_index_+c];
+                Point_process * target = nc->target_;
+                target->_tid; //TODO is this destination node id?
+                double * weight = nc->weight_;
+                bool active = nc->active_;
+                double delay = nc->delay_;
+            }
+        }
+
         nt->_ecell_memb_list; //??
 
     }
-
-
-    PreSyn * a;
-    for (int i = a->nc_cnt_-1; i >= 0; --i) {
-        NetCon* d = netcon_in_presyn_order_[a->nc_index_ + i];
-        if (d->active_ && d->target_) {
-            NrnThread* n = PP2NT(d->target_);
-            if (nt == n) {
-                ns->bin_event(tt + d->delay_, d, n);
-            }else{
-                ns->p[n->id].interthread_send(tt + d->delay_, d, n);
-            }
-        }
-        }
 }
 
