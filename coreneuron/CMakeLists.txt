@@ -3,10 +3,6 @@ include_directories(utils/randoms)
 set(CORENEURON_PUBLIC_HEADERS
 ${COMMON_INCLUDES}
 nrnconf.h
-hpx/settings.h
-hpx/datatypes.h
-hpx/wrappers.h
-hpx/data_converter.h
 nrnoc/md1redef.h
 nrnoc/md2redef.h
 nrnoc/membfunc.h
@@ -18,14 +14,13 @@ utils/swap_endian.h
 utils/memory_utils.h
 utils/sdprintf.h
 mech/cfile/scoplib.h
+../neurox/neurox.h
+../neurox/datatypes.h
+../neurox/nrn_setup.h
 )
 
 set(CORENEURON_HEADERS
 nrnomp/nrnomp.h
-hpx/settings.h
-hpx/datatypes.h
-hpx/wrappers.h
-hpx/data_converter.h
 nrnmpi/mpispike.h
 nrnmpi/nrnmpidec.h
 nrnmpi/nrnmpi_def_cinc.h
@@ -52,6 +47,9 @@ nrniv/prcellstate.cpp
 nrniv/sptbinq.h
 nrniv/vrecitem.h
 mech/cfile/cabvars.h
+../neurox/neurox.h
+../neurox/datatypes.h
+../neurox/nrn_setup.h
 )
 
 set(CORENEURON_SOURCES
@@ -87,7 +85,8 @@ nrniv/vrecord.cpp
 utils/randoms/nrnran123.c
 utils/memory_utils.cpp
 utils/sdprintf.cpp
-hpx/data_converter.cpp
+../neurox/nrn_setup.cpp
+../neurox/neurox.cpp
 )
 
 # Include HPX

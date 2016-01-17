@@ -33,16 +33,74 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/utils/sdprintf.h"
 #include "coreneuron/nrniv/nrn_stats.h"
 
-#include "coreneuron/hpx/settings.h"
+#include "neurox/neurox.h"
+#include "neurox/nrn_setup.h"
 
 static hpx_action_t main_hpx = 0;
-static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params_size )
+static int main_hpx_handler( cn_input_params * input_params_ptr, const size_t size )
 {
     cn_input_params input_params = *input_params_ptr;
 
-    char prcellname[1024], filesdat_buf[1024];
+    //We take all CoreNeuron data types and convert to hpx based data types
+    nrn_setup_hpx();
 
-    printf("\nHPX localities: %d, HPX threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
+    //Clean core neuron data, work only with HPX data
+    //nrn_cleanup();
+
+    nrn_finitialize( 1, input_params.voltage );
+
+    report_mem_usage( "After nrn_finitialize" );
+
+    // call prcellstae for prcellgid
+    char prcellname[1024];
+    if ( input_params.prcellgid >= 0 ) {
+        sprintf( prcellname, "t%g", t );
+        prcellstate( input_params.prcellgid, prcellname );
+    }
+
+    // handle forwardskip
+    if ( input_params.forwardskip > 0.0 ) {
+        handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
+    }
+
+    /// Solver execution
+    BBS_netpar_solve( input_params.tstop );
+
+    // Report global cell statistics
+    report_cell_stats();
+
+    // prcellstate after end of solver
+    if ( input_params.prcellgid >= 0 ) {
+        sprintf( prcellname, "t%g", t );
+        prcellstate( input_params.prcellgid, prcellname );
+    }
+
+    // write spike information to input_params.outpath
+    output_spikes( input_params.outpath );
+
+    hpx_exit(HPX_SUCCESS);
+}
+
+int main1( int argc, char **argv, char **ev )
+{
+    //hpx initialisation
+    if (hpx_init(&argc, &argv) != 0)
+    {
+        printf("HPX failed to initialize!\n");
+        return -1;
+    }
+    printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
+
+    // initialise default coreneuron parameters
+    initnrn();
+
+    // handles coreneuron configuration parameters
+    cn_input_params input_params;
+
+    // read command line parameters
+    input_params.read_cb_opts( argc, argv );
+
+    char filesdat_buf[1024];
 
     // set global variables for start time, timestep and temperature
     t = input_params.tstart;
@@ -72,6 +130,7 @@ static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params
     report_mem_usage( "Before nrn_setup" );
 
     // reading *.dat files and setting up the data structures
+    //TODO: ask how to get ALL nodes to read ALL neurons (otherwise the hpx implementation doesn't work)
     nrn_setup( input_params, filesdat, nrn_need_byteswap);
 
     report_mem_usage( "After nrn_setup " );
@@ -87,72 +146,12 @@ static int main_hpx_handler(cn_input_params * input_params_ptr, int input_params
     // show all configuration parameters for current run
     input_params.show_cb_opts();
 
-    //We take all CoreNeuron data types and convert to hpx based data types
-    convert_from_coreneuron_to_hpx_datatypes();
-
-    nrn_finitialize( 1, input_params.voltage );
-
-    report_mem_usage( "After nrn_finitialize" );
-
-    // call prcellstae for prcellgid
-    if ( input_params.prcellgid >= 0 ) {
-        sprintf( prcellname, "t%g", t );
-        prcellstate( input_params.prcellgid, prcellname );
-    }
-
-    // handle forwardskip
-    if ( input_params.forwardskip > 0.0 ) {
-        handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
-    }
-
-    /// Solver execution
-    BBS_netpar_solve( input_params.tstop );
-
-    // Report global cell statistics
-    report_cell_stats();
-
-    // prcellstate after end of solver
-    if ( input_params.prcellgid >= 0 ) {
-        sprintf( prcellname, "t%g", t );
-        prcellstate( input_params.prcellgid, prcellname );
-    }
-
-    // write spike information to input_params.outpath
-    output_spikes( input_params.outpath );
-
-    // Cleaning the memory
-    nrn_cleanup();
-    return 0;
-}
-
-int main1( int argc, char **argv, char **ev )
-{
-    //hpx initialisation
-    if (hpx_init(&argc, &argv) != 0)
-    {
-        printf("HPX failed to initialize!\n");
-        return -1;
-    }
-
-    // initialise default coreneuron parameters
-    initnrn();
-
-    // create mutex for nrn123, protect instance_count_
-    //TODO: nrnran123_mutconstruct();
-
-    // handles coreneuron configuration parameters
-    cn_input_params input_params;
-
-    // read command line parameters
-    input_params.read_cb_opts( argc, argv );
-
-    //register main HPX methods
+    //register HPX methods
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_SIZE_T);
-    //HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, init_global_data, init_global_data_handler, HPX_POINTER, HPX_SIZE_T);
-    //HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, clear_global_data, clear_global_data_handler, HPX_POINTER, HPX_SIZE_T);
+    void nrn_setup_register_hpx_actions();
 
     //start HPX
-    int e = hpx_run(&main_hpx, &input_params, sizeof(input_params));
+    int e = hpx_run(&main_hpx,  &input_params, sizeof(input_params));
 
     //clean up
     hpx_finalize();

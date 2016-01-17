@@ -4,22 +4,23 @@
 
 typedef hpx_addr_t hpx_t;
 
-void convert_from_coreneuron_to_hpx_datatypes();
-
 typedef struct fwSubFutureData
 {
     double rhs;
     double d;
 } FwSubFutureData;
 
-typedef struct neuron
+class Neuron
 {
-    hpx_t topBranch;
+  public:
+    hpx_t branches;
+    int branchesCount;
     int neuronMetaData;
-} Neuron;
+};
 
-typedef struct branch
-{   
+class Branch
+{
+  public:
     short int n;
     short int id;
     double * b;
@@ -32,6 +33,7 @@ typedef struct branch
     int childrenCount;
     hpx_t * children;
     
+  private:
     //semaphore
     hpx_t mutex;
     
@@ -42,24 +44,23 @@ typedef struct branch
     void** futuresAddrs;
     FwSubFutureData * futuresData;
 #endif    
-} Branch;
+};
 
-typedef struct globalVarsStruct
+class GlobalInfo
 {
+  public:
+
+    GlobalInfo():
+        branchesCount(0), compartmentsCount(0), neuronsCount(0){}
+
     //global vars: all localities hold the same value
     int neuronsCount;
     hpx_t neuronsAddr;
-    int totalCompartmentsCount;
-    int totalBranchesCount;
+    long long compartmentsCount;
+    long long branchesCount;
+    int multiSplit;
 
     //This mutex forces only one hdf5 to be opened at a time. localities hold a diff value
-    hpx_t mutex_io_h5;
+    //hpx_t mutex_io_h5;
 
-    struct settings
-    {
-      int multiSplit;
-      int neuronsCount;
-    } Settings;
-
-} GlobalVars;
-
+} ;

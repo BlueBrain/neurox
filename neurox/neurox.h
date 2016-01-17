@@ -1,9 +1,11 @@
 #pragma once
-  
+
 #include "hpx/hpx.h"
 
-#include "coreneuron/hpx/datatypes.h"
+#include "neurox/datatypes.h"
 
+//Memory alignment for hpx_gas_allocs
+#define NEUROX_HPX_MEM_ALIGNMENT 0
 
 #define THREAD_ID hpx_thread_get_tls_id()
 
@@ -14,9 +16,6 @@
 #define hpx_gas_calloc_blocked hpx_gas_calloc_cyclic
 
 #define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
- 
-
-#include "coreneuron/hpx/wrappers.h"
 
 //Global variables
-extern GlobalVars * globalVars;
+extern GlobalInfo * globalInfo;
