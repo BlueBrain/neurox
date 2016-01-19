@@ -9,12 +9,40 @@ class GlobalInfo;
 class Neuron;
 class Branch;
 class Mechanism;
+class FwSubFutureData;
 
-typedef struct fwSubFutureData
+class GlobalInfo
 {
-    double rhs;
-    double d;
-} FwSubFutureData;
+  public:
+
+    GlobalInfo():
+        neuronsCount(0), neuronsAddr(HPX_NULL), multiSplit(0){}
+
+    //global vars: all localities hold the same value
+    int neuronsCount; 	///> total neurons count in the system
+    hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
+    int multiSplit; 	///> 0 or 1 for multisplit or not
+
+    //Execution parameters (cn_input_parameters)
+    int secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
+    double t; 			///> current simulation time (msecs)
+    double dt; 			///> delta t i.e time step (msecs)
+    double rev_dt; 		///> reverse of delta t (1/msecs)
+    double celsius; 	///> celsius temperature (degrees)
+    double tstart; 		///> start time of simulation in msec*/
+    double tstop;		///> stop time of simulation in msec*/
+    double dt;			///> timestep to use in msec*/
+    double dt_io;    	///> i/o timestep to use in msec*/
+    double voltage;     ///> TODO: what's this?
+    double maxdelay;    ///> TODO: do we need this?
+    double mindelay;    ///> minimum synaptic delay
+    double forwardSkip;	///> forward skip time
+    int prcellgid;      ///> gid of cell for prcellstate
+
+    char inputPath[2048];		///>path of input directory
+    char outputPath[2048];		///>path of output directory
+    char patternStimFile[2048];	///>patternStim file path
+} ;
 
 class Neuron
 {
@@ -44,12 +72,17 @@ class Branch
     double * area;
 
     //Mechanisms data
-    int* is_art, layout, is_ion;
+    int* is_art;
+    int* layout;
+    int* is_ion;
     char* pnttype;
     Memb_func** membfunc;
-    int* nodesIds, instanceCount, dataSize, pdataSize;
+    int* nodesIds;
+    int* instanceCount;
+    int* dataSize;
+    int* pdataSize;
     double* data;
-    Datum* pdata;
+    int* pdata;
 
     //List of children
     int childrenCount;
@@ -73,6 +106,7 @@ class Branch
 
 class Mechanism
 {
+  public:
     int type;
     int * pdata;
     double * data;
@@ -80,28 +114,9 @@ class Mechanism
     int dataSize;
 };
 
-class GlobalInfo
+class FwSubFutureData
 {
   public:
-
-    GlobalInfo():
-        neuronsCount(0), neuronsAddr(HPX_NULL), multiSplit(0){}
-
-    //global vars: all localities hold the same value
-    int neuronsCount; 	///> total neurons count in the system
-    hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
-    int multiSplit; 	///> 0 or 1 for multisplit or not
-
-    //Execution parameters (cn_input_parameters)
-    int secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
-    double t; 			///> current simulation time (msecs)
-    double dt; 			///> delta t i.e time step (msecs)
-    double rev_dt; 		///> reverse of delta t (1/msecs)
-    double celsius; 	///> celsius temperature (degrees)
-    double tstart; 		///> start time of simulation in msec*/
-    double tstop;		///> stop time of simulation in msec*/
-    double dt;			///> timestep to use in msec*/
-    double dt_io;    	///> i/o timestep to use in msec*/
-    double voltage;     ///> TODO: what's this?
-    double maxdelay;    ///> TODO: do we need this?
+    double rhs;
+    double d;
 } ;

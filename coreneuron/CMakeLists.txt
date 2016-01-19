@@ -50,6 +50,7 @@ mech/cfile/cabvars.h
 ../neurox/neurox.h
 ../neurox/datatypes.h
 ../neurox/nrx_setup.h
+../neurox/nrxoptarg.h
 )
 
 set(CORENEURON_SOURCES
@@ -81,14 +82,29 @@ nrniv/nrnoptarg.cpp
 nrniv/output_spikes.cpp
 nrniv/patternstim.cpp
 nrniv/vrecord.cpp
+nrniv/main1.cpp
 utils/randoms/nrnran123.c
 utils/memory_utils.cpp
 utils/sdprintf.cpp
 ../neurox/nrx_setup.cpp
-../neurox/neurox.cpp
 ../neurox/datatypes.cpp
 ../neurox/main.cpp
+../neurox/nrxoptarg.cpp
 )
+
+#Incldude tclap
+FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
+	/usr/local/include
+	/usr/include
+	/opt/local/include
+)
+
+IF(TCLAP_INCLUDE_DIR)
+	message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
+ELSE()
+	message(FATAL_ERROR "Could not find TCLAP")
+ENDIF()
+include_directories(${TCLAP_INCLUDE_DIR})
 
 # Include HPX
 #As a requirement for pkg_check_modules we need to provide the path of PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
@@ -97,7 +113,7 @@ IF (NOT PKG_CONFIG_FOUND)
   message (FATAL_ERROR "pkg-config not found")
 ELSE()
   #use pkg-config to find hpx
-  message (STATUS "pkg-config ${PKG_CONFIG_VERSION_STRING} found: ${PKG_CONFIG_EXECUTABLE}")
+  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
   pkg_check_modules(HPX REQUIRED hpx )
   IF (NOT HPX_FOUND)
     message (FATAL_ERROR "pkg-config did not find HPX")

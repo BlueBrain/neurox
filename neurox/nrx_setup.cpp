@@ -11,7 +11,8 @@
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/nrn_assert.h"
 
-#include "neurox/nrn_setup.h"
+#include "neurox/nrx_setup.h"
+
 GlobalInfo * globalInfo;
 
 using namespace std;
@@ -140,12 +141,12 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
     data.shrink_to_fit();
     pdata.shrink_to_fit();
 
-    //bottom of branch = more than 1 children. Start recursive loop
+    //bottom of branch has more than 1 children. So we start recursive loop
     hpx_t * children = new hpx_t[nodes_it->second.length()];
 
     int c=0;
     for (list<int>::iterator it = tree.at(topNodeId).begin(); it != tre.at(topNodeId).end(); it++)
-        children[c++] = nrx_setup_branch(nt, tree, *it);
+        children[c++] = nrx_setup_branch(nt, tree, mechanisms, *it);
 
     //end of branch, create it
     hpx_t branch_addr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
@@ -163,7 +164,7 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
     branch.layout = layout.data();
     branch.is_ion = is_ion.data();
     branch.pnttype = pnttype.data();
-    branch.membfunc = membfunc.data(); //todo not correctly serializable
+    branch.membfunc = membfunc.data(); //TODO not correctly serializable
     branch.nodesIds = nodesIds.data();
     branch.instanceCount = instanceCount.data();
     branch.dataSize = dataSize.data();
@@ -214,7 +215,7 @@ void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuro
     neuron.id = gid; //TODO should be global not local GID
     neuron.branches = children;
 
-    //TODO serialization and GAS for neuron is done here
+    //allocate Neuron in GAS
     hpx_call_sync(neuron_addr, initializeNeuron, done, &neuron, sizeof (Neuron));
 
     delete [] children;
@@ -307,7 +308,7 @@ void nrx_setup()
     GlobalInfo info;
     info.neuronsCount = n; //TODO global count instead
     info.neuronsAddr  = hpx_gas_calloc_blocked(info.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    info.multiSplit   = HPX_LOCALITIES > info.neuronsCount;
+    info.multiSplit   = HPX_LOCALITIES > info.neuronsCount; //TODO: not implemented
     assert(info.neuronsAddr != HPX_NULL);
 
     //Broadcast input arguments
@@ -343,7 +344,7 @@ void nrx_setup()
 void nrx_setup_register_hpx_actions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeGlobalInfo, initializeGlobalInfo_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeNeuron, initianizeNeuron_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeNeuron, initializeNeuron_handler, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeBranch, initializeBranch_handler, HPX_POINTER, HPX_SIZE_T);
 }
 

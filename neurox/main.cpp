@@ -23,33 +23,40 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
-#include "coreneuron/nrnoc/membdef.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
+#include "coreneuron/nrniv/nrn_setup.h"
+#include "coreneuron/nrniv/nrnoptarg.h"
 #include "coreneuron/nrniv/output_spikes.h"
 #include "coreneuron/utils/endianness.h"
 #include "coreneuron/utils/memory_utils.h"
-#include "coreneuron/nrniv/nrnoptarg.h"
+
 #include "coreneuron/utils/randoms/nrnran123.h"
 #include "coreneuron/utils/sdprintf.h"
 #include "coreneuron/nrniv/nrn_stats.h"
 
 #include "neurox/neurox.h"
 #include "neurox/nrx_setup.h"
+#include "neurox/nrxoptarg.h"
 
 void handle_forward_skip( double forwardskip, int prcellgid );
 
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char ** argv, const int argc)
 {
-    GlobalInfo globalInfo = new GlobalInfo();
+    //populate GlobalInfo from command line
+    GlobalInfo * globalInfo = new GlobalInfo();
+    parseCommandLine(globalInfo, argv, argc);
+
+    // memory footprint after HPX initialisation
+    report_mem_usage( "After hpx_init" );
+
+    /////// OLD CORENEURON CODE --- WILL GO AWAY at some point ////
+
+    char prcellname[1024], filesdat_buf[1024];
 
     // initialise default coreneuron parameters
-    globalInfo->secondorder = DEF_secondorder;
-    globalInfo->t = 0.;
-    globalInfo->dt = DEF_dt;
-    globalInfo->rev_dt = (int)(DEF_rev_dt);
-    globalInfo->celsius = DEF_celsius;
+    initnrn();
 
     // handles coreneuron configuration parameters
     cn_input_params input_params;
@@ -57,7 +64,10 @@ static int main_hpx_handler( char ** argv, const int argc)
     // read command line parameters
     input_params.read_cb_opts( argc, argv );
 
-    char filesdat_buf[1024];
+    // if multi-threading enabled, make sure mpi library supports it
+    if ( input_params.threading ) {
+        nrnmpi_check_threading_support();
+    }
 
     // set global variables for start time, timestep and temperature
     t = input_params.tstart;
@@ -68,8 +78,8 @@ static int main_hpx_handler( char ** argv, const int argc)
     // full path of files.dat file
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
 
-    // memory footprint after HPX initialisation
-    report_mem_usage( "After hpx_init" );
+    // memory footprint after mpi initialisation
+    report_mem_usage( "After MPI_Init" );
 
     // reads mechanism information from bbcore_mech.dat
     mk_mech( input_params.datpath );
@@ -101,6 +111,8 @@ static int main_hpx_handler( char ** argv, const int argc)
 
     // show all configuration parameters for current run
     input_params.show_cb_opts();
+
+    //////////// END OF CORENEURON OLD CODE ///////////////////
 
     //We take all CoreNeuron data types and convert to hpx based data types
     nrx_setup();
@@ -142,7 +154,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     hpx_exit(HPX_SUCCESS);
 }
 
-int main1( int argc, char **argv, char **env )
+int main1_hpx( int argc, char **argv, char **env )
 {
     //hpx initialisation
     if (hpx_init(&argc, &argv) != 0)
