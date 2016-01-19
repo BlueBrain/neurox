@@ -23,6 +23,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
+#include "coreneuron/nrnoc/membdef.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/output_spikes.h"
@@ -34,15 +35,75 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/nrn_stats.h"
 
 #include "neurox/neurox.h"
-#include "neurox/nrn_setup.h"
+#include "neurox/nrx_setup.h"
+
+void handle_forward_skip( double forwardskip, int prcellgid );
 
 static hpx_action_t main_hpx = 0;
-static int main_hpx_handler( cn_input_params * input_params_ptr, const size_t size )
+static int main_hpx_handler( char ** argv, const int argc)
 {
-    cn_input_params input_params = *input_params_ptr;
+    GlobalInfo globalInfo = new GlobalInfo();
+
+    // initialise default coreneuron parameters
+    globalInfo->secondorder = DEF_secondorder;
+    globalInfo->t = 0.;
+    globalInfo->dt = DEF_dt;
+    globalInfo->rev_dt = (int)(DEF_rev_dt);
+    globalInfo->celsius = DEF_celsius;
+
+    // handles coreneuron configuration parameters
+    cn_input_params input_params;
+
+    // read command line parameters
+    input_params.read_cb_opts( argc, argv );
+
+    char filesdat_buf[1024];
+
+    // set global variables for start time, timestep and temperature
+    t = input_params.tstart;
+    dt = input_params.dt;
+    rev_dt = (int)(1./dt);
+    celsius = input_params.celsius;
+
+    // full path of files.dat file
+    sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
+
+    // memory footprint after HPX initialisation
+    report_mem_usage( "After hpx_init" );
+
+    // reads mechanism information from bbcore_mech.dat
+    mk_mech( input_params.datpath );
+
+    report_mem_usage( "After mk_mech" );
+
+    // create net_cvode instance
+    mk_netcvode();
+
+    // One part done before call to nrn_setup. Other part after.
+    if ( input_params.patternstim ) {
+        nrn_set_extra_thread0_vdata();
+    }
+
+    report_mem_usage( "Before nrn_setup" );
+
+    // reading *.dat files and setting up the data structures
+    nrn_setup( input_params, filesdat, nrn_need_byteswap);
+
+    report_mem_usage( "After nrn_setup " );
+
+    // Invoke PatternStim
+    if ( input_params.patternstim ) {
+        nrn_mkPatternStim( input_params.patternstim );
+    }
+
+    /// Setting the timeout
+    nrn_set_timeout(200.);
+
+    // show all configuration parameters for current run
+    input_params.show_cb_opts();
 
     //We take all CoreNeuron data types and convert to hpx based data types
-    nrn_setup_hpx();
+    nrx_setup();
 
     //Clean core neuron data, work only with HPX data
     //nrn_cleanup();
@@ -81,7 +142,7 @@ static int main_hpx_handler( cn_input_params * input_params_ptr, const size_t si
     hpx_exit(HPX_SUCCESS);
 }
 
-int main1( int argc, char **argv, char **ev )
+int main1( int argc, char **argv, char **env )
 {
     //hpx initialisation
     if (hpx_init(&argc, &argv) != 0)
@@ -91,67 +152,12 @@ int main1( int argc, char **argv, char **ev )
     }
     printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
 
-    // initialise default coreneuron parameters
-    initnrn();
-
-    // handles coreneuron configuration parameters
-    cn_input_params input_params;
-
-    // read command line parameters
-    input_params.read_cb_opts( argc, argv );
-
-    char filesdat_buf[1024];
-
-    // set global variables for start time, timestep and temperature
-    t = input_params.tstart;
-    dt = input_params.dt;
-    rev_dt = (int)(1./dt);
-    celsius = input_params.celsius;
-
-    // full path of files.dat file
-    sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
-
-    // memory footprint after HPX initialisation
-    report_mem_usage( "After hpx_init" );
-
-    // reads mechanism information from bbcore_mech.dat
-    mk_mech( input_params.datpath );
-
-    report_mem_usage( "After mk_mech" );
-
-    // create net_cvode instance
-    mk_netcvode();
-
-    // One part done before call to nrn_setup. Other part after.
-    if ( input_params.patternstim ) {
-        nrn_set_extra_thread0_vdata();
-    }
-
-    report_mem_usage( "Before nrn_setup" );
-
-    // reading *.dat files and setting up the data structures
-    //TODO: ask how to get ALL nodes to read ALL neurons (otherwise the hpx implementation doesn't work)
-    nrn_setup( input_params, filesdat, nrn_need_byteswap);
-
-    report_mem_usage( "After nrn_setup " );
-
-    // Invoke PatternStim
-    if ( input_params.patternstim ) {
-        nrn_mkPatternStim( input_params.patternstim );
-    }
-
-    /// Setting the timeout
-    nrn_set_timeout(200.);
-
-    // show all configuration parameters for current run
-    input_params.show_cb_opts();
-
     //register HPX methods
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_SIZE_T);
-    void nrn_setup_register_hpx_actions();
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_INT);
+    nrx_setup_register_hpx_actions();
 
     //start HPX
-    int e = hpx_run(&main_hpx,  &input_params, sizeof(input_params));
+    int e = hpx_run(&main_hpx, argv, argc);
 
     //clean up
     hpx_finalize();

@@ -16,7 +16,7 @@ utils/sdprintf.h
 mech/cfile/scoplib.h
 ../neurox/neurox.h
 ../neurox/datatypes.h
-../neurox/nrn_setup.h
+../neurox/nrx_setup.h
 )
 
 set(CORENEURON_HEADERS
@@ -49,7 +49,7 @@ nrniv/vrecitem.h
 mech/cfile/cabvars.h
 ../neurox/neurox.h
 ../neurox/datatypes.h
-../neurox/nrn_setup.h
+../neurox/nrx_setup.h
 )
 
 set(CORENEURON_SOURCES
@@ -70,7 +70,6 @@ nrnoc/nrntimeout.c
 nrniv/coreneuron_main.cpp
 nrniv/cvodestb.cpp
 nrniv/ivocvect.cpp
-nrniv/main1.cpp
 nrniv/netpar.cpp
 nrniv/netcvode.cpp
 nrniv/tqueue.cpp
@@ -85,8 +84,10 @@ nrniv/vrecord.cpp
 utils/randoms/nrnran123.c
 utils/memory_utils.cpp
 utils/sdprintf.cpp
-../neurox/nrn_setup.cpp
+../neurox/nrx_setup.cpp
 ../neurox/neurox.cpp
+../neurox/datatypes.cpp
+../neurox/main.cpp
 )
 
 # Include HPX
