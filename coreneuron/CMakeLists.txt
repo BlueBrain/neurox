@@ -17,6 +17,7 @@ mech/cfile/scoplib.h
 ../neurox/neurox.h
 ../neurox/datatypes.h
 ../neurox/nrx_setup.h
+../neurox/nrxoptarg.h
 )
 
 set(CORENEURON_HEADERS

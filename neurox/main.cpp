@@ -17,8 +17,6 @@
 #include "neurox/nrx_setup.h"
 #include "neurox/nrxoptarg.h"
 
-void handle_forward_skip( double forwardskip, int prcellgid );
-
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char ** argv, const int argc)
 {
@@ -148,33 +146,4 @@ int main1_hpx( int argc, char **argv, char **env )
     //clean up
     hpx_finalize();
     return e;
-}
-
-
-/* perform forwardskip and call prcellstate for prcellgid */
-void handle_forward_skip( double forwardskip, int prcellgid )
-{
-    double savedt = dt;
-    double savet = t;
-
-    dt = forwardskip * 0.1;
-    t = -1e9;
-
-    for ( int step = 0; step < 10; ++step ) {
-        nrn_fixed_step_minimal();
-    }
-
-    if ( prcellgid >= 0 ) {
-        prcellstate( prcellgid, "fs" );
-    }
-
-    dt = savedt;
-    t = savet;
-    dt2thread(-1.);
-}
-
-
-const char *nrn_version( int )
-{
-    return "version id unimplemented";
 }

@@ -1,4 +1,4 @@
-Welcome to CoreNeuroX, a HPX based implementation of CoreNeuron
+Welcome to CoreNeuron!
 
 CoreNeuron is a neuroscience simulation software based on the popular software NEURON (www.neuron.yale.edu). 
 Its goal is to simulate massive cell networks with minimal memory footprint and optimal performance. 

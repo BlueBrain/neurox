@@ -26,12 +26,6 @@ if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ppc64")
   set(Boost_USE_STATIC_LIBS ON)
 endif()
 
-# Threading
-option (CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
-if(CORENEURON_OPENMP)
-  find_package(OpenMP)
-endif(CORENEURON_OPENMP)
-
 include(Common)
 include(FindPackages)
 
@@ -67,6 +61,7 @@ endif(MPI_FOUND)
 # Core library
 
 add_subdirectory(coreneuron)
+
 
 # Main
 

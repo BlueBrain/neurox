@@ -160,7 +160,6 @@ int main1( int argc, char **argv, char **env )
     return 0;
 }
 
-
 /* perform forwardskip and call prcellstate for prcellgid */
 void handle_forward_skip( double forwardskip, int prcellgid )
 {

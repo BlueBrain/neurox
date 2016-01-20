@@ -21,6 +21,7 @@ cn_parameters::cn_parameters()
 
     forwardskip = 0;
 
+    spikebuf = 100000;
     prcellgid = -1;
 
     threading = 0;
@@ -38,7 +39,6 @@ sd_ptr cn_parameters::get_filesdat_path( char *path_buf, size_t bufsz )
     return sdprintf( path_buf, bufsz, "%s/%s", datpath, filesdat );
 }
 
-//TODO: tclap this
 void cn_parameters::show_cb_opts()
 {
     if ( nrnmpi_myid == 0 ) {
@@ -47,8 +47,8 @@ void cn_parameters::show_cb_opts()
         printf( "\n tstart: %g, tstop: %g, dt: %g, dt_io: %g", tstart, tstop, dt, dt_io );
         printf( " celsius: %g, voltage: %g, maxdelay: %g", celsius, voltage, maxdelay );
 
-        printf( "\n forwardskip: %g, prcellgid: %d, threading : %d, mindelay : %g", \
-                forwardskip, prcellgid, threading, mindelay);
+        printf( "\n forwardskip: %g, spikebuf: %d, prcellgid: %d, threading : %d, mindelay : %g", \
+                forwardskip, spikebuf, prcellgid, threading, mindelay);
 
         printf( "\n patternstim: %s, datpath: %s, filesdat: %s, outpath: %s", \
                 patternstim, datpath, filesdat, outpath );
@@ -61,12 +61,11 @@ void cn_parameters::show_cb_opts()
 }
 
 
-//TODO: tclap this
 void cn_parameters::show_cb_opts_help()
 {
     printf( "\nWelcome to CoreNeuron!\n\nOPTIONS\n\
        -h, -?, --help Print a usage message briefly summarizing these command-line options \
-        and the bug-reporting address, then exit.\n\n\
+		and the bug-reporting address, then exit.\n\n\
        -s TIME, --tstart=TIME\n\
               Set the start time to TIME (double). The default value is '0.'\n\n\
        -e TIME, --tstop=TIME\n\
@@ -97,7 +96,6 @@ void cn_parameters::show_cb_opts_help()
               Enable MPI. In order to initialize MPI environment this argument must be specified.\n" );
 }
 
-//TODO: tclap this
 void cn_parameters::read_cb_opts( int argc, char **argv )
 {
     optind = 1;
@@ -174,6 +172,10 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
 
             case 'p':
                 patternstim = optarg;
+                break;
+
+            case 'b':
+                spikebuf = atoi( optarg );
                 break;
 
             case 'g':
