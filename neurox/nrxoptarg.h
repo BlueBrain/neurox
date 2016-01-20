@@ -2,4 +2,4 @@
 
 #include "neurox/datatypes.h"
 
-static parseCommandLine(GlobalInfo * globalInfo, char ** argv, int argc);
+static void parseCommandLine(GlobalInfo * globalInfo, char ** argv, int argc);

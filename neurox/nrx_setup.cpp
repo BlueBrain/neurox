@@ -2,6 +2,8 @@
 #include <string>
 #include <set>
 #include <map>
+#include <list>
+#include <tuple>
 
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
@@ -68,26 +70,26 @@ static int initializeBranch_handler(const byte * branch_serial_input,  const siz
     return HPX_SUCCESS;
 }
 
-hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, list< pair<int, Memb_list*> > > & mechanisms, int topNodeId )
+hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, list < std::tuple< int, double*, int*> > > & mechanisms, int topNodeId )
 {
     vector<double> a,b,d,rhs,v,area; //nodes information
     map<int,int> fromNodeToIndex; //map from general nodes ids to sequential ids
 
-    int n=0, i=topNodeId;
+    int n=0, currentNode=topNodeId;
     while (1)
     {
-        fromNodeToIndex[i]=n++;
+        fromNodeToIndex[currentNode]=n++;
 
         //node level info
-        a.push_back(nt->_actual_a[i]);
-        b.push_back(nt->_actual_b[i]);
-        d.push_back(nt->_actual_d[i]);
-        rhs.push_back(nt->_actual_rhs[i]);
-        v.push_back(nt->_actual_v[i]);
-        area.push_back(nt->_actual_area[i]);
+        a.push_back(nt->_actual_a[currentNode]);
+        b.push_back(nt->_actual_b[currentNode]);
+        d.push_back(nt->_actual_d[currentNode]);
+        rhs.push_back(nt->_actual_rhs[currentNode]);
+        v.push_back(nt->_actual_v[currentNode]);
+        area.push_back(nt->_actual_area[currentNode]);
 
-        if (tree.at(i).size()!=1) break; //end of branch of bifurcation
-        i = tree.at(i).front(); //child below
+        if (tree.at(currentNode).size()!=1) break; //end of branch of bifurcation
+        currentNode = tree.at(currentNode).front(); //child below
     }
     a.shrink_to_fit();
     b.shrink_to_fit();
@@ -97,62 +99,61 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
     area.shrink_to_fit();
 
     //get all compartments information
-    map<int,int> fromMechToIndex; //map from general mech ids to sequential ids
     vector<int> is_art, layout, is_ion;
     vector<char> pnttype;
     vector<Memb_func*> membfunc;
-    vector<int> nodesIds, instanceCount, dataSize, pdataSize;
+    vector<int> nodesIds, instancesCount, dataSize, pdataSize;
     vector<double> data;
     vector<Datum> pdata;
 
-    int mechCount=0;
-    for (map<int, list< pair<int, Memb_list*> > >::iterator mechs_it = mechanisms.begin(); mechs_it != mechanisms.end(); mechs_it++)
+    for (map<int, list < std::tuple< int, double*, int*> > >::iterator mechs_it = mechanisms.begin(); mechs_it != mechanisms.end(); mechs_it++)
     {
         //per mechanism data
-        int mechId = mechs_it->first();
-        fromMechToIndex[mechId]=mechCount++;
+        int mechId = mechs_it->first;
         is_art.push_back(nrn_is_artificial_[mechId]);
         layout.push_back(nrn_mech_data_layout_[mechId]);
         pnttype.push_back(mechId);
         is_ion.push_back(nrn_is_ion(mechId));
         dataSize.push_back(nrn_prop_param_size_[mechId]);
-        iDataSize.push_back(nrn_prop_dparam_size_[mechId]);
-        membfunc.push_back(&memb_func[mechId]);
+        pdataSize.push_back(nrn_prop_dparam_size_[mechId]);
+        membfunc.push_back(&memb_func[mechId]); //TODO is this enough to serialize it
 
-        //data related to the application of a mech to a node
-        Memb_list* ml = mechs_it->second().second();
-        int nodeId = fromNodeToIndex[mechs_it->second().first()];
-        nodesIds.push_back(nodeId);
-        instanceCount.push_back(ml->nodecount);
-
-        data.insert (data.begin(),  ml->data,  ml->data+nrn_prop_param_size_[mechId]  );
-        pdata.insert(pdata.begin(), ml->pdata, ml->pdata+nrn_prop_dparam_size_[mechId]);
+        //data related to the list of instances of mechanism
+        list< std::tuple< int, double*, int* > > & mechsInstanceList = mechs_it->second;
+        instancesCount.push_back(mechsInstanceList.size());
+        for ( list < tuple< int, double*, int* > >::iterator instance_it = mechsInstanceList.begin(); instance_it != mechsInstanceList.end(); instance_it++)
+        {
+            tuple < int, double*, int* > & instance = *instance_it;
+            int nodeId = fromNodeToIndex[std::get<0>(instance)];
+            nodesIds.push_back(nodeId);
+            data.insert (data.begin(),  std::get<1>(instance), std::get<1>(instance)+nrn_prop_param_size_[mechId] );
+            pdata.insert(pdata.begin(), std::get<2>(instance), std::get<2>(instance)+nrn_prop_dparam_size_[mechId]);
+        }
     }
-    assert(pnttype.size() == mechCount);
     is_art.shrink_to_fit();
     layout.shrink_to_fit();
     pnttype.shrink_to_fit();
     is_ion.shrink_to_fit();
     dataSize.shrink_to_fit();
-    idataSize.shrink_to_fit();
+    pdataSize.shrink_to_fit();
     membfunc.shrink_to_fit();
     nodesIds.shrink_to_fit();
-    instanceCount.shrink_to_fit();
+    instancesCount.shrink_to_fit();
     data.shrink_to_fit();
     pdata.shrink_to_fit();
 
     //bottom of branch has more than 1 children. So we start recursive loop
-    hpx_t * children = new hpx_t[nodes_it->second.length()];
+    hpx_t * children = new hpx_t[tree.at(currentNode).size()];
 
-    int c=0;
-    for (list<int>::iterator it = tree.at(topNodeId).begin(); it != tre.at(topNodeId).end(); it++)
-        children[c++] = nrx_setup_branch(nt, tree, mechanisms, *it);
+    int childrenCount=0;
+    for (list<int>::iterator children_it = tree.at(currentNode).begin(); children_it != tree.at(currentNode).end(); children_it++)
+        children[childrenCount++] = nrx_setup_branch(nt, tree, mechanisms, *children_it);
 
     //end of branch, create it
     hpx_t branch_addr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     Branch branch;
     branch.children = children;
-    branch.childrenCount = c;
+    branch.childrenCount = childrenCount;
     branch.n = n;
     branch.a = a.data();
     branch.b = b.data();
@@ -166,61 +167,13 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
     branch.pnttype = pnttype.data();
     branch.membfunc = membfunc.data(); //TODO not correctly serializable
     branch.nodesIds = nodesIds.data();
-    branch.instanceCount = instanceCount.data();
+    branch.instanceCount = instancesCount.data();
     branch.dataSize = dataSize.data();
     branch.pdataSize = pdataSize.data();
     branch.data = data.data();
     branch.pdata = pdata.data();
 
-    //TODO: send serialized version
-    byte * bytes; int size;
-    branch.serialize(bytes, size);
-    hpx_call_sync(branch_addr, initializeBranch, NULL, 0, bytes, size);
-
-    //return hpx_t of this branch
-    delete [] children;
-    return branch_addr;
-}
-
-void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr)
-{
-    //create tree of dependencies (key of top node is gid)
-    map<int, list<int> > tree;
-    for (set<int>::iterator it = neuronIds.begin(); it != neuronIds.end(); it++)
-    {
-        int i = *it;
-        int p = nt->_v_parent_index[i];
-        tree[p].push_back(i);
-    }
-
-    //create map of mechanisms (for a mech id, return the node id its memb_list)
-    map<int, list< pair<int, Memb_list*> > > mechanisms;
-    for (NrnThreadMembList* tml = nt->tml; tml; tml = tml->next)
-    {
-        int mechId = tml->index;
-        Memb_list* ml = tml->ml; //mechanism's member list
-        //if (!is_art) //TODO: is this valid?
-        {
-            for (int n=0; n< ml->nodecount; n++)
-            {
-                int nodeId = ml->nodeindices[n];
-                mechanisms[mechId].push_back(std::make_pair(nodeId,ml));
-            }
-        }
-    }
-
-    //set-up neuron
-    Neuron neuron;
-    neuron.topBranch = nrx_setup_branch(nt, tree, mechanisms, gid);
-    neuron.id = gid; //TODO should be global not local GID
-    neuron.branches = children;
-
-    //allocate Neuron in GAS
-    hpx_call_sync(neuron_addr, initializeNeuron, done, &neuron, sizeof (Neuron));
-
-    delete [] children;
-
-    /*
+    /* Serialize SYNAPSES
     n=0;
     for (int k=0; k<nrn_nthread; k++)
     {
@@ -280,13 +233,62 @@ void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuro
         }
         */
 
+    //send serializable version and constructs Branch from it
+    byte * bytes; int size;
+    branch.serialize(bytes, size);
+    hpx_call_sync(branch_addr, initializeBranch, NULL, 0, bytes, size);
+
+    //return hpx_t of this branch
+    delete [] children;
+    return branch_addr;
+}
+
+void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr)
+{
+    //create tree of dependencies (key of top node is gid)
+    map<int, list<int> > tree;
+    for (set<int>::iterator it = neuronIds.begin(); it != neuronIds.end(); it++)
+    {
+        int i = *it;
+        int p = nt->_v_parent_index[i];
+        tree[p].push_back(i);
+    }
+
+    //create map of mechanisms (for a mech id, return the list of its instances)
+    map<int, list < std::tuple< int, double*, int*> > > mechanisms;
+    for (NrnThreadMembList* tml = nt->tml; tml; tml = tml->next)
+    {
+        int mechId = tml->index;
+        Memb_list* ml = tml->ml; //mechanism's member list
+        int pdataOffset=0, dataOffset=0;
+        //if (!is_art) //TODO: is this valid?
+        {
+            for (int n=0; n< ml->nodecount; n++)
+            {
+                int nodeId = ml->nodeindices[n];
+                if (neuronIds.find(nodeId) != neuronIds.end()) // part of this neuron
+                    mechanisms[mechId].push_back(std::make_tuple(
+                        nodeId, &ml->data[dataOffset], &ml->pdata[dataOffset]
+                    ));
+                dataOffset  += nrn_prop_param_size_[mechId];
+                pdataOffset += nrn_prop_dparam_size_[mechId];
+            }
+        }
+    }
+
+    //set-up neuron
+    Neuron neuron;
+    neuron.topBranch = nrx_setup_branch(nt, tree, mechanisms, gid);
+    neuron.id = gid; //TODO should be global not local GID
+
+    //allocate Neuron in GAS
+    hpx_call_sync(neuron_addr, initializeNeuron, NULL, 0, &neuron, sizeof (Neuron));
+
 }
 
 //all nodes have other data
 void nrx_setup()
 {
-    unsigned firstNeuronGId=0; //gid of first neuron in this compute node
-
     //1. get total neurons count
     int neuronsCount=0;
     for (int k=0; k<nrn_nthread; k++)
@@ -304,9 +306,10 @@ void nrx_setup()
     }
 
     //TODO here they should reduce-all and get count of all nodes
+    unsigned firstNeuronGid=0; //gid of first neuron in this compute node
 
     GlobalInfo info;
-    info.neuronsCount = n; //TODO global count instead
+    info.neuronsCount = neuronsCount; //TODO global count instead
     info.neuronsAddr  = hpx_gas_calloc_blocked(info.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
     info.multiSplit   = HPX_LOCALITIES > info.neuronsCount; //TODO: not implemented
     assert(info.neuronsAddr != HPX_NULL);

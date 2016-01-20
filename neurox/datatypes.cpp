@@ -2,10 +2,16 @@
 
 #include "neurox/datatypes.h"
 
+GlobalInfo::GlobalInfo():
+  neuronsCount(0), neuronsAddr(HPX_NULL), multiSplit(0)
+{}
+
+GlobalInfo::~GlobalInfo()
+{}
+
 Branch::Branch():
     pdata(NULL), data(NULL), children(NULL), childrenCount(0), 
-    n(0), a(NULL), b(NULL), d(NULL), rhs(NULL),
-    pdata(NULL), data(NULL), children(NULL)
+    n(0), a(NULL), b(NULL), d(NULL), rhs(NULL)
 {
 }
 
@@ -20,6 +26,7 @@ Branch::~Branch()
 
     delete [] pdata; pdata=NULL;
     delete [] children; children=NULL;
+    //TODO missing deletes here
 }
 
 void Branch::serialize(byte *& bytes_out, int & size_out)
@@ -27,7 +34,7 @@ void Branch::serialize(byte *& bytes_out, int & size_out)
 
 }
 
-void Branch::deserialize(byte * bytes_in, int & size_in)
+void Branch::deserialize(const byte * bytes_in, const int size_in)
 {
 
 }

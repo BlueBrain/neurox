@@ -1,25 +1,3 @@
-/*
-Copyright (c) 2014 EPFL-BBP, All rights reserved.
-
-THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-/**
- * @file main1.cpp
- * @date 26 Oct 2014
- * @brief File containing main driver routine for CoreNeuron
- */
-
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
@@ -63,11 +41,6 @@ static int main_hpx_handler( char ** argv, const int argc)
 
     // read command line parameters
     input_params.read_cb_opts( argc, argv );
-
-    // if multi-threading enabled, make sure mpi library supports it
-    if ( input_params.threading ) {
-        nrnmpi_check_threading_support();
-    }
 
     // set global variables for start time, timestep and temperature
     t = input_params.tstart;
@@ -115,6 +88,8 @@ static int main_hpx_handler( char ** argv, const int argc)
     //////////// END OF CORENEURON OLD CODE ///////////////////
 
     //We take all CoreNeuron data types and convert to hpx based data types
+    //TODO: in the future we want an implementation to run from CoreNeuron
+    //and one to be a stand-alone app (read directly from file)
     nrx_setup();
 
     //Clean core neuron data, work only with HPX data
@@ -125,7 +100,6 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_mem_usage( "After nrn_finitialize" );
 
     // call prcellstae for prcellgid
-    char prcellname[1024];
     if ( input_params.prcellgid >= 0 ) {
         sprintf( prcellname, "t%g", t );
         prcellstate( input_params.prcellgid, prcellname );
