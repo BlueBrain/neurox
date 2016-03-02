@@ -94,9 +94,9 @@ which will result in different building outputs:
   - CORENEURON_OPENMP: OpenMP threading. Default value: ON.
   - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
   - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
+  - CORENEURON_PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
   - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
 which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
-  - CORENEURON_PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
   - CORENEURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
 which can be specified with an absolute path name, or as a bare file name.
   - CORENEURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in CORENEURON_ADDITIONAL_MECHS.

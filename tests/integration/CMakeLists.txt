@@ -33,7 +33,7 @@ foreach (args_line ${TEST_CASE_ARGS})
            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}")
 endforeach()
 
-# This test is for coreneuron havign all the mechanisms integrated into the
+# This test is for coreneuron having all the mechanisms integrated into the
 # library. Runs when the corresponding condition is utilized plus the
 # executable is built.
 # Set of 10Cells tests
@@ -65,16 +65,4 @@ if(CORENEURON_NEURODAMUS_MECHS AND CORENEURON_MAIN)
     exec_test(${TEST_NAME} ${subtest})
   endforeach()
 
-  # Installs the compiled tests ${TEST_FILES} into the examples directory
-#  set(TEST_FILES
-#  10Cells/14397_1.dat
-#  10Cells/14397_2.dat
-#  10Cells/14457_1.dat
-#  10Cells/14457_2.dat
-#  10Cells/bbcore_mech.dat
-#  10Cells/files.dat
-#  )
-
 endif()
-
-#install_files(share/coreneuron/tests FILES ${TEST_FILES} COMPONENT examples)
