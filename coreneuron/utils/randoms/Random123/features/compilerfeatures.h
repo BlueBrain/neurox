@@ -207,14 +207,14 @@ added to each of the *features.h files, AND to examples/ut_features.cpp.
 #include "open64features.h"
 #elif defined(__clang__)
 #include "clangfeatures.h"
+#elif defined(_CRAYC)
+#include "crayfeatures.h"
 #elif defined(__GNUC__)
 #include "gccfeatures.h"
 #elif defined(__PGI)
 #include "pgccfeatures.h"
 #elif defined(_MSC_FULL_VER)
 #include "msvcfeatures.h"
-#elif defined(_CRAYC)
-#include "crayfeatures.h"
 #else
 #error "Can't identify compiler.  You'll need to add a new xxfeatures.hpp"
 { /* maybe an unbalanced brace will terminate the compilation */
