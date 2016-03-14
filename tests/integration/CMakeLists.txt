@@ -8,6 +8,7 @@ set(TEST_CASE_ARGS
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
   string(REPLACE "!" ";" string_line ${args_line})
+  string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;1")
   list(GET string_line 0 TEST_NAME)
   list(GET string_line 1 TEST_ARGS)
   set(SIM_NAME ${TEST_NAME})
