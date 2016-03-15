@@ -1,29 +1,16 @@
-set_source_files_properties(ring/ring.cpp ring_IClamp/ring_IClamp.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
 
-# Includes the install_files function below
-include(InstallFiles)
-
-# TEST_LIBRARIES variable is used by the CommonCTest.cmake script to link against the given libraries
-set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} coreneuron)
-
-# CommonCTest, in the current folder recursively compiles targets for *.cpp files using TEST_LIBRARIES
-#include(CommonCTest)
-
-
-make_mpi_exeprefix(1 MPI_PREFIX)
-string(REPLACE ";" " " SRUN_PREFIX "${MPI_PREFIX}")
-
-#set(ring_ring_TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring --celsius=6.3 -mpi")
-#set(ring_IClamp_ring_IClamp_TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring_IClamp --celsius=6.3 -mpi")
 
 # List of tests with arguments
 set(TEST_CASE_ARGS
   "ring!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring --celsius=6.3 --tstop=100. -mpi"
   "ring_IClamp!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring_IClamp --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring_IClamp --celsius=6.3 --tstop=100. -mpi")
 
+
+
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
   string(REPLACE "!" ";" string_line ${args_line})
+  string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;1")
   list(GET string_line 0 TEST_NAME)
   list(GET string_line 1 TEST_ARGS)
   set(SIM_NAME ${TEST_NAME})
@@ -37,12 +24,10 @@ endforeach()
 # library. Runs when the corresponding condition is utilized plus the
 # executable is built.
 # Set of 10Cells tests
-if(CORENEURON_NEURODAMUS_MECHS AND CORENEURON_MAIN)
-
-  make_mpi_exeprefix(2 MPI_PREFIX)
-  string(REPLACE ";" " " SRUN_PREFIX "${MPI_PREFIX}")
+if(ADDITIONAL_MECHS AND CORENEURON_MAIN)
 
   function(exec_test TEST_NAME SUBTEST_NAME)
+    string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
     set(SIM_NAME "${TEST_NAME}/${SUBTEST_NAME}")
     if(${SUBTEST_NAME} MATCHES "generic")
       set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --tstop=100. -mpi")
