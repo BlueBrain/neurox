@@ -48,7 +48,7 @@
 @section Building_and_Installing Building and Installing
 
 Note: The default build of CoreNeuron includes production mechanisms from Neurodamus, unless the CORENEURON_NEURODAMUS_MECHS
-flag is OFF. Additional mechanisms can be set with the CORENEURON_ADDITIONAL_MECHS variable (see below).
+flag is OFF. Additional mechanisms can be set with the ADDITIONAL_MECHS variable (see below).
 
 
 @subsection Dependencies Dependencies
@@ -94,14 +94,12 @@ which will result in different building outputs:
   - CORENEURON_OPENMP: OpenMP threading. Default value: ON.
   - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
   - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
-  - CORENEURON_PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
-  - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
-which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
-  - CORENEURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
+  - PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
+  - ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
 which can be specified with an absolute path name, or as a bare file name.
-  - CORENEURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in CORENEURON_ADDITIONAL_MECHS.
+  - ADDITIONAL_MECHPATH: List of directories to search for mod files specified in ADDITIONAL_MECHS.
 
-Note that .mod files specified in CORENEURON_ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
+Note that .mod files specified in ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
 located are reported with a warning rather than with a fatal error.
 
 
