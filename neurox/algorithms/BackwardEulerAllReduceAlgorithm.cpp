@@ -5,7 +5,10 @@ using namespace neurox::algorithms;
 
 hpx_t* DERIVED_CLASS_NAME::allReduces = nullptr;
 
-DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
+DERIVED_CLASS_NAME::DERIVED_CLASS_NAME()
+{
+    Neuron::SlidingTimeWindow::reductionsPerCommStep = DERIVED_CLASS_NAME::allReducesCount;
+}
 
 DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
 
@@ -24,9 +27,22 @@ void DERIVED_CLASS_NAME::Init() {
                         DERIVED_CLASS_NAME::allReducesCount);
 }
 
-void DERIVED_CLASS_NAME::Clear() {
+void DERIVED_CLASS_NAME::Finalize() {
     UnsubscribeAllReduces(DERIVED_CLASS_NAME::allReduces,
                           DERIVED_CLASS_NAME::allReducesCount);
+}
+
+double DERIVED_CLASS_NAME::Run()
+{
+    int totalSteps = Algorithm::getTotalStepsCount();
+    hpx_time_t now = hpx_time_now();
+    if (inputParams->allReduceAtLocality)
+        hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
+    else
+        neurox_hpx_call_neurons_lco(Branch::BackwardEuler, &totalSteps, sizeof(int));
+    double elapsedTime = hpx_time_elapsed_ms(now)/1e3;
+    input::Debugger::RunCoreneuronAndCompareAllBranches();
+    return elapsedTime;
 }
 
 void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
