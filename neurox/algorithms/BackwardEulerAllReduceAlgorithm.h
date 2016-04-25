@@ -17,7 +17,9 @@ class DERIVED_CLASS_NAME : public Algorithm
     DERIVED_CLASS_NAME();
     ~DERIVED_CLASS_NAME();
 
-    AlgorithmType getType() override;
+    const AlgorithmType getType() override;
+    const char* getTypeString() override;
+
     void Init() override;
     void Clear() override;
     void StepBegin(Branch*) override;
