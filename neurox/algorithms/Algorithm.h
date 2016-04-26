@@ -41,7 +41,7 @@ class Algorithm
     virtual void Finalize() {};
     virtual double Run() = 0;
     virtual void StepBegin(Branch*) {};
-    virtual void StepEnd(Branch*) {};
+    virtual void StepEnd(Branch*, hpx_t spikesLco) {};
     virtual void CommStepBegin(Branch*) {};
     virtual void CommStepEnd(Branch*) {};
     virtual void AfterSpike(Branch*) {};

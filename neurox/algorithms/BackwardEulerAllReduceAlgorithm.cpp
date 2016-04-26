@@ -47,7 +47,10 @@ double DERIVED_CLASS_NAME::Run()
 
 void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch*) {}
+void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t spikesLco)
+{
+    waitForSpikesDelivery(b, spikesLco);
+}
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
@@ -90,4 +93,22 @@ void DERIVED_CLASS_NAME::UnsubscribeAllReduces(hpx_t *& allReduces, size_t allRe
         hpx_process_collective_allreduce_delete(allReduces[i]);
 
     delete [] allReduces; allReduces=nullptr;
+}
+
+void DERIVED_CLASS_NAME::waitForSpikesDelivery(Branch *b, hpx_t spikesLco)
+{
+    //wait for spikes sent 4 steps ago (queue has always size 3)
+    if (b->soma)
+    {
+      Neuron::SlidingTimeWindow * stw = b->soma->slidingTimeWindow;
+      assert(stw->spikesLcoQueue.size() == Neuron::CommunicationBarrier::commStepSize-1);
+      stw->spikesLcoQueue.push(spikesLco);
+      hpx_t queuedSpikesLco = stw->spikesLcoQueue.front();
+      stw->spikesLcoQueue.pop();
+      if (queuedSpikesLco != HPX_NULL)
+      {
+          hpx_lco_wait(queuedSpikesLco);
+          hpx_lco_delete_sync(queuedSpikesLco);
+      }
+    }
 }
