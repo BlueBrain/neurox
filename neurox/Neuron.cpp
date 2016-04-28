@@ -94,53 +94,12 @@ hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 {
     if (synapses.size() == 0) return HPX_NULL; 
 
-    spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
+    const spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
 #if !defined(NDEBUG)
         printf("== Neuron gid %d spiked at %.3f ms\n", this->gid, tt);
 #endif
 
-    if (inputParams->algorithm==AlgorithmType::BackwardEulerDebugMode)
-    {
-        if (this->commBarrier->allSpikesLco == HPX_NULL) //first use
-            this->commBarrier->allSpikesLco = hpx_lco_and_new(synapses.size());
-        else
-            hpx_lco_reset_sync(this->commBarrier->allSpikesLco); //reset to use after
-
-        for (Synapse *& s : synapses)
-            //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-            hpx_call(s->branchAddr, Branch::AddSpikeEvent, this->commBarrier->allSpikesLco,
-                &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-    }
-    else if (inputParams->algorithm==AlgorithmType::BackwardEulerSlidingTimeWindow
-          || inputParams->algorithm==AlgorithmType::BackwardEulerAllReduce)
-    {
-        hpx_t newSynapsesLco = hpx_lco_and_new(synapses.size());
-        for (Synapse *& s : synapses)
-            hpx_call(s->branchAddr, Branch::AddSpikeEvent, newSynapsesLco,
-                &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-        return newSynapsesLco;
-    }
-    else if (inputParams->algorithm==AlgorithmType::BackwardEulerTimeDependencyLCO)
-    {
-        for (Synapse *& s : synapses)
-        {
-            s->nextNotificationTime     = t+(s->minDelay+refractoryPeriod)*TimeDependencies::notificationIntervalRatio;
-            spike_time_t maxTimeAllowed = t+TimeDependencies::teps+s->minDelay+refractoryPeriod;
-
-            hpx_lco_wait_reset(s->previousSpikeLco); //reset LCO to be used next
-            //any spike or step notification happening after must wait for this spike delivery
-
-            hpx_call(s->branchAddr, Branch::AddSpikeEvent, s->previousSpikeLco,
-                &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
-                &maxTimeAllowed, sizeof(spike_time_t));
-
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-            printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif time =%.3f\n",
-                   this->gid, tt, s->destinationGid, t, s->nextNotificationTime);
-#endif
-        }
-    }
-    return HPX_NULL;
+    return algorithm->SendSpikes(this, tt, t);
 }
 
 /////////////////// Neuron::CommunicationBarrier ///////////////////
