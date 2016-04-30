@@ -500,7 +500,6 @@ int Branch::AddSpikeEvent_handler(
     neurox_hpx_pin(Branch);
     assert(nargs == (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? 3 : 2));
 
-    //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
     const spike_time_t spikeTime  = *(const spike_time_t*) args[1];
     spike_time_t maxTime = nargs==3 ? *(const spike_time_t*) args[2] : -1;
@@ -515,7 +514,7 @@ int Branch::AddSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    algorithm->afterSpikeReceival(local, target, preNeuronId, spikeTime, maxTime);
+    algorithm->AfterReceiveSpikes(local, target, preNeuronId, spikeTime, maxTime);
     neurox_hpx_unpin;
 }
 
