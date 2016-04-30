@@ -26,7 +26,7 @@ class DERIVED_CLASS_NAME : public Algorithm
 
     void StepBegin(Branch*) override;
     void StepEnd(Branch*, hpx_t) override;
-    void Run(Branch*) override;
+    void Run(Branch*, const void*) override;
     hpx_t SendSpikes(Neuron* b, double tt, double t) override;
     void AfterReceiveSpikes( Branch *local, hpx_t target, neuron_id_t preNeuronId,
                              spike_time_t spikeTime, spike_time_t maxTime) override;

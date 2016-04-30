@@ -45,7 +45,7 @@ class Algorithm
     virtual double Launch() = 0;
 
     /// Runs simulation for given branch
-    virtual void Run(Branch*) = 0;
+    virtual void Run(Branch*, const void*) = 0;
 
     /// Initialize algorithm meta data
     virtual void Init() {};
