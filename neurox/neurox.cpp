@@ -221,9 +221,9 @@ static int Main_handler()
             algorithm = Algorithm::New((AlgorithmType) type);
             algorithm->Init();
             algorithm->PrintStartInfo();
-            double timeElapsed = algorithm->Run();
+            double timeElapsed = algorithm->Launch();
             totalTimeElapsed += timeElapsed;
-            algorithm->Finalize();
+            algorithm->Clear();
             delete algorithm;
 
 #ifdef NDEBUG
@@ -242,8 +242,8 @@ static int Main_handler()
         algorithm = Algorithm::New(inputParams->algorithm);
         algorithm->Init();
         algorithm->PrintStartInfo();
-        totalTimeElapsed = algorithm->Run();
-        algorithm->Finalize();
+        totalTimeElapsed = algorithm->Launch();
+        algorithm->Clear();
         delete algorithm;
     }
 
