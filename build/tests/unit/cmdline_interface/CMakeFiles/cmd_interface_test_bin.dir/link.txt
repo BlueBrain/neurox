@@ -1,0 +1,1 @@
+/usr/bin/mpicxx    -fopenmp -g -Wall -Wextra -O2    CMakeFiles/cmd_interface_test_bin.dir/test_cmdline_interface.cpp.o  -o cmd_interface_test_bin -rdynamic -lmpi -ldl -lhwloc -lboost_unit_test_framework ../../../coreneuron/libcoreneuron.so.0.8.1 -lmpi -ldl -lhwloc -lhpx -lrt -lhwloc -lstdc++ -lsync -ljemalloc -lffi -Wl,-rpath,/home/bmagalha/Workspace/neurox/build/coreneuron 

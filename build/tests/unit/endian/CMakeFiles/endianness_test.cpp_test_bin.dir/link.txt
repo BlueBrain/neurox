@@ -1,0 +1,1 @@
+/usr/bin/mpicxx    -fopenmp  -g -Wall -Wextra -O2    CMakeFiles/endianness_test.cpp_test_bin.dir/endianness_test.cpp.o  -o endianness_test.cpp_test_bin -rdynamic -lboost_unit_test_framework 

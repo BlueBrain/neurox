@@ -1,0 +1,1 @@
+/usr/bin/mpicxx    -fopenmp -g -Wall -Wextra -O2    CMakeFiles/coreneuron_exec.dir/main.cpp.o  -o ../bin/coreneuron_exec -rdynamic ../coreneuron/libcoreneuron.so.0.8.1 -lmpi -ldl -lhwloc -lmpi_cxx -lmpi -ldl -lhwloc -lhpx -lrt -lhwloc -lstdc++ -lsync -ljemalloc -lffi -Wl,-rpath,/home/bmagalha/Workspace/neurox/build/coreneuron: 
