@@ -1,17 +1,29 @@
 /*
-Copyright (c) 2014 EPFL-BBP, All rights reserved.
+Copyright (c) 2016, Blue Brain Project
+All rights reserved.
 
-THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdio.h>
@@ -29,6 +41,7 @@ class InputPreSyn;
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/ivocvect.h"
+#include "coreneuron/nrniv/nrn_assert.h"
 
 static double t_exchange_;
 static double dt1_; // 1/dt
@@ -211,22 +224,21 @@ void nrn2ncs_outputevent(int gid, double firetime) {
 #endif // NRNMPI
 
 static int nrn_need_npe() {
-	int b = 0;
-	if (active_) { b = 1; }
-	if (nrn_nthread > 1) { b = 1; }
-	if (b) {
-		if (last_maxstep_arg_ == 0) {
-			last_maxstep_arg_ =   100.;
-		}
-		set_mindelay(last_maxstep_arg_);
-	}else{
-		if (npe_) {
-			delete [] npe_;
-			npe_ = nil;
-			n_npe_ = 0;
-		}
-	}
-	return b;
+    int b = 0;
+    if (active_) { b = 1; }
+    if (nrn_nthread > 1) { b = 1; }
+    if (b) {
+        if (last_maxstep_arg_ == 0) {
+            last_maxstep_arg_ =   100.;
+        }
+    }else{
+        if (npe_) {
+            delete [] npe_;
+            npe_ = nil;
+            n_npe_ = 0;
+        }
+    }
+    return b;
 }
 
 #define TBUFSIZE 0
@@ -366,10 +378,6 @@ void nrn_spike_exchange(NrnThread* nt) {
             if (gid2in_it != gid2in.end()) {
                 InputPreSyn* ps = gid2in_it->second;
                 ps->send(spbufin_[i].spiketime[j], net_cvode_instance, nt);
-#if COLLECT_TQueue_STATISTICS
-                /// TQueue::qtype::spike = 1
-                net_cvode_instance->p[nt->id].tqe_->record_stat_event(1, spbufin_[i].spiketime[j]);
-#endif
 #if NRNSTAT
 				++nrecv_useful_;
 #endif
@@ -383,10 +391,6 @@ void nrn_spike_exchange(NrnThread* nt) {
         if (gid2in_it != gid2in.end()) {
             InputPreSyn* ps = gid2in_it->second;
 			ps->send(spikein_[i].spiketime, net_cvode_instance, nt);
-#if COLLECT_TQueue_STATISTICS
-            /// TQueue::qtype::spike = 1
-            net_cvode_instance->p[nt->id].tqe_->record_stat_event(1, spikein_[i].spiketime);
-#endif
 #if NRNSTAT
 			++nrecv_useful_;
 #endif
@@ -476,10 +480,6 @@ void nrn_spike_exchange_compressed(NrnThread* nt) {
             if (gid2in_it != gps.end()) {
                 InputPreSyn* ps = gid2in_it->second;
 				ps->send(firetime + 1e-10, net_cvode_instance, nt);
- #if COLLECT_TQueue_STATISTICS
-                /// TQueue::qtype::spike = 1
-                net_cvode_instance->p[nt->id].tqe_->record_stat_event(1, firetime + 1e-10);
-#endif
 #if NRNSTAT
 				++nrecv_useful_;
 #endif
@@ -493,10 +493,6 @@ void nrn_spike_exchange_compressed(NrnThread* nt) {
             if (gid2in_it != gps.end()) {
                 InputPreSyn* ps = gid2in_it->second;
 				ps->send(firetime+1e-10, net_cvode_instance, nt);
-#if COLLECT_TQueue_STATISTICS
-                /// TQueue::qtype::spike = 1
-                net_cvode_instance->p[nt->id].tqe_->record_stat_event(1, firetime + 1e-10);
-#endif
 #if NRNSTAT
 				++nrecv_useful_;
 #endif
@@ -798,7 +794,7 @@ two phase multisend distributes the injection.
 int nrnmpi_spike_compress(int nspike, bool gid_compress, int xchng_meth) {
 #if NRNMPI
 	if (nrnmpi_numprocs < 2) { return 0; }
-	assert(xchng_meth == 0);
+	nrn_assert(xchng_meth == 0);
 	if (nspike >= 0) {
 		ag_send_nspike_ = 0;
 		if (spfixout_) { free(spfixout_); spfixout_ = 0; }

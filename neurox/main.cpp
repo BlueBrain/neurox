@@ -126,7 +126,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     hpx_exit(HPX_SUCCESS);
 }
 
-int main1_hpx( int argc, char **argv, char **env )
+int main1_hpx(int argc, char** argv)
 {
     //hpx initialisation
     if (hpx_init(&argc, &argv) != 0)
