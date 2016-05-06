@@ -2,5 +2,5 @@
 host=bbpcode.epfl.ch
 port=22
 project=sim/coreneuron
-defaultbranch=master
+defaultbranch=remotes/origin/sandbox/bmagalha/neurox
 defaultremote=origin
