@@ -211,6 +211,8 @@ added to each of the *features.h files, AND to examples/ut_features.cpp.
 #include "clangfeatures.h"
 #elif defined(_CRAYC)
 #include "crayfeatures.h"
+#elif defined(__FCC_VERSION) || defined(__FUJITSU)
+#include "fujitsufeatures.h"
 #elif defined(__GNUC__)
 #include "gccfeatures.h"
 #elif defined(_MSC_FULL_VER)
