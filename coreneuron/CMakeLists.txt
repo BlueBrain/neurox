@@ -26,55 +26,12 @@
 
 
 include_directories(utils/randoms)
-include_directories(neurox)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${MPI_INCLUDE_PATH})
 
-FILE(GLOB_RECURSE coreneuron_all_headers "*.h" "${CMAKE_CURRENT_SOURCE_DIR}/../neurox/*.h")
-FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp" "${CMAKE_CURRENT_SOURCE_DIR}/../neurox/*.ipp")
-FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*" "${CMAKE_CURRENT_SOURCE_DIR}/../neurox/*.c*" )
-
-#Incldude tclap
-FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
-	/usr/local/include
-	/usr/include
-	/opt/local/include
-)
-
-IF(TCLAP_INCLUDE_DIR)
-	message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
-ELSE()
-	message(FATAL_ERROR "Could not find TCLAP")
-ENDIF()
-include_directories(${TCLAP_INCLUDE_DIR})
-
-# Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
-set(PKG_CONFIG_EXECUTABLE pkg-config)
-IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config not found")
-ELSE()
-  #use pkg-config to find hpx
-  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
-  pkg_check_modules(HPX REQUIRED hpx )
-  IF (NOT HPX_FOUND)
-    message (FATAL_ERROR "pkg-config did not find HPX")
-  ELSE()
-    message (STATUS "hpx ${HPX_VERSION} found by pkg-config:")
-    message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-    message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
-    message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
-    #message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
-    #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
-    include_directories(${HPX_INCLUDE_DIRS})
-    add_definitions(-fPIC)
-    add_definitions(-std=c++11 )
-    link_directories(${HPX_LIBRARY_DIRS})
-  ENDIF()
-ENDIF()
-
+FILE(GLOB_RECURSE coreneuron_all_headers "*.h")
+FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp")
+FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*")
 
 # Compile and include MOD files
 
@@ -213,9 +170,10 @@ set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMEC
 
 set(coreneuron_all_c_files ${coreneuron_all_c_files} ${GENERATED_MECH_C_FILES})
 
+
 add_library(coreneuron ${COMPILE_LIBRARY_TYPE} ${coreneuron_all_headers} ${coreneuron_all_templates} ${coreneuron_all_c_files})
 
-target_link_libraries(coreneuron ${MPI_C_LIBRARIES} ${HPX_LIBRARIES})
+target_link_libraries(coreneuron ${MPI_C_LIBRARIES})
 
 set_target_properties(coreneuron PROPERTIES
                             VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}

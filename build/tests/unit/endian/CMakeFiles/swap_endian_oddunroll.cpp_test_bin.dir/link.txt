@@ -1,1 +1,0 @@
-/usr/bin/mpicxx    -fopenmp  -g -Wall -Wextra -O2    CMakeFiles/swap_endian_oddunroll.cpp_test_bin.dir/swap_endian_oddunroll.cpp.o  -o swap_endian_oddunroll.cpp_test_bin -rdynamic -lboost_unit_test_framework 
