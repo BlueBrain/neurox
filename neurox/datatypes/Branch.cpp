@@ -1,13 +1,4 @@
-#pragma once
-
-#include "neurox/datatypes.h"
-
-GlobalInfo::GlobalInfo():
-  neuronsCount(0), neuronsAddr(HPX_NULL), multiSplit(0)
-{}
-
-GlobalInfo::~GlobalInfo()
-{}
+#include "neurox/neurox.h"
 
 Branch::Branch():
     pdata(NULL), data(NULL), children(NULL), childrenCount(0), 

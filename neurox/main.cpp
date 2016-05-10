@@ -14,25 +14,22 @@
 #include "coreneuron/nrniv/nrn_stats.h"
 
 #include "neurox/neurox.h"
-#include "neurox/nrx_setup.h"
-#include "neurox/nrxoptarg.h"
 
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char ** argv, const int argc)
 {
     //populate GlobalInfo from command line
-    GlobalInfo * globalInfo = new GlobalInfo();
-    parseCommandLine(globalInfo, argv, argc);
+    GlobalInfo * globalInfo = new GlobalInfo(argc, argv);
 
     // memory footprint after HPX initialisation
     report_mem_usage( "After hpx_init" );
 
     /////// OLD CORENEURON CODE --- WILL GO AWAY at some point ////
 
-    char prcellname[1024], filesdat_buf[1024];
+    char prcellname[1024], filesdat_buf[1024], datpath[1024];
 
     // initialise default coreneuron parameters
-    initnrn();
+    //initnrn(); //part of GlobalInfo constructor
 
     // handles coreneuron configuration parameters
     cn_input_params input_params;
@@ -41,10 +38,10 @@ static int main_hpx_handler( char ** argv, const int argc)
     input_params.read_cb_opts( argc, argv );
 
     // set global variables for start time, timestep and temperature
-    t = input_params.tstart;
-    dt = input_params.dt;
-    rev_dt = (int)(1./dt);
-    celsius = input_params.celsius;
+    t = globalInfo->tstart; // input_params.tstart;
+    dt = globalInfo->dt ; //input_params.dt;
+    rev_dt = globalInfo->rev_dt; //(int)(1./dt);
+    celsius = globalInfo->celsius ; //input_params.celsius;
 
     // full path of files.dat file
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
@@ -53,7 +50,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_mem_usage( "After MPI_Init" );
 
     // reads mechanism information from bbcore_mech.dat
-    mk_mech( input_params.datpath );
+    mk_mech( datpath );
 
     report_mem_usage( "After mk_mech" );
 
@@ -61,7 +58,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     mk_netcvode();
 
     // One part done before call to nrn_setup. Other part after.
-    if ( input_params.patternstim ) {
+    if ( globalInfo->patternStim ) {
         nrn_set_extra_thread0_vdata();
     }
 
@@ -73,7 +70,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_mem_usage( "After nrn_setup " );
 
     // Invoke PatternStim
-    if ( input_params.patternstim ) {
+    if ( globalInfo->patternStim) {
         nrn_mkPatternStim( input_params.patternstim );
     }
 
@@ -98,15 +95,17 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_mem_usage( "After nrn_finitialize" );
 
     // call prcellstae for prcellgid
-    if ( input_params.prcellgid >= 0 ) {
-        sprintf( prcellname, "t%g", t );
-        prcellstate( input_params.prcellgid, prcellname );
-    }
+    //opens the file that will store this cell's info
+    //if ( globalInfo->prcellgid >= 0 ) {
+    //    sprintf( prcellname, "t%g", t );
+    //    prcellstate( globalInfo->prcellgid, prcellname );
+    //}
 
     // handle forwardskip
-    if ( input_params.forwardskip > 0.0 ) {
-        handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
-    }
+    // many steps with large dt so that cells start at their resting potential
+    //if ( input_params.forwardskip > 0.0 ) {
+    //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
+    //}
 
     /// Solver execution
     BBS_netpar_solve( input_params.tstop );
@@ -115,10 +114,10 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_cell_stats();
 
     // prcellstate after end of solver
-    if ( input_params.prcellgid >= 0 ) {
-        sprintf( prcellname, "t%g", t );
-        prcellstate( input_params.prcellgid, prcellname );
-    }
+    //if ( globalInfo->prcellgid >= 0 ) {
+    //    sprintf( prcellname, "t%g", t );
+    //    prcellstate( globalInfo->prcellgid, prcellname );
+    //}
 
     // write spike information to input_params.outpath
     output_spikes( input_params.outpath );
