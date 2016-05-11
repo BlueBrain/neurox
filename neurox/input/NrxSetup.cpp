@@ -13,64 +13,21 @@
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/nrn_assert.h"
 
-#include "neurox/nrx_setup.h"
+#include "neurox/neurox.h"
 
-GlobalInfo * globalInfo;
+InputParams * inputParams;
+Circuit * circuit;
 
 using namespace std;
 
-static hpx_action_t initializeGlobalInfo = 0;
-static int initializeGlobalInfo_handler(const GlobalInfo *inputGlobalInfo, const size_t size)
-{
-    //Make sure message arrived correctly, and pin memory
-    hpx_t target = hpx_thread_current_target();
-    uint64_t *local = NULL;
-    if (!hpx_gas_try_pin(target, (void**) &local))
-        return HPX_RESEND;
+NrxSetup::NrxSetup()
+{}
 
-    //do the work
-    globalInfo = new GlobalInfo();
-    memcpy(globalInfo, inputGlobalInfo, size);
+NrxSetup::~NrxSetup()
+{}
 
-    //unpin and return success
-    hpx_gas_unpin(target);
-    return HPX_SUCCESS;
-}
 
-static hpx_action_t initializeNeuron = 0;
-static int initializeNeuron_handler(const Neuron * inputNeuron,  const size_t size)
-{
-    //Make sure message arrived correctly, and pin memory
-    hpx_t neuron_addr = hpx_thread_current_target();
-    Neuron * neuron = NULL;
-    if (!hpx_gas_try_pin(neuron_addr, (void**) &neuron))
-        return HPX_RESEND;
-
-    //copy header information
-    memcpy(neuron, inputNeuron, size);
-
-    //unpin and return success
-    hpx_gas_unpin(neuron_addr);
-    return HPX_SUCCESS;
-}
-
-static hpx_action_t initializeBranch = 0;
-static int initializeBranch_handler(const byte * branch_serial_input,  const size_t size)
-{
-    //Make sure message arrived correctly, and pin memory
-    hpx_t branch_addr = hpx_thread_current_target();
-    Branch * branch = NULL;
-    if (!hpx_gas_try_pin(branch_addr, (void**) &branch))
-        return HPX_RESEND;
-
-    branch->deserialize(branch_serial_input, size);
-
-    //unpin and return success
-    hpx_gas_unpin(branch_addr);
-    return HPX_SUCCESS;
-}
-
-hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, list < std::tuple< int, double*, int*> > > & mechanisms, int topNodeId )
+hpx_t NrxSetup::createBranch(NrnThread * nt, map<int, list<int> > & tree, map<int, list < std::tuple< int, double*, int*> > > & mechanisms, int topNodeId )
 {
     vector<double> a,b,d,rhs,v,area; //nodes information
     map<int,int> fromNodeToIndex; //map from general nodes ids to sequential ids
@@ -147,7 +104,7 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
 
     int childrenCount=0;
     for (list<int>::iterator children_it = tree.at(currentNode).begin(); children_it != tree.at(currentNode).end(); children_it++)
-        children[childrenCount++] = nrx_setup_branch(nt, tree, mechanisms, *children_it);
+        children[childrenCount++] = createBranch(nt, tree, mechanisms, *children_it);
 
     //end of branch, create it
     hpx_t branch_addr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
@@ -236,14 +193,14 @@ hpx_t nrx_setup_branch(NrnThread * nt, map<int, list<int> > & tree, map<int, lis
     //send serializable version and constructs Branch from it
     byte * bytes; int size;
     branch.serialize(bytes, size);
-    hpx_call_sync(branch_addr, initializeBranch, NULL, 0, bytes, size);
+    hpx_call_sync(branch_addr, Branch::initialize, NULL, 0, bytes, size);
 
     //return hpx_t of this branch
     delete [] children;
     return branch_addr;
 }
 
-void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr)
+void NrxSetup::createNeuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr)
 {
     //create tree of dependencies (key of top node is gid)
     map<int, list<int> > tree;
@@ -278,16 +235,15 @@ void nrx_setup_neuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuro
 
     //set-up neuron
     Neuron neuron;
-    neuron.topBranch = nrx_setup_branch(nt, tree, mechanisms, gid);
+    neuron.topBranch = createBranch(nt, tree, mechanisms, gid);
     neuron.id = gid; //TODO should be global not local GID
 
     //allocate Neuron in GAS
-    hpx_call_sync(neuron_addr, initializeNeuron, NULL, 0, &neuron, sizeof (Neuron));
-
+    hpx_call_sync(neuron_addr, Neuron::initialize, NULL, 0, &neuron, sizeof (Neuron));
 }
 
 //all nodes have other data
-void nrx_setup()
+void NrxSetup::copyFromCoreneuronToHpx()
 {
     //1. get total neurons count
     int neuronsCount=0;
@@ -305,18 +261,15 @@ void nrx_setup()
         fclose(dotfile);
     }
 
-    //TODO here they should reduce-all and get count of all nodes
-    unsigned firstNeuronGid=0; //gid of first neuron in this compute node
-
-    GlobalInfo info;
-    info.neuronsCount = neuronsCount; //TODO global count instead
-    info.neuronsAddr  = hpx_gas_calloc_blocked(info.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    info.multiSplit   = HPX_LOCALITIES > info.neuronsCount; //TODO: not implemented
-    assert(info.neuronsAddr != HPX_NULL);
+    Circuit circuit;
+    circuit.neuronsCount = neuronsCount; //TODO global count instead
+    circuit.neuronsAddr  = hpx_gas_calloc_blocked(circuit.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    circuit.multiSplit   = HPX_LOCALITIES > circuit.neuronsCount;
+    assert(circuit.neuronsAddr != HPX_NULL);
 
     //Broadcast input arguments
-    printf("Broadcasting global info...\n");
-    int e = hpx_bcast_rsync(initializeGlobalInfo, &info, sizeof (GlobalInfo));
+    printf("Broadcasting Circuit info...\n");
+    int e = hpx_bcast_rsync(Circuit::initialize, &circuit, sizeof (Circuit));
     assert(e == HPX_SUCCESS);
 
     int neuronId=0;
@@ -336,19 +289,8 @@ void nrx_setup()
                 if (nodesFromThisNeuron.find(nt->_v_parent_index[i]) != nodesFromThisNeuron.end())
                     nodesFromThisNeuron.insert(i);
 
-            hpx_t neuron_addr = hpx_addr_add(globalInfo->neuronsAddr, sizeof(Neuron)*(neuronId+firstNeuronGid), sizeof(Neuron));
-            nrx_setup_neuron(nt, n, nodesFromThisNeuron, neuron_addr);
+            hpx_t neuron_addr = hpx_addr_add(circuit.neuronsAddr, sizeof(Neuron)*neuronId, sizeof(Neuron));
+            createNeuron(nt, n, nodesFromThisNeuron, neuron_addr);
         }
     }
 }
-
-
-
-void nrx_setup_register_hpx_actions()
-{
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeGlobalInfo, initializeGlobalInfo_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeNeuron, initializeNeuron_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initializeBranch, initializeBranch_handler, HPX_POINTER, HPX_SIZE_T);
-}
-
-

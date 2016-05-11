@@ -13,4 +13,10 @@ class Neuron
 
     //neuron metadata
     int id;					///> neuron global id
+
+    static void registerHpxActions(); ///> Register all HPX actions
+    static hpx_action_t initialize; ///> Initializes Neuron
+
+  private:
+    static int initialize_handler(const Neuron * neuron, const size_t size);
 };

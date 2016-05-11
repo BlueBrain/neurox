@@ -48,7 +48,11 @@ class Branch
     //List of children
     int childrenCount;		///> number of children branches (always >1)
     hpx_t * children;		///> hpx address of the children branches
-    
+
+    static void registerHpxActions(); ///> Register all HPX actions
+
+    static hpx_action_t initialize; ///> Initializes Branch
+
   private:
     //semaphore
     hpx_t mutex;			///> mutex to protect this branch's memory acces
@@ -60,6 +64,8 @@ class Branch
     void** futuresAddrs;
     FwSubFutureData * futuresData;
 #endif    
+
+    static int initialize_handler(const byte * branch_serial_input,  const size_t size);
 };
 
 class FwSubFutureData

@@ -2,9 +2,6 @@
 
 #include "hpx/hpx.h"
 
-namespace neurox;
-using namespace neurox;
-
 //typedefs
 typedef hpx_addr_t hpx_t;
 typedef unsigned char byte;
@@ -22,10 +19,12 @@ typedef unsigned char byte;
 
 #define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
 
-#include "neurox/nrx_setup.h"
-#include "neurox/datatypes/GlobalInfo.h"
+#include "neurox/datatypes/InputParams.h"
 #include "neurox/datatypes/Neuron.h"
 #include "neurox/datatypes/Branch.h"
+#include "neurox/datatypes/Circuit.h"
+#include "neurox/input/NrxSetup.h"
 
 //Global variables
-extern GlobalInfo * globalInfo;
+extern InputParams * inputParams;
+extern Circuit * circuit;

@@ -1,11 +1,10 @@
-#include "neurox/neurox.h"
+﻿#include "neurox/neurox.h"
 #include "tclap/CmdLine.h"
 
 #include "stdio.h"
 #include "string.h"
 
-GlobalInfo::GlobalInfo ():
-  neuronsCount(0), multiSplit(0), neuronsAddr(HPX_NULL),
+InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
   tstart(0), tstop(100), dt(0.025), dt_io(0.1), celsius(34),
   voltage(-65), maxdelay(10), forwardSkip(0),  prcellgid(-1)
@@ -16,13 +15,33 @@ GlobalInfo::GlobalInfo ():
     memset(outputPath,'0',2048);
 }
 
-GlobalInfo::GlobalInfo (int argc, char** argv):
-    GlobalInfo()
+InputParams::InputParams (int argc, char** argv):
+    InputParams()
 {
     parseCommandLine(argc, argv);
 }
 
-void GlobalInfo::parseCommandLine(int argc, char ** argv)
+InputParams::~InputParams()
+{}
+
+hpx_action_t InputParams::initialize = 0;
+int InputParams::initialize_handler(const InputParams * inputParams_new, const size_t size)
+{
+    //Make sure message arrived correctly, and pin memory
+    hpx_t target = hpx_thread_current_target();
+    uint64_t *local = NULL;
+    if (!hpx_gas_try_pin(target, (void**) &local))
+        return HPX_RESEND;
+
+    //do the work
+    memcpy(inputParams, inputParams_new, size);
+
+    //unpin and return success
+    hpx_gas_unpin(target);
+    return HPX_SUCCESS;
+}
+
+void InputParams::parseCommandLine(int argc, char ** argv)
 {
     //read command line arguments (via tclap)
     try {
@@ -78,5 +97,7 @@ void GlobalInfo::parseCommandLine(int argc, char ** argv)
     }
 }
 
-GlobalInfo::~GlobalInfo()
-{}
+void InputParams::registerHpxActions()
+{
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initialize, initialize_handler, HPX_POINTER, HPX_SIZE_T);
+}

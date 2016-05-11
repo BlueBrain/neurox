@@ -3,22 +3,17 @@
 #include "neurox/neurox.h"
 
 /**
- * @brief The GlobalInfo class
- * Represents all information in the system including execution parameters, neurons and synapses
+ * @brief The InputParams class
+ * Represents all input parameters
  */
-class GlobalInfo
+class InputParams
 {
   public:
 
     // default values from register_mech.c:: initnrn()
-    GlobalInfo();
-    GlobalInfo(int argc, char ** argv);
-    ~GlobalInfo();
-
-    //global vars: all localities hold the same value
-    int neuronsCount; 	///> total neurons count in the system
-    int multiSplit; 	///> 0 or 1 for multisplit or not
-    hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
+    InputParams();
+    InputParams(int argc, char ** argv);
+    ~InputParams();
 
     //Execution parameters (cn_input_parameters)
     int secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
@@ -30,15 +25,21 @@ class GlobalInfo
     double tstart; 		///> start time of simulation in msec*/
     double tstop;		///> stop time of simulation in msec*/
     double dt_io;    	///> i/o timestep to use in msec*/
-    double voltage;     ///> TODO: what's this?
+    double voltage;     ///> initial voltage set on all neurons
     double maxdelay;    ///> TODO: do we need this?
     double mindelay;    ///> minimum synaptic delay
     double forwardSkip;	///> forward skip time
 
-    char inputPath[2048];	///>path of input directory
-    char outputPath[2048];	///>path of output directory
-    char patternStim[2048];	///>patternStim file path
+    char inputPath[2048];	///> path of input directory
+    char outputPath[2048];	///> path of output directory
+    char patternStim[2048];	///> patternStim file path
+
+    static void registerHpxActions();		///> Register all HPX actions
+    static hpx_action_t initialize;	///> Initializes InputParams
 
   private:
-    void parseCommandLine(int argc, char ** argv); /// populates values from cmd line
+    /// Parses command line arguments and populates structure
+    void parseCommandLine(int argc, char ** argv);
+    static int initialize_handler(const InputParams * inputParams, const size_t size);
 } ;
+

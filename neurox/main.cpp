@@ -18,10 +18,10 @@
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char ** argv, const int argc)
 {
-    //populate GlobalInfo from command line
-    GlobalInfo * globalInfo = new GlobalInfo(argc, argv);
+    //populate InputParams with info past from command line
+    InputParams inputParams(argc, argv);
 
-    // memory footprint after HPX initialisation
+    //memory footprint after HPX initialisation
     report_mem_usage( "After hpx_init" );
 
     /////// OLD CORENEURON CODE --- WILL GO AWAY at some point ////
@@ -38,10 +38,10 @@ static int main_hpx_handler( char ** argv, const int argc)
     input_params.read_cb_opts( argc, argv );
 
     // set global variables for start time, timestep and temperature
-    t = globalInfo->tstart; // input_params.tstart;
-    dt = globalInfo->dt ; //input_params.dt;
-    rev_dt = globalInfo->rev_dt; //(int)(1./dt);
-    celsius = globalInfo->celsius ; //input_params.celsius;
+    t = inputParams.tstart; // input_params.tstart;
+    dt = inputParams.dt ; //input_params.dt;
+    rev_dt = inputParams.rev_dt; //(int)(1./dt);
+    celsius = inputParams.celsius ; //input_params.celsius;
 
     // full path of files.dat file
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
@@ -58,7 +58,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     mk_netcvode();
 
     // One part done before call to nrn_setup. Other part after.
-    if ( globalInfo->patternStim ) {
+    if ( inputParams.patternStim ) {
         nrn_set_extra_thread0_vdata();
     }
 
@@ -70,7 +70,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     report_mem_usage( "After nrn_setup " );
 
     // Invoke PatternStim
-    if ( globalInfo->patternStim) {
+    if ( inputParams.patternStim) {
         nrn_mkPatternStim( input_params.patternstim );
     }
 
@@ -85,7 +85,13 @@ static int main_hpx_handler( char ** argv, const int argc)
     //We take all CoreNeuron data types and convert to hpx based data types
     //TODO: in the future we want an implementation to run from CoreNeuron
     //and one to be a stand-alone app (read directly from file)
-    nrx_setup();
+
+    //Broadcast input arguments, and initalizes
+    printf("Broadcasting InputParams...\n");
+    int e = hpx_bcast_rsync(InputParams::initialize, &inputParams, sizeof (InputParams));
+    assert(e == HPX_SUCCESS);
+
+    NrxSetup::copyFromCoreneuronToHpx();
 
     //Clean core neuron data, work only with HPX data
     //nrn_cleanup();
@@ -137,7 +143,10 @@ int main1_hpx(int argc, char** argv)
 
     //register HPX methods
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_INT);
-    nrx_setup_register_hpx_actions();
+    InputParams::registerHpxActions();
+    Circuit::registerHpxActions();
+    Neuron::registerHpxActions();
+    Branch::registerHpxActions();
 
     //start HPX
     int e = hpx_run(&main_hpx, argv, argc);
