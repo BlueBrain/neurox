@@ -144,7 +144,7 @@ int main1_hpx(int argc, char** argv)
     //register HPX methods
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_INT);
     InputParams::registerHpxActions();
-    Circuit::registerHpxActions();
+    Brain::registerHpxActions();
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
 

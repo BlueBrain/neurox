@@ -1,16 +1,20 @@
 #include "neurox/neurox.h"
 #include "string.h"
 
-Circuit::Circuit ():
+//global variable
+Brain brain;
+
+Brain::Brain ():
   neuronsCount(0), multiSplit(0), neuronsAddr(HPX_NULL)
 {}
 
-Circuit::~Circuit()
-{}
+Brain::~Brain()
+{
+    //TODO
+}
 
-
-hpx_action_t Circuit::initialize = 0;
-int Circuit::initialize_handler(const Circuit * circuit_new, const size_t size)
+hpx_action_t Brain::initialize = 0;
+int Brain::initialize_handler(const Brain * circuit_new, const size_t size)
 {
     //Make sure message arrived correctly, and pin memory
     hpx_t target = hpx_thread_current_target();
@@ -19,15 +23,14 @@ int Circuit::initialize_handler(const Circuit * circuit_new, const size_t size)
         return HPX_RESEND;
 
     //do the work
-    circuit = new Circuit();
-    memcpy(circuit, circuit_new, size);
+    memcpy(&circuit, circuit_new, size);
 
     //unpin and return success
     hpx_gas_unpin(target);
     return HPX_SUCCESS;
 }
 
-void Circuit::registerHpxActions()
+void Brain::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initialize, initialize_handler, HPX_POINTER, HPX_SIZE_T);
 }

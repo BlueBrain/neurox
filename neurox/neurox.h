@@ -20,11 +20,12 @@ typedef unsigned char byte;
 #define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
 
 #include "neurox/datatypes/InputParams.h"
+#include "neurox/datatypes/Brain.h"
 #include "neurox/datatypes/Neuron.h"
 #include "neurox/datatypes/Branch.h"
-#include "neurox/datatypes/Circuit.h"
+#include "neurox/datatypes/Compartment.h"
 #include "neurox/input/NrxSetup.h"
 
-//Global variables
-extern InputParams * inputParams;
-extern Circuit * circuit;
+//Global variables (defined on the classes' cpp files)
+extern InputParams inputParams;
+extern Brain circuit;

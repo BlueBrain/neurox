@@ -50,7 +50,6 @@ class Branch
     hpx_t * children;		///> hpx address of the children branches
 
     static void registerHpxActions(); ///> Register all HPX actions
-
     static hpx_action_t initialize; ///> Initializes Branch
 
   private:

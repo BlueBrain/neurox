@@ -6,12 +6,12 @@
  * @brief The Circuit class
  * Represents all biological data on the Global Address Space
  */
-class Circuit
+class Brain
 {
   public:
 
-    Circuit();
-    ~Circuit();
+    Brain();
+    ~Brain();
 
     //global vars: all localities hold the same value
     int neuronsCount; 	///> total neurons count in the system
@@ -21,6 +21,10 @@ class Circuit
     static void registerHpxActions();		///> Registers all HPX actions
     static hpx_action_t initialize; ///> Initializes Circuit as a copy
 
+   // inline hpx_t operator [](int i) const {
+   //     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
+   // };
+
   private:
-    static int initialize_handler(const Circuit * circuit, const size_t size);
+    static int initialize_handler(const Brain * circuit, const size_t size);
 } ;

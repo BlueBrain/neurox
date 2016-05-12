@@ -4,6 +4,9 @@
 #include "stdio.h"
 #include "string.h"
 
+//global variable
+InputParams inputParams;
+
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
   tstart(0), tstop(100), dt(0.025), dt_io(0.1), celsius(34),
@@ -34,7 +37,7 @@ int InputParams::initialize_handler(const InputParams * inputParams_new, const s
         return HPX_RESEND;
 
     //do the work
-    memcpy(inputParams, inputParams_new, size);
+    memcpy(&inputParams, inputParams_new, size);
 
     //unpin and return success
     hpx_gas_unpin(target);

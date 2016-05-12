@@ -4,6 +4,7 @@
 #include <map>
 #include <list>
 #include <tuple>
+#include <algorithm>
 
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
@@ -14,9 +15,6 @@
 #include "coreneuron/nrniv/nrn_assert.h"
 
 #include "neurox/neurox.h"
-
-InputParams * inputParams;
-Circuit * circuit;
 
 using namespace std;
 
@@ -200,17 +198,8 @@ hpx_t NrxSetup::createBranch(NrnThread * nt, map<int, list<int> > & tree, map<in
     return branch_addr;
 }
 
-void NrxSetup::createNeuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr)
+void NrxSetup::createNeuron(NrnThread & nt, int nrnThreadId, int neuronId)
 {
-    //create tree of dependencies (key of top node is gid)
-    map<int, list<int> > tree;
-    for (set<int>::iterator it = neuronIds.begin(); it != neuronIds.end(); it++)
-    {
-        int i = *it;
-        int p = nt->_v_parent_index[i];
-        tree[p].push_back(i);
-    }
-
     //create map of mechanisms (for a mech id, return the list of its instances)
     map<int, list < std::tuple< int, double*, int*> > > mechanisms;
     for (NrnThreadMembList* tml = nt->tml; tml; tml = tml->next)
@@ -242,11 +231,18 @@ void NrxSetup::createNeuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t
     hpx_call_sync(neuron_addr, Neuron::initialize, NULL, 0, &neuron, sizeof (Neuron));
 }
 
-//all nodes have other data
 void NrxSetup::copyFromCoreneuronToHpx()
 {
-    //1. get total neurons count
-    int neuronsCount=0;
+    Brain brain;
+
+    //1. get total neurons count; plot neurons tree to dot file
+    //std::for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt){ circuit.neuronsCount+= nt.ncell; });
+    brain.neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    brain.neuronsAddr = hpx_gas_calloc_blocked(brain.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    brain.multiSplit = HPX_LOCALITIES > brain.neuronsCount;
+    assert(brain.neuronsAddr != HPX_NULL);
+
+    //TODO: Debug: plot morpholog as dot file
     for (int k=0; k<nrn_nthread; k++)
     {
         FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(k)+".dot").c_str(), "wt");
@@ -254,43 +250,54 @@ void NrxSetup::copyFromCoreneuronToHpx()
 
         //for all nodes in this NrnThread
         NrnThread * nt = &nrn_threads[k];
-        neuronsCount += nt->ncell;
         for (int i=nt->ncell; i<nt->end; i++)
             fprintf(dotfile, "%d -- %d;\n", nt->_v_parent_index[i], i);
         fprintf(dotfile, "}\n");
         fclose(dotfile);
     }
 
-    Circuit circuit;
-    circuit.neuronsCount = neuronsCount; //TODO global count instead
-    circuit.neuronsAddr  = hpx_gas_calloc_blocked(circuit.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    circuit.multiSplit   = HPX_LOCALITIES > circuit.neuronsCount;
-    assert(circuit.neuronsAddr != HPX_NULL);
-
     //Broadcast input arguments
     printf("Broadcasting Circuit info...\n");
-    int e = hpx_bcast_rsync(Circuit::initialize, &circuit, sizeof (Circuit));
+    int e = hpx_bcast_rsync(Brain::initialize, &brain, sizeof (Brain));
     assert(e == HPX_SUCCESS);
 
-    int neuronId=0;
-    for (int k=0; k<nrn_nthread; k++) //for all set of neurons
-    {
-        NrnThread * nt = &nrn_threads[k];
-        for (int n=0; n<nt->ncell; n++, neuronId++) //for all neurons in this NrnThread
+    //create the tree structure for all neurons
+    vector<shared_ptr<Compartment>> compartments;
+
+    long long acc=0; //accumulator of compartments ids
+    std::for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt, int & id) {
+
+        //reconstructs tree with solver values
+        for (int n=nt.end-1; n>=nt.ncell; n--)
         {
-            //collect list of nodes from this neuron
-            std::set<int> nodesFromThisNeuron;
-
-            //insert soma Id
-            nodesFromThisNeuron.insert(n);
-
-            for (int i=nt->ncell; i<nt->end; i++)
-                //if father belongs to this neuron, so do I
-                if (nodesFromThisNeuron.find(nt->_v_parent_index[i]) != nodesFromThisNeuron.end())
-                    nodesFromThisNeuron.insert(i);
-
-            hpx_t neuron_addr = hpx_addr_add(circuit.neuronsAddr, sizeof(Neuron)*neuronId, sizeof(Neuron));
-            createNeuron(nt, n, nodesFromThisNeuron, neuron_addr);
+            compartments[n+acc].setSolverValues(nt._actual_a[n], nt._actual_d[n], nt._actual_v[n], nt._actual_d[n], nt._actual_rhs[n], nt._actual_area[n]);
+            compartments[nt._v_parent_index[n]+acc].addChild(compartments[n+acc]);
         }
-    }
+
+        //reconstructs mechanisms
+        for (NrnThreadMembList* tml = nt.tml; tml; tml = tml->next)
+        {
+            int mechId = tml->index;
+            Memb_list* ml = tml->ml; //mechanism's member list
+            int pdataOffset=0, dataOffset=0;
+            //if (!is_art) //TODO: is this valid?
+            {
+                for (int n=0; n< ml->nodecount; n++)
+                {
+                    int nodeId = ml->nodeindices[n];
+                    if (neuronIds.find(nodeId) != neuronIds.end()) // part of this neuron
+                       // mechanisms[mechId].push_back(std::make_tuple(
+                       //     nodeId, &ml->data[dataOffset], &ml->pdata[dataOffset]
+                       // ));
+                    dataOffset  += nrn_prop_param_size_[mechId];
+                    pdataOffset += nrn_prop_dparam_size_[mechId];
+                }
+            }
+        }
+
+        //increments accumulator so that next NrnThread ids don't overlapt current one
+        acc += nt.end - nt.ncell;
+    });
+
+    createNeuron(nt, n, id);
 }

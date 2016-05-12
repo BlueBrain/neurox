@@ -6,6 +6,7 @@
 #include <tuple>
 #include <list>
 #include <set>
+#include <memory>
 
 using namespace std;
 
@@ -23,5 +24,5 @@ class NrxSetup
 
   private:
     static hpx_t createBranch(NrnThread * nt, map<int, list<int> > & tree, map<int, list < tuple< int, double*, int*> > > & mechanisms, int topNodeId );
-    static void createNeuron(NrnThread * nt, int gid, set<int> & neuronIds, hpx_t neuron_addr);
+    static void createNeuron(NrnThread & nt, int nrnThreadId, int neuronId);
 };
