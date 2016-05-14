@@ -24,6 +24,7 @@ typedef unsigned char byte;
 #include "neurox/datatypes/Neuron.h"
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Compartment.h"
+#include "neurox/datatypes/Mechanism.h"
 #include "neurox/input/NrxSetup.h"
 
 //Global variables (defined on the classes' cpp files)

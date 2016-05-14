@@ -200,31 +200,9 @@ hpx_t NrxSetup::createBranch(NrnThread * nt, map<int, list<int> > & tree, map<in
 
 void NrxSetup::createNeuron(NrnThread & nt, int nrnThreadId, int neuronId)
 {
-    //create map of mechanisms (for a mech id, return the list of its instances)
-    map<int, list < std::tuple< int, double*, int*> > > mechanisms;
-    for (NrnThreadMembList* tml = nt->tml; tml; tml = tml->next)
-    {
-        int mechId = tml->index;
-        Memb_list* ml = tml->ml; //mechanism's member list
-        int pdataOffset=0, dataOffset=0;
-        //if (!is_art) //TODO: is this valid?
-        {
-            for (int n=0; n< ml->nodecount; n++)
-            {
-                int nodeId = ml->nodeindices[n];
-                if (neuronIds.find(nodeId) != neuronIds.end()) // part of this neuron
-                    mechanisms[mechId].push_back(std::make_tuple(
-                        nodeId, &ml->data[dataOffset], &ml->pdata[dataOffset]
-                    ));
-                dataOffset  += nrn_prop_param_size_[mechId];
-                pdataOffset += nrn_prop_dparam_size_[mechId];
-            }
-        }
-    }
-
     //set-up neuron
     Neuron neuron;
-    neuron.topBranch = createBranch(nt, tree, mechanisms, gid);
+    //neuron.topBranch = createBranch(nt, tree, mechanisms, gid);
     neuron.id = gid; //TODO should be global not local GID
 
     //allocate Neuron in GAS
@@ -265,39 +243,66 @@ void NrxSetup::copyFromCoreneuronToHpx()
     vector<shared_ptr<Compartment>> compartments;
 
     long long acc=0; //accumulator of compartments ids
-    std::for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt, int & id) {
+    for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt, int & id) {
 
         //reconstructs tree with solver values
-        for (int n=nt.end-1; n>=nt.ncell; n--)
+        //for (int n=nt.end-1; n>=nt.ncell; n--)
+        for (int n=nt.end-1; n>=0; n--)
         {
-            compartments[n+acc].setSolverValues(nt._actual_a[n], nt._actual_d[n], nt._actual_v[n], nt._actual_d[n], nt._actual_rhs[n], nt._actual_area[n]);
-            compartments[nt._v_parent_index[n]+acc].addChild(compartments[n+acc]);
+            Compartment & compartment = compartments[n]+acc;
+            compartment.setSolverValues(nt._actual_a[n], nt._actual_d[n], nt._actual_v[n], nt._actual_d[n], nt._actual_rhs[n], nt._actual_area[n]);
+            //if it is not top node, i.e. has a parent
+            if ( n>= nt.ncell )
+            {
+                Compartment & parentCompartment = compartment[nt._v_parent_index[n]+acc];
+                parentCompartment.addChild(&compartment);
+            }
         }
 
-        //reconstructs mechanisms
-        for (NrnThreadMembList* tml = nt.tml; tml; tml = tml->next)
+        //reconstructs mechanisms for compartments
+        int dataOffset=0, pdataOffset=0;
+        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next)
         {
             int mechId = tml->index;
-            Memb_list* ml = tml->ml; //mechanism's member list
-            int pdataOffset=0, dataOffset=0;
-            //if (!is_art) //TODO: is this valid?
+            if (nrn_is_artificial_[mechId])
             {
-                for (int n=0; n< ml->nodecount; n++)
-                {
-                    int nodeId = ml->nodeindices[n];
-                    if (neuronIds.find(nodeId) != neuronIds.end()) // part of this neuron
-                       // mechanisms[mechId].push_back(std::make_tuple(
-                       //     nodeId, &ml->data[dataOffset], &ml->pdata[dataOffset]
-                       // ));
-                    dataOffset  += nrn_prop_param_size_[mechId];
-                    pdataOffset += nrn_prop_dparam_size_[mechId];
-                }
+                //TODO
+            }
+            if (pnt_map[mechId])
+            {
+                //TODO
+            }
+
+            Memb_list *& ml = tml->ml; //list of compartments this mechanism belongs to
+            int & dataSize  = nrn_prop_param_size_[mechId];
+            int & pdataSize = nrn_prop_dparam_size_[mechId];
+            for (int n=0; n<ml->nodecount; n++)
+            {
+                Compartment & compartment = compartments[ml->nodeindices[n]+acc];
+                compartment.mechanismsIds.insert(tml->index);
+                compartment.data.insert (compartment.data.end(),  &ml->data[dataOffset],  &ml->data[dataOffset+dataSize]);
+                compartment.pdata.insert(compartment.pdata.end(), &ml->pdata[pdataOffse], &ml->pdata[pdataOffset+pdataSize]);
+                dataOffset  += dataSize;
+                pdataOffset += pdataSize;
             }
         }
 
         //increments accumulator so that next NrnThread ids don't overlapt current one
-        acc += nt.end - nt.ncell;
+        //acc += nt.end - nt.ncell;
+        acc += nt.ncell;
     });
 
-    createNeuron(nt, n, id);
+    //Builds mechanisms dependencies graph: 1: count dependencies
+    MechanismsDependencies mechs;
+    NrnThread & nt = nrn_threads[0];
+    for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next)
+         mechs.count[tml->index]++;
+
+    for (int i=0; i<= mechs.count.size(); i++) //for all mechanisms
+    {
+        mechs.offsets[i]= i==0 ? 0 : mechs.offsets[i-1] + mechs.count[i-1];
+        offset += mechs.offsets[i];
+    }
+
+    createNeuron(nt, n, id); //TODO create and distribute neuron as we read
 }
