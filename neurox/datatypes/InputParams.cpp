@@ -4,8 +4,7 @@
 #include "stdio.h"
 #include "string.h"
 
-//global variable
-InputParams inputParams;
+InputParams inputParams; //global variable (defined in neurox.h)
 
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():

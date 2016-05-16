@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hpx/hpx.h"
+#include <cassert>
 
 //typedefs
 typedef hpx_addr_t hpx_t;

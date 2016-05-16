@@ -23,6 +23,7 @@ class NrxSetup
     static void copyFromCoreneuronToHpx(); ///> Copies Coreneuron data structs to HPX
 
   private:
-    static hpx_t createBranch(NrnThread * nt, map<int, list<int> > & tree, map<int, list < tuple< int, double*, int*> > > & mechanisms, int topNodeId );
-    static void createNeuron(NrnThread & nt, int nrnThreadId, int neuronId);
+    static void createBrain(int neuronsCount);
+    static void createNeuron(int gid, vector<Compartment> & compartments, vector<Mechanism> & mechanisms);
+    static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);
 };

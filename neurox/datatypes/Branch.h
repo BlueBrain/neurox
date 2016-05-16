@@ -20,9 +20,6 @@ class Branch
     Branch();
     ~Branch();
 
-    void serialize(byte *& bytes_out, int & size_out);
-    void deserialize(const byte * bytes_in, const int size_in);
-
     //nodes
     short int n;			///> number of compartments
     double * b;				///> bottom diagonal of Linear Algebra sparse tridiagonal matrix

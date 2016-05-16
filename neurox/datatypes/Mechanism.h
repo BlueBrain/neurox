@@ -5,19 +5,25 @@
 using namespace std;
 
 /**
- * @brief The MechanismsDependencies class
- * Compressed Row Storage of dependencies between mechanisms
+ * @brief The Mechanisms class
+ * Stores unique mechanisms information and dependencies
  */
-class MechanismsDependencies
+class Mechanism
 {
   public:
-    MechanismsDependencies(){};
-    ~MechanismsDependencies(){};
+    Mechanism() = delete;
 
-    vector<short int> count;
-    vector<int> offsets;
-    vector<int> ids;
+    Mechanism( short int datasize, short int pdataSize,
+        short int dependenciesCount, char pntMap,
+        char isArtificial, int *& dependencies);
 
+    ~Mechanism();
+
+    short int dataSize, pdataSize, dependenciesCount;
+    char pntMap, isArtificial;
+
+    //Dependencies data
+    int * dependencies;
 
   private:
 };

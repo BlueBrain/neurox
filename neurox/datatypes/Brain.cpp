@@ -1,8 +1,7 @@
 #include "neurox/neurox.h"
 #include "string.h"
 
-//global variable
-Brain brain;
+Brain brain; //global variable (defined in neurox.h)
 
 Brain::Brain ():
   neuronsCount(0), multiSplit(0), neuronsAddr(HPX_NULL)

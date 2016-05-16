@@ -20,16 +20,6 @@ Branch::~Branch()
     //TODO missing deletes here
 }
 
-void Branch::serialize(byte *& bytes_out, int & size_out)
-{
-
-}
-
-void Branch::deserialize(const byte * bytes_in, const int size_in)
-{
-
-}
-
 hpx_action_t Branch::initialize = 0;
 int Branch::initialize_handler(const byte * branch_serial_input,  const size_t size)
 {
