@@ -23,7 +23,7 @@ class CoreNeuronDataLoader //: IDataLoader
     static void loadData(); ///> Copies Coreneuron data structs to HPX
 
   private:
-    static void createBrain(int neuronsCount);
+    static void createBrain(int neuronsCount, vector<Mechanism> & mechanisms);
     static void createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms);
     static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);
 };

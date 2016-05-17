@@ -26,9 +26,6 @@ CoreNeuronDataLoader::~CoreNeuronDataLoader()
 
 void CoreNeuronDataLoader::loadData()
 {
-    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    createBrain(neuronsCount);
-
     //TODO: Debug: plot morphologies as dot file
     for (int k=0; k<nrn_nthread; k++)
     {
@@ -45,11 +42,10 @@ void CoreNeuronDataLoader::loadData()
 
     //create the tree structure for all neurons and mechanism
     int neuronId=0;
+    vector<Mechanism> mechanisms;
     for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt) {
 
         vector<Compartment> compartments;
-        vector<Mechanism> mechanisms;
-
         //reconstructs tree with solver values
         for (int n=nt.end-1; n>=0; n--)
         {
@@ -91,21 +87,32 @@ void CoreNeuronDataLoader::loadData()
             createNeuron(neuronId+n, compartments.at(n), mechanisms);
         neuronId += nt.ncell;
     });
+
+    //int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    createBrain(neuronId, mechanisms);
 }
 
-void CoreNeuronDataLoader::createBrain(int neuronsCount)
+void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mechanisms)
 {
     //create Brain HPX structure
     Brain brain;
     brain.neuronsCount = neuronsCount;
     brain.neuronsAddr = hpx_gas_calloc_blocked(brain.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    brain.multiSplit = HPX_LOCALITIES > brain.neuronsCount;
     assert(brain.neuronsAddr != HPX_NULL);
+
+    //add mechanisms dependencies
+    brain.mechanismsCount = mechanisms.size();
+    brain.mechanisms = new Mechanism[brain.mechanismsCount];
+    //TODO copy mechanisms
+    int totalDependenciesCount = accumulate(mechanisms.begin(), mechanisms.end(), 0, [](int n, Mechanism & m){return n+m.dependenciesCount;});
+    int * mechsDependencies = new int [totalDependenciesCount];
 
     //Broadcast input arguments
     printf("Broadcasting Circuit info...\n");
-    int e = hpx_bcast_rsync(Brain::initialize, &brain, sizeof (Brain));
+    int e = hpx_bcast_rsync(Brain::initialize, &brain, &brain.mechanisms, &brain.mechanismsCount, mechsDependencies, totalDependenciesCount);
     assert(e == HPX_SUCCESS);
+
+    delete [] mechsDependencies;
 }
 
 void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms)

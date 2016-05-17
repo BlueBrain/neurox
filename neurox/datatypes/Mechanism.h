@@ -11,7 +11,7 @@ using namespace std;
 class Mechanism
 {
   public:
-    Mechanism() = delete;
+    Mechanism(){}; //= delete; //TODO all this should go away
 
     Mechanism( short int datasize, short int pdataSize,
         short int dependenciesCount, char pntMap,
