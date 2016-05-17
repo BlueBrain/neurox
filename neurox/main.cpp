@@ -91,7 +91,7 @@ static int main_hpx_handler( char ** argv, const int argc)
     int e = hpx_bcast_rsync(InputParams::initialize, &inputParams, sizeof (InputParams));
     assert(e == HPX_SUCCESS);
 
-    NrxSetup::copyFromCoreneuronToHpx();
+    CoreNeuronDataLoader::loadData();
 
     //Clean core neuron data, work only with HPX data
     //nrn_cleanup();

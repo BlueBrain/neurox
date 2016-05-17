@@ -15,9 +15,15 @@ void Compartment::setSolverValues(double a, double b, double d, double v, double
     this->a=a; this->b=b; this->d=d; this->v=v; this->rhs=rhs; this->area=area;
 };
 
-void Compartment::addChild(shared_ptr<Compartment> child)
+void Compartment::addChild(Compartment * child)
 {
-    assert(left==nullptr || right==nullptr);
-    shared_ptr<Compartment> branch = left==nullptr ? left : right;
-    branch=child;
+    children.push_back(child);
+};
+
+
+void Compartment::addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize)
+{
+    mechanismsIds.push_back(mechId);
+    this->data.insert (this->data.end() , &data[0] , &data[dataSize]);
+    this->pdata.insert(this->pdata.end(), &pdata[0], &pdata[pdataSize]);
 };

@@ -11,7 +11,7 @@ class Brain
   public:
 
     Brain();
-    ~Brain();
+    ~Brain(){} //=delete; //TODO: make it only possible via HPX call to clear method
 
     //global vars: all localities hold the same value
     int neuronsCount; 	///> total neurons count in the system
@@ -22,11 +22,13 @@ class Brain
 
     static void registerHpxActions();		///> Registers all HPX actions
     static hpx_action_t initialize; ///> Initializes Circuit as a copy
+    static hpx_action_t clear; ///> deletes all data (including neurons and branches)
 
     inline hpx_t operator [](int i) const {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     };
 
   private:
-    static int initialize_handler(const Brain * circuit, const size_t size);
+    static int initialize_handler(const Brain * brain, const size_t size);
+    static int clear_handler();
 } ;

@@ -14,16 +14,16 @@ using namespace std;
  * @brief The NrxSetup class
  * Converts CoreNeuron data structures to HPX data structures
  */
-class NrxSetup
+class CoreNeuronDataLoader //: IDataLoader
 {
   public:
-    NrxSetup();
-    ~NrxSetup();
+    CoreNeuronDataLoader();
+    ~CoreNeuronDataLoader();
 
-    static void copyFromCoreneuronToHpx(); ///> Copies Coreneuron data structs to HPX
+    static void loadData(); ///> Copies Coreneuron data structs to HPX
 
   private:
     static void createBrain(int neuronsCount);
-    static void createNeuron(int gid, vector<Compartment> & compartments, vector<Mechanism> & mechanisms);
+    static void createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms);
     static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);
 };

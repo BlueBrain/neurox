@@ -3,12 +3,11 @@
 
 using namespace std;
 
-Mechanism::Mechanis( short int datasize, short int pdataSize,
+Mechanism::Mechanism(short int dataSize, short int pdataSize,
                      short int dependenciesCount, char pntMap,
-                     char isArtificial, int &* dependencies):
-    this->dataSize(datasize), this->pdatasize(pdatasize),
-    this->dependenciesCount(dependenciesCount),
-    this->pntMap(pntMap), this->isArtificial(isArtificial)
+                     char isArtificial, int * dependencies):
+    dataSize(dataSize), pdataSize(pdataSize), dependenciesCount(dependenciesCount),
+    pntMap(pntMap), isArtificial(isArtificial)
 {
     dependencies = new int[dependenciesCount];
     std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));

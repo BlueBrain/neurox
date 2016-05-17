@@ -15,7 +15,7 @@ class Mechanism
 
     Mechanism( short int datasize, short int pdataSize,
         short int dependenciesCount, char pntMap,
-        char isArtificial, int *& dependencies);
+        char isArtificial, int * dependencies);
 
     ~Mechanism();
 

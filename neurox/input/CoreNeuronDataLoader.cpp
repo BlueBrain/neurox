@@ -18,13 +18,13 @@
 
 using namespace std;
 
-NrxSetup::NrxSetup()
+CoreNeuronDataLoader::CoreNeuronDataLoader()
 {}
 
-NrxSetup::~NrxSetup()
+CoreNeuronDataLoader::~CoreNeuronDataLoader()
 {}
 
-void NrxSetup::copyFromCoreneuronToHpx()
+void CoreNeuronDataLoader::loadData()
 {
     int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     createBrain(neuronsCount);
@@ -44,8 +44,8 @@ void NrxSetup::copyFromCoreneuronToHpx()
     }
 
     //create the tree structure for all neurons and mechanism
-    int acc=0;
-    for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt, int & acc) {
+    int neuronId=0;
+    for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt) {
 
         vector<Compartment> compartments;
         vector<Mechanism> mechanisms;
@@ -58,7 +58,7 @@ void NrxSetup::copyFromCoreneuronToHpx()
 
             if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
             {
-                Compartment & parentCompartment = compartment[nt._v_parent_index[n]];
+                Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
                 parentCompartment.addChild(&compartment);
             }
         }
@@ -69,20 +69,18 @@ void NrxSetup::copyFromCoreneuronToHpx()
         {
             int mechId = tml->index;
             //Data unique to each mechanism type
-            mechanisms[mechId](nrn_prop_param_size_[mechId],
+            mechanisms[mechId] = Mechanism(nrn_prop_param_size_[mechId],
                     nrn_prop_dparam_size_[mechId],tml->ndependencies,
                     pnt_map[mechId], nrn_is_artificial_[mechId], tml->dependencies);
 
             //Mechanisms' application to each compartment
             Memb_list *& ml = tml->ml; //list of compartments this mechanism belongs to
-            int & dataSize  = mechanisms[mechId].dataSize;
-            int & pdataSize = mechanisms[mechId].pdataSize;
+            int dataSize  = mechanisms[mechId].dataSize;
+            int pdataSize = mechanisms[mechId].pdataSize;
             for (int n=0; n<ml->nodecount; n++)
             {
                 Compartment & compartment = compartments[ml->nodeindices[n]];
-                compartment.mechanismsIds.insert(mechId);
-                compartment.data.insert (compartment.data.end(),  &ml->data[dataOffset],  &ml->data[dataOffset+dataSize]);
-                compartment.pdata.insert(compartment.pdata.end(), &ml->pdata[pdataOffse], &ml->pdata[pdataOffset+pdataSize]);
+                compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -90,12 +88,12 @@ void NrxSetup::copyFromCoreneuronToHpx()
 
         //We will now convert from compartment level to branch level
         for (int n=0; n<nt.end; n++)
-            createNeuron(acc+n, compartments[n], mechanisms);
-        acc +=n;
+            createNeuron(neuronId+n, compartments.at(n), mechanisms);
+        neuronId += nt.ncell;
     });
 }
 
-void NrxSetup::createBrain(int neuronsCount)
+void CoreNeuronDataLoader::createBrain(int neuronsCount)
 {
     //create Brain HPX structure
     Brain brain;
@@ -110,40 +108,41 @@ void NrxSetup::createBrain(int neuronsCount)
     assert(e == HPX_SUCCESS);
 }
 
-void NrxSetup::createNeuron(int gid, vector<Compartment> & compartments, vector<Mechanism> & mechanisms)
+void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms)
 {
     Neuron neuron;
-    neuron.topBranch = createBranch(&compartments[n], mechanisms);
+    neuron.topBranch = createBranch(&topCompartment, mechanisms);
     neuron.id = gid;
 
     //allocate Neuron in GAS
     hpx_call_sync(brain[gid], Neuron::initialize, NULL, 0, &neuron, sizeof (Neuron));
 }
 
-hpx_t NrxSetup::createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms)
+hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
 {
     Compartment *comp = topCompartment;
     Branch b;
     b.n =0; //number of compartments
     for (Compartment *comp = topCompartment;
-         comp.right == nullptr && comp.left != nullptr;
-         comp = comp->left, b.n++)
+         comp->children.size()==1;
+         comp = comp->children.front())
     {
-        //TODO copy vars
+        b.n++;
+        //TODO copy vars and mechs
     };
 
-    b.childrenCount = (comp->right==nullptr ? 0 : 1) + (comp->left==nullptr ? 0 : 1);
+    b.childrenCount = comp->children.size();
     if (b.childrenCount > 0)
     {
-        b.children = new hpx_t[2];
-        b.children[0] = createBranch (comp->left);
-        b.children[1] = createBranch (comp->right);
+        b.children = new hpx_t[b.childrenCount];
+        for (int c=0; c<b.childrenCount; c++)
+            b.children[c]=createBranch(comp->children[c], mechanisms);
     }
     else b.children = nullptr;
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, bytes, size);
+    hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, &b, sizeof(Branch));
     return branchAddr;
 
     /* Serialize SYNAPSES
