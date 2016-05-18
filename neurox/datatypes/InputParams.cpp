@@ -4,7 +4,7 @@
 #include "stdio.h"
 #include "string.h"
 
-InputParams inputParams; //global variable (defined in neurox.h)
+InputParams * inputParams = nullptr; //global variable (defined in neurox.h)
 
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
@@ -15,7 +15,7 @@ InputParams::InputParams ():
     memset(patternStim,'0',2048);
     memset(inputPath,'0',2048);
     memset(outputPath,'0',2048);
-    multiSplit = HPX_LOCALITIES > brain.neuronsCount;
+    multiSplit = 0; //HPX_LOCALITIES > brain->neuronsCount;
 }
 
 InputParams::InputParams (int argc, char** argv):
@@ -32,12 +32,29 @@ int InputParams::initialize_handler(const InputParams * inputParams_new, const s
 {
     //Make sure message arrived correctly, and pin memory
     hpx_t target = hpx_thread_current_target();
+    InputParams * inputParams = NULL;
+    if (!hpx_gas_try_pin(target, (void**) &inputParams))
+        return HPX_RESEND;
+
+    //do the work
+    inputParams = new InputParams();
+    memcpy(inputParams, inputParams_new, size);
+
+    //unpin and return success
+    hpx_gas_unpin(target);
+    return HPX_SUCCESS;
+}
+
+hpx_action_t InputParams::clear = 0;
+int InputParams::clear_handler()
+{
+    //Make sure message arrived correctly, and pin memory
+    hpx_t target = hpx_thread_current_target();
     uint64_t *local = NULL;
     if (!hpx_gas_try_pin(target, (void**) &local))
         return HPX_RESEND;
 
-    //do the work
-    memcpy(&inputParams, inputParams_new, size);
+    delete inputParams;
 
     //unpin and return success
     hpx_gas_unpin(target);
@@ -103,4 +120,5 @@ void InputParams::parseCommandLine(int argc, char ** argv)
 void InputParams::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initialize, initialize_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  clear, clear_handler);
 }

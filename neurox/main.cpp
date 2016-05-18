@@ -82,7 +82,7 @@ static int main_hpx_handler( char ** argv, const int argc)
 
     //////////// END OF CORENEURON OLD CODE ///////////////////
 
-    //We take all CoreNeuron data types and convert to hpx based data types
+    //We take all CoreNeuron data type.size() convert to hpx based data types
     //TODO: in the future we want an implementation to run from CoreNeuron
     //and one to be a stand-alone app (read directly from file)
 

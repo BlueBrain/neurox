@@ -13,6 +13,7 @@
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/nrn_assert.h"
+#include "coreneuron/nrniv/nrn_setup.h"
 
 #include "neurox/neurox.h"
 
@@ -41,7 +42,6 @@ void CoreNeuronDataLoader::loadData()
     }
 
     //create the tree structure for all neurons and mechanism
-    int neuronId=0;
     vector<Mechanism> mechanisms;
     for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt) {
 
@@ -61,6 +61,7 @@ void CoreNeuronDataLoader::loadData()
 
         //reconstructs mechanisms for compartments
         int dataOffset=0, pdataOffset=0;
+        //int synOffset=0;
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next)
         {
             int mechId = tml->index;
@@ -80,49 +81,89 @@ void CoreNeuronDataLoader::loadData()
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
+
+            /*
+            //Incoming Synapses
+            if (mechanisms[mechId].pntMap > 0) //if point process
+            {
+                for (int n=0; n<ml->nodecount; n++)
+                {
+                    //Compartment & source = compartments[ml->nodeindices[n]];
+                    Point_process * sourcePntProc = &nt.pntprocs[synOffset+n];
+                    NetCon & nc = nt.netcons[synOffset+n];
+                    Point_process * targetPntProc = nc.target_;
+                    nc.
+                    //pntprocs->;
+                }
+                synOffset += ml->nodecount;
+            }
+            ///  OR   ////
+            //traverse (Output)preSyns (local spike exchange / event delivery)
+            for (int s=0; s<nt.n_presyn; s++)
+            {
+                int neuronId = nt.presyns[s]->gid_;
+                InputPreSyn * ips = gid2in[preNeuronId];
+                int offsetIps = ips->nc_index_;
+                for (int i = 0; i<ips->nc_cnt_; i++)
+                {
+                    NetCon* ncPost = netcon_in_presyn_order_[offsetIps+i];
+                    //ncPost->target_->
+                }
+            }*/
         }
 
-        //We will now convert from compartment level to branch level
+        //We will create all neurons in HPX memory
         for (int n=0; n<nt.end; n++)
-            createNeuron(neuronId+n, compartments.at(n), mechanisms);
-        neuronId += nt.ncell;
+        {
+            vector<Synapse> synapses;
+            int neuronId = nt.presyns[n].gid_;
+            PreSyn * outSynapses = gid2out.at(neuronId);
+            double APThreshold = outSynapses->threshold_;
+            for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contact (outgoing Synapses)
+            {
+                NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
+                Point_process * target = nc->target_;
+                //TODO from the target-> vars we get the mech type, and the instance of that type.
+                //we will need the hpx address of it
+                synapses.push_back(Synapse(*nc->weight_, nc->delay_, HPX_NULL)); //TODO HPX_NULL?
+            }
+            createNeuron(neuronId, compartments.at(n), mechanisms, APThreshold, synapses);
+        }
     });
 
     //int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    createBrain(neuronId, mechanisms);
+    createBrain(neuronsCount, mechanisms);
+
 }
 
 void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mechanisms)
 {
     //create Brain HPX structure
-    Brain brain;
-    brain.neuronsCount = neuronsCount;
-    brain.neuronsAddr = hpx_gas_calloc_blocked(brain.neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    assert(brain.neuronsAddr != HPX_NULL);
+    hpx_t neuronsAddr = hpx_gas_calloc_blocked(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    assert(neuronsAddr != HPX_NULL);
+    int mechanismsCount = mechanisms.size();
 
-    //add mechanisms dependencies
-    brain.mechanismsCount = mechanisms.size();
-    brain.mechanisms = new Mechanism[brain.mechanismsCount];
-    //TODO copy mechanisms
+    //serialize mechanisms dependencies
     int totalDependenciesCount = accumulate(mechanisms.begin(), mechanisms.end(), 0, [](int n, Mechanism & m){return n+m.dependenciesCount;});
     int * mechsDependencies = new int [totalDependenciesCount];
+    int mechsOffset=0;
+    for_each(mechanisms.begin(), mechanisms.end(), [&] (Mechanism & m)
+        { memcpy(&mechsDependencies[mechsOffset], m.dependencies, sizeof(int)*m.dependenciesCount);
+          mechsOffset+= m.dependenciesCount;
+        });
 
-    //Broadcast input arguments
+    //Broadcasts (serialized) brain
     printf("Broadcasting Circuit info...\n");
-    int e = hpx_bcast_rsync(Brain::initialize, &brain, &brain.mechanisms, &brain.mechanismsCount, mechsDependencies, totalDependenciesCount);
+    int e = hpx_bcast_rsync(Brain::initialize, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
     assert(e == HPX_SUCCESS);
 
     delete [] mechsDependencies;
 }
 
-void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms)
+void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses)
 {
-    Neuron neuron;
-    neuron.topBranch = createBranch(&topCompartment, mechanisms);
-    neuron.id = gid;
-
-    //allocate Neuron in GAS
-    hpx_call_sync(brain[gid], Neuron::initialize, NULL, 0, &neuron, sizeof (Neuron));
+    hpx_t topBranch = createBranch(&topCompartment, mechanisms);
+    hpx_call_sync(brain->getNeuronAddr(gid), Neuron::initialize, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
 }
 
 hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
@@ -151,66 +192,4 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, &b, sizeof(Branch));
     return branchAddr;
-
-    /* Serialize SYNAPSES
-    n=0;
-    for (int k=0; k<nrn_nthread; k++)
-    {
-        NrnThread * nt = &nrn_threads[k];
-        for (int i=nt->ncell; i<nt->end; i++)
-        {
-                int synOffset=0
-                //point process for this mech
-                if (pntype > 0)
-                { //if is point proc
-                   Point_process * pntprocs = nt.pntprocs[synOffset];
-                   for (int s=0; s < ml->nodecount ; ++s)
-                   {
-                       Point_process *pntproc = &pntprocs[s];
-                        //TODO: nt->_vdata is set as a pointer to this, used by mechs
-                       pntproc->;
-                   }
-                   synOffset += ml->nodecount;
-                }
-
-        //traverse preSyns (local spike exchange / event delivery)
-        for (int s=0; s<nt->n_presyn; s++)
-        {
-            PreSyn * preSyn = &nt->presyns[s];
-            for (int c=0; c<preSyn->nc_cnt_; c++)
-            {
-                NetCon * nc = netcon_in_presyn_order_[preSyn->nc_index_+c];
-                Point_process * target = nc->target_;
-                target->_tid; //TODO is this destination node id?
-                            double * weight = nc->weight_;
-                            bool active = nc->active_;
-                            double delay = nc->delay_;
-            }
-        }
-
-        //Remote spike exchange:
-        //1. sender sends to a gid (cell id) i.e. a compute node
-        //2. that compute node knows which node takes the incoming spike on that cell
-        //(remote spike exchange / event delivery)
-
-        //traverse all incoming events
-        //gid2in returns the correspondence between sending gid and inputPreSyn
-        for (std::map<int, InputPreSyn*>::iterator it = gid2in.begin(); it!= gid2in.end(); it++)
-        {
-            int sender = it->first;
-            InputPreSyn * inputPreSyn = it->second;
-
-            for (int c=0; c<inputPreSyn->nc_cnt_; c++)
-            {
-                NetCon * nc = netcon_in_presyn_order_[inputPreSyn->nc_index_+c];
-                Point_process * target = nc->target_;
-                target->_tid; //TODO is this destination node id?
-                double * weight = nc->weight_;
-                bool active = nc->active_;
-                double delay = nc->delay_;
-            }
-        }
-        */
-
-    //send serializable version and constructs Branch from it
 }

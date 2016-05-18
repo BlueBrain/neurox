@@ -425,6 +425,7 @@ void NetCon::send(double tt, NetCvode* ns, NrnThread* nt) {
     }
 }
 	
+//TODO: LOOK HERE 2
 void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     (void)ns;
     nrn_assert(target_);
@@ -437,6 +438,7 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     nt->_t = tt;
 
 //printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
+    //calls NET_RECEIVE in mod files
     POINT_RECEIVE(typ, target_, weight_, 0);
 #ifdef DEBUG
     if (errno && nrn_errno_check(typ)) 
@@ -469,6 +471,7 @@ void PreSyn::send(double tt, NetCvode* ns, NrnThread* nt) {
 #endif //NRNMPI
 }
 	
+//TODO LOOK HERE 1
 void InputPreSyn::send(double tt, NetCvode* ns, NrnThread* nt) {
     for (int i = nc_cnt_-1; i >= 0; --i) {
         NetCon* d = netcon_in_presyn_order_[nc_index_ + i];

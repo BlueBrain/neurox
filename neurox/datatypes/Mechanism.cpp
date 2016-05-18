@@ -3,9 +3,9 @@
 
 using namespace std;
 
-Mechanism::Mechanism(short int dataSize, short int pdataSize,
-                     short int dependenciesCount, char pntMap,
-                     char isArtificial, int * dependencies):
+Mechanism::Mechanism(const short int dataSize, const short int pdataSize,
+                     const short int dependenciesCount, const char pntMap,
+                     const char isArtificial, const int * dependencies):
     dataSize(dataSize), pdataSize(pdataSize), dependenciesCount(dependenciesCount),
     pntMap(pntMap), isArtificial(isArtificial)
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+//#include "coreneuron/nrnoc/membfunc.h"
 
 using namespace std;
 
@@ -11,19 +12,17 @@ using namespace std;
 class Mechanism
 {
   public:
-    Mechanism(){}; //= delete; //TODO all this should go away
-
-    Mechanism( short int datasize, short int pdataSize,
-        short int dependenciesCount, char pntMap,
-        char isArtificial, int * dependencies);
-
+    Mechanism(){};
     ~Mechanism();
+
+    Mechanism( const short int datasize, const short int pdataSize,
+        const short int dependenciesCount, const char pntMap,
+        const char isArtificial, const int * dependencies);
 
     short int dataSize, pdataSize, dependenciesCount;
     char pntMap, isArtificial;
 
-    //Dependencies data
-    int * dependencies;
+    int * dependencies; ///> Id of dependencies mechanisms
 
   private:
 };

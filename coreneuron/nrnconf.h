@@ -79,9 +79,9 @@ extern double hoc_Exp(double x);
 
 /* will go away at some point */
 typedef struct Point_process {
-	void* _presyn; /* for artificial cell net_event */
-    unsigned int _i_instance;
-    unsigned short _type;
+    void* _presyn; /* for artificial cell net_event */ //BACKWARD COMPATIBILITY
+    unsigned int _i_instance; //mechanism instance on the thread, for the mechanism type
+    unsigned short _type; //mechanism type
     unsigned short _tid; /* NrnThread id */
 } Point_process;
 
