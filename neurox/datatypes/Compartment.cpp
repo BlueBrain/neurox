@@ -7,8 +7,7 @@
 
 using namespace std;
 
-Compartment::Compartment(){};
-Compartment::~Compartment(){};
+Compartment::~Compartment(){}
 
 void Compartment::setSolverValues(double a, double b, double d, double v, double rhs, double area)
 {
@@ -23,7 +22,7 @@ void Compartment::addChild(Compartment * child)
 
 void Compartment::addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
-    mechanismsIds.push_back(mechId);
+    mechsIds.push_back(mechId);
     this->data.insert (this->data.end() , &data[0] , &data[dataSize]);
     this->pdata.insert(this->pdata.end(), &pdata[0], &pdata[pdataSize]);
 };

@@ -3,6 +3,7 @@
 #include "neurox/neurox.h"
 #include "coreneuron/nrnoc/membfunc.h"
 #include "coreneuron/nrnoc/membdef.h"
+#include "coreneuron/nrnconf.h"
 
 class Branch;
 class FwSubFutureData;
@@ -17,30 +18,28 @@ class FwSubFutureData;
 class Branch
 {
   public:
-    Branch();
+    Branch()=delete;
+    Branch(const int n, const double *a, const double *b, const double *d,
+           const double *v, const double *rhs, const double *area,
+           const int mechsCount, const int * mechsIds, const double *data,
+           const Datum *pdata, const int childrenCount, const hpx_t * children);
     ~Branch();
 
     //nodes
     short int n;			///> number of compartments
+    double * a;				///> top diagonal of Linear Algebra sparse tridiagonal matrix
     double * b;				///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
     double * d;				///> main diagonal of Linear Algebra spart tridiagonal matrix
-    double * a;				///> top diagonal of Linear Algebra sparse tridiagonal matrix
-    double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * v;				///> current voltage per compartment
+    double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * area;			///> current area per compartment
 
     //Mechanisms data
-    int* is_art;
-    int* layout;
-    int* is_ion;
-    char* pnttype;
-    Memb_func** membfunc;
-    int* nodesIds;
-    int* instanceCount;
-    int* dataSize;			///> sizes of double data used per mechanisms
-    int* pdataSize;			///> sizes of int data used per mechanisms
-    double* data;			///> all double data used by all mechanisms
-    int* pdata;				///> all int data used by all mechanisms
+    int mechsCount;
+    int * mechsIds;
+    double * data;			///> all double data used by all mechanisms
+    int * pdata;			///> all int data used by all mechanisms
+    //int * pntProcTargetId;	///> when using point process, the index of the compartment it updates
 
     //List of children
     int childrenCount;		///> number of children branches (always >1)
@@ -51,17 +50,20 @@ class Branch
 
   private:
     //semaphore
-    hpx_t mutex;			///> mutex to protect this branch's memory acces
+//    hpx_t mutex;			///> mutex to protect this branch's memory access
 
-#if USE_LCO_FUTURE_ARRAY==0
-    //For fwSub Method
-    hpx_t * futures;
-    int * futuresSizes;
-    void** futuresAddrs;
-    FwSubFutureData * futuresData;
-#endif    
+//#if USE_LCO_FUTURE_ARRAY==0
+//    //For fwSub Method
+//    hpx_t * futures;
+//    int * futuresSizes;
+//    void** futuresAddrs;
+//    FwSubFutureData * futuresData;
+//#endif
 
-    static int initialize_handler(const byte * branch_serial_input,  const size_t size);
+    static int initialize_handler(const int n, const double *a, const double *b, const double *d,
+                                  const double *v, const double *rhs, const double *area,
+                                  const int mechsCount, const int * mechsIds, const double *data,
+                                  const Datum *pdata, const int childrenCount, const hpx_t * children);
 };
 
 class FwSubFutureData

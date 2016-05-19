@@ -12,7 +12,7 @@ using namespace std;
 class Compartment
 {
   public:
-    Compartment();
+    Compartment()=delete;
     ~Compartment();
 
     void setSolverValues(double a, double b, double d, double v, double rhs, double area);
@@ -22,11 +22,9 @@ class Compartment
     void addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
 
     vector<Compartment*> children;
-
-  private:
     double a,b,d,v,rhs,area;
-
-    vector<int> mechanismsIds;
+    vector<int> mechsIds;
     vector<double> data;
     vector<Datum> pdata;
+  private:
 };

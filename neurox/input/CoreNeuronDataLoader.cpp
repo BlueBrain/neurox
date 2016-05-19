@@ -180,6 +180,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             {
                 NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
                 Point_process * target = nc->target_;
+                //target->
                 //TODO from the target-> vars we get the mech type, and the instance of that type.
                 //we will need the hpx address of it
                 //TODO mod files requires point process structure, should be added
@@ -227,28 +228,43 @@ void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, v
 
 hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
 {
-    Compartment *comp = topCompartment;
-    Branch b;
-    b.n =0; //number of compartments
-    for (Compartment *comp = topCompartment;
+    Compartment *comp = nullptr;
+    int n=0; //number of compartments
+    vector<double> d, b, a, rhs, v, area; //compartments info
+    vector<int> mechsIds;
+    vector<double> data;
+    vector<Datum> pdata;
+    int mechsCount=0;
+    for (comp = topCompartment;
          comp->children.size()==1;
          comp = comp->children.front())
     {
-        b.n++;
-        //TODO copy vars and mechs
+        d.push_back(comp->d);
+        b.push_back(comp->b);
+        a.push_back(comp->a);
+        rhs.push_back(comp->rhs);
+        v.push_back(comp->v);
+        area.push_back(comp->area);
+        mechsIds.insert(mechsIds.end(), comp->mechsIds.begin(), comp->mechsIds.end());
+        data.insert(data.end(), comp->data.begin(), comp->data.end());
+        pdata.insert(pdata.end(), comp->pdata.begin(), comp->pdata.end());
+        mechsCount += comp->mechsIds.size();
+        n++;
     };
 
-    b.childrenCount = comp->children.size();
-    if (b.childrenCount > 0)
+    int childrenCount = comp->children.size(); //final compartment of the branch
+    hpx_t * children = HPX_NULL;
+    if (childrenCount > 0)
     {
-        b.children = new hpx_t[b.childrenCount];
-        for (int c=0; c<b.childrenCount; c++)
-            b.children[c]=createBranch(comp->children[c], mechanisms);
+        children = new hpx_t[childrenCount];
+        for (int c=0; c<childrenCount; c++)
+            children[c]=createBranch(comp->children[c], mechanisms);
     }
-    else b.children = nullptr;
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, &b, sizeof(Branch));
+    hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, n, a.data(), b.data(), d.data(),
+                  v.data(), rhs.data(), area.data(), mechsCount, mechsIds.data(), data.data(),
+                  pdata.data(), childrenCount, children);
     return branchAddr;
 }

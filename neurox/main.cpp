@@ -18,14 +18,13 @@
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( const int argc, char ** argv)
 {
-    //populate InputParams with info past from command line
+    //populate InputParams from command line, and broadcasts to all compute nodes
     InputParams inputParams(argc, argv);
-
-    //Broadcast input arguments, and initalizes
     printf("Broadcasting InputParams...\n");
     int e = hpx_bcast_rsync(InputParams::initialize, &inputParams, sizeof (InputParams));
     assert(e == HPX_SUCCESS);
 
+    //reads morphology data
     CoreNeuronDataLoader::loadData(argc, argv);
 
     nrn_finitialize( 1, inputParams.voltage );
