@@ -17,12 +17,13 @@ using namespace std;
 class CoreNeuronDataLoader //: IDataLoader
 {
   public:
-    CoreNeuronDataLoader();
-    ~CoreNeuronDataLoader();
+    CoreNeuronDataLoader()=delete;
+    ~CoreNeuronDataLoader()=delete;
 
-    static void loadData(); ///> Copies Coreneuron data structs to HPX
+    static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
 
   private:
+    static void loadCoreNeuronData(int argc, char ** argv);
     static void createBrain(int neuronsCount, vector<Mechanism> & mechanisms);
     static void createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses);
     static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);

@@ -14,19 +14,76 @@
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/nrn_assert.h"
 #include "coreneuron/nrniv/nrn_setup.h"
+#include "coreneuron/utils/memory_utils.h"
 
 #include "neurox/neurox.h"
 
 using namespace std;
 
-CoreNeuronDataLoader::CoreNeuronDataLoader()
-{}
-
-CoreNeuronDataLoader::~CoreNeuronDataLoader()
-{}
-
-void CoreNeuronDataLoader::loadData()
+void CoreNeuronDataLoader::loadCoreNeuronData(int argc, char ** argv)
 {
+    //memory footprint after HPX initialisation
+    report_mem_usage( "After hpx_init" );
+
+    char prcellname[1024], filesdat_buf[1024], datpath[1024];
+
+    // initialise default coreneuron parameters
+    //initnrn(); //part of GlobalInfo constructor
+
+    // handles coreneuron configuration parameters
+    cn_input_params input_params;
+
+    // read command line parameters
+    input_params.read_cb_opts( argc, argv );
+
+    // set global variables for start time, timestep and temperature
+    t = input_params.tstart; // input_params.tstart;
+    dt = input_params.dt ; //input_params.dt;
+    rev_dt = 1/input_params.dt; //(int)(1./dt);
+    celsius = input_params.celsius ; //input_params.celsius;
+
+    // full path of files.dat file
+    sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
+
+    // memory footprint after mpi initialisation
+    report_mem_usage( "After MPI_Init" );
+
+    // reads mechanism information from bbcore_mech.dat
+    mk_mech( datpath );
+
+    report_mem_usage( "After mk_mech" );
+
+    // create net_cvode instance
+    mk_netcvode();
+
+    // One part done before call to nrn_setup. Other part after.
+    if ( input_params.patternstim ) {
+        nrn_set_extra_thread0_vdata();
+    }
+
+    report_mem_usage( "Before nrn_setup" );
+
+    // reading *.dat files and setting up the data structures
+    nrn_setup( input_params, filesdat, nrn_need_byteswap);
+
+    report_mem_usage( "After nrn_setup " );
+
+    // Invoke PatternStim
+    if ( input_params.patternstim) {
+        nrn_mkPatternStim( input_params.patternstim );
+    }
+
+    /// Setting the timeout
+    nrn_set_timeout(200.);
+
+    // show all configuration parameters for current run
+    input_params.show_cb_opts();
+}
+
+void CoreNeuronDataLoader::loadData(int argc, char ** argv)
+{ 
+    loadCoreNeuronData(argc, argv); //CoreNeuron
+
     //TODO: Debug: plot morphologies as dot file
     for (int k=0; k<nrn_nthread; k++)
     {
@@ -125,15 +182,17 @@ void CoreNeuronDataLoader::loadData()
                 Point_process * target = nc->target_;
                 //TODO from the target-> vars we get the mech type, and the instance of that type.
                 //we will need the hpx address of it
+                //TODO mod files requires point process structure, should be added
                 synapses.push_back(Synapse(*nc->weight_, nc->delay_, HPX_NULL)); //TODO HPX_NULL?
             }
             createNeuron(neuronId, compartments.at(n), mechanisms, APThreshold, synapses);
         }
     });
 
-    //int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     createBrain(neuronsCount, mechanisms);
 
+    nrn_cleanup(); //remode CoreNeuron data structs
 }
 
 void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mechanisms)

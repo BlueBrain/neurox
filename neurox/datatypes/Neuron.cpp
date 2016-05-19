@@ -21,7 +21,7 @@ int Neuron::initialize_handler(const int gid, const hpx_t topBranch,
     neuron->id=gid;
     neuron->synapsesCount=synapsesCount;
     neuron->APThreshold=APThreshold;
-    neuron->synapses = new Symbol[synapsesCount];
+    neuron->synapses = new Synapse[synapsesCount];
     memcpy(neuron->synapses, synapses, sizeof(Synapse)*synapsesCount);
 
     //unpin and return success

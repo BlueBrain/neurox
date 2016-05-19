@@ -27,7 +27,6 @@ typedef unsigned char byte;
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"
 #include "neurox/datatypes/Brain.h"
-#include "neurox/input/IDataLoader.h"
 #include "neurox/input/CoreNeuronDataLoader.h"
 
 
