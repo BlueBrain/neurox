@@ -118,55 +118,53 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 
         //reconstructs mechanisms for compartments
         int dataOffset=0, pdataOffset=0;
-        //int synOffset=0;
-        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next)
+        int synOffset=0;
+        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism (not Memb)
         {
             int mechId = tml->index;
+
             //Data unique to each mechanism type
             mechanisms[mechId] = Mechanism(nrn_prop_param_size_[mechId],
                     nrn_prop_dparam_size_[mechId],tml->ndependencies,
                     pnt_map[mechId], nrn_is_artificial_[mechId], tml->dependencies);
 
-            //Mechanisms' application to each compartment
-            Memb_list *& ml = tml->ml; //list of compartments this mechanism belongs to
+            //Mechanisms application to each compartment
+
+            Memb_list *& ml = tml->ml; //list of compartments this mechanism is applied to to
             int dataSize  = mechanisms[mechId].dataSize;
             int pdataSize = mechanisms[mechId].pdataSize;
-            for (int n=0; n<ml->nodecount; n++)
+            for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
                 Compartment & compartment = compartments[ml->nodeindices[n]];
+
+                if (mechanisms[mechId].pntMap > 0) //if this mech is a point process
+                {
+                    Point_process * sourcePntProc = &nt.pntprocs[synOffset+n];
+                    NetCon & nc = nt.netcons[synOffset+n];
+                    Point_process * targetPntProc = nc.target_;
+                }
+
                 compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
+            synOffset += ml->nodecount;
 
-            /*
-            //Incoming Synapses
-            if (mechanisms[mechId].pntMap > 0) //if point process
-            {
-                for (int n=0; n<ml->nodecount; n++)
-                {
-                    //Compartment & source = compartments[ml->nodeindices[n]];
-                    Point_process * sourcePntProc = &nt.pntprocs[synOffset+n];
-                    NetCon & nc = nt.netcons[synOffset+n];
-                    Point_process * targetPntProc = nc.target_;
-                    nc.
-                    //pntprocs->;
-                }
-                synOffset += ml->nodecount;
-            }
             ///  OR   ////
             //traverse (Output)preSyns (local spike exchange / event delivery)
             for (int s=0; s<nt.n_presyn; s++)
             {
-                int neuronId = nt.presyns[s]->gid_;
+                int preNeuronId = nt.presyns[s].gid_;
                 InputPreSyn * ips = gid2in[preNeuronId];
                 int offsetIps = ips->nc_index_;
                 for (int i = 0; i<ips->nc_cnt_; i++)
                 {
                     NetCon* ncPost = netcon_in_presyn_order_[offsetIps+i];
-                    //ncPost->target_->
+                    int mechId = ncPost->target_->_tid;
+                    int nrnThreadId = ncPost->target_->_tid;
+                    int mechOffset = ncPost->target_->_i_instance;
                 }
-            }*/
+            }
         }
 
         //We will create all neurons in HPX memory
