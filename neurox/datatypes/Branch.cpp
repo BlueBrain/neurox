@@ -4,9 +4,9 @@
 
 Branch::Branch(const int n, const double *a, const double *b, const double *d,
                const double *v, const double *rhs, const double *area,
-               const int mechsCount, const int * mechsIds, const double *data,
+               const int m, const int * mechsCounts, const double *data,
                const Datum *pdata, const int childrenCount, const hpx_t * children)
-    :n(n), childrenCount(childrenCount)
+    :n(n), m(m), childrenCount(childrenCount)
 {
     this->a = new double[n];
     this->b = new double[n];
@@ -14,7 +14,7 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
     this->v = new double[n];
     this->rhs = new double[n];
     this->area = new double[n];
-    this->mechsIds = new int[mechsCount];
+    this->mechsOffsets = new int[brain->mechsTypesCount];
     this->children = new hpx_t[childrenCount];
 
     memcpy(this->a,a,n*sizeof(double));
@@ -23,13 +23,16 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
     memcpy(this->v,v,n*sizeof(double));
     memcpy(this->rhs,rhs,n*sizeof(double));
     memcpy(this->area,area,n*sizeof(double));
-    memcpy(this->mechsIds,mechsIds,n*sizeof(int));
     memcpy(this->children, children, childrenCount*sizeof(hpx_t));
 
+    //calculate offsets based on count
     int dataSize=0, pdataSize=0;
-    for_each(brain->mechanisms, brain->mechanisms+brain->mechanismsCount, [&] (Mechanism & m){
-        dataSize += m.dataSize; pdataSize += m.pdataSize;
-    });
+    for (int i=0; i<brain->mechsTypesCount; i++)
+    {
+        dataSize += brain->mechsTypes[i].dataSize * mechsCounts[i];
+        pdataSize += brain->mechsTypes[i].pdataSize * mechsCounts[i];
+        mechsOffsets[i] = i==0 ? 0 : mechsOffsets[i-1]+ mechsCounts[i];
+    }
 
     this->data = new double[dataSize];
     this->pdata = new Datum[pdataSize];
@@ -45,7 +48,7 @@ Branch::~Branch()
     delete [] v;
     delete [] rhs;
     delete [] area;
-    delete [] mechsIds;
+    delete [] mechsOffsets;
     delete [] data;
     delete [] pdata;
     delete [] children;
@@ -54,7 +57,7 @@ Branch::~Branch()
 hpx_action_t Branch::initialize = 0;
 int Branch::initialize_handler(const int n, const double *a, const double *b, const double *d,
                                const double *v, const double *rhs, const double *area,
-                               const int mechsCount, const int * mechsIds, const double *data,
+                               const int m, const int * mechsCount, const double *data,
                                const Datum *pdata, const int childrenCount, const hpx_t * children)
 {
     //Make sure message arrived correctly, and pin memory
@@ -64,7 +67,7 @@ int Branch::initialize_handler(const int n, const double *a, const double *b, co
         return HPX_RESEND;
 
     //do the work
-    branch = new Branch(n,a,b,d,v,rhs,area,mechsCount,mechsIds, data, pdata, childrenCount, children);
+    branch = new Branch(n,a,b,d,v,rhs,area,m,mechsCount, data, pdata, childrenCount, children);
 
     //unpin and return success
     hpx_gas_unpin(branch_addr);

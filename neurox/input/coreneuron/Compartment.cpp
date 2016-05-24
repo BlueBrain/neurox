@@ -20,9 +20,10 @@ void Compartment::addChild(Compartment * child)
 };
 
 
-void Compartment::addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize)
+void Compartment::addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize, int instance)
 {
     mechsIds.push_back(mechId);
+    mechsInstances.push_back(instance);
     this->data.insert (this->data.end() , &data[0] , &data[dataSize]);
     this->pdata.insert(this->pdata.end(), &pdata[0], &pdata[pdataSize]);
 };

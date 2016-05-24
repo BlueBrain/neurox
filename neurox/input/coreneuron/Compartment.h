@@ -19,11 +19,12 @@ class Compartment
 
     void addChild(Compartment* child);
 
-    void addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
+    void addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize, int instance);
 
     vector<Compartment*> children;
     double a,b,d,v,rhs,area;
     vector<int> mechsIds;
+    vector<int> mechsInstances;
     vector<double> data;
     vector<Datum> pdata;
   private:

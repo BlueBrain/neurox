@@ -21,7 +21,7 @@ class Branch
     Branch()=delete;
     Branch(const int n, const double *a, const double *b, const double *d,
            const double *v, const double *rhs, const double *area,
-           const int mechsCount, const int * mechsIds, const double *data,
+           const int m, const int * mechsCount, const double *data,
            const Datum *pdata, const int childrenCount, const hpx_t * children);
     ~Branch();
 
@@ -35,8 +35,8 @@ class Branch
     double * area;			///> current area per compartment
 
     //Mechanisms data
-    int mechsCount;
-    int * mechsIds;
+    int m;                  ///> number of mechanisms applicatins
+    int * mechsOffsets;     ///> offset of each mechanims type
     double * data;			///> all double data used by all mechanisms
     int * pdata;			///> all int data used by all mechanisms
     //int * pntProcTargetId;	///> when using point process, the index of the compartment it updates
@@ -62,7 +62,7 @@ class Branch
 
     static int initialize_handler(const int n, const double *a, const double *b, const double *d,
                                   const double *v, const double *rhs, const double *area,
-                                  const int mechsCount, const int * mechsIds, const double *data,
+                                  const int m, const int * mechsOffsets, const double *data,
                                   const Datum *pdata, const int childrenCount, const hpx_t * children);
 };
 

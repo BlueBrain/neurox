@@ -99,11 +99,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     }
 
     //create the tree structure for all neurons and mechanism
-    struct target
-    {
-
-    };
-    vector<Mechanism> mechanisms;
+    vector<Mechanism> mechanisms; //unique info for mechanism
     for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
@@ -124,8 +120,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 
         //reconstructs mechanisms for compartments
         int dataOffset=0, pdataOffset=0;
-        map<Memb_list*, hpx_t> branchPerMech; //hpx addr of branch holding each mechanism
-        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism (not Memb)
+        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
             int mechId = tml->index;
 
@@ -147,14 +142,13 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
                     //NetCon & nc = nt.netcons[synOffset+n];
                     //Point_process * targetPntProc = nc.target_;
                 //}
-                compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
+                compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize, n);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
         }
 
-        //Process outgoing synapses
-        synOffset=0;
+        //Adds synapses (with CoreNeuron addressing)
         for (int n=0; n<nt.end; n++)
         {
             vector<Synapse> synapses;
@@ -164,24 +158,20 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             PreSyn * outSynapses = gid2out.at(neuronId); //one PreSyn per neuron
             for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contacts (outgoing Synapses)
             {
-                NetCon *& nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
-                Point_process *& target = nc->target_;
-                NrnThread *& targetNt = nrn_threads[target->_tid];
-                int & targetMechId = target->_type;
-
-                //get the right mechanism index
-                Memb_list * tml = targetNt->_ml_list[targetMechId];
-                int & targetMechInstance = target->_i_instance;
-                int m=-1;
-                for (m=0; m<targetMechInstance; m++, tml->tml->next);
-
-                //TODO mod files requires point process structure, should be added
-                synapses.push_back(Synapse(*nc->weight_, nc->delay_, HPX_NULL,m)); //TODO HPX_NULL?
+                NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
+                Point_process * target = nc->target_;
+                //NrnThread & targetNt = nrn_threads[target->_tid];
+                synapses.push_back(Synapse(*nc->weight_, nc->delay_, (hpx_t) target->_tid, target->_type, target->_i_instance));
             }
             double APThreshold = outSynapses->threshold_;
             createNeuron(neuronId, compartments.at(n), mechanisms, APThreshold, synapses);
         }
     }
+
+
+    //TODO do a collective call to convert Synapse addresses
+    //from ThreadId, mechType, mechInstance (in NrnThread)
+    //to branch hpx_t, mechType, mechInstance (in branch)
 
     int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     createBrain(neuronsCount, mechanisms);
@@ -221,13 +211,14 @@ void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, v
 
 hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
 {
-    Compartment *comp = nullptr;
+    int mechsTypesCount = mechanisms.size();
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
-    vector<int> mechsIds;
-    vector<double> data;
-    vector<Datum> pdata;
-    int mechsCount=0;
+    vector<int> mechsCount(mechsTypesCount,0);
+    vector<vector<double>> data(mechsTypesCount); //data per mechanism id
+    vector<vector<Datum>> pdata(mechsTypesCount); //pdata per mechanism id
+    Compartment *comp = nullptr;
+    int m=0; //number of mechs
     for (comp = topCompartment;
          comp->children.size()==1;
          comp = comp->children.front())
@@ -238,10 +229,16 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
         rhs.push_back(comp->rhs);
         v.push_back(comp->v);
         area.push_back(comp->area);
-        mechsIds.insert(mechsIds.end(), comp->mechsIds.begin(), comp->mechsIds.end());
-        data.insert(data.end(), comp->data.begin(), comp->data.end());
-        pdata.insert(pdata.end(), comp->pdata.begin(), comp->pdata.end());
-        mechsCount += comp->mechsIds.size();
+
+        //copy all mechanisms sorted by type
+        for (int i=0; i<comp->mechsIds.size(); i++)
+        {
+            int mechId = comp->mechsIds[i];
+            mechsCount[mechId]++;
+            data[i].insert(data[i].end(), comp->data.begin(), comp->data.end());
+            pdata[i].insert(pdata[i].end(), comp->pdata.begin(), comp->pdata.end());
+            m++;
+        }
         n++;
     };
 
@@ -254,10 +251,22 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
             children[c]=createBranch(comp->children[c], mechanisms);
     }
 
+    //merge all vectors into one
+    vector<double> data_merged;
+    vector<Datum> pdata_merged;
+    data_merged.reserve(m);
+    pdata_merged.reserve(m);
+    for (int i=0; i<mechsTypesCount; i++)
+    {
+        data_merged.insert(data_merged.end(), data[i].begin(), data[i].end() );
+        pdata_merged.insert(pdata_merged.end(), pdata[i].begin(), pdata[i].end() );
+    }
+
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, n, a.data(), b.data(), d.data(),
-                  v.data(), rhs.data(), area.data(), mechsCount, mechsIds.data(), data.data(),
-                  pdata.data(), childrenCount, children);
+                  v.data(), rhs.data(), area.data(), m, mechsCount.data(), data_merged.data(),
+                  pdata_merged.data(), childrenCount, children);
+
     return branchAddr;
 }

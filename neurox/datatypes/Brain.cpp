@@ -5,20 +5,20 @@ Brain * brain = nullptr; //global variable (defined in neurox.h)
 
 Brain::~Brain()
 {
-    delete [] mechanisms;
+    delete [] mechsTypes;
 }
 
 Brain::Brain(const int neuronsCount,
              const hpx_t neuronsAddr, const Mechanism * mechanisms,
              const size_t mechanismsCount, const int * mechDependencies)
-    : neuronsCount(neuronsCount), neuronsAddr(neuronsAddr), mechanismsCount(mechanismsCount)
+    : neuronsCount(neuronsCount), neuronsAddr(neuronsAddr), mechsTypesCount(mechanismsCount)
 {
     //add mechanisms information
     int offset=0;
-    this->mechanisms = new Mechanism[mechanismsCount];
+    this->mechsTypes = new Mechanism[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
     {
-        this->mechanisms[m]=Mechanism(mechanisms[m].dataSize, mechanisms[m].pdataSize,
+        this->mechsTypes[m]=Mechanism(mechanisms[m].dataSize, mechanisms[m].pdataSize,
                                       mechanisms[m].dependenciesCount, mechanisms[m].pntMap,
                                       mechanisms[m].isArtificial, &mechDependencies[offset]);
         offset += mechanisms[m].dependenciesCount;
