@@ -20,7 +20,7 @@
 
 using namespace std;
 
-void CoreNeuronDataLoader::loadCoreNeuronData(int argc, char ** argv)
+void CoreNeuronDataLoader::coreNeuronInitialSetup(int argc, char ** argv)
 {
     //memory footprint after HPX initialisation
     report_mem_usage( "After hpx_init" );
@@ -82,7 +82,7 @@ void CoreNeuronDataLoader::loadCoreNeuronData(int argc, char ** argv)
 
 void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 { 
-    loadCoreNeuronData(argc, argv); //CoreNeuron
+    coreNeuronInitialSetup(argc, argv);
 
     //TODO: Debug: plot morphologies as dot file
     for (int k=0; k<nrn_nthread; k++)
@@ -99,8 +99,14 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     }
 
     //create the tree structure for all neurons and mechanism
+    struct target
+    {
+
+    };
     vector<Mechanism> mechanisms;
-    for_each(nrn_threads, nrn_threads+nrn_nthread, [&](NrnThread & nt) {
+    for (int i=0; i<nrn_nthread; i++)
+    {
+        NrnThread & nt = nrn_threads[i];
 
         vector<Compartment> compartments;
         //reconstructs tree with solver values
@@ -118,7 +124,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 
         //reconstructs mechanisms for compartments
         int dataOffset=0, pdataOffset=0;
-        int synOffset=0;
+        map<Memb_list*, hpx_t> branchPerMech; //hpx addr of branch holding each mechanism
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism (not Memb)
         {
             int mechId = tml->index;
@@ -129,64 +135,53 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
                     pnt_map[mechId], nrn_is_artificial_[mechId], tml->dependencies);
 
             //Mechanisms application to each compartment
-
             Memb_list *& ml = tml->ml; //list of compartments this mechanism is applied to to
             int dataSize  = mechanisms[mechId].dataSize;
             int pdataSize = mechanisms[mechId].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
                 Compartment & compartment = compartments[ml->nodeindices[n]];
-
-                if (mechanisms[mechId].pntMap > 0) //if this mech is a point process
-                {
-                    Point_process * sourcePntProc = &nt.pntprocs[synOffset+n];
-                    NetCon & nc = nt.netcons[synOffset+n];
-                    Point_process * targetPntProc = nc.target_;
-                }
-
+                //if (mechanisms[mechId].pntMap > 0) //if this mech is a point process
+                //{
+                    //Point_process * sourcePntProc = &nt.pntprocs[synOffset+n];
+                    //NetCon & nc = nt.netcons[synOffset+n];
+                    //Point_process * targetPntProc = nc.target_;
+                //}
                 compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
-            synOffset += ml->nodecount;
-
-            ///  OR   ////
-            //traverse (Output)preSyns (local spike exchange / event delivery)
-            for (int s=0; s<nt.n_presyn; s++)
-            {
-                int preNeuronId = nt.presyns[s].gid_;
-                InputPreSyn * ips = gid2in[preNeuronId];
-                int offsetIps = ips->nc_index_;
-                for (int i = 0; i<ips->nc_cnt_; i++)
-                {
-                    NetCon* ncPost = netcon_in_presyn_order_[offsetIps+i];
-                    int mechId = ncPost->target_->_tid;
-                    int nrnThreadId = ncPost->target_->_tid;
-                    int mechOffset = ncPost->target_->_i_instance;
-                }
-            }
         }
 
-        //We will create all neurons in HPX memory
+        //Process outgoing synapses
+        synOffset=0;
         for (int n=0; n<nt.end; n++)
         {
             vector<Synapse> synapses;
             int neuronId = nt.presyns[n].gid_;
-            PreSyn * outSynapses = gid2out.at(neuronId);
-            double APThreshold = outSynapses->threshold_;
-            for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contact (outgoing Synapses)
+
+            //reconstructs synapses as <sourge GID, weight, delay, target branch, mech id>
+            PreSyn * outSynapses = gid2out.at(neuronId); //one PreSyn per neuron
+            for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contacts (outgoing Synapses)
             {
-                NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
-                Point_process * target = nc->target_;
-                //target->
-                //TODO from the target-> vars we get the mech type, and the instance of that type.
-                //we will need the hpx address of it
+                NetCon *& nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
+                Point_process *& target = nc->target_;
+                NrnThread *& targetNt = nrn_threads[target->_tid];
+                int & targetMechId = target->_type;
+
+                //get the right mechanism index
+                Memb_list * tml = targetNt->_ml_list[targetMechId];
+                int & targetMechInstance = target->_i_instance;
+                int m=-1;
+                for (m=0; m<targetMechInstance; m++, tml->tml->next);
+
                 //TODO mod files requires point process structure, should be added
-                synapses.push_back(Synapse(*nc->weight_, nc->delay_, HPX_NULL)); //TODO HPX_NULL?
+                synapses.push_back(Synapse(*nc->weight_, nc->delay_, HPX_NULL,m)); //TODO HPX_NULL?
             }
+            double APThreshold = outSynapses->threshold_;
             createNeuron(neuronId, compartments.at(n), mechanisms, APThreshold, synapses);
         }
-    });
+    }
 
     int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     createBrain(neuronsCount, mechanisms);
