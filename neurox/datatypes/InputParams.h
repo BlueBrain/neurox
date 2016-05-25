@@ -36,13 +36,13 @@ class InputParams
     char patternStim[2048];	///> patternStim file path
 
     static void registerHpxActions();		///> Register all HPX actions
-    static hpx_action_t initialize;	///> Initializes InputParams
+    static hpx_action_t init;	///> Initializes InputParams
     static hpx_action_t clear; ///> deletes all data (including neurons and branches)
 
   private:
     /// Parses command line arguments and populates structure
     void parseCommandLine(int argc, char ** argv);
-    static int initialize_handler(const InputParams * inputParams, const size_t size); ///>HPX constructor
+    static int init_handler(const InputParams * inputParams, const size_t size); ///>HPX constructor
     static int clear_handler(); ///> HPX destructor
 } ;
 

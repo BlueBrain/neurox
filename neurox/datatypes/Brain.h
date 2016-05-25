@@ -25,18 +25,22 @@ class Brain
     Mechanism * mechsTypes; ///> Unique information per mechanism type
 
     static void registerHpxActions(); ///> Registers all HPX actions
-    static hpx_action_t initialize; ///> Initializes Circuit as a copy
+    static hpx_action_t init; ///> Initializes Circuit as a copy
     static hpx_action_t clear; ///> deletes all data (including neurons and branches)
+    static hpx_action_t finitialize; ///> finitialize.c::nrn_finitialize
 
     inline hpx_t getNeuronAddr(int i) const {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     }; ///> returns hpx address for i-th neuron
 
   private:
-    static int initialize_handler(const int neuronsCount,
+
+    static int init_handler(const int neuronsCount,
                                   const hpx_t neuronsAddr, const Mechanism * mechsTypes,
                                   const size_t mechsTypesCount, const int * mechDependencies);
                                   ///>HPX constructor
+
+    static int finitialize_handler(); ///finitialize.c
 
     static int clear_handler(); ///> HPX destructor
 } ;

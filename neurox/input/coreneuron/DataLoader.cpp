@@ -15,6 +15,7 @@
 #include "coreneuron/nrniv/nrn_assert.h"
 #include "coreneuron/nrniv/nrn_setup.h"
 #include "coreneuron/utils/memory_utils.h"
+#include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 
 #include "neurox/neurox.h"
 
@@ -80,6 +81,7 @@ void CoreNeuronDataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
+extern double** ion_global_map;
 void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 { 
     coreNeuronInitialSetup(argc, argv);
@@ -122,17 +124,19 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         int dataOffset=0, pdataOffset=0;
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
-            int mechId = tml->index;
+            int type = tml->index;
+            char isIon = nrn_is_ion(type);
 
             //Data unique to each mechanism type
-            mechanisms[mechId] = Mechanism(nrn_prop_param_size_[mechId],
-                    nrn_prop_dparam_size_[mechId],tml->ndependencies,
-                    pnt_map[mechId], nrn_is_artificial_[mechId], tml->dependencies);
+            mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
+                    nrn_prop_dparam_size_[type],tml->ndependencies,
+                    pnt_map[type], nrn_is_artificial_[type], tml->dependencies,
+                    isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
 
             //Mechanisms application to each compartment
             Memb_list *& ml = tml->ml; //list of compartments this mechanism is applied to to
-            int dataSize  = mechanisms[mechId].dataSize;
-            int pdataSize = mechanisms[mechId].pdataSize;
+            int dataSize  = mechanisms[type].dataSize;
+            int pdataSize = mechanisms[type].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
                 Compartment & compartment = compartments[ml->nodeindices[n]];
@@ -142,7 +146,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
                     //NetCon & nc = nt.netcons[synOffset+n];
                     //Point_process * targetPntProc = nc.target_;
                 //}
-                compartment.addMechanism(mechId, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize, n);
+                compartment.addMechanism(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize, n);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -197,7 +201,7 @@ void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mec
 
     //Broadcasts (serialized) brain
     printf("Broadcasting Circuit info...\n");
-    int e = hpx_bcast_rsync(Brain::initialize, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
+    int e = hpx_bcast_rsync(Brain::init, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
     assert(e == HPX_SUCCESS);
 
     delete [] mechsDependencies;
@@ -206,7 +210,7 @@ void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mec
 void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses)
 {
     hpx_t topBranch = createBranch(&topCompartment, mechanisms);
-    hpx_call_sync(brain->getNeuronAddr(gid), Neuron::initialize, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
+    hpx_call_sync(brain->getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
 }
 
 hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
@@ -264,7 +268,7 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    hpx_call_sync(branchAddr, Branch::initialize, NULL, 0, n, a.data(), b.data(), d.data(),
+    hpx_call_sync(branchAddr, Branch::init, NULL, 0, n, a.data(), b.data(), d.data(),
                   v.data(), rhs.data(), area.data(), m, mechsCount.data(), data_merged.data(),
                   pdata_merged.data(), childrenCount, children);
 

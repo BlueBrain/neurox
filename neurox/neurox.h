@@ -30,6 +30,8 @@ typedef unsigned char byte;
 #include "neurox/input/coreneuron/DataLoader.h"
 
 
+#define DataLoader CoreNeuronDataLoader ///> Class responsible for loading data
+
 //Global variables (defined on the classes' cpp files)
 extern InputParams * inputParams;
 extern Brain * brain;

@@ -46,10 +46,12 @@ class Branch
     hpx_t * children;		///> hpx address of the children branches
 
     static void registerHpxActions(); ///> Register all HPX actions
-    static hpx_action_t initialize; ///> Initializes Branch
+    static hpx_action_t init; ///> Initializes Branch
+    static hpx_action_t finitialize; ///> finitialize.c::nrn_finitialize
 
   private:
-    //semaphore
+
+//semaphore
 //    hpx_t mutex;			///> mutex to protect this branch's memory access
 
 //#if USE_LCO_FUTURE_ARRAY==0
@@ -60,10 +62,14 @@ class Branch
 //    FwSubFutureData * futuresData;
 //#endif
 
-    static int initialize_handler(const int n, const double *a, const double *b, const double *d,
+    static int init_handler(const int n, const double *a, const double *b, const double *d,
                                   const double *v, const double *rhs, const double *area,
                                   const int m, const int * mechsOffsets, const double *data,
                                   const Datum *pdata, const int childrenCount, const hpx_t * children);
+
+    static int finitialize_handler(); ///finitialize.c
+
+    static void setupTreeMatrixMinimal(Branch * b); ///> Initializes RHS and LHS on tree matrix
 };
 
 class FwSubFutureData

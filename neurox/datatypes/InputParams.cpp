@@ -27,8 +27,8 @@ InputParams::InputParams (int argc, char** argv):
 InputParams::~InputParams()
 {}
 
-hpx_action_t InputParams::initialize = 0;
-int InputParams::initialize_handler(const InputParams * inputParams_new, const size_t size)
+hpx_action_t InputParams::init = 0;
+int InputParams::init_handler(const InputParams * inputParams_new, const size_t size)
 {
     //Make sure message arrived correctly, and pin memory
     hpx_t target = hpx_thread_current_target();
@@ -119,6 +119,6 @@ void InputParams::parseCommandLine(int argc, char ** argv)
 
 void InputParams::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  initialize, initialize_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  clear, clear_handler);
 }
