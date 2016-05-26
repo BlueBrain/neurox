@@ -24,23 +24,25 @@ class Brain
     int mechsTypesCount;    ///> number of mechanisms
     Mechanism * mechsTypes; ///> Unique information per mechanism type
 
+    //BeforeAfter function list (few functions per mechanism)
+    mod_f_t *beforeAfterFunction[BEFORE_AFTER_SIZE];
+
     static void registerHpxActions(); ///> Registers all HPX actions
     static hpx_action_t init; ///> Initializes Circuit as a copy
     static hpx_action_t clear; ///> deletes all data (including neurons and branches)
     static hpx_action_t finitialize; ///> finitialize.c::nrn_finitialize
+    static hpx_action_t solve; ///>netpar.cpp:BBS_netpar_solve()
 
     inline hpx_t getNeuronAddr(int i) const {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     }; ///> returns hpx address for i-th neuron
-
   private:
 
-    static int init_handler(const int neuronsCount,
-                                  const hpx_t neuronsAddr, const Mechanism * mechsTypes,
-                                  const size_t mechsTypesCount, const int * mechDependencies);
-                                  ///>HPX constructor
-
-    static int finitialize_handler(); ///finitialize.c
-
+    static int callBeforeAfterMethod(const int functionId);
+    static int finitialize_handler(); ///>finitialize.c::finitialize()
+    static int solve_handler(); ///>netpar.cpp:BBS_netpar_solve()
     static int clear_handler(); ///> HPX destructor
+    static int init_handler(const int neuronsCount, const hpx_t neuronsAddr,
+                            const Mechanism *mechsTypes, const size_t mechsTypesCount,
+                            const int *mechDependencies) ; ///>HPX constructor
 } ;

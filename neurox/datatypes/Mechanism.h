@@ -48,6 +48,10 @@ class Mechanism
     mod_f_t	initialize;
     Pfri destructor;
 
+    //capacitors only method (capac.c)
+    void (*nrn_cap_jacob)(NrnThread*, Memb_list*){};
+
+
     mod_f_t beforeAfterFunctions[BEFORE_AFTER_SIZE]; //Not used in BBP models
 
   private:

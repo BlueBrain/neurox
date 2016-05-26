@@ -27,12 +27,9 @@ static int main_hpx_handler( const int argc, char ** argv)
     //reads morphology data
     DataLoader::loadData(argc, argv);
 
+    //TODO Brain is global var, not HPX addr...?
     e = hpx_bcast_rsync(Brain::finitialize); //nrn_finitialize( 1, inputParams.voltage );
     assert(e == HPX_SUCCESS);
-
-    nrn_finitialize( 1, inputParams.voltage );
-
-    report_mem_usage( "After nrn_finitialize" );
 
     // call prcellstae for prcellgid
     //opens the file that will store this cell's info
@@ -47,8 +44,8 @@ static int main_hpx_handler( const int argc, char ** argv)
     //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
     //}
 
-    /// Solver execution
-    BBS_netpar_solve( inputParams.tstop );
+    e = hpx_bcast_rsync(Brain::solve); //BBS_netpar_solve( inputParams.tstop );
+    assert(e == HPX_SUCCESS);
 
     // Report global cell statistics
     report_cell_stats();

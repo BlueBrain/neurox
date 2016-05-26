@@ -7,6 +7,22 @@
 typedef hpx_addr_t hpx_t;
 typedef unsigned char byte;
 
+///hpx wrappers for the pin operation
+#define neurox_hpx_pin(Type) \
+        hpx_t target = hpx_thread_current_target(); \
+        Type *local = NULL; \
+        if (!hpx_gas_try_pin(target, (Type**) &local)) \
+            return HPX_RESEND;
+
+///hpx wrappers for the unpin operation
+#define neurox_hpx_unpin \
+        hpx_gas_unpin(target); \
+        return HPX_SUCCESS;
+
+#define neurox_hpx_unpin_continue(Var) \
+        hpx_gas_unpin(target); \
+        HPX_THREAD_CONTINUE(Var);
+
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0
 

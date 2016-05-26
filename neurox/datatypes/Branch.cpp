@@ -38,6 +38,12 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
     this->pdata = new Datum[pdataSize];
     memcpy(this->data, data, dataSize*sizeof(double));
     memcpy(this->pdata, pdata, pdataSize*sizeof(Datum));
+
+    //for recursive calls
+    this->futures = childrenCount ? new hpx_t[childrenCount] : nullptr;
+    this->futuresAddrs = childrenCount ? new (void*)[childrenCount] : nullptr;
+    this->futuresSizes = childrenCount ? new int[childrenCount] : nullptr;
+    this->futuresData = childrenCount ? new FwSubFutureData[childrenCount] : nullptr;
 }
 
 Branch::~Branch()
@@ -52,6 +58,11 @@ Branch::~Branch()
     delete [] data;
     delete [] pdata;
     delete [] children;
+
+    delete [] futures;
+    delete [] futuresAddrs;
+    delete [] futuresSizes;
+    delete [] futuresData;
 }
 
 hpx_action_t Branch::init = 0;
@@ -60,92 +71,150 @@ int Branch::init_handler(const int n, const double *a, const double *b, const do
                                const int m, const int * mechsCount, const double *data,
                                const Datum *pdata, const int childrenCount, const hpx_t * children)
 {
-    //Make sure message arrived correctly, and pin memory
-    hpx_t branch_addr = hpx_thread_current_target();
-    Branch * branch = NULL;
-    if (!hpx_gas_try_pin(branch_addr, (void**) &branch))
-        return HPX_RESEND;
+    neurox_hpx_pin(Branch);;
 
     //do the work
-    branch = new Branch(n,a,b,d,v,rhs,area,m,mechsCount, data, pdata, childrenCount, children);
+    local = new Branch(n,a,b,d,v,rhs,area,m,mechsCount, data, pdata, childrenCount, children);
 
-    //unpin and return success
-    hpx_gas_unpin(branch_addr);
-    return HPX_SUCCESS;
+    neurox_hpx_unpin;;
 }
 
-hpx_action_t Branch::finitialize = 0;
-int Branch::finitialize_handler()
+hpx_action_t Branch::setV = 0;
+int Branch::setV_handler(const double v)
 {
-    //Make sure message arrived correctly, and pin memory
-    hpx_t branch_addr = hpx_thread_current_target();
-    Branch * branch = NULL;
-    if (!hpx_gas_try_pin(branch_addr, (void**) &branch))
-        return HPX_RESEND;
+    neurox_hpx_pin(Branch);
 
-    //set by finitialize.c:nrn_finitialize()
-    for (int i=0; i<branch->n; i++)
-        branch->v[i]=inputParams->voltage;
+    //do the work
+    for (int n=0; n<local->n; n++)
+    {
+        local->v[n]=v;
+        local->rhs[n]=0;
+        local->d[n]=0;
+    }
 
-    setupTreeMatrixMinimal(branch);
-
-    //call it for every sub-branch
-    hpx_par_for_sync(
-       [&] (int i, void*) { hpx_call_sync(branch->children[i], Branch::finitialize);},
-       0, branch->childrenCount, NULL);
-
-    //unpin and return success
-    hpx_gas_unpin(branch_addr);
-    return HPX_SUCCESS;
+    neurox_hpx_unpin;
 }
 
-void Branch::setupTreeMatrixMinimal(Branch * branch)
+hpx_action_t Branch::setupMatrixRHS = 0;
+int Branch::setupMatrixRHS_handler(const char isSoma, const double parentV)
 {
-    //RIGHT HAND SIDE: treesetcore.c::nrn_rhs
-    for (int i=0; i<branch->n; i++)
+    neurox_hpx_pin(Branch);
+
+    double *a   = local->a;
+    double *b   = local->b;
+    double *d   = local->d;
+    double *rhs = local->rhs;
+    int childrenCount = local->childrenCount;
+
+    double returnValue = -1; //contribution to upper branch
+    double dv=-1;
+
+    //for (i = i2; i < i3; ++i))
+    if (!isSoma)
     {
-        branch->rhs[i]=0;
-        branch->d[i]=0;
+        dv = parentV-v[0];
+        rhs[0] -= b[0]*dv;
+        returnValue = a[0]*dv;
+    }
+    for (int i=1; i<local->n; i++)
+    {
+        dv = v[i-1]-v[i];
+        rhs[i] -= b[i]*dv;
+        rhs[i-1] += a[i]*dv;
     }
 
-    //call current method in all mechanisms (inside the mod file it iterates across all applications)
-    for (int i=0; i<brain->mechsTypesCount; i++)
-        if (brain->mechsTypes[i].current)
-            (brain->mechsTypes[i].current)(/*NrnThread nt, Memb_list ml. i*/);
-             //TODO pass pdata/data offsets and count of mechs applications instead
-
-    //TODO run nrn_ba(_nt, BEFORE_BREAKPOINT);
-
-    //the internal axial currents: rhs += ai_j*(vi_j - vi)
-    //The extracellular mechanism contribution is already done.
-    for (int i=0; i<branch->n; i++)
+    //send/receive contribution to/from children
+    hpx_t * futures = new hpx_t[childrenCount];
+    void  ** addrs  = new (void*)[childrenCount];
+    size_t * sizes  = new size_t[childrenCount];
+    double * values = new double[childrenCount];
+    char notSoma=0;
+    for (int c = 0; c < local->childrenCount; c++)
     {
-       //TODO
+        futures[c] = hpx_lco_future_new(sizeof(double));
+        addrs[c]   = &values[c];
+        sizes[c]   = sizeof(double);
+        hpx_call(local->children[c], setupMatrixRHS_handler, futures[c], &local->v[n-1], &notSoma);
     }
 
-    //TODO ---------------------------
+    if (childrenCount > 0) //required or fails
+        hpx_lco_get_all(childrenCount, futures, sizes, addrs, NULL);
 
-    /* LEFT HAND SIDE: treesetcore.c::nrn_lhs
-         cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
-         cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
-       with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
-       hand side after solving.
-       This is a common operation for fixed step, cvode, and daspk methods
-    */
-
-    //call jacob method in all mechanisms
-    for (int i=0; i<brain->mechsTypesCount; i++)
-        if (brain->mechsTypes[i].jacob)
-            (brain->mechsTypes[i].jacob)(/*NrnThread nt, Memb_list ml. i*/);
-
-    //now the cap current can be computed because any change to cm by another model has taken effect
-    //TODO nrn_cap_jaco
-
-    //now add the axial currents
-    for (int i=0; i<branch->n; i++)
+    //received contributions, can now update value
+    for (int c = 0; c < childrenCount; c++)
     {
-
+        rhs[n-1] += values[c];
+        hpx_lco_delete(futures[c], HPX_NULL);
     }
+
+    delete [] futures;
+    delete [] addrs;
+    delete [] sizes;
+    delete [] values;
+
+    if (!isSoma)
+        neurox_hpx_unpin_continue(returnValue);
+    else
+        neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::setupMatrixLHS = 0;
+int Branch::setupMatrixLHS_handler(const char isSoma)
+{
+    neurox_hpx_pin(Branch);
+
+    double *a   = local->a;
+    double *b   = local->b;
+    double *d   = local->d;
+    int childrenCount = local->childrenCount;
+
+    double returnValue = -1; //contribution to upper branch
+
+    //for (i = i2; i < i3; ++i))
+    if (!isSoma)
+    {
+        d[0] -= b[0];
+        returnValue = a[0];
+    }
+    for (int i=1; i<local->n; i++)
+    {
+        d[i]   -= b[i];
+        d[i-1] -= a[i];
+    }
+
+    //send/receive contribution to/from children
+    hpx_t * futures = new hpx_t[childrenCount];
+    void  ** addrs  = new (void*)[childrenCount];
+    size_t * sizes  = new size_t[childrenCount];
+    double * values = new double[childrenCount];
+    char notSoma=0;
+    for (int c = 0; c<local->childrenCount; c++)
+    {
+        futures[c] = hpx_lco_future_new(sizeof(double));
+        addrs[c]   = &values[c];
+        sizes[c]   = sizeof(double);
+        hpx_call(local->children[c], setupMatrixRHS_handler, futures[c], &local->v[n-1], &notSoma);
+    }
+
+    if (childrenCount > 0) //required or fails
+        hpx_lco_get_all(childrenCount, futures, sizes, addrs, NULL);
+
+    //received contributions, can now update value
+    for (int c = 0; c < childrenCount; c++)
+    {
+        d[n-1] -= values[c];
+        hpx_lco_delete(futures[c], HPX_NULL);
+    }
+
+    delete [] futures;
+    delete [] addrs;
+    delete [] sizes;
+    delete [] values;
+
+    if (!isSoma)
+        neurox_hpx_unpin_continue(returnValue);
+    else
+        neurox_hpx_unpin;
 }
 
 void Branch::registerHpxActions()
@@ -154,5 +223,7 @@ void Branch::registerHpxActions()
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
 
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  finitialize, finitialize_handler);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixRHS, setupMatrixRHS_handler, HPX_CHAR, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_DOUBLE);
 }
