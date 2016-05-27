@@ -28,10 +28,6 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
 
     //register functions //TODO will not work in more than 1 compute node
     this->alloc = memb_func[type].alloc;
-    this->current = memb_func[type].current;
-    this->jacob = memb_func[type].jacob;
-    this->state = memb_func[type].state;
-    this->initialize = memb_func[type].initialize;
     this->thread_mem_init = memb_func[type].thread_mem_init_;
     this->thread_cleanup = memb_func[type].thread_cleanup_;
     this->thread_table_check = memb_func[type].thread_table_check_;
@@ -40,9 +36,15 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
     memcpy(this->name, memb_func[type].sym, 64);
 
     //finitialize.c->nrn_finitialize()->nrn_ba()
+    functions[Function::current] = memb_func[type].current;
+    functions[Function::jacob] = memb_func[type].jacob;
+    functions[Function::state] = memb_func[type].state;
+    functions[Function::initialize] = memb_func[type].initialize;
+
+    //Before After Functions will be set after (by Brain)
     //register_mech.c::hoc_reg_ba()
-    for (int i=0; i<BEFORE_AFTER_SIZE; i++)
-        beforeAfterFunctions[i] = (mod_f_t) 0; //TODO
+    for (int i=Function::initialize; i< Function::functionsCount; i++)
+        functions[i] = (mod_f_t) 0; //TODO
 
      //look up tables: multicore.c::nrn_thread_table_check()
     //where's the look up table data

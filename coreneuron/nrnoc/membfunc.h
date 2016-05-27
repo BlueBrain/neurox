@@ -78,6 +78,7 @@ typedef struct Memb_func {
 #define AFTER_SOLVE 3
 #define BEFORE_STEP 4
 #define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
+
 typedef struct BAMech {
 	mod_f_t f;
 	int type;

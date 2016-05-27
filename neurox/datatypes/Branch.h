@@ -50,6 +50,12 @@ class Branch
     static hpx_action_t setupMatrixRHS; ///> finitialize.c::nrn_finitialize
     static hpx_action_t setupMatrixLHS; ///> finitialize.c::nrn_finitialize
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
+    static hpx_action_t callMechsFunction(const int functionId); ///> BAMembList and nrn_ba
+
+    //incoming synapses
+    map<int,int> synapsesOffset;    ///> offset of synapses in synapses arrays for a given pre-syn neuron
+    int synapsesCount;
+    Synapse * synapses;
 
   private:
 
@@ -62,16 +68,17 @@ class Branch
     void** futuresAddrs;
     FwSubFutureData * futuresData;
 
-    static int init_handler(const int n, const double *a, const double *b, const double *d,
-                                  const double *v, const double *rhs, const double *area,
-                                  const int m, const int * mechsOffsets, const double *data,
-                                  const Datum *pdata, const int childrenCount, const hpx_t * children);
-
     static int setupMatrixRHS_handler(const char isSoma, const double v_parent); ///finitialize.c
     static int setupMatrixLHS_handler(const char isSoma); ///finitialize.c
     static int setV_handler(const double v); ///finitialize.c: if (setv)
+    static int callMechsFunction_handler(const Mechanism::Function functionId); ///> BAMembList and nrn_ba
+    static int init_handler(const int n, const double *a, const double *b, const double *d,
+                            const double *v, const double *rhs, const double *area,
+                            const int m, const int * mechsOffsets, const double *data,
+                            const Datum *pdata, const int childrenCount, const hpx_t * children);
 };
 
+//TODO we're not using this
 class FwSubFutureData
 {
   public:

@@ -72,10 +72,7 @@ int Branch::init_handler(const int n, const double *a, const double *b, const do
                                const Datum *pdata, const int childrenCount, const hpx_t * children)
 {
     neurox_hpx_pin(Branch);;
-
-    //do the work
     local = new Branch(n,a,b,d,v,rhs,area,m,mechsCount, data, pdata, childrenCount, children);
-
     neurox_hpx_unpin;;
 }
 
@@ -83,7 +80,6 @@ hpx_action_t Branch::setV = 0;
 int Branch::setV_handler(const double v)
 {
     neurox_hpx_pin(Branch);
-
     //do the work
     for (int n=0; n<local->n; n++)
     {
@@ -91,7 +87,6 @@ int Branch::setV_handler(const double v)
         local->rhs[n]=0;
         local->d[n]=0;
     }
-
     neurox_hpx_unpin;
 }
 
@@ -217,13 +212,23 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
         neurox_hpx_unpin;
 }
 
+hpx_action_t Branch::callMechsFunction = 0;
+int Branch::callMechsFunction_handler(const Mechanism::Function functionId)
+{
+    neurox_hpx_pin(Branch);
+    for (int m=0; m<brain->mechsTypesCount; m++)
+        if (brain->mechsTypes[m].functions[functionId])
+            brain->mechsTypes[m].functions[functionId](NULL, NULL, m);
+    neurox_hpx_unpin;
+}
+
 void Branch::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
-                        HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
-                        HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
-
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixRHS, setupMatrixRHS_handler, HPX_CHAR, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
+                        HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
+                        HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
 }

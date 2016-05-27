@@ -23,17 +23,12 @@ typedef unsigned char byte;
         hpx_gas_unpin(target); \
         HPX_THREAD_CONTINUE(Var);
 
+//defines (should be moved to a struct at some point)
+#define ALL_NEURONS -1 //TODO make it static
+
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0
-
 #define THREAD_ID hpx_thread_get_tls_id()
-
-//just renaming a hpx function for convenience
-#define hpx_gas_for hpx_count_range_call //TODO use this, equivalent to a hpx_gas_for (where/how?)
-
-//TODO: using cyclic instead of blocked: this function is not implemented yet
-#define hpx_gas_calloc_blocked hpx_gas_calloc_cyclic
-
 #define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
 
 #include "neurox/datatypes/InputParams.h"

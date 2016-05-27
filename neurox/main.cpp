@@ -47,6 +47,9 @@ static int main_hpx_handler( const int argc, char ** argv)
     e = hpx_bcast_rsync(Brain::solve); //BBS_netpar_solve( inputParams.tstop );
     assert(e == HPX_SUCCESS);
 
+    BBS_netpar_solve( inputParams.tstop );
+        assert(e == HPX_SUCCESS);
+
     // Report global cell statistics
     report_cell_stats();
 

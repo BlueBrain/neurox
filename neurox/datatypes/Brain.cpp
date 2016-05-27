@@ -28,28 +28,30 @@ Brain::Brain(const int neuronsCount,
         offset += mechanisms[m].dependenciesCount;
     }
 
-    //TODO will work on single node only
-    //Copy function pointers for BA calls
-    beforeAfterFunction = new (mod_f_t[BEFORE_AFTER_SIZE])(mechsTypesCount);
-    for (int m=0; m<mechsTypesCount; m++)
-        for (int ba=0; ba<BEFORE_AFTER_SIZE; ba++)
-            beforeAfterFunction[m][ba] = 0 (mod_f_t);
-
-    for (int nt=0; nt<nrn_nthread; nt++)
-        for (NrnThreadBAList *tbl = nt->tbl[bat]; tbl; tbl = tbl->next)
+    //copy BA functions
+    for (int bat=0; bat<BEFORE_AFTER_SIZE; bat++)
+    {
+        int idMechFunction = bat+4;
+        for (int nt=0; nt<nrn_nthread; nt++)
         {
-            mod_f_t f = tbl->bam->f;
-            int type = tbl->bam->type;
-            beforeAfterFunction[type][bat]=f;
+            for (NrnThreadBAList *tbl = nt->tbl[bat]; tbl; tbl = tbl->next)
+            {
+                auto f = tbl->bam->f;
+                int type = tbl->type;
+                mechanisms[type].functions[idMechFunction]=f;
+            }
         }
+    }
 };
 
-
-int Brain::callBeforeAfterMethod(const int functionId)
+int Brain::callMechsFunction(const Mechanism::Function functionId, const int neuronId)
 {
-    for (int m=0; m<mechsTypesCount; m++)
-        if (beforeAfterFunction[m][functionId])
-            beforeAfterFunction[m][functionId](NULL, NULL, m);
+    if (neuronId!=ALL_NEURONS)
+        hpx_call_sync(brain->getNeuronAddr(neuronId), Neuron::callMechsFunction, NULL, 0, functionId);
+    else
+        hpx_par_for_sync( [&] (int i, void*)
+            { hpx_call_sync(local->getNeuronAddr(i), Neuron::callMechsFunction, NULL, 0, functionId);},
+            0, local->neuronsCount,  NULL, 0, functionId);
 }
 
 hpx_action_t Brain::clear = 0;
@@ -82,26 +84,20 @@ int Brain::finitialize_handler()
        [&] (int i, void*) { hpx_call_sync(local->getNeuronAddr(i), Neuron::setV);},
        0, local->neuronsCount, NULL, v);
 
-    callBeforeAfterMethod(BEFORE_INITIAL);
-
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
-    for (int m=0; m<local->mechsTypesCount; m++)
-        if (local->mechsTypes[m].initialize)
-            local->mechsTypes[m].initialize(NULL, NULL, m);
-
-    callBeforeAfterMethod(AFTER_INITIAL);
+    callMechsFunction(Mechanism::Function::before_initialize);
+    callMechsFunction(Mechanism::Function::initialize);
+    callMechsFunction(Mechanism::Function::after_initialize);
 
     //now add the axial currents
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-    callBeforeAfterMethod(BEFORE_BREAKPOINT);
+    callMechsFunction(Mechanism::Function::before_breakpoint);
 
     //note that CAP has no current
-    for (int m=0; m<local->mechsTypesCount; m++)
-        if (local->mechsTypes[m].current)
-            local->mechsTypes[m].current(NULL, NULL, m);
+    callMechsFunction(Mechanism::Function::current);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
     // now the internal axial currents.
@@ -118,9 +114,7 @@ int Brain::finitialize_handler()
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
     // note that CAP has no jacob
-    for (int m=0; m<local->mechsTypesCount; m++)
-        if (local->mechsTypes[m].jacob)
-            local->mechsTypes[m].jacob(NULL, NULL, m);
+    callMechsFunction(Mechanism::Function::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
@@ -142,14 +136,9 @@ int Brain::init_handler(const int neuronsCount,
            const size_t mechanismsCount, const int * mechDependencies)
 {
     neurox_hpx_pin(Brain);
-
-    //initialize global variable brain
     brain = new Brain(neuronsCount, neuronsAddr, mechanisms, mechanismsCount, mechDependencies);
-
-    //clean up
     delete [] mechanisms;
     delete [] mechDependencies;
-
     neurox_hpx_unpin;
 }
 

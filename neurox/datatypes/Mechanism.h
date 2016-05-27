@@ -41,18 +41,34 @@ class Mechanism
     void (*thread_table_check)(int, int, double*, Datum*, ThreadDatum*, void*, int); ///> Look up tables for mechanisms
     void (*setdata)(double*, Datum*); ///> sets Data??
 
+    //Other functions (no mod_f_t type)
     mod_alloc_t alloc;
-    mod_f_t	current;
-    mod_f_t	jacob;
-    mod_f_t	state;
-    mod_f_t	initialize;
     Pfri destructor;
-
     //capacitors only method (capac.c)
     void (*nrn_cap_jacob)(NrnThread*, Memb_list*){};
 
+//    typedef void (*mod_alloc_t)(double*, Datum*, int);
+//    typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
+//    typedef void (*pnt_receive_t)(Point_process*, double*, double);
 
-    mod_f_t beforeAfterFunctions[BEFORE_AFTER_SIZE]; //Not used in BBP models
+    //from memb_func.h (before after functions not used on BBP models)
+    enum Function
+    {
+        current=0,
+        jacob=1,
+        state=2,
+        initialize=3,
+        before_initialize=4,
+        after_initialize=5,
+        before_breakpoint=6,
+        after_solve=7,
+        before_step=8,
+        functionsCount=9 //+1 than previous
+    };
+
+    mod_f_t functions[Function::functionsCount]; ///>mechanism functions (with mod_f_t type)
+
+
 
   private:
 };

@@ -7,7 +7,11 @@
 
 using namespace std;
 
-Compartment::~Compartment(){}
+Compartment::~Compartment()
+{
+    for (int c=0; c<children.size(); c++)
+        delete children[c];
+}
 
 void Compartment::setSolverValues(double a, double b, double d, double v, double rhs, double area)
 {
@@ -20,7 +24,7 @@ void Compartment::addChild(Compartment * child)
 };
 
 
-void Compartment::addMechanism(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize, int instance)
+void Compartment::addMechanism(int mechId, int instance, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
     mechsIds.push_back(mechId);
     mechsInstances.push_back(instance);

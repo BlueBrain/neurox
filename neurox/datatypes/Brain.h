@@ -24,9 +24,6 @@ class Brain
     int mechsTypesCount;    ///> number of mechanisms
     Mechanism * mechsTypes; ///> Unique information per mechanism type
 
-    //BeforeAfter function list (few functions per mechanism)
-    mod_f_t *beforeAfterFunction[BEFORE_AFTER_SIZE];
-
     static void registerHpxActions(); ///> Registers all HPX actions
     static hpx_action_t init; ///> Initializes Circuit as a copy
     static hpx_action_t clear; ///> deletes all data (including neurons and branches)
@@ -38,7 +35,7 @@ class Brain
     }; ///> returns hpx address for i-th neuron
   private:
 
-    static int callBeforeAfterMethod(const int functionId);
+    static int callMechsFunction(const Mechanism::Function, const int neuronId = ALL_NEURONS);
     static int finitialize_handler(); ///>finitialize.c::finitialize()
     static int solve_handler(); ///>netpar.cpp:BBS_netpar_solve()
     static int clear_handler(); ///> HPX destructor
