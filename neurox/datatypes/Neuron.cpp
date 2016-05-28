@@ -48,7 +48,6 @@ int Neuron::setupMatrixRHS_handler()
     neurox_hpx_unpin;
 }
 
-
 hpx_action_t Neuron::setupMatrixLHS = 0;
 int Neuron::setupMatrixLHS_handler()
 {
@@ -57,7 +56,6 @@ int Neuron::setupMatrixLHS_handler()
     hpx_call_sync(local->topBranch, Branch::setupMatrixLHS, NULL, 0, isSoma);
     neurox_hpx_unpin;
 }
-
 
 hpx_action_t Neuron::setCj = 0;
 int Neuron::setCj(const double cj)
@@ -77,5 +75,3 @@ void Neuron::registerHpxActions()
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setCj, setCj_handler, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
 }
-
-

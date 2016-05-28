@@ -174,13 +174,13 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
                 int instance = target->_i_instance;
 
                 Compartment * comp = fromMechToCompartment(make_tuple(targetNrn, type, instance));
-
-                //int postSynCompartmentId = nrn_threads[nrnId]._ml_list[mechType]->nodeindices[mechInstance];
+                comp->addSynapse(*nc->weight_, nc->delay_, type, instance);
 
                 //traverse tree up until find parent
-                //int postSynGid = postSynCompartmentId;
-                //while (postSynGid > nrn_threads[nrnId].ncell)
-                //    postSynGid = nrn_threads[nrnId]._v_parent_index[postSynGid];
+                int postSynCompartmentId = nrn_threads[targetNrn]._ml_list[type]->nodeindices[instance];
+                int postSynNeuronId = postSynCompartmentId;
+                while (postSynNeuronId > nrn_threads[targetNrn].ncell)
+                    postSynNeuronId = nrn_threads[targetNrn]._v_parent_index[postSynGid];
 
                 //Synapse synapse(postSynCompartmentId, *nc->weight_, nc->delay_, mechType, mechInstance);
                 //synapses[postSynGid].push_back(std::make_tuple(preSynGid, synapse));

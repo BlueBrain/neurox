@@ -19,14 +19,10 @@ class Neuron
     //from NrnThread
     double cj; ///<1st or 2nd order solver ... (?)
     
-    //reporting vars
-    int reportersCount;
-    hpx_t * reporters;
-
     //outgoing synapses
     double thresholdAP;     ///> Action Potential threshold
     int synapsesCount;      ///> number of outgoing synapses
-    hpx_t * synapses;         ///> outgoing Synapses
+    hpx_t * synapses;       ///> outgoing Synapses (branches addr)
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init;         ///> Initializes Neuron
