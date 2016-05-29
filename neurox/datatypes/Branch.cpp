@@ -8,6 +8,8 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
                const Datum *pdata, const int childrenCount, const hpx_t * children)
     :n(n), m(m), childrenCount(childrenCount)
 {
+    mutex = hpx_lco_sema_new(1);
+
     this->a = new double[n];
     this->b = new double[n];
     this->d = new double[n];

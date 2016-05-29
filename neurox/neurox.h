@@ -29,7 +29,6 @@ typedef unsigned char byte;
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0
 #define THREAD_ID hpx_thread_get_tls_id()
-#define USE_LCO_FUTURE_ARRAY 0 //TODO: Not working for small node count and high neurons count
 
 #include "neurox/datatypes/InputParams.h"
 #include "neurox/datatypes/Synapse.h"
@@ -37,11 +36,16 @@ typedef unsigned char byte;
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"
 #include "neurox/datatypes/Brain.h"
+
+//Data Loaders
 #include "neurox/input/coreneuron/Compartment.h"
 #include "neurox/input/coreneuron/DataLoader.h"
 
+//Solvers
+#include "neurox/solver/BackwardEuler.h"
 
 #define DataLoader CoreNeuronDataLoader ///> Class responsible for loading data
+#define Solver BackwardEuler ///> Class responsible for running the simulation
 
 //Global variables (defined on the classes' cpp files)
 extern InputParams * inputParams;

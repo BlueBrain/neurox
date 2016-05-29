@@ -15,7 +15,10 @@ class Neuron
     //neuron metadata
     int id;					///> neuron global id
     hpx_t topBranch;		///> hpx address of the top compartment (soma)
+    //TODO this should be a Branch of size 1 instead, no need for hpx_t
     
+    double t; ///> current time step
+
     //from NrnThread
     double cj; ///<1st or 2nd order solver ... (?)
     

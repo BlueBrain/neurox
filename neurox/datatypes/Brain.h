@@ -28,16 +28,14 @@ class Brain
     static hpx_action_t init; ///> Initializes Circuit as a copy
     static hpx_action_t clear; ///> deletes all data (including neurons and branches)
     static hpx_action_t finitialize; ///> finitialize.c::nrn_finitialize
-    static hpx_action_t solve; ///>netpar.cpp:BBS_netpar_solve()
 
     inline hpx_t getNeuronAddr(int i) const {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     }; ///> returns hpx address for i-th neuron
   private:
 
-    static int callMechsFunction(const Mechanism::Function, const int neuronId = ALL_NEURONS);
+    static void callMechsFunction(const Mechanism::Function, const int neuronId = ALL_NEURONS);
     static int finitialize_handler(); ///>finitialize.c::finitialize()
-    static int solve_handler(); ///>netpar.cpp:BBS_netpar_solve()
     static int clear_handler(); ///> HPX destructor
     static int init_handler(const int neuronsCount, const hpx_t neuronsAddr,
                             const Mechanism *mechsTypes, const size_t mechsTypesCount,

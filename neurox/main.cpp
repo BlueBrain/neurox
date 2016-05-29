@@ -44,11 +44,10 @@ static int main_hpx_handler( const int argc, char ** argv)
     //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
     //}
 
-    e = hpx_bcast_rsync(Brain::solve); //BBS_netpar_solve( inputParams.tstop );
+    Solver::solve(); //BBS_netpar_solve( inputParams.tstop );
     assert(e == HPX_SUCCESS);
 
     BBS_netpar_solve( inputParams.tstop );
-        assert(e == HPX_SUCCESS);
 
     // Report global cell statistics
     report_cell_stats();
@@ -81,6 +80,7 @@ int main1_hpx(int argc, char** argv)
     Brain::registerHpxActions();
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
+    Solver::registerHpxActions();
 
     //start HPX
     int e = hpx_run(&main_hpx, argc, argv);

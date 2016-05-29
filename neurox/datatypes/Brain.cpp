@@ -142,20 +142,11 @@ int Brain::init_handler(const int neuronsCount,
     neurox_hpx_unpin;
 }
 
-hpx_action_t Brain::solve = 0;
-int Brain::solve()
-{
-    neurox_hpx_pin(Brain);
-
-    neurox_hpx_unpin;
-}
-
 void Brain::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_ADDR, HPX_POINTER, HPX_SIZE_T, HPX_POINTER);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE,  finitialize, finitialize_handler);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE,  clear, clear_handler);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE,  solve, solve_handler);
 }
 

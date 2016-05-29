@@ -16,7 +16,7 @@ using namespace std;
  * @brief The NrxSetup class
  * Converts CoreNeuron data structures to HPX data structures
  */
-class CoreNeuronDataLoader //: IDataLoader
+class CoreNeuronDataLoader
 {
   public:
     CoreNeuronDataLoader()=delete;

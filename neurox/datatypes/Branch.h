@@ -4,6 +4,7 @@
 #include "coreneuron/nrnoc/membfunc.h"
 #include "coreneuron/nrnoc/membdef.h"
 #include "coreneuron/nrnconf.h"
+#include <queue>
 
 class Branch;
 class FwSubFutureData;
@@ -52,15 +53,12 @@ class Branch
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
     static hpx_action_t callMechsFunction(const int functionId); ///> BAMembList and nrn_ba
 
-    //incoming synapses
-    map<int,int> synapsesOffset;    ///> offset of synapses in synapses arrays for a given pre-syn neuron
-    int synapsesCount;
-    Synapse * synapses;
+    ///queue of incoming synapses (delivered at the end of the step)
+    std::queue<Synapse> queuedSynapses;
 
   private:
 
-//semaphore
-//    hpx_t mutex;			///> mutex to protect this branch's memory access
+    hpx_t mutex;			///> mutex to protect this branch's memory access
 
     //For recursive methods
     hpx_t * futures;

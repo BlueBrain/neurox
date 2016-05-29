@@ -35,18 +35,6 @@ class Mechanism
 
     char name[64]; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
-    ///mechanism type -specific functions
-    void (*thread_mem_init)(ThreadDatum*); ///> memory allocation
-    void (*thread_cleanup)(ThreadDatum*); ///> cleanup
-    void (*thread_table_check)(int, int, double*, Datum*, ThreadDatum*, void*, int); ///> Look up tables for mechanisms
-    void (*setdata)(double*, Datum*); ///> sets Data??
-
-    //Other functions (no mod_f_t type)
-    mod_alloc_t alloc;
-    Pfri destructor;
-    //capacitors only method (capac.c)
-    void (*nrn_cap_jacob)(NrnThread*, Memb_list*){};
-
 //    typedef void (*mod_alloc_t)(double*, Datum*, int);
 //    typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
 //    typedef void (*pnt_receive_t)(Point_process*, double*, double);
@@ -63,11 +51,28 @@ class Mechanism
         before_breakpoint=6,
         after_solve=7,
         before_step=8,
-        functionsCount=9 //+1 than previous
+        alloc=9,
+        functionsCount=10, //number of mod_f_t functions: +1 than previous
+        tableCheck=11,
+        setData=12,
+        capJacob=13,
+        destructor=14
     };
 
     mod_f_t functions[Function::functionsCount]; ///>mechanism functions (with mod_f_t type)
 
+    ///mechanism type -specific functions
+    void (*thread_mem_init)(ThreadDatum*); ///> memory allocation
+    void (*thread_cleanup)(ThreadDatum*); ///> cleanup
+    void (*thread_table_check)(int, int, double*, Datum*, ThreadDatum*, void*, int); ///> Look up tables for mechanisms
+    void (*setdata)(double*, Datum*); ///> sets Data??
+    void (*pnt_receive_t)(Point_process*, double*, double);
+
+    //Other functions (no mod_f_t type)
+    mod_alloc_t alloc;
+    Pfri destructor;
+    //capacitors only method (capac.c)
+    void (*nrn_cap_jacob)(NrnThread*, Memb_list*);
 
 
   private:

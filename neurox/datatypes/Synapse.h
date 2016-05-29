@@ -15,7 +15,7 @@ class Synapse
 
     double weight; ///> synaptic weight
     double delay;  ///> delivery delay
-    int mechOffset;///> offset of mechanisms in this branch
+    int mechType; ///> mechanism type
     int mechInstance; ///> instance of this mechanism, according to the mech type
   private:
 };
