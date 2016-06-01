@@ -51,6 +51,37 @@ namespace Neurox
         hpx_gas_unpin(target); \
         HPX_THREAD_CONTINUE(Var);
 
+#define neurox_hpx_recursive_branch_call(Func) \
+    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
+    for (int c=0; c<local->branchesCount; c++) \
+        hpx_call(local->branches[c], Func, lco); \
+    if (local->branchesCount>0) \
+    { \
+        hpx_lco_wait(lco); \
+        hpx_lco_delete(lco, HPX_NULL); \
+    }
+
+#define neurox_hpx_recursive_branch_call(Func, Var) \
+    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
+    for (int c=0; c<local->branchesCount; c++) \
+        hpx_call(local->branches[c], Func, lco, Var); \
+    if (local->branchesCount>0) \
+    { \
+        hpx_lco_wait(lco); \
+        hpx_lco_delete(lco, HPX_NULL); \
+    }
+
+//TODO clean up
+#define neurox_hpx_recursive_branch_call(Func, Var1, Var2) \
+    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
+    for (int c=0; c<local->branchesCount; c++) \
+        hpx_call(local->branches[c], Func, lco, Var1, Var2); \
+    if (local->branchesCount>0) \
+    { \
+        hpx_lco_wait(lco); \
+        hpx_lco_delete(lco, HPX_NULL); \
+    }
+
 //defines (should be moved to a struct at some point)
 #define ALL_NEURONS -1 //TODO make it static
 

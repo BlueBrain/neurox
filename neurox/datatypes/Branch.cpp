@@ -86,11 +86,7 @@ int Branch::setV_handler(const double v)
     neurox_hpx_pin(Branch);
     for (int n=0; n<local->n; n++)
         local->v[n]=v;
-    hpx_addr_t lco = hpx_lco_and_new(local->branchesCount);
-    for (int c=0; c<local->branchesCount; c++)
-        hpx_call(local->branches[c], Branch::setV, lco, v);
-    hpx_lco_wait(lco);
-    hpx_lco_delete(lco, HPX_NULL);
+    neurox_hpx_recursive_branch_call(Branch::setV, v);
     neurox_hpx_unpin;
 }
 
@@ -101,11 +97,7 @@ static int updateV_handler(const int secondOrder)
     neurox_hpx_pin(Branch);
     for (int n=0; n<local->n; n++)
         local->v[i] += (secondOrder ? 2 : 1) * local->rhs[i];
-    hpx_addr_t lco = hpx_lco_and_new(local->branchesCount);
-    for (int c=0; c<local->branchesCount; c++)
-        hpx_call(local->branches[c], Branch::updateV, lco, secondOrder);
-    hpx_lco_wait(lco);
-    hpx_lco_delete(lco, HPX_NULL);
+    neurox_hpx_recursive_branch_call(Branch::updateV, v);
     neurox_hpx_unpin;
 }
 
@@ -113,17 +105,12 @@ hpx_action_t Branch::setupMatrixInitValues = 0;
 int Branch::setupMatrixInitValues_handler()
 {
     neurox_hpx_pin(Branch);
-    hpx_addr_t lco = hpx_lco_and_new(local->branchesCount);
-    for (int c=0; c<local->branchesCount; c++)
-        hpx_call(local->branches[c], Branch::setupMatrixInitValues, lco);
-
     for (int n=0; n<local->n; n++)
     {
         local->rhs[n]=0;
         local->d[n]=0;
     }
-    hpx_lco_wait(lco);
-    hpx_lco_delete(lco, HPX_NULL);
+    neurox_hpx_recursive_branch_call(Branch::setupMatrixInitValues);
     neurox_hpx_unpin;
 }
 
@@ -280,16 +267,7 @@ int Branch::gaussianFwdSubstitution_handler(const char isSoma, const double pare
 
     char isSoma=0;
     double childrenRHS=rhs[n-1];
-    hpx_addr_t lco = branchesCount ? hpx_lco_and_new(branchesCount) : HPX_NULL;
-
-    for (int c = 0; c < branchesCount; c++)
-        hpx_call(local->branches[c], Branch::gaussianFwdSubstitution, lco, isSoma, childrenRHS);
-
-    if (branchesCount > 0) //required or fails
-    {
-        hpx_lco_wait(lco);
-        hpx_lco_delete(lco, HPX_NULL);
-    }
+    neurox_hpx_recursive_branch_call(Branch::gaussianFwdSubstitution, isSoma, childrenRHS);
     neurox_hpx_unpin;
 }
 
@@ -359,20 +337,9 @@ int Branch::callMechsFunction_handler(const Mechanism::Function functionId)
     for (int m=0; m<mechanismsCount; m++)
         if (mechanisms[m].functions[functionId])
             mechanisms[m].functions[functionId](NULL, NULL, m);
-
-    int branchesCount = local->branchesCount;
-    hpx_addr_t lco = branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL;
-    for (int c = 0; c < branchesCount; c++)
-        hpx_call(local->branches[c], Branch::callMechsFunction_handler, lco, functionId);
-
-    if (branchesCount > 0) //required or fails
-    {
-        hpx_lco_wait(lco);
-        hpx_lco_delete(lco, HPX_NULL);
-    }
+    neurox_hpx_recursive_branch_call(Branch::callMechsFunction, functionId);
     neurox_hpx_unpin;
 }
-
 
 //eion.c:
 #define	nparm 5
@@ -396,17 +363,7 @@ int Branch::secondOrderCurrent_handler()
                 data[cur] += data[dcurdv] * local->rhs[nodeIndices[i]]; // cur += dcurdv * rhs(ni[i])
             }
         }
-
-    int branchesCount = local->branchesCount;
-    hpx_addr_t lco = branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL;
-    for (int c = 0; c < branchesCount; c++)
-        hpx_call(local->branches[c], Branch::callMechsFunction_handler, lco, functionId);
-
-    if (branchesCount > 0) //required or fails
-    {
-        hpx_lco_wait(lco);
-        hpx_lco_delete(lco, HPX_NULL);
-    }
+    neurox_hpx_recursive_branch_call(Branch::secondOrderCurrent);
     neurox_hpx_unpin;
 }
 
