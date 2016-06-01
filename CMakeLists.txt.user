@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.5.1, 2017-07-23T12:49:38. -->
+<!-- Written by QtCreator 3.5.1, 2017-07-24T19:08:51. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -212,7 +212,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">neurox_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d ~/Workspace/PCP_circuits/1_BROKEN/data/ -e 1 -M -B 1 -A 9 --hpx-threads=1</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d ~/Workspace/PCP_circuits/Layer1/data/ -e 1 -M -A 2 -m</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory">/home/bmagalha/Workspace/neurox_with_libcoreneuron/build</value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
