@@ -17,9 +17,11 @@
 #include "coreneuron/utils/memory_utils.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 
 using namespace std;
+using namespace Neurox;
+using namespace Neurox::Input;
 
 void CoreNeuronDataLoader::coreNeuronInitialSetup(int argc, char ** argv)
 {
@@ -237,7 +239,7 @@ void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mec
 void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses)
 {
     hpx_t topBranch = createBranch(&topCompartment, mechanisms);
-    hpx_call_sync(brain->getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
+    hpx_call_sync(getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
 }
 
 hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)

@@ -1,10 +1,13 @@
-﻿#include "neurox/neurox.h"
+﻿#include "neurox/Neurox.h"
 #include "tclap/CmdLine.h"
 
 #include "stdio.h"
 #include "string.h"
 
-InputParams * inputParams = nullptr; //global variable (defined in neurox.h)
+using namespace Neurox;
+using namespace Neurox::Input;
+
+InputParams::InputParams (){}
 
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
@@ -22,43 +25,6 @@ InputParams::InputParams (int argc, char** argv):
     InputParams()
 {
     parseCommandLine(argc, argv);
-}
-
-InputParams::~InputParams()
-{}
-
-hpx_action_t InputParams::init = 0;
-int InputParams::init_handler(const InputParams * inputParams_new, const size_t size)
-{
-    //Make sure message arrived correctly, and pin memory
-    hpx_t target = hpx_thread_current_target();
-    InputParams * inputParams = NULL;
-    if (!hpx_gas_try_pin(target, (void**) &inputParams))
-        return HPX_RESEND;
-
-    //do the work
-    inputParams = new InputParams();
-    memcpy(inputParams, inputParams_new, size);
-
-    //unpin and return success
-    hpx_gas_unpin(target);
-    return HPX_SUCCESS;
-}
-
-hpx_action_t InputParams::clear = 0;
-int InputParams::clear_handler()
-{
-    //Make sure message arrived correctly, and pin memory
-    hpx_t target = hpx_thread_current_target();
-    uint64_t *local = NULL;
-    if (!hpx_gas_try_pin(target, (void**) &local))
-        return HPX_RESEND;
-
-    delete inputParams;
-
-    //unpin and return success
-    hpx_gas_unpin(target);
-    return HPX_SUCCESS;
 }
 
 void InputParams::parseCommandLine(int argc, char ** argv)
@@ -115,10 +81,4 @@ void InputParams::parseCommandLine(int argc, char ** argv)
     {
         //TODO
     }
-}
-
-void InputParams::registerHpxActions()
-{
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  clear, clear_handler);
 }

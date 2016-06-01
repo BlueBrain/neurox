@@ -1,6 +1,6 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 
 #include <map>
 #include <tuple>
@@ -10,7 +10,11 @@
 
 using namespace std;
 
-//TODO should be part of Neurox::Input::CoreNeuron namespace
+namespace Neurox
+{
+
+namespace Input
+{
 
 /**
  * @brief The NrxSetup class
@@ -30,3 +34,6 @@ class CoreNeuronDataLoader
     static void createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses);
     static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);
 };
+
+}; //Input
+}; //Neurox

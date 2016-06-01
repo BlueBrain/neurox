@@ -1,11 +1,12 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 
 #include <memory>
 #include <vector>
 
 using namespace std;
+using namespace Neurox;
 
 Compartment::~Compartment()
 {

@@ -1,10 +1,9 @@
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 #include <cstring>
 #include "coreneuron/nrnoc/membfunc.h" //Memb_func, BAMech
 
-//BAMech = Before and After running mechanism
-
 using namespace std;
+using namespace Neurox;
 
 //from capac.c
 extern void cap_alloc(double*, Datum*, int type);

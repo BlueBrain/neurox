@@ -1,12 +1,14 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 #include <vector>
 #include "coreneuron/nrnoc/membfunc.h" //mod_f_t, mod_alloc_t
 #include "coreneuron/nrnoc/nrnoc_ml.h" //ThreadDatum
 #include "coreneuron/nrnconf.h" //Datum
 
-using namespace std;
+
+namespace Neurox
+{
 
 /**
  * @brief The Mechanisms class
@@ -76,4 +78,6 @@ class Mechanism
 
 
   private:
+};
+
 };

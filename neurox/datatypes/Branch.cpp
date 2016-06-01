@@ -1,6 +1,8 @@
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 #include <cstring>
 #include <algorithm>
+
+using namespace Neurox;
 
 Branch::Branch(const int n, const double *a, const double *b, const double *d,
                const double *v, const double *rhs, const double *area,
@@ -16,7 +18,7 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
     this->v = new double[n];
     this->rhs = new double[n];
     this->area = new double[n];
-    this->mechsOffsets = new int[brain->mechsTypesCount];
+    this->mechsOffsets = new int[brain->mechanismsCount];
     this->children = new hpx_t[childrenCount];
 
     memcpy(this->a,a,n*sizeof(double));
@@ -29,10 +31,10 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
 
     //calculate offsets based on count
     int dataSize=0, pdataSize=0;
-    for (int i=0; i<brain->mechsTypesCount; i++)
+    for (int i=0; i<brain->mechanismsCount; i++)
     {
-        dataSize += brain->mechsTypes[i].dataSize * mechsCounts[i];
-        pdataSize += brain->mechsTypes[i].pdataSize * mechsCounts[i];
+        dataSize += brain->mechanisms[i].dataSize * mechsCounts[i];
+        pdataSize += brain->mechanisms[i].pdataSize * mechsCounts[i];
         mechsOffsets[i] = i==0 ? 0 : mechsOffsets[i-1]+ mechsCounts[i];
     }
 
@@ -82,15 +84,29 @@ hpx_action_t Branch::setV = 0;
 int Branch::setV_handler(const double v)
 {
     neurox_hpx_pin(Branch);
-    //do the work
+    for (int n=0; n<local->n; n++)
+        local->v[n]=v;
+    neurox_hpx_unpin;
+    //TODO should be recursive
+}
+
+hpx_action_t Branch::setupMatrixInitValues = 0;
+int Branch::setupMatrixInitValues_handler()
+{
+    neurox_hpx_pin(Branch);
+    hpx_addr_t lco = hpx_lco_and_new(local->childrenCount);
+    for (int c=0; c<local->childrenCount; c++)
+        hpx_call(local->children[c], Branch::setupMatrixInitValues, lco);
     for (int n=0; n<local->n; n++)
     {
-        local->v[n]=v;
         local->rhs[n]=0;
         local->d[n]=0;
     }
+    hpx_lco_wait(lco);
+    hpx_lco_delete(lco, HPX_NULL);
     neurox_hpx_unpin;
 }
+
 
 hpx_action_t Branch::setupMatrixRHS = 0;
 int Branch::setupMatrixRHS_handler(const char isSoma, const double parentV)
@@ -159,7 +175,6 @@ hpx_action_t Branch::setupMatrixLHS = 0;
 int Branch::setupMatrixLHS_handler(const char isSoma)
 {
     neurox_hpx_pin(Branch);
-
     double *a   = local->a;
     double *b   = local->b;
     double *d   = local->d;
@@ -218,9 +233,51 @@ hpx_action_t Branch::callMechsFunction = 0;
 int Branch::callMechsFunction_handler(const Mechanism::Function functionId)
 {
     neurox_hpx_pin(Branch);
-    for (int m=0; m<brain->mechsTypesCount; m++)
-        if (brain->mechsTypes[m].functions[functionId])
-            brain->mechsTypes[m].functions[functionId](NULL, NULL, m);
+    for (int m=0; m<brain->mechanismsCount; m++)
+        if (brain->mechanisms[m].functions[functionId])
+            brain->mechanisms[m].functions[functionId](NULL, NULL, m);
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::queueSpike = 0;
+int Branch::queueSpike_handler(const Synapse * syn, size_t)
+{
+    neurox_hpx_pin(Branch);
+    //netcvode::PreSyn::send()
+    hpx_lco_sema_p(local->mutex);
+    local->queuedSynapses.push(*syn);
+    hpx_lco_sema_v_sync(local->mutex);
+    neurox_hpx_unpin;
+}
+
+
+hpx_action_t Branch::deliverSpikes = 0;
+int Branch::deliverSpikes_handler()
+{
+    neurox_hpx_pin(Branch);
+    //netcvode.cpp::NetCvode::deliver_net_events()
+    //            ->NetCvode::deliver_events()
+    //            ->NetCvode::deliver_event()
+    //            ->NetCon::deliver()
+    // (runs NET_RECEIVE on mod files)
+
+    //Launch in all sub branches
+    hpx_addr_t lco = hpx_lco_and_new(local->childrenCount);
+    for (int c=0; c<local->childrenCount; c++)
+        hpx_call(local->children[c], Branch::deliverSpikes,lco);
+
+    //Deliver all spikes
+    while (local->queuedSynapses.front().deliveryTime < t+dt)
+    {
+        hpx_lco_sema_p(local->mutex);
+        Synapse & syn = local->queuedSynapses.front();
+        (*brain->mechanisms[syn.mechType].pnt_receive_t)((void *) syn.mechInstance, (void *) syn.weight, syn.deliveryTime);
+        local->queuedSynapses.pop();
+        hpx_lco_sema_v_sync(local->mutex);
+    }
+
+    hpx_lco_wait(lco);
+    hpx_lco_delete(lco, HPX_NULL);
     neurox_hpx_unpin;
 }
 
@@ -230,6 +287,7 @@ void Branch::registerHpxActions()
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE,   setupMatrixInitValues, setupMatrixInitValues_handler);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);

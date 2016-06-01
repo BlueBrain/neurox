@@ -1,6 +1,9 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
+
+namespace Neurox
+{
 
 /**
  * @brief The Neuron class
@@ -14,7 +17,7 @@ class Neuron
 
     //neuron metadata
     int id;					///> neuron global id
-    hpx_t topBranch;		///> hpx address of the top compartment (soma)
+    hpx_t soma;		///> hpx address of the top compartment (soma)
     //TODO this should be a Branch of size 1 instead, no need for hpx_t
     
     double t; ///> current time step
@@ -25,23 +28,21 @@ class Neuron
     //outgoing synapses
     double thresholdAP;     ///> Action Potential threshold
     int synapsesCount;      ///> number of outgoing synapses
-    hpx_t * synapses;       ///> outgoing Synapses (branches addr)
+    Synapse * synapses;       ///> outgoing Synapses (branches addr)
 
     static void registerHpxActions(); ///> Register all HPX actions
+    static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
+    static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
+    static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
-    static hpx_action_t setupMatrixRHS;  ///> finitialize.c::nrn_finitialize
-    static hpx_action_t setupMatrixLHS;  ///> finitialize.c::nrn_finitialize
-    static hpx_action_t setV;  ///> finitialize.c::nrn_finitialize
-    static hpx_action_t setCj;  ///> fadvance_core.c::dt2thread
-    static hpx_action_t callMechsFunction;  ///> BAMembList and nrn_ba
+    static hpx_action_t solve;        ///> Main loop, the solver
+    static hpx_action_t addSynapses;  ///> Inserts Synapses (targets) in this Neuron
 
   private:
-    static int init_handler(const int gid, const hpx_t topBranch,
-        double thresholdAP, hpx_t * synapses, size_t synapsesCount);
-
-    static int setupMatrixRHS_handler(); ///finitialize.c
-    static int setupMatrixLHS_handler(); ///finitialize.c
-    static int setV_handler(const double); ///finitialize.c
-    static int setCj(const double); ///fadvance_core.c::dt2thread()
-    static int callMechsFunction_handler(const Mechanism::Function); ///> BAMembList and nrn_ba
+    static int finitialize_handler(); ///> initialize.c
+    static int solve_handler(); ///> BBS_netpar_solve( inputParams.tstop );
+    static int init_handler(const int gid, const hpx_t soma, double thresholdAP); ///> HPX constructor
+    static int addSynapses_handler(Synapse * synapses, size_t synapsesCount); ///>Inserts Synapses
 };
+
+}

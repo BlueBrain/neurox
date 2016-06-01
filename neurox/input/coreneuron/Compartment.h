@@ -1,6 +1,6 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 
 #include "coreneuron/nrnconf.h"
 

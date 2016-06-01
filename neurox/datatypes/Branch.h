@@ -1,12 +1,13 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
 #include "coreneuron/nrnoc/membfunc.h"
 #include "coreneuron/nrnoc/membdef.h"
 #include "coreneuron/nrnconf.h"
 #include <queue>
 
-class Branch;
+namespace  Neurox {
+
 class FwSubFutureData;
 
 /**
@@ -50,11 +51,14 @@ class Branch
     static hpx_action_t init; ///> Initializes Branch
     static hpx_action_t setupMatrixRHS; ///> finitialize.c::nrn_finitialize
     static hpx_action_t setupMatrixLHS; ///> finitialize.c::nrn_finitialize
+    static hpx_action_t setupMatrixInitValues; ///> set D and RHS of all compartments to 0
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
     static hpx_action_t callMechsFunction(const int functionId); ///> BAMembList and nrn_ba
+    static hpx_action_t queueSpike; ///> add incoming synapse to queue
+    static hpx_action_t deliverSpikes; ///> delivering of (queued) synapses (runs NET_RECEIVE on mod files)
 
     ///queue of incoming synapses (delivered at the end of the step)
-    std::queue<Synapse> queuedSynapses;
+    std::priority_queue<Synapse> queuedSynapses;
 
   private:
 
@@ -66,10 +70,14 @@ class Branch
     void** futuresAddrs;
     FwSubFutureData * futuresData;
 
-    static int setupMatrixRHS_handler(const char isSoma, const double v_parent); ///finitialize.c
-    static int setupMatrixLHS_handler(const char isSoma); ///finitialize.c
-    static int setV_handler(const double v); ///finitialize.c: if (setv)
-    static int callMechsFunction_handler(const Mechanism::Function functionId); ///> BAMembList and nrn_ba
+
+    static int setupMatrixRHS_handler(const char isSoma, const double v_parent);
+    static int setupMatrixLHS_handler(const char isSoma);
+    static int setupMatrixInitValues_handler();
+    static int setV_handler(const double v);
+    static int callMechsFunction_handler(const Mechanism::Function functionId);
+    static int queueSpike_handler(const Synapse * syn, size_t);
+    static int deliverSpikes_handler(const int time);
     static int init_handler(const int n, const double *a, const double *b, const double *d,
                             const double *v, const double *rhs, const double *area,
                             const int m, const int * mechsOffsets, const double *data,
@@ -83,3 +91,5 @@ class FwSubFutureData
     double rhs;
     double d;
 } ;
+
+}; //namespace

@@ -1,6 +1,9 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/Neurox.h"
+
+namespace Neurox
+{
 
 /**
  * @brief The Mechanisms class
@@ -14,8 +17,14 @@ class Synapse
     ~Synapse();
 
     double weight; ///> synaptic weight
-    double delay;  ///> delivery delay
+    double delay; ///synaptic delay
     int mechType; ///> mechanism type
     int mechInstance; ///> instance of this mechanism, according to the mech type
+    double deliveryTime;  ///> last delivery time (time of AP + delay)
+
+    bool operator<(const Synapse& rhs); ///> less-than operator
+
   private:
 };
+
+}
