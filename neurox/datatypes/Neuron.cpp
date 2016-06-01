@@ -105,6 +105,7 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
     return spikesLco;
 }
 
+
 void Neuron::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, init, init_handler, HPX_INT, HPX_ADDR, HPX_DOUBLE, HPX_POINTER, HPX_SIZE_T);

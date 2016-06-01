@@ -38,6 +38,7 @@ class Neuron
     static hpx_action_t solve;        ///> Main loop, the solver
     static hpx_action_t addSynapses;  ///> Inserts Synapses (targets) in this Neuron
 
+
   private:
     static int finitialize_handler(); ///> initialize.c
     static int solve_handler(); ///> BBS_netpar_solve( inputParams.tstop );

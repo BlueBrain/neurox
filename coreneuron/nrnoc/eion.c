@@ -304,7 +304,9 @@ void second_order_cur(NrnThread* _nt) {
 	double* pd;
 	(void)_nt; /* unused */
   if (secondorder == 2) {
-	for (tml = _nt->tml; tml; tml = tml->next) if (memb_func[tml->index].alloc == ion_alloc) {
+    for (tml = _nt->tml; tml; tml = tml->next)
+      if (memb_func[tml->index].alloc == ion_alloc)
+      {
 		ml = tml->ml;
 		_cntml_actual = ml->nodecount;
 		ni = ml->nodeindices;
@@ -322,7 +324,7 @@ void second_order_cur(NrnThread* _nt) {
 #endif
 			cur += dcurdv * ( VEC_RHS(ni[_iml]) );
 		}
-	}
+     }
    }
 }
 

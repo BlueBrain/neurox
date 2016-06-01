@@ -19,7 +19,7 @@ class BackwardEuler
     ~BackwardEuler();
 
     static void registerHpxActions(); ///> Registers all HPX actions
-    static int solve(); ///> netpar.cpp:BBS_netpar_solve()
+    static void solve(); ///> netpar.cpp:BBS_netpar_solve()
 
     static hpx_action_t step;
     static hpx_action_t queueSpike;

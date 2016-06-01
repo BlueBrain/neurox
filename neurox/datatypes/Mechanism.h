@@ -57,8 +57,9 @@ class Mechanism
         functionsCount=10, //number of mod_f_t functions: +1 than previous
         tableCheck=11,
         setData=12,
-        capJacob=13,
-        destructor=14
+        capacityCurrent=13, //not in mod files, it's in capac.c
+        capJacob=14,
+        destructor=15
     };
 
     mod_f_t functions[Function::functionsCount]; ///>mechanism functions (with mod_f_t type)

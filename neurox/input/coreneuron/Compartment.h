@@ -23,7 +23,7 @@ class Compartment
 
     void addSynapse();
 
-    vector<Compartment*> children;
+    vector<Compartment*> branches;
     double a,b,d,v,rhs,area;
     vector<int> mechsIds;
     vector<int> mechsInstances;

@@ -10,8 +10,8 @@ using namespace Neurox;
 
 Compartment::~Compartment()
 {
-    for (int c=0; c<children.size(); c++)
-        delete children[c];
+    for (int c=0; c<branches.size(); c++)
+        delete branches[c];
 }
 
 void Compartment::setSolverValues(double a, double b, double d, double v, double rhs, double area)
@@ -21,7 +21,7 @@ void Compartment::setSolverValues(double a, double b, double d, double v, double
 
 void Compartment::addChild(Compartment * child)
 {
-    children.push_back(child);
+    branches.push_back(child);
 };
 
 

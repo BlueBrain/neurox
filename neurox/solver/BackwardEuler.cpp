@@ -14,7 +14,7 @@ BackwardEuler::BackwardEuler(InputParams * inputParams)
 
 BackwardEuler::~BackwardEuler() {}
 
-int BackwardEuler::solve()
+void BackwardEuler::solve()
 {
     for (double t=0; t<tstop; t+=dt)
         hpx_par_for_sync( [&] (int i, void*)
@@ -49,17 +49,25 @@ int BackwardEuler::step_handler(const double dt)
 
     Neuron::setupTreeMatrixMinimal(local);
 
-    //netpar.c::nrn_spike_exchange()
+    //Linear Algebra: Gaussian elimination. solve_core.c:nrn_solve_minimal()
+    char isSoma=1;
+    hpx_call_sync(local->soma, Branch::gaussianBackTriangulation, NULL, 0, isSoma);
+    hpx_call_sync(local->soma, Branch::gaussianFwdSubstitution, NULL, 0, isSoma);
 
-    //TODO: nrn_thread_table_check() missing;
+    //eion.c : second_order_cur()
+    if (inputParams->secondorder == 2)
+        hpx_call_sync(local->soma, Branch::secondOrderCurrent, NULL, 0);
 
-    //process queued synapses
-    //(*pnt_receive_t)(Point_process*, double*, double)
+    //fadvance_core.c : update()
+    hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Function::capacityCurrent);
+    //TODO: this is not a MOD file function, its in capac.c, has to be converted!
 
-    //run step
+    local->t += .5*dt;
 
-    //send synapses
-
+    //	fixed_play_continuous(nth); TODO
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Function::state); //nonvint(nth);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Function::after_solve);
 
     //wait for all post-synaptic neurons to receive (not process) synapses
     if (spikesLco != HPX_NULL)
@@ -69,9 +77,6 @@ int BackwardEuler::step_handler(const double dt)
     }
     neurox_hpx_unpin;
 }
-
-
-
 
 
 static void BackwardEuler::registerHpxActions()

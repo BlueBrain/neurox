@@ -63,7 +63,6 @@ namespace Neurox
 #include "neurox/datatypes/Mechanism.h"
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"
-#include "neurox/datatypes/Brain.h"
 
 //Data Loaders
 #include "neurox/input/coreneuron/Compartment.h"

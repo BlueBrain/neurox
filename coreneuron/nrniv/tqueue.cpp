@@ -258,9 +258,9 @@ spenq( SPBLK* n, SPTREE* q )
         left = n;
         right = n;
 
-        /* n's left and right children will hold the right and left
+        /* n's left and right branches will hold the right and left
        splayed trees resulting from splitting on n->key;
-       note that the children will be reversed! */
+       note that the branches will be reversed! */
 
     q->enqcmps++;
         if ( STRCMP( next->key, key ) > 0 )

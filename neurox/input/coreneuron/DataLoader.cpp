@@ -253,8 +253,8 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
     Compartment *comp = nullptr;
     int m=0; //number of mechs
     for (comp = topCompartment;
-         comp->children.size()==1;
-         comp = comp->children.front())
+         comp->branches.size()==1;
+         comp = comp->branches.front())
     {
         d.push_back(comp->d);
         b.push_back(comp->b);
@@ -275,13 +275,13 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
         n++;
     };
 
-    int childrenCount = comp->children.size(); //final compartment of the branch
-    hpx_t * children = HPX_NULL;
-    if (childrenCount > 0)
+    int branchesCount = comp->branches.size(); //final compartment of the branch
+    hpx_t * branches = HPX_NULL;
+    if (branchesCount > 0)
     {
-        children = new hpx_t[childrenCount];
-        for (int c=0; c<childrenCount; c++)
-            children[c]=createBranch(comp->children[c], mechanisms);
+        branches = new hpx_t[branchesCount];
+        for (int c=0; c<branchesCount; c++)
+            branches[c]=createBranch(comp->branches[c], mechanisms);
     }
 
     //merge all vectors into one
@@ -299,7 +299,7 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     hpx_call_sync(branchAddr, Branch::init, NULL, 0, n, a.data(), b.data(), d.data(),
                   v.data(), rhs.data(), area.data(), m, mechsCount.data(), data_merged.data(),
-                  pdata_merged.data(), childrenCount, children);
+                  pdata_merged.data(), branchesCount, branches);
 
     return branchAddr;
 }
