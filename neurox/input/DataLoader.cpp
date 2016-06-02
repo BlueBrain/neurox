@@ -605,7 +605,7 @@ int DataLoader::Init_handler()
     neuronsGids  = new std::vector<int>();
     neuronsMutex = hpx_lco_sema_new(1);
 
-    if (hpx_get_my_rank()==0)
+    if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
         loadBalancing = new tools::LoadBalancing();
 
     if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
