@@ -331,12 +331,16 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
 }
 
 hpx_action_t Branch::callMechsFunction = 0;
-int Branch::callMechsFunction_handler(const Mechanism::Function functionId)
+int Branch::callMechsFunction_handler(const Mechanism::modFunctionId functionId)
 {
     neurox_hpx_pin(Branch);
     for (int m=0; m<mechanismsCount; m++)
         if (mechanisms[m].functions[functionId])
-            mechanisms[m].functions[functionId](NULL, NULL, m);
+            mechanisms[m].functions[functionId](
+                    (mechsDataOffsets[m+1]-mechsDataOffsets[m])/dataSize, //instances count
+                    mechanisms[m].dataSize,  &mechsDataOffsets[m],
+                    mechanisms[m].pdataSize, &mechsPDataOffsets[m],
+                    mechsNodesIndices[m]);
     neurox_hpx_recursive_branch_call(Branch::callMechsFunction, functionId);
     neurox_hpx_unpin;
 }
@@ -352,7 +356,7 @@ int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
     for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m].functions[Mechanism::Function::alloc] == ion_alloc())
+        if (mechanisms[m].functions[Mechanism::modFunctionId::alloc] == ion_alloc())
         {
             int * nodeIndices = &local->mechsNodesIndices[m];
             int indicesCount = local->mechsNodesIndices[m+1] - local->mechsNodesIndices[m];

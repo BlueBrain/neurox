@@ -6,35 +6,6 @@
 typedef hpx_addr_t hpx_t;
 typedef unsigned char byte;
 
-namespace Neurox
-{
-  public:
-
-    extern int neuronsCount; 	///> total neurons count in the system
-    extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
-
-    extern int mechanismsCount;    ///> number of mechanisms
-    extern Mechanism * mechanisms; ///> Unique information per mechanism type
-
-    extern Input::InputParams * inputParams; ///> Parameters parsed from command line (TODO should go away at some point)
-
-    inline static hpx_t getNeuronAddr(int i) const {
-        return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
-    }; ///> returns hpx address for i-th neuron
-
-    static hpx_action_t setInputParams;	///> Initializes InputParams
-    static hpx_action_t setMechanisms;	///> Initializes Mechanisms
-
-  private:
-
-    static int init_handler(const int neuronsCount, const hpx_t neuronsAddr,
-                            const Mechanism *mechanisms, const size_t mechanismsCount,
-                            const int *mechDependencies) ; ///>HPX constructor
-
-    int setInputParams_handler(const Input::InputParams * inputParams, const size_t size); ///handler for setInputParams
-    int setMechanisms_handler(const Mechanism * mechanisms, const size_t count); ///handler for setMechanisms
-} ;
-
 ///hpx wrappers for the pin operation
 #define neurox_hpx_pin(Type) \
         hpx_t target = hpx_thread_current_target(); \
@@ -89,6 +60,7 @@ namespace Neurox
 #define NEUROX_HPX_MEM_ALIGNMENT 0
 #define THREAD_ID hpx_thread_get_tls_id()
 
+#include "neurox/datatypes/Capacitance.h"
 #include "neurox/input/InputParams.h"
 #include "neurox/datatypes/Synapse.h"
 #include "neurox/datatypes/Mechanism.h"
@@ -104,4 +76,23 @@ namespace Neurox
 
 #define DataLoader CoreNeuronDataLoader ///> Class responsible for loading data
 
+namespace Neurox
+{
+    extern int neuronsCount; 	///> total neurons count in the system
+    extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
 
+    extern int mechanismsCount;    ///> number of mechanisms
+    extern Neurox::Mechanism * mechanisms; ///> Unique information per mechanism type
+
+    extern Input::InputParams * inputParams; ///> Parameters parsed from command line (TODO should go away at some point)
+
+    inline static hpx_t getNeuronAddr(int i) const {
+        return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
+    }; ///> returns hpx address for i-th neuron
+
+    static hpx_action_t setInputParams;	///> Initializes InputParams
+    static hpx_action_t setMechanisms;	///> Initializes Mechanisms
+
+    int setInputParams_handler(const Input::InputParams * inputParams, const size_t size); ///handler for setInputParams
+    int setMechanisms_handler(const Mechanism * mechanisms, const size_t count); ///handler for setMechanisms
+} ;

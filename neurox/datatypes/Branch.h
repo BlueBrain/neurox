@@ -34,13 +34,16 @@ class Branch
     double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * area;			///> current area per compartment
 
-    //TODO maybe wrap around a struct?
-    //Mechanisms data
-    int * mechsNodesOffsets;///> number of mechanisms instances
-    int * mechsNodesIndices;///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
-    int * mechsDataOffsets; ///> offset of each mechanims type
-    double * data;			///> all double data used by all mechanisms
-    int * pdata;			///> all int data used by all mechanisms
+
+    struct MechanismInstances
+    {
+        int * nodesIndicesOffsets; ///> number of mechanisms instances
+        int * dataOffsets;         ///> offset of each mechanims type in data
+        int * pDataOffsets;        ///> offset of each mechanims type in Pointer-data
+        double * data;			   ///> all double data used by all mechanisms
+        int * pdata;			   ///> offset (pointer) data for mechanisms
+        int * nodesIndices;        ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
+    } MechsInstances;
 
     //List of branches
     int branchesCount;		///> number of branches branches (always >1)
@@ -75,7 +78,7 @@ class Branch
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double v);
-    static int callMechsFunction_handler(const Mechanism::Function functionId);
+    static int callMechsFunction_handler(const Mechanism::modFunctionId functionId);
     static int queueSpike_handler(const Synapse * syn, size_t);
     static int deliverSpikes_handler(const int time);
     static int init_handler(const int n, const double *a, const double *b, const double *d,

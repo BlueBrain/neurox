@@ -33,15 +33,4 @@ namespace Neurox
         memcpy(Neurox::mechanisms, mechanisms, sizeof(Mechanism)*count);
         neurox_hpx_unpin;
     }
-
-    hpx_action_t setNeurons_handler = 0;
-    int setNeurons_handler(const Mechanism * mechanisms, const size_t count)
-    {
-        neurox_hpx_pin(uint64_t);
-        assert(Neurox::neuronsAddr==HPX_NULL);
-
-        Neurox::mechanisms = new Mechanism[count];
-        memcpy(Neurox::mechanisms, mechanisms, sizeof(Mechanism)*count);
-        neurox_hpx_unpin;
-    }
 };
