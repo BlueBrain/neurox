@@ -7,7 +7,7 @@ Synapse::Synapse(const double weight, const double delay, const int mechType, co
 
 Synapse::~Synapse(){};
 
-bool Synapse::operator<(const Synapse& rhs)
+bool Synapse::operator<(const Synapse& rhs) const
 {
-    return this->deliveryTime < rhs.deliveryTime;
+    return deliveryTime < rhs.deliveryTime;
 }

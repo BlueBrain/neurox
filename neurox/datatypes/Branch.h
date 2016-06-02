@@ -21,11 +21,11 @@ class Branch
     Branch()=delete;
     Branch(const int n, const double *a, const double *b, const double *d,
            const double *v, const double *rhs, const double *area,
-           const int mechsCount, const int * mechsCount, const double *data,
-           const Datum *pdata, const int branchesCount, const hpx_t * branches);
+           const int * mechsCounts, const double *data,
+           const int *pdata, const int branchesCount, const hpx_t * branches);
     ~Branch();
 
-    //nodes
+    ///nodes
     short int n;			///> number of compartments
     double * a;				///> top diagonal of Linear Algebra sparse tridiagonal matrix
     double * b;				///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
@@ -34,16 +34,15 @@ class Branch
     double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * area;			///> current area per compartment
 
-
     struct MechanismInstances
     {
-        int * nodesIndicesOffsets; ///> number of mechanisms instances
-        int * dataOffsets;         ///> offset of each mechanims type in data
-        int * pDataOffsets;        ///> offset of each mechanims type in Pointer-data
         double * data;			   ///> all double data used by all mechanisms
         int * pdata;			   ///> offset (pointer) data for mechanisms
         int * nodesIndices;        ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
-    } MechsInstances;
+        int * dataOffsets;         ///> offset of each mechanims type in data
+        int * pdataOffsets;        ///> offset of each mechanims type in Pointer-data
+        int * nodesIndicesOffsets; ///> compartments' indices for each mech type
+    } mechsInstances;
 
     //List of branches
     int branchesCount;		///> number of branches branches (always >1)
@@ -56,19 +55,19 @@ class Branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
     static hpx_action_t setupMatrixInitValues; ///> set D and RHS of all compartments to 0
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
-    static hpx_action_t callMechsFunction(const int functionId); ///> BAMembList and nrn_ba
+    static hpx_action_t callMechsFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
     static hpx_action_t queueSpike; ///> add incoming synapse to queue
     static hpx_action_t deliverSpikes; ///> delivering of (queued) synapses (runs NET_RECEIVE on mod files)
     static hpx_action_t gaussianBackTriangulation; ///> Gaussian elimination's back triangulation: solve_core.c:triang()
     static hpx_action_t gaussianFwdSubstitution; ///> Gaussian elimination's forward substitution: solve_core.c:bksub()
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
 
-    ///queue of incoming synapses (delivered at the end of the step)
-    std::priority_queue<Synapse> queuedSynapses;
+    ///queue of incoming spikes (delivered at the end of the step)
+    std::priority_queue<Synapse> synapsesQueue;
 
   private:
 
-    hpx_t mutex;			///> mutex to protect this branch's memory access
+    hpx_t synapsesQueueMutex;   ///> mutex to protect the memory access to synapses queue
 
     static int setupMatrixRHS_handler(const char isSoma, const double v_parent);
     static int setupMatrixLHS_handler(const char isSoma);
@@ -78,12 +77,12 @@ class Branch
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double v);
-    static int callMechsFunction_handler(const Mechanism::modFunctionId functionId);
+    static int callMechsFunction_handler(const Mechanism::Functions functionId);
     static int queueSpike_handler(const Synapse * syn, size_t);
-    static int deliverSpikes_handler(const int time);
+    static int deliverSpikes_handler();
     static int init_handler(const int n, const double *a, const double *b, const double *d,
                             const double *v, const double *rhs, const double *area,
-                            const int mechsCount, const int * mechsDataOffsets, const double *data,
+                            const int * mechsDataOffsets, const double *data,
                             const Datum *pdata, const int branchesCount, const hpx_t * branches);
 };
 

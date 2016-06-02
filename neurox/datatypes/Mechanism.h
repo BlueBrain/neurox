@@ -36,7 +36,7 @@ class Mechanism
     char name[64]; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)
-    enum modFunctionId
+    enum Functions
     {
         current=0,
         jacob=1,
@@ -58,12 +58,7 @@ class Mechanism
     };
 
     typedef void (*modFunction)( short instancesCount, short dataSize, double * data, short pdataSize, int * pdata, int * nodesIndices);
-    modFunction functions[modFunctionId::functionsCount]; ///>mechanism functions (with mod_f_t type)
-
-    //Other functions (no mod_f_t type)
-
-
-
+    modFunction functions[Functions::functionsCount]; ///>mechanism functions (with mod_f_t type)
 
   private:
 };

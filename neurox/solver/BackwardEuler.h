@@ -15,7 +15,7 @@ class BackwardEuler
 {
   public:
     BackwardEuler()=delete;
-    BackwardEuler(InputParams * inputParams);
+    BackwardEuler(Neurox::Input::InputParams *inputParams);
     ~BackwardEuler();
 
     static void registerHpxActions(); ///> Registers all HPX actions

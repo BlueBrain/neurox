@@ -28,7 +28,7 @@ int BackwardEuler::step_handler(const double dt)
     neurox_hpx_pin(Neuron); //We are in a Neuron
 
     //1. multicore.c::nrn_thread_table_check()
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::tableCheck);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::tableCheck);
 
     //2. multicore.c::nrn_fixed_step_thread()
 
@@ -60,14 +60,14 @@ int BackwardEuler::step_handler(const double dt)
 
     //fadvance_core.c : update()
     hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::capacityCurrent);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::capacityCurrent);
     //TODO: this is not a MOD file function, its in capac.c, has to be converted!
 
     local->t += .5*dt;
 
     //	fixed_play_continuous(nth); TODO
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::state); //nonvint(nth);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::after_solve);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::state); //nonvint(nth);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::after_solve);
 
     //wait for all post-synaptic neurons to receive (not process) synapses
     if (spikesLco != HPX_NULL)

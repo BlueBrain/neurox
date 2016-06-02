@@ -8,45 +8,35 @@ typedef unsigned char byte;
 
 ///hpx wrappers for the pin operation
 #define neurox_hpx_pin(Type) \
-        hpx_t target = hpx_thread_current_target(); \
-        Type *local = NULL; \
-        if (!hpx_gas_try_pin(target, (Type**) &local)) \
-            return HPX_RESEND;
+    hpx_t target = hpx_thread_current_target(); \
+    Type *local = NULL; \
+    if (!hpx_gas_try_pin(target, (void**) &local)) \
+        return HPX_RESEND;
 
 ///hpx wrappers for the unpin operation
 #define neurox_hpx_unpin \
-        hpx_gas_unpin(target); \
-        return HPX_SUCCESS;
+{\
+    hpx_gas_unpin(target); \
+    return HPX_SUCCESS; \
+}
 
+///hpx wrappers for the unpin operation and a return value
 #define neurox_hpx_unpin_continue(Var) \
-        hpx_gas_unpin(target); \
-        HPX_THREAD_CONTINUE(Var);
+{ \
+    hpx_gas_unpin(target); \
+    HPX_THREAD_CONTINUE(Var); \
+}
 
-#define neurox_hpx_recursive_branch_call(Func) \
+///hpx wrappers for calling a function to all children branches
+//(hpx_call(local->branches[c], Func, lco, __VA_ARGS__); does not work)
+#define neurox_hpx_recursive_branch_call(Func, ...) \
     hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
+    int e=-1; \
     for (int c=0; c<local->branchesCount; c++) \
-        hpx_call(local->branches[c], Func, lco); \
-    if (local->branchesCount>0) \
     { \
-        hpx_lco_wait(lco); \
-        hpx_lco_delete(lco, HPX_NULL); \
-    }
-
-#define neurox_hpx_recursive_branch_call(Func, Var) \
-    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
-    for (int c=0; c<local->branchesCount; c++) \
-        hpx_call(local->branches[c], Func, lco, Var); \
-    if (local->branchesCount>0) \
-    { \
-        hpx_lco_wait(lco); \
-        hpx_lco_delete(lco, HPX_NULL); \
-    }
-
-//TODO clean up
-#define neurox_hpx_recursive_branch_call(Func, Var1, Var2) \
-    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
-    for (int c=0; c<local->branchesCount; c++) \
-        hpx_call(local->branches[c], Func, lco, Var1, Var2); \
+        e = _hpx_call(local->branches[c], Func, lco, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
+        assert(e==HPX_SUCCESS); \
+    } \
     if (local->branchesCount>0) \
     { \
         hpx_lco_wait(lco); \
@@ -86,7 +76,7 @@ namespace Neurox
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line (TODO should go away at some point)
 
-    inline static hpx_t getNeuronAddr(int i) const {
+    inline static hpx_t getNeuronAddr(int i) {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     }; ///> returns hpx address for i-th neuron
 

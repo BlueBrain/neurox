@@ -22,9 +22,9 @@ int Neuron::finitialize_handler()
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::before_initialize);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::initialize);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::after_initialize);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::before_initialize);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::initialize);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::after_initialize);
 
     Neuron::setupTreeMatrixMinimal(local);
 
@@ -36,10 +36,10 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     hpx_call_sync(local->soma, Branch::setupMatrixInitValues, NULL, 0);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::before_breakpoint);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::before_breakpoint);
 
     //note that CAP has no current
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::current);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::current);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
     // now the internal axial currents.
@@ -56,12 +56,12 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
     // note that CAP has no jacob
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::jacob);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::modFunctionId::nrn_cap_jacob);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::nrn_cap_jacob);
 
     //now add the axial currents
     hpx_call_sync(local->soma, Branch::setupMatrixLHS, NULL, 0, isSoma);

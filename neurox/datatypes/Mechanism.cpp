@@ -41,7 +41,7 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
     //functions[modFunctionId::initialize] = memb_func[type].initialize;
 
     //register_mech.c::hoc_reg_ba()
-    for (int i=0; i< modFunctionId::functionsCount; i++)
+    for (int i=0; i< Functions::functionsCount; i++)
         functions[i] = (mod_f_t) 0; //TODO
 
      //look up tables: multicore.c::nrn_thread_table_check()
