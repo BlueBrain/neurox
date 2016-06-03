@@ -18,15 +18,13 @@ class Mechanism
     Mechanism(){};
     ~Mechanism();
 
-    Mechanism(const short int type, const short int dataSize, const short int pdataSize,
-              const short int dependenciesCount, const char pntMap,
+    Mechanism(const short type, const short dataSize, const short pdataSize,
+              const short dependenciesCount, const char pntMap,
               const char isArtificial, const int * dependencies,
               const char isIon, const double conci, const double conco, const double charge); //for ions only
 
     short int type, dataSize, pdataSize, dependenciesCount;
     char pntMap, isArtificial;
-
-    static void registerHpxActions(); ///> Register all HPX actions
     int * dependencies; ///> Id of dependencies mechanisms
 
     //For ionic mechanisms
@@ -60,7 +58,11 @@ class Mechanism
     typedef void (*modFunction)( short instancesCount, short dataSize, double * data, short pdataSize, int * pdata, int * nodesIndices);
     modFunction functions[Functions::functionsCount]; ///>mechanism functions (with mod_f_t type)
 
-  private:
+    static void registerHpxActions(); ///> Register all HPX actions
+    static hpx_action_t setMechanisms; ///> Sets Mechanism
+
+private:
+    static int setMechanisms_handler(const Mechanism * mechanisms, const size_t count);
 };
 
 };

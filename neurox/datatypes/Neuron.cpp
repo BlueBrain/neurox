@@ -61,7 +61,7 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::nrn_cap_jacob);
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::capJacob);
 
     //now add the axial currents
     hpx_call_sync(local->soma, Branch::setupMatrixLHS, NULL, 0, isSoma);
@@ -74,9 +74,9 @@ int Neuron::init_handler(const int gid, const hpx_t topBranch,
     neurox_hpx_pin(Neuron);
     //copy information
     local->t=0; //TODO should be from InputParams
-    local->topBranch=topBranch;
+    local->soma=topBranch;
     local->id=gid;
-    local->APThreshold=APThreshold;
+    local->thresholdAP=APThreshold;
     neurox_hpx_unpin;
 }
 
@@ -90,18 +90,23 @@ int Neuron::addSynapses_handler(Synapse * synapses, size_t synapsesCount)
     neurox_hpx_unpin;
 }
 
+/* TODO: for the synapses transmission:
+ * Neuron only sends GID and delivery time as 2 bytes (so that data fits in the header).
+ * Michael Hines says that sending the struct takes too much bandwith, therefore
+ * they store the struct on the POST-SYNAPTIC side, and on the pre they only send the identifier
+ * (ie pre-syn gid+delivery time)
+ */
 hpx_t Neuron::fireActionPotential(Neuron * local)
 {
     //netcvode.cpp::PreSyn::send()
     Synapse *& synapses = local->synapses;
     hpx_t spikesLco = hpx_lco_and_new(local->synapsesCount);
-    hpx_par_for( [&] (int i, void*)
+    for (int s=0; s<local->synapsesCount; s++)
     {
-        synapses[i].deliveryTime = local->t+synapses[i].delay;
-        hpx_call(local->synapses[i], Branch::queueSpike,
-                 spikesLco, local->id, sizeof(int));
-    },
-    0, local->synapsesCount, NULL);
+        synapses[s].deliveryTime = local->t+synapses[s].delay;
+        hpx_call(local->synapsesTargets[s], Branch::queueSpike,
+                 spikesLco, &synapses[s], sizeof(Synapse));
+    }
     return spikesLco;
 }
 
@@ -111,5 +116,4 @@ void Neuron::registerHpxActions()
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, init, init_handler, HPX_INT, HPX_ADDR, HPX_DOUBLE, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addSynapses, addSynapses_handler, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, finitialize, finitialize_handler);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, solve, solve_handler);
 }

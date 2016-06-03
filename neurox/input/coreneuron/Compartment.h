@@ -21,8 +21,6 @@ class Compartment
 
     void addMechanism(int mechId, int instance, double * data, int dataSize, Datum * pdata, int pdataSize);
 
-    void addSynapse();
-
     vector<Compartment*> branches;
     double a,b,d,v,rhs,area;
     vector<int> mechsIds;

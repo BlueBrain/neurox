@@ -37,10 +37,10 @@ class Branch
     struct MechanismInstances
     {
         double * data;			   ///> all double data used by all mechanisms
-        int * pdata;			   ///> offset (pointer) data for mechanisms
-        int * nodesIndices;        ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
         int * dataOffsets;         ///> offset of each mechanims type in data
+        int * pdata;			   ///> pointer data (offsets) for mechanisms
         int * pdataOffsets;        ///> offset of each mechanims type in Pointer-data
+        int * nodesIndices;        ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
         int * nodesIndicesOffsets; ///> compartments' indices for each mech type
     } mechsInstances;
 

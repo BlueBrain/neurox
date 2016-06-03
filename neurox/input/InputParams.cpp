@@ -7,8 +7,6 @@
 using namespace Neurox;
 using namespace Neurox::Input;
 
-InputParams::InputParams (){}
-
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
   tstart(0), tstop(100), dt(0.025), dt_io(0.1), celsius(34),
@@ -19,7 +17,10 @@ InputParams::InputParams ():
     memset(inputPath,'0',2048);
     memset(outputPath,'0',2048);
     multiSplit = 0; //HPX_LOCALITIES > brain->neuronsCount;
+    //TODO multisplit should be at NEURON level
 }
+
+InputParams::~InputParams(){}
 
 InputParams::InputParams (int argc, char** argv):
     InputParams()
@@ -82,3 +83,16 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         //TODO
     }
 }
+/*
+hpx_action_t InputParams::setInputParams = 0;
+int InputParams::setInputParams_handler(const Input::InputParams * inputParams, const size_t size)
+{
+    neurox_hpx_pin(uint64_t);
+    if (Neurox::inputParams==NULL)
+        delete Neurox::inputParams;
+
+    Neurox::inputParams = new Input::InputParams();
+    memcpy(Neurox::inputParams, inputParams, size);
+    neurox_hpx_unpin;
+};
+*/

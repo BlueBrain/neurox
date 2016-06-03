@@ -42,11 +42,11 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
 
     //register_mech.c::hoc_reg_ba()
     for (int i=0; i< Functions::functionsCount; i++)
-        functions[i] = (mod_f_t) 0; //TODO
+        functions[i] = (modFunction) 0; //TODO
 
      //look up tables: multicore.c::nrn_thread_table_check()
     //where's the look up table data
-    if (*thread_table_check)
+    if (functions[Functions::tableCheck]!=0)
     {
         //TODO
         //(*thread_table_check)(0, ml->nodecount, ml->data, ml->pdata, ml->_thread, nt, tml->index);
@@ -58,3 +58,20 @@ Mechanism::~Mechanism(){
     delete [] dependencies;
     //TODO anything missing
 };
+
+hpx_action_t Mechanism::setMechanisms = 0;
+int Mechanism::setMechanisms_handler(const Mechanism * mechanisms, const size_t count)
+{
+    neurox_hpx_pin(uint64_t);
+    if (Neurox::mechanisms==NULL)
+        delete [] Neurox::mechanisms;
+
+    Neurox::mechanisms = new Mechanism[count];
+    memcpy(Neurox::mechanisms, mechanisms, sizeof(Mechanism)*count);
+    neurox_hpx_unpin;
+}
+
+void Mechanism::registerHpxActions()
+{
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setMechanisms, setMechanisms_handler, HPX_POINTER, HPX_SIZE_T);
+}

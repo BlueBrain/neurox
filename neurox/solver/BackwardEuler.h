@@ -15,18 +15,14 @@ class BackwardEuler
 {
   public:
     BackwardEuler()=delete;
-    BackwardEuler(Neurox::Input::InputParams *inputParams);
     ~BackwardEuler();
 
     static void registerHpxActions(); ///> Registers all HPX actions
-    static void solve(); ///> netpar.cpp:BBS_netpar_solve()
-
-    static hpx_action_t step;
-    static hpx_action_t queueSpike;
+    static void solve(double dt, double tstop); ///> netpar.cpp:BBS_netpar_solve()
+    static hpx_action_t step; ///> performs one Backward Euler step in all neurons
 
   private:
-    static int step_handler(const double dt); ///> fadvance_core.c::nrn_fixed_step_minimal()
-    static int queueSpike_handler(const Synapse * syn, size_t size); ///> queueing of synapses
+    static int  step_handler();
 } ;
 
 } //Solver

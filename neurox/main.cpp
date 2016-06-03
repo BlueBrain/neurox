@@ -17,22 +17,28 @@
 
 using namespace Neurox;
 
+int Neurox::neuronsCount=-1;
+hpx_t Neurox::neuronsAddr=HPX_NULL;
+int Neurox::mechanismsCount=-1;
+Mechanism * Neurox::mechanisms=NULL;
+Input::InputParams * Neurox::inputParams = nullptr;
+
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( const int argc, char ** argv)
 {
     //populate InputParams from command line, and broadcasts to all compute nodes
     Input::InputParams inputParams(argc, argv);
     printf("Broadcasting InputParams...\n");
-    int e = hpx_bcast_rsync(Neurox::setInputParams, &inputParams, sizeof (InputParams));
+    int e = hpx_bcast_rsync(Neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
 
     //reads morphology data
     Input::DataLoader::loadData(argc, argv);
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
-    hpx_par_for_sync(
-       [&] (int i, void*) { hpx_call_sync(getNeuronAddr(i), Neuron::finitialize);},
-       0, local->neuronsCount);
+    hpx_par_for_sync( [&] (int i, void*) -> int
+        { return hpx_call_sync(getNeuronAddr(i), Neuron::finitialize, NULL, 0);},
+        0, neuronsCount, NULL);
 
     // call prcellstae for prcellgid
     //opens the file that will store this cell's info
@@ -47,12 +53,7 @@ static int main_hpx_handler( const int argc, char ** argv)
     //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
     //}
 
-    //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
-    hpx_par_for_sync(
-       [&] (int i, void*) { hpx_call_sync(getNeuronAddr(i), Neuron::solve);},
-       0, local->neuronsCount);
-
-    Solver::solve(); //BBS_netpar_solve( inputParams.tstop );
+    Solver::BackwardEuler::solve(inputParams.dt, inputParams.tstop); //BBS_netpar_solve( inputParams.tstop );
     assert(e == HPX_SUCCESS);
 
     BBS_netpar_solve( inputParams.tstop );
@@ -67,7 +68,7 @@ static int main_hpx_handler( const int argc, char ** argv)
     //}
 
     // write spike information to input_params.outpath
-    output_spikes( inputParams.outputPath );
+    //output_spikes( inputParams.outputPath );
 
     hpx_exit(HPX_SUCCESS);
 }
@@ -84,10 +85,10 @@ int main1_hpx(int argc, char** argv)
 
     //register HPX methods
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_INT, HPX_POINTER);
-    InputParams::registerHpxActions();
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
-    Solver::registerHpxActions();
+    Mechanism::registerHpxActions();
+    Solver::BackwardEuler::registerHpxActions();
 
     //start HPX
     int e = hpx_run(&main_hpx, argc, argv);

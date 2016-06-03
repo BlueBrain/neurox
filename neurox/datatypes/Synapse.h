@@ -12,7 +12,7 @@ namespace Neurox
 class Synapse
 {
   public:
-    Synapse()=delete;
+    Synapse();
     Synapse(const double weight, const double delay, const int mechType, const int mechInstance);
     ~Synapse();
 

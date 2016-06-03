@@ -62,7 +62,7 @@ double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
 int nrn_is_ion(int type) {
-	return (memb_func[type].alloc == ion_alloc);
+    return (memb_func[type].alloc == ion_alloc);
 }
 
 static int ion_global_map_size;
@@ -92,7 +92,7 @@ void ion_reg(const char* name, double valence) {
 	}
 	mechanism[5] = (char *)0; /* buf[4] not used above */
 	mechtype = nrn_get_mechtype(buf[0]);
-	if (memb_func[mechtype].alloc != ion_alloc) {
+    if (memb_func[mechtype].alloc != ion_alloc) {
 		register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
 		mechtype = nrn_get_mechtype(mechanism[1]);
 		_nrn_layout_reg(mechtype, LAYOUT);
@@ -301,7 +301,7 @@ void second_order_cur(NrnThread* _nt) {
 	int _cntml_padded;
 #endif
 	int* ni;
-	double* pd;
+    double* pd;
 	(void)_nt; /* unused */
   if (secondorder == 2) {
     for (tml = _nt->tml; tml; tml = tml->next)

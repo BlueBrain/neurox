@@ -89,7 +89,7 @@ int Branch::setV_handler(const double v)
 
 
 hpx_action_t Branch::updateV = 0;
-static int updateV_handler(const int secondOrder)
+int Branch::updateV_handler(const int secondOrder)
 {
     neurox_hpx_pin(Branch);
     for (int i=0; i<local->n; i++)
@@ -418,15 +418,15 @@ int Branch::deliverSpikes_handler()
 
 void Branch::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixRHS, setupMatrixRHS_handler, HPX_CHAR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  updateV, updateV_handler, HPX_INT);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  gaussianFwdSubstitution, gaussianFwdSubstitution_handler, HPX_CHAR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_CHAR);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE,   setupMatrixInitValues, setupMatrixInitValues_handler);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixRHS, setupMatrixRHS_handler, HPX_CHAR, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  updateV, updateV_handler, HPX_INT);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianFwdSubstitution, gaussianFwdSubstitution_handler, HPX_CHAR, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_CHAR);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setV, setV_handler, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,   setupMatrixInitValues, setupMatrixInitValues_handler);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  init, init_handler, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
 }

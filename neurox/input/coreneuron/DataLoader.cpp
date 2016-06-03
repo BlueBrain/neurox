@@ -83,7 +83,9 @@ void CoreNeuronDataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
-extern double** ion_global_map;
+//TODO this is a hack to access the ion_global_map var defined in eion.c only
+//#include "coreneuron/nrnoc/eion.c"
+//extern double** ion_global_map;
 void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 { 
     coreNeuronInitialSetup(argc, argv);
@@ -93,14 +95,11 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     int offset=0;
     mechanisms = new Mechanism[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
-    {
-        mechanisms[m]=Mechanism(m, mechanisms[m].dataSize, mechanisms[m].pdataSize,
+        mechanisms[m]=Mechanism((short) m, mechanisms[m].dataSize, mechanisms[m].pdataSize,
                                 mechanisms[m].dependenciesCount, mechanisms[m].pntMap,
-                                mechanisms[m].isArtificial, &mechDependencies[offset],
+                                mechanisms[m].isArtificial, mechanisms[m].dependencies,
                                 mechanisms[m].isIon, mechanisms[m].conci, mechanisms[m].conco, mechanisms[m].charge //for ions
                                 );
-        offset += mechanisms[m].dependenciesCount;
-    }
 
     //copy BA functions
     for (int bat=0; bat<BEFORE_AFTER_SIZE; bat++)
@@ -108,11 +107,11 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         int idMechFunction = bat+4;
         for (int nt=0; nt<nrn_nthread; nt++)
         {
-            for (NrnThreadBAList *tbl = nt->tbl[bat]; tbl; tbl = tbl->next)
+            for (NrnThreadBAList *tbl = nrn_threads[nt].tbl[bat]; tbl; tbl = tbl->next)
             {
                 auto f = tbl->bam->f;
-                int type = tbl->type;
-                mechanisms[type].functions[idMechFunction]=f;
+                int type = tbl->bam->type;
+                mechanisms[type].functions[idMechFunction]=(Mechanism::modFunction) f;
             }
         }
     }
@@ -139,7 +138,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 
     //from nrn id, mech type, mech instance, to compartment
     map< tuple<int, int, int> , Compartment *> fromMechToCompartment;
-    for (int i=0; <nrn_nthread; i++)
+    for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
 
@@ -167,7 +166,8 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
                     nrn_prop_dparam_size_[type],tml->ndependencies,
                     pnt_map[type], nrn_is_artificial_[type], tml->dependencies,
-                    isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
+                    //isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
+                    isIon, -1, -1, -1);
 
             //Mechanisms application to each compartment
             Memb_list *& ml = tml->ml; //list of compartments this mechanism is applied to to
@@ -175,7 +175,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             int pdataSize = mechanisms[type].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
-                Compartment & compartment = compartments[ml->nodeindices[n]];
+                Compartment & compartment = compartments[0][ml->nodeindices[n]]; //TODO node indices refers to NrnThread node id, no neuron Id
                 compartment.addMechanism(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
@@ -192,10 +192,8 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         for (int n=0; n<nt.ncell; n++)
         {
             int preSynGid = nt.presyns[n].gid_;
+            if (gid2out.find(preSynGid)==gid2out.end()) continue; //no outcoming synapses
             PreSyn * outSynapses = gid2out.at(preSynGid); //one PreSyn per neuron
-
-            if (outSynapses==gid2out.end()) continue; //no outcoming synapses
-
             for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contacts (outgoing Synapses)
             {
                 NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
@@ -204,14 +202,15 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
                 int type = target->_type;
                 int instance = target->_i_instance;
 
-                Compartment * comp = fromMechToCompartment(make_tuple(targetNrn, type, instance));
-                comp->addSynapse(*nc->weight_, nc->delay_, type, instance);
+                tuple<int, int, int> keyTuple = make_tuple(targetNrn, type, instance);
+                Compartment * comp = fromMechToCompartment.at(keyTuple);
+                //comp->addSynapse(*nc->weight_, nc->delay_, type, instance);
 
                 //traverse tree up until find parent
                 int postSynCompartmentId = nrn_threads[targetNrn]._ml_list[type]->nodeindices[instance];
                 int postSynNeuronId = postSynCompartmentId;
                 while (postSynNeuronId > nrn_threads[targetNrn].ncell)
-                    postSynNeuronId = nrn_threads[targetNrn]._v_parent_index[postSynGid];
+                    postSynNeuronId = nrn_threads[targetNrn]._v_parent_index[postSynNeuronId];
 
                 //Synapse synapse(postSynCompartmentId, *nc->weight_, nc->delay_, mechType, mechInstance);
                 //synapses[postSynGid].push_back(std::make_tuple(preSynGid, synapse));
@@ -226,8 +225,9 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         for (int n=0; n<nt.ncell; n++)
         {
             int neuronId = nt.presyns[n].gid_;
+            PreSyn * outSynapses = gid2out[neuronId];
             double APThreshold = outSynapses->threshold_;
-            createNeuron(neuronId, compartments.at(i).at(n), mechanisms, APThreshold, synapses);
+            //createNeuron(neuronId, compartments.at(i).at(n), mechanisms, APThreshold, synapses.at(i).at(n));
         }
     }
 
@@ -259,8 +259,8 @@ void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mec
 
     //Broadcasts (serialized) brain
     printf("Broadcasting Circuit info...\n");
-    int e = hpx_bcast_rsync(Brain::init, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
-    assert(e == HPX_SUCCESS);
+    //int e = hpx_bcast_rsync(Brain::init, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
+    //assert(e == HPX_SUCCESS);
 
     delete [] mechsDependencies;
 }

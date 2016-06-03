@@ -5,25 +5,18 @@
 using namespace Neurox;
 using namespace Neurox::Solver;
 
-BackwardEuler::BackwardEuler(InputParams * inputParams)
-    :t(0)
-{
-    dt=inputParams->dt;
-    tstop->inputParams->tstop;
-}
-
 BackwardEuler::~BackwardEuler() {}
 
-void BackwardEuler::solve()
+void BackwardEuler::solve(double dt, double tstop)
 {
     for (double t=0; t<tstop; t+=dt)
-        hpx_par_for_sync( [&] (int i, void*)
-            { hpx_call_sync(brain->getNeuronAddr(i), BackwardEuler::step, NULL, 0);},
-            0, brain->neuronsCount,  dt, sizeof(double));
+        hpx_par_for_sync( [&] (int i, void*) -> int
+            { return hpx_call_sync(getNeuronAddr(i), BackwardEuler::step, NULL, 0); },
+            0, neuronsCount, NULL);
 }
 
 hpx_action_t BackwardEuler::step = 0;
-int BackwardEuler::step_handler(const double dt)
+int BackwardEuler::step_handler()
 {
     neurox_hpx_pin(Neuron); //We are in a Neuron
 
@@ -41,7 +34,7 @@ int BackwardEuler::step_handler(const double dt)
     //3. netcvode.cpp::NetCon::deliver()
     //calls NET_RECEIVE in mod files to receive synapses
     //TODO: are these the same ones sent, or from the previous interval?
-    hpx_call_sync(local->topBranch, BackwardEuler::deliverSpikes, NULL, 0);
+    hpx_call_sync(local->soma, Branch::deliverSpikes, NULL, 0);
 
     local->t += .5*dt;
 
@@ -78,12 +71,7 @@ int BackwardEuler::step_handler(const double dt)
     neurox_hpx_unpin;
 }
 
-
-static void BackwardEuler::registerHpxActions()
+void BackwardEuler::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, solve, solve_handler);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, step, step_handler, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, queueSpike, queueSpike_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, deliverSpikes, deliverSpikes_handler);
 }
-

@@ -26,22 +26,21 @@ class Neuron
     double cj; ///<1st or 2nd order solver ... (?)
     
     //outgoing synapses
-    double thresholdAP;     ///> Action Potential threshold
-    int synapsesCount;      ///> number of outgoing synapses
-    Synapse * synapses;       ///> outgoing Synapses (branches addr)
+    double thresholdAP;      ///> Action Potential threshold
+    int synapsesCount;       ///> number of outgoing synapses
+    Synapse * synapses;      ///> outgoing Synapses
+    hpx_t * synapsesTargets; ///> hpx address of branch containing post-synaptic mechanism
 
     static void registerHpxActions(); ///> Register all HPX actions
     static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
     static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
-    static hpx_action_t solve;        ///> Main loop, the solver
     static hpx_action_t addSynapses;  ///> Inserts Synapses (targets) in this Neuron
 
 
   private:
     static int finitialize_handler(); ///> initialize.c
-    static int solve_handler(); ///> BBS_netpar_solve( inputParams.tstop );
     static int init_handler(const int gid, const hpx_t soma, double thresholdAP); ///> HPX constructor
     static int addSynapses_handler(Synapse * synapses, size_t synapsesCount); ///>Inserts Synapses
 };
