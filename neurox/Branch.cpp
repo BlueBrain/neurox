@@ -108,7 +108,7 @@ Branch::Branch(offset_t n,
     }
 
     // reconstruct mechanisms
-    assert (recvMechanismsCount == mechanismsCount);
+    assert (recvMechanismsCount <= mechanismsCount);
     offset_t dataOffset=6*n;
     offset_t pdataOffset=0;
     offset_t instancesOffset=0;
