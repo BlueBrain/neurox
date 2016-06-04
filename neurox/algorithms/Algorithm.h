@@ -62,8 +62,8 @@ class Algorithm
 
 }; //neurox
 
+#include "neurox/algorithms/DebugAlgorithm.h"
 #include "neurox/algorithms/CoreneuronAlgorithm.h"
-#include "neurox/algorithms/CoreneuronDebugAlgorithm.h"
 #include "neurox/algorithms/AllReduceAlgorithm.h"
 #include "neurox/algorithms/SlidingTimeWindowAlgorithm.h"
 #include "neurox/algorithms/TimeDependencyLCOAlgorithm.h"
