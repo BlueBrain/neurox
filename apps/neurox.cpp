@@ -28,7 +28,7 @@ int main(int argc, char** argv)
     //parse command line arguments
     neurox::inputParams = new tools::CmdLineParser(argc, argv);
 
-    if (inputParams->branchingDepth>0 && hpx_get_num_ranks()>1)
+    if (inputParams->branchingDepth>0 && neurox::ParallelExecution())
     {
         //Branches will be split across several localities.
         //To load and instantiate all mechs in all nodes:
