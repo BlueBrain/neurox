@@ -313,6 +313,16 @@ void Debugger::CompareBranch2(Branch * branch)
             assert(IsEqual(nt._data[offset], branch->nt->_data[offset], multiMex));
         }
 
+    //dparam_semantics
+    for (int m=0; m<neurox::mechanismsCount; m++)
+    {
+        int type = mechanisms[m]->type;
+        for (int i=0; i<mechanisms[m]->pdataSize; i++)
+        {
+            assert (mechanisms[m]->membFunc.dparam_semantics[i]== memb_func[type].dparam_semantics[i]);
+        }
+    }
+
     for (offset_t i=0; i<branch->nt->end; i++)
     {
         assert(nt._actual_a[i] == branch->nt->_actual_a[i]); //constants
@@ -348,7 +358,6 @@ void Debugger::CompareBranch2(Branch * branch)
         Memb_list * ml = tml->ml; //Mechanisms application to each compartment
         Memb_list & instances = branch->mechsInstances[m];
         assert(ml->nodecount == instances.nodecount);
-        //assert(ml->_nodecount_padded == instance.instancesCount);
         short dataSize  = mechanisms[m]->dataSize;
         short pdataSize = mechanisms[m]->pdataSize;
         for (int n=0; n<ml->nodecount; n++) //for every mech instance
