@@ -3,38 +3,38 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-hpx_t* DERIVED_CLASS_NAME::allReduces = nullptr;
+hpx_t* SlidingTimeWindowAlgorithm::allReduces = nullptr;
 
-DERIVED_CLASS_NAME::DERIVED_CLASS_NAME()
+SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm()
 {
-    AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = DERIVED_CLASS_NAME::allReducesCount;
+    AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = SlidingTimeWindowAlgorithm::allReducesCount;
 }
 
-DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
+SlidingTimeWindowAlgorithm::~SlidingTimeWindowAlgorithm() {}
 
-const AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType SlidingTimeWindowAlgorithm::getType()
 {
     return AlgorithmType::BackwardEulerSlidingTimeWindow;
 }
 
-const char* DERIVED_CLASS_NAME::getTypeString()
+const char* SlidingTimeWindowAlgorithm::getTypeString()
 {
     return "BackwardEulerSlidingTimeWindow";
 }
 
-void DERIVED_CLASS_NAME::Init() {
+void SlidingTimeWindowAlgorithm::Init() {
     AllReduceAlgorithm::SubscribeAllReduces(
-                DERIVED_CLASS_NAME::allReduces,
-                DERIVED_CLASS_NAME::allReducesCount);
+                SlidingTimeWindowAlgorithm::allReduces,
+                SlidingTimeWindowAlgorithm::allReducesCount);
 }
 
-void DERIVED_CLASS_NAME::Clear() {
+void SlidingTimeWindowAlgorithm::Clear() {
     AllReduceAlgorithm::UnsubscribeAllReduces(
-                DERIVED_CLASS_NAME::allReduces,
-                DERIVED_CLASS_NAME::allReducesCount);
+                SlidingTimeWindowAlgorithm::allReduces,
+                SlidingTimeWindowAlgorithm::allReducesCount);
 }
 
-double DERIVED_CLASS_NAME::Launch()
+double SlidingTimeWindowAlgorithm::Launch()
 {
     int totalSteps = Algorithm::getTotalStepsCount();
     hpx_time_t now = hpx_time_now();
@@ -47,20 +47,20 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
+void SlidingTimeWindowAlgorithm::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t spikesLco)
+void SlidingTimeWindowAlgorithm::StepEnd(Branch* b, hpx_t spikesLco)
 {
     AllReduceAlgorithm::WaitForSpikesDelivery(b, spikesLco);
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::Run(Branch*b, const void* args)
+void SlidingTimeWindowAlgorithm::Run(Branch*b, const void* args)
 {
     AllReduceAlgorithm::Run2(b, args);
 }
 
-hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
+hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* neuron, double tt, double)
 {
     return AllReduceAlgorithm::SendSpikes2(neuron,tt);
 }
