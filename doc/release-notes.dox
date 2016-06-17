@@ -10,17 +10,17 @@
     @endhtmlonly
 
     @section Enhancements Enhancements
-        - Introduced defaults of the simulation parameters, the alternative are to be read from the "inputs.dat" file
+        - Fixed differences between Bluron and CoreNeuron outputs
         - More readable prcellstate() output
         - Implemented the workflow to deal with multiple nrnthreads on one MPI rank
-        - Integrated Neurodamus mechanisms for corebluron into corebluron/mechs/cfile folder
-        - Automatic creation of Jenkins plans with viz jjb
-        - Testing now includes integration, unit testing
+        - Testing now includes integration, unit tests, production tests
         - Results verification procedure based on python is now implemented, needs to be set for testing
         
     @section Optimizations Optimizations
-        - Initial endianness conversion is implemented.
-        - Initial spike replay functionality. Need further debugging.
+        - Reduced code size on 1/3.
+        - Replaced several macro templates with STL data structures.
+        - Endianness conversion is implemented.
+        - Spike replay functionality is corrected.
 
 
     @section API_Changes API Changes
@@ -28,13 +28,6 @@
 
 
     @section Sprint Sprint Logs
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-291
-        - https://bbpteam.epfl.ch/project/issues/browse/CBLUR-2
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-248
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-261
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-211
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-160
-        - https://bbpteam.epfl.ch/project/issues/browse/HPCTM-87
-        - The ongoing work: https://bbpteam.epfl.ch/project/issues/browse/CBLUR-4
+        - https://bbpteam.epfl.ch/project/issues/browse/CNEUR
 
 */

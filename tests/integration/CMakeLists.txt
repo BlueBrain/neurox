@@ -1,29 +1,43 @@
-set_source_files_properties(ring/ring.cpp ring_IClamp/ring_IClamp.cpp PROPERTIES COMPILE_FLAGS "-Wno-error")
+# Copyright (c) 2016, Blue Brain Project
+# All rights reserved.
 
-# Includes the install_files function below
-include(InstallFiles)
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
 
-# TEST_LIBRARIES variable is used by the CommonCTest.cmake script to link against the given libraries
-set(TEST_LIBRARIES ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} corebluron)
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+# THE POSSIBILITY OF SUCH DAMAGE.
 
-# CommonCTest, in the current folder recursively compiles targets for *.cpp files using TEST_LIBRARIES
-#include(CommonCTest)
 
 
-make_mpi_exeprefix(1 MPI_PREFIX)
-string(REPLACE ";" " " SRUN_PREFIX "${MPI_PREFIX}")
-
-#set(ring_ring_TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring --celsius=6.3 -mpi")
-#set(ring_IClamp_ring_IClamp_TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring_IClamp --celsius=6.3 -mpi")
 
 # List of tests with arguments
 set(TEST_CASE_ARGS
   "ring!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring --celsius=6.3 --tstop=100. -mpi"
   "ring_IClamp!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring_IClamp --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring_IClamp --celsius=6.3 --tstop=100. -mpi")
 
+
+
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
   string(REPLACE "!" ";" string_line ${args_line})
+  string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;1")
   list(GET string_line 0 TEST_NAME)
   list(GET string_line 1 TEST_ARGS)
   set(SIM_NAME ${TEST_NAME})
@@ -33,16 +47,14 @@ foreach (args_line ${TEST_CASE_ARGS})
            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}")
 endforeach()
 
-# This test is for corebluron havign all the mechanisms integrated into the
+# This test is for coreneuron having all the mechanisms integrated into the
 # library. Runs when the corresponding condition is utilized plus the
 # executable is built.
 # Set of 10Cells tests
-if(COREBLURON_NEURODAMUS_MECHS AND COREBLURON_MAIN)
-
-  make_mpi_exeprefix(2 MPI_PREFIX)
-  string(REPLACE ";" " " SRUN_PREFIX "${MPI_PREFIX}")
+if(ADDITIONAL_MECHS AND CORENEURON_MAIN)
 
   function(exec_test TEST_NAME SUBTEST_NAME)
+    string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
     set(SIM_NAME "${TEST_NAME}/${SUBTEST_NAME}")
     if(${SUBTEST_NAME} MATCHES "generic")
       set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --tstop=100. -mpi")
@@ -65,16 +77,4 @@ if(COREBLURON_NEURODAMUS_MECHS AND COREBLURON_MAIN)
     exec_test(${TEST_NAME} ${subtest})
   endforeach()
 
-  # Installs the compiled tests ${TEST_FILES} into the examples directory
-#  set(TEST_FILES
-#  10Cells/14397_1.dat
-#  10Cells/14397_2.dat
-#  10Cells/14457_1.dat
-#  10Cells/14457_2.dat
-#  10Cells/bbcore_mech.dat
-#  10Cells/files.dat
-#  )
-
 endif()
-
-#install_files(share/CoreBluron/tests FILES ${TEST_FILES} COMPONENT examples)
