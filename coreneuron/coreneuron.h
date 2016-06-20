@@ -45,18 +45,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/utils/randoms/nrnran123.h"      //Random Number Generator
 
 #if defined(__cplusplus)
-#include "coreneuron/nrniv/memory.h"                 //Memory alignemnts and padding
+#include "coreneuron/nrniv/memory.h"                 //Memory alignments and padding
 
 extern "C" {
 #endif
 
-
-
-// global variables required by mechanisms
-// TODO requires #include coreneuron/coreneuron.h in all mechs
-// extern double celsius; //from coreneuron/coreneuron/nrnconf.h
-// extern int nrn_ion_global_map_size; //from coreneuron/nrnoc/membfunc.h
-// extern double** nrn_ion_global_map; //from coreneuron/nrnoc/membfunc.h
+//Registration of external mechanisms (if any):
+//- if ADDITIONAL_MECHS is set, it's generated at compilation time as coreneuron/mod_func.c.
+//- Otherwise: defined in apps/coreneuron.cpp as a dummy function that does nothing;
+extern void modl_reg(void);
 
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c
