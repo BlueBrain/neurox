@@ -26,32 +26,24 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
     std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
 
     //register functions //TODO will not work in more than 1 compute node
-    //this->alloc = memb_func[type].alloc;
-    //this->thread_mem_init = memb_func[type].thread_mem_init_;
-    //this->thread_cleanup = memb_func[type].thread_cleanup_;
-    //this->thread_table_check = memb_func[type].thread_table_check_;
-    //this->setdata = memb_func[type].setdata_;
-    //this->destructor = memb_func[type].destructor;
+    this->membFunc.alloc = memb_func[type].alloc;
+    this->membFunc.setdata_ = memb_func[type].setdata_;
+    this->membFunc.destructor = memb_func[type].destructor;
+    this->membFunc.current =  memb_func[type].current;
+    this->membFunc.jacob = memb_func[type].jacob;
+    this->membFunc.state = memb_func[type].state;
+    this->membFunc.initialize = memb_func[type].initialize;
+    this->membFunc.thread_cleanup_ = memb_func[type].thread_cleanup_;
+    this->membFunc.thread_mem_init_ = memb_func[type].thread_mem_init_;
+    this->membFunc.thread_size_ = memb_func[type].thread_size_;
+    //look up tables are created and destroyed inside mod files, not accessible via coreneuron
+    this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
     memcpy(this->name, memb_func[type].sym, 64);
 
-    //finitialize.c->nrn_finitialize()->nrn_ba()
-    //functions[modFunctionId::current] = memb_func[type].current;
-    //functions[modFunctionId::jacob] = memb_func[type].jacob;
-    //functions[modFunctionId::state] = memb_func[type].state;
-    //functions[modFunctionId::initialize] = memb_func[type].initialize;
-
+    //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
-    for (int i=0; i< Functions::functionsCount; i++)
-        functions[i] = (modFunction) 0; //TODO
-
-     //look up tables: multicore.c::nrn_thread_table_check()
-    //where's the look up table data
-    if (functions[Functions::tableCheck]!=0)
-    {
-        //TODO
-        //(*thread_table_check)(0, ml->nodecount, ml->data, ml->pdata, ml->_thread, nt, tml->index);
-        //look up tables are created and destroyed inside mod files, not accessible via coreneuron
-    }
+    for (int i=0; i< BEFORE_AFTER_SIZE; i++)
+        this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
 };
 
 Mechanism::~Mechanism(){

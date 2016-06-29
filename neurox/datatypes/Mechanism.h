@@ -2,7 +2,7 @@
 
 #include "neurox/Neurox.h"
 #include <vector>
-//#include "coreneuron/nrnoc/membfunc.h" //mod_f_t, mod_alloc_t
+#include "coreneuron/nrnoc/membfunc.h" //mod_f_t, mod_alloc_t
 #include "coreneuron/nrnoc/nrnoc_ml.h" //ThreadDatum
 #include "coreneuron/nrnconf.h" //Datum
 
@@ -34,29 +34,33 @@ class Mechanism
     char name[64]; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)
+    Memb_func membFunc;
+    mod_f_t BAfunctions[BEFORE_AFTER_SIZE]; ///>mechanism functions (with mod_f_t type)
+
     enum Functions
     {
-        current=0,
-        jacob=1,
-        state=2,
-        initialize=3,
-        before_initialize=4,
-        after_initialize=5,
-        before_breakpoint=6,
-        after_solve=7,
-        before_step=8,
+        //BA functions start here (size BEFORE_AFTER_SIZE)
+        before_initialize=0,
+        after_initialize=1,
+        before_breakpoint=2,
+        after_solve=3,
+        before_step=4,
+        //memb_func functions start here
+        current=5,
+        jacob=6,
+        state=7,
+        initialize=8,
         alloc=9,
-        tableCheck=10,
-        setData=11,
-        capacityCurrent=12, //not in mod files, it's in capac.c
-        capJacob=13,
-        NetReceive=14,
-        destructor=15,
-        functionsCount=16, //number of mod_f_t functions: +1 than previous
+        threadMemInit=10,
+        threadCleanup=11,
+        threadTableCheck=12,
+        setData=13,
+        destructor=14,
+        NetReceive=15,
+        //capacitance functions start here
+        capacityCurrent=16, //not in mod files, it's in capac.c
+        capJacob=17,
     };
-
-    typedef void (*modFunction)( short instancesCount, short dataSize, double * data, short pdataSize, int * pdata, int * nodesIndices);
-    modFunction functions[Functions::functionsCount]; ///>mechanism functions (with mod_f_t type)
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t setMechanisms; ///> Sets Mechanism

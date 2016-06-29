@@ -32,9 +32,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnconf.h"
 
 typedef union ThreadDatum {
-	double val;
-	int i;
-	double* pval;
+    double val; ///> Never used?
+    int i; ///> Id of NrnThread
+    double* pval; ///> used in mod2c/src/nocpout.c
 	void* _pvoid;
 }ThreadDatum;
 

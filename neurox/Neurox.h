@@ -27,21 +27,29 @@ typedef unsigned char byte;
     HPX_THREAD_CONTINUE(Var); \
 }
 
-///hpx wrappers for calling a function to all children branches
-//(hpx_call(local->branches[c], Func, lco, __VA_ARGS__); does not work)
-#define neurox_hpx_recursive_branch_call(Func, ...) \
+///hpx wrappers for async call a function to all children branches (phase 1 - launch threads)
+#define neurox_hpx_recursive_branch_call_init(Func, ...) \
     hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
     int e=-1; \
     for (int c=0; c<local->branchesCount; c++) \
     { \
         e = _hpx_call(local->branches[c], Func, lco, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
         assert(e==HPX_SUCCESS); \
-    } \
+    }
+
+///hpx wrappers for async call a function to all children branches (phase 2 - wait for threads)
+#define neurox_hpx_recursive_branch_call_end \
     if (local->branchesCount>0) \
     { \
         hpx_lco_wait(lco); \
         hpx_lco_delete(lco, HPX_NULL); \
     }
+
+///hpx wrappers for sync call a function to all children branches
+//(hpx_call(local->branches[c], Func, lco, __VA_ARGS__); does not work)
+#define neurox_hpx_recursive_branch_call_sync(Func, ...) \
+    neurox_hpx_recursive_branch_call_init (Func, __HPX_NARGS(__VA_ARGS__) ) \
+    neurox_hpx_recursive_branch_call_end
 
 //defines (should be moved to a struct at some point)
 #define ALL_NEURONS -1 //TODO make it static
@@ -49,6 +57,36 @@ typedef unsigned char byte;
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0
 #define THREAD_ID hpx_thread_get_tls_id()
+
+//#include "coreneuron/nrnoc/nrnoc_ml.h"
+struct MOD_ThreadDatum
+{
+    //double val; ///> Never used?
+    int i; ///> Id of NrnThread
+    //double* pval; ///> Never used?
+    void* _pvoid;
+};
+
+struct MOD_Memb_list
+{
+   double * data;
+   int * pdata;
+   int nodecount;
+   int *nodeIndices;
+   MOD_ThreadDatum * _thread;
+};
+
+struct MOD_NrnThread
+{
+    double* _actual_rhs;
+    double* _actual_d;
+    //double* _actual_a; //Not used by mod files
+    //double* _actual_b; //Not used by mod files
+    double* _actual_v;
+    double* _actual_area; //Not used by mod files
+    double _dt;
+    double _t;
+};
 
 #include "neurox/datatypes/Capacitance.h"
 #include "neurox/input/InputParams.h"

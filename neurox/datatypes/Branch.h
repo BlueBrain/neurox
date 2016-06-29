@@ -3,6 +3,7 @@
 #include "neurox/Neurox.h"
 #include "coreneuron/nrnoc/membfunc.h"
 #include "coreneuron/nrnoc/membdef.h"
+#include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnconf.h"
 #include <queue>
 
@@ -45,7 +46,7 @@ class Branch
     } mechsInstances;
 
     //List of branches
-    int branchesCount;		///> number of branches branches (always >1)
+    int branchesCount;		///> number of branches
     hpx_t *branches;		///> hpx address of the branches branches
 
     static void registerHpxActions(); ///> Register all HPX actions
@@ -77,7 +78,7 @@ class Branch
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double v);
-    static int callMechsFunction_handler(const Mechanism::Functions functionId);
+    static int callMechsFunction_handler(const Mechanism::Functions functionId, const double t, const double dt);
     static int queueSpike_handler(const Synapse * syn, size_t);
     static int deliverSpikes_handler();
     static int init_handler(const int n, const double *a, const double *b, const double *d,

@@ -20,7 +20,8 @@ class Neuron
     hpx_t soma;		///> hpx address of the top compartment (soma)
     //TODO this should be a Branch of size 1 instead, no need for hpx_t
     
-    double t; ///> current time step
+    double t; ///> current time
+    double dt; ///> time step size
 
     //from NrnThread
     double cj; ///<1st or 2nd order solver ... (?)

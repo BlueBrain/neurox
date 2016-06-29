@@ -83,7 +83,7 @@ int Branch::setV_handler(const double v)
     neurox_hpx_pin(Branch);
     for (int n=0; n<local->n; n++)
         local->v[n]=v;
-    neurox_hpx_recursive_branch_call(Branch::setV, v);
+    neurox_hpx_recursive_branch_call_sync(Branch::setV, v);
     neurox_hpx_unpin;
 }
 
@@ -94,7 +94,7 @@ int Branch::updateV_handler(const int secondOrder)
     neurox_hpx_pin(Branch);
     for (int i=0; i<local->n; i++)
         local->v[i] += (secondOrder ? 2 : 1) * local->rhs[i];
-    neurox_hpx_recursive_branch_call(Branch::updateV, secondOrder);
+    neurox_hpx_recursive_branch_call_sync(Branch::updateV, secondOrder);
     neurox_hpx_unpin;
 }
 
@@ -107,7 +107,7 @@ int Branch::setupMatrixInitValues_handler()
         local->rhs[n]=0;
         local->d[n]=0;
     }
-    neurox_hpx_recursive_branch_call(Branch::setupMatrixInitValues);
+    neurox_hpx_recursive_branch_call_sync(Branch::setupMatrixInitValues);
     neurox_hpx_unpin;
 }
 
@@ -264,7 +264,7 @@ int Branch::gaussianFwdSubstitution_handler(const char isSoma, const double pare
 
     char isSomaFlag=0;
     double childrenRHS=rhs[n-1];
-    neurox_hpx_recursive_branch_call(Branch::gaussianFwdSubstitution, isSomaFlag, childrenRHS);
+    neurox_hpx_recursive_branch_call_sync(Branch::gaussianFwdSubstitution, isSomaFlag, childrenRHS);
     neurox_hpx_unpin;
 }
 
@@ -328,18 +328,63 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
 }
 
 hpx_action_t Branch::callMechsFunction = 0;
-int Branch::callMechsFunction_handler(const Mechanism::Functions functionId)
+int Branch::callMechsFunction_handler(const Mechanism::Functions functionId, const double t, const double dt)
 {
     neurox_hpx_pin(Branch);
+
+    Memb_list membList;
+    NrnThread nrnThread;
+
     Branch::MechanismInstances & mechs = local->mechsInstances;
+    //TODO parallelize this loop
+    //PS what if different mechanisms overwrite the same nodes voltage?
     for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m].functions[functionId])
-            mechanisms[m].functions[functionId](
-                    (mechs.dataOffsets[m+1] - mechs.dataOffsets[m])/mechanisms[m].dataSize, //instances count
-                    mechanisms[m].dataSize,  &mechs.data[mechs.dataOffsets[m]],
-                    mechanisms[m].pdataSize, &mechs.pdata[mechs.pdataOffsets[m]],
-                    &mechs.nodesIndices[mechs.nodesIndicesOffsets[m]]);
-    neurox_hpx_recursive_branch_call(Branch::callMechsFunction, functionId);
+        if (mechanisms[m].BAfunctions[functionId])
+        {
+            membList.data  = &mechs.data[mechs.dataOffsets[m]];
+            membList.pdata = &mechs.pdata[mechs.pdataOffsets[m]];
+            membList.nodecount = (mechs.dataOffsets[m+1] - mechs.dataOffsets[m])/mechanisms[m].dataSize; //instances count
+            membList.nodeindices = &mechs.nodesIndices[mechs.nodesIndicesOffsets[m]];
+            membList._thread = NULL; //TODO: ThreadDatum never used ?
+            nrnThread._actual_d = local->d;
+            nrnThread._actual_rhs = local->rhs;
+            nrnThread._actual_v = local->v;
+            nrnThread._actual_area = local->area;
+            nrnThread._dt = dt;
+            nrnThread._t = t;
+            if (functionId<BEFORE_AFTER_SIZE)
+                mechanisms[m].BAfunctions[functionId](&nrnThread, &membList, m);
+            else
+                switch(functionId)
+                {
+                case Mechanism::Functions::alloc:
+                   mechanisms[m].membFunc.alloc(membList.data, membList.pdata, m); break;
+                case Mechanism::Functions::current:
+                    mechanisms[m].membFunc.current(&nrnThread, &membList, m); break;
+                case Mechanism::Functions::state:
+                    mechanisms[m].membFunc.state(&nrnThread, &membList, m); break;
+                case Mechanism::Functions::jacob:
+                    mechanisms[m].membFunc.jacob(&nrnThread, &membList, m); break;
+                case Mechanism::Functions::initialize:
+                    mechanisms[m].membFunc.initialize(&nrnThread, &membList, m); break;
+                case Mechanism::Functions::destructor:
+                    mechanisms[m].membFunc.destructor(); break;
+                case Mechanism::Functions::threadMemInit:
+                    mechanisms[m].membFunc.thread_mem_init_(membList._thread); break;
+                case Mechanism::Functions::threadTableCheck:
+                    mechanisms[m].membFunc.thread_table_check_
+                        (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, m);
+                    break;
+                case Mechanism::Functions::threadCleanup:
+                    mechanisms[m].membFunc.thread_cleanup_(membList._thread); break;
+                case Mechanism::Functions::setData:
+                    mechanisms[m].membFunc.setdata_(membList.data, membList.pdata); break;
+                default:
+                    printf("ERROR! Unknown function!!\n"); //TODO
+                }
+        }
+    //TODO should be called at the beginning of this function, not the end (maybe we'll need mutex)
+    neurox_hpx_recursive_branch_call_sync(Branch::callMechsFunction, functionId, t, dt);
     neurox_hpx_unpin;
 }
 
@@ -355,7 +400,7 @@ int Branch::secondOrderCurrent_handler()
     neurox_hpx_pin(Branch);
     MechanismInstances & mechs = local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m].functions[Mechanism::Functions::alloc] ) //TODO used to be if == ion_alloc()
+        if (mechanisms[m].BAfunctions[Mechanism::Functions::alloc] ) //TODO used to be if == ion_alloc()
         {
             int * nodeIndices = &mechs.nodesIndices[m];
             int indicesCount = mechs.nodesIndicesOffsets[m+1] - mechs.nodesIndicesOffsets[m];
@@ -366,7 +411,7 @@ int Branch::secondOrderCurrent_handler()
                 data[cur] += data[dcurdv] * local->rhs[nodeIndices[i]]; // cur += dcurdv * rhs(ni[i])
             }
         }
-    neurox_hpx_recursive_branch_call(Branch::secondOrderCurrent);
+    neurox_hpx_recursive_branch_call_sync(Branch::secondOrderCurrent);
     neurox_hpx_unpin;
 }
 
@@ -405,7 +450,7 @@ int Branch::deliverSpikes_handler()
         hpx_lco_sema_p(local->synapsesQueueMutex);
         Synapse syn = local->synapsesQueue.top();
         //(mechanisms[syn.mechType].functions[Mechanism::Functions::NetReceive])((void *) syn.mechInstance, (void *) syn.weight, syn.deliveryTime);
-        (mechanisms[syn.mechType].functions[Mechanism::Functions::NetReceive])(0,0,NULL,0,NULL,NULL);
+        (mechanisms[syn.mechType].BAfunctions[Mechanism::Functions::NetReceive])(NULL,NULL,0);
         //( short instancesCount, short dataSize, double * data, short pdataSize, int * pdata, int * nodesIndices)
         local->synapsesQueue.pop();
         hpx_lco_sema_v_sync(local->synapsesQueueMutex);
@@ -424,8 +469,8 @@ void Branch::registerHpxActions()
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianFwdSubstitution, gaussianFwdSubstitution_handler, HPX_CHAR, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_CHAR);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setV, setV_handler, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callMechsFunction, callMechsFunction_handler, HPX_INT);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,   setupMatrixInitValues, setupMatrixInitValues_handler);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callMechsFunction, callMechsFunction_handler, HPX_INT, HPX_DOUBLE, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixInitValues, setupMatrixInitValues_handler);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  init, init_handler, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);

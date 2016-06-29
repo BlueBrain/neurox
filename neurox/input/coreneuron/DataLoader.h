@@ -30,7 +30,7 @@ class CoreNeuronDataLoader
 
   private:
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static void createBrain(int neuronsCount, vector<Mechanism> & mechanisms);
+    static void createBrain(int neuronsCount, Mechanism * mechanisms, int mechanismsCount);
     static void createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses);
     static hpx_t createBranch( Compartment * topCompartment, vector<Mechanism> & mechanisms);
 };

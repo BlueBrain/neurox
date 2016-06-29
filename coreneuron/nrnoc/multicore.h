@@ -81,12 +81,12 @@ typedef struct NrnThread {
     void** _vdata;   /**< pointers to Point_Process (?) */
     void** _vecplay; /**< array of instances of VecPlayContinuous */
 
-	double* _actual_rhs;
-	double* _actual_d;
-	double* _actual_a;
-	double* _actual_b;
-	double* _actual_v;
-	double* _actual_area;
+    double* _actual_rhs; //a pointer to a position in data
+    double* _actual_d; //a pointer to a position in data
+    double* _actual_a; //a pointer to a position in data
+    double* _actual_b; //a pointer to a position in data
+    double* _actual_v; //a pointer to a position in data
+    double* _actual_area; //a pointer to a position in data
     double* _shadow_rhs; /**< Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
     double* _shadow_d; /**< Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
 	int* _v_parent_index;

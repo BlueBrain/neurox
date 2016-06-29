@@ -90,31 +90,9 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 { 
     coreNeuronInitialSetup(argc, argv);
 
-
-    //add mechanisms information
-    int offset=0;
-    mechanisms = new Mechanism[mechanismsCount];
-    for (int m=0; m<mechanismsCount; m++)
-        mechanisms[m]=Mechanism((short) m, mechanisms[m].dataSize, mechanisms[m].pdataSize,
-                                mechanisms[m].dependenciesCount, mechanisms[m].pntMap,
-                                mechanisms[m].isArtificial, mechanisms[m].dependencies,
-                                mechanisms[m].isIon, mechanisms[m].conci, mechanisms[m].conco, mechanisms[m].charge //for ions
-                                );
-
-    //copy BA functions
-    for (int bat=0; bat<BEFORE_AFTER_SIZE; bat++)
-    {
-        int idMechFunction = bat+4;
-        for (int nt=0; nt<nrn_nthread; nt++)
-        {
-            for (NrnThreadBAList *tbl = nrn_threads[nt].tbl[bat]; tbl; tbl = tbl->next)
-            {
-                auto f = tbl->bam->f;
-                int type = tbl->bam->type;
-                mechanisms[type].functions[idMechFunction]=(Mechanism::modFunction) f;
-            }
-        }
-    }
+    //requires one neuron per NRN_THREAD: in Blue config "CellGroupSize 1"
+    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    assert(neuronsCount == nrn_nthread);
 
     //TODO: Debug: plot morphologies as dot file
     for (int k=0; k<nrn_nthread; k++)
@@ -130,27 +108,43 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         fclose(dotfile);
     }
 
-    //create the tree structure for all neurons and mechanism
-    vector<Mechanism> mechanisms; //unique info for mechanism
-    vector<vector<Compartment>> compartments; //compartments per NrnThread Id
-    vector<vector<tuple<int,Synapse>>> synapses; //incoming synapses per neuron
-        //for a post syn neuron, list of <preId, Synapse>
+    //Reconstructs unique data related to each mechanism
+    mechanismsCount = 0;
+    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=nullptr; tml = tml->next)
+        mechanismsCount++;
+    mechanisms = new Mechanism[mechanismsCount];
 
-    //from nrn id, mech type, mech instance, to compartment
-    map< tuple<int, int, int> , Compartment *> fromMechToCompartment;
+    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=nullptr; tml = tml->next) //For every mechanism
+    {
+        int type = tml->index;
+        mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
+                nrn_prop_dparam_size_[type],tml->ndependencies,
+                pnt_map[type], nrn_is_artificial_[type], tml->dependencies,
+                //isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
+                nrn_is_ion(type), -1, -1, -1);
+    }
+
+    //create the tree structure for all neurons and mechanisms
+    vector<vector<tuple<int,Synapse>>> synapses; //incoming synapses per neuron
+    //for a post syn neuron, list of <preId, Synapse>
+
     for (int i=0; i<nrn_nthread; i++)
     {
+        vector<Compartment> compartments; //compartments per NrnThread Id
+        //from nrn id, mech type, mech instance, to compartment
+        map< tuple<int, int, int> , Compartment* > fromMechToCompartment;
+
         NrnThread & nt = nrn_threads[i];
 
         //reconstructs tree with solver values
         for (int n=nt.end-1; n>=0; n--)
         {
-            Compartment & compartment = compartments[i][n];
+            Compartment & compartment = compartments[n];
             compartment.setSolverValues(nt._actual_a[n], nt._actual_b[n], nt._actual_d[n], nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
 
             if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
             {
-                Compartment & parentCompartment = compartments[i][nt._v_parent_index[n]];
+                Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
                 parentCompartment.addChild(&compartment);
             }
         }
@@ -160,22 +154,12 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
             int type = tml->index;
-            char isIon = nrn_is_ion(type);
-
-            //Data unique to each mechanism type
-            mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
-                    nrn_prop_dparam_size_[type],tml->ndependencies,
-                    pnt_map[type], nrn_is_artificial_[type], tml->dependencies,
-                    //isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
-                    isIon, -1, -1, -1);
-
-            //Mechanisms application to each compartment
-            Memb_list *& ml = tml->ml; //list of compartments this mechanism is applied to to
+            Memb_list *& ml = tml->ml; //Mechanisms application to each compartment
             int dataSize  = mechanisms[type].dataSize;
             int pdataSize = mechanisms[type].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
-                Compartment & compartment = compartments[0][ml->nodeindices[n]]; //TODO node indices refers to NrnThread node id, no neuron Id
+                Compartment & compartment = compartments[ml->nodeindices[n]];
                 compartment.addMechanism(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
@@ -235,24 +219,23 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     //from ThreadId, mechType, mechInstance (in NrnThread)
     //to branch hpx_t, mechType, mechInstance (in branch)
 
-    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    createBrain(neuronsCount, mechanisms);
+
+    createBrain(neuronsCount, mechanisms, mechanismsCount);
 
     nrn_cleanup(); //remode CoreNeuron data structs
 }
 
-void CoreNeuronDataLoader::createBrain(int neuronsCount, vector<Mechanism> & mechanisms)
+void CoreNeuronDataLoader::createBrain(int neuronsCount, Mechanism * mechanisms, int mechanismsCount)
 {
     //create Brain HPX structure
     hpx_t neuronsAddr = hpx_gas_calloc_blocked(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
     assert(neuronsAddr != HPX_NULL);
-    int mechanismsCount = mechanisms.size();
 
     //serialize mechanisms dependencies
-    int totalDependenciesCount = accumulate(mechanisms.begin(), mechanisms.end(), 0, [](int n, Mechanism & m){return n+m.dependenciesCount;});
+    int totalDependenciesCount = accumulate(mechanisms, mechanisms+mechanismsCount, 0, [](int n, Mechanism & m){return n+m.dependenciesCount;});
     int * mechsDependencies = new int [totalDependenciesCount];
     int mechsOffset=0;
-    for_each(mechanisms.begin(), mechanisms.end(), [&] (Mechanism & m)
+    for_each(mechanisms, mechanisms+mechanismsCount, [&] (Mechanism & m)
         { memcpy(&mechsDependencies[mechsOffset], m.dependencies, sizeof(int)*m.dependenciesCount);
           mechsOffset+= m.dependenciesCount;
         });
