@@ -90,10 +90,6 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
 { 
     coreNeuronInitialSetup(argc, argv);
 
-    //requires one neuron per NRN_THREAD: in Blue config "CellGroupSize 1"
-    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    assert(neuronsCount == nrn_nthread);
-
     //TODO: Debug: plot morphologies as dot file
     for (int k=0; k<nrn_nthread; k++)
     {
@@ -119,38 +115,43 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
         int type = tml->index;
         mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
                 nrn_prop_dparam_size_[type],tml->ndependencies,
-                pnt_map[type], nrn_is_artificial_[type], tml->dependencies,
-                //isIon, ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
-                nrn_is_ion(type), -1, -1, -1);
+                pnt_map[type], nrn_is_artificial_[type], tml->dependencies, nrn_is_ion(type),
+                -1, -1, -1);
+                //ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
     }
 
+    //requires one neuron per NRN_THREAD: in Blue config "CellGroupSize 1"
+    neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    assert(neuronsCount == nrn_nthread);
+    //allocate HPX memory space for neurons
+    neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    assert(neuronsAddr != HPX_NULL);
+
     //create the tree structure for all neurons and mechanisms
-    vector<vector<tuple<int,Synapse>>> synapses; //incoming synapses per neuron
-    //for a post syn neuron, list of <preId, Synapse>
+    map<int,vector<Compartment>> compartments; //compartments per NrnThread Id
+    map< tuple<int, int, int> , Compartment* > fromMechToCompartment;
 
     for (int i=0; i<nrn_nthread; i++)
     {
-        vector<Compartment> compartments; //compartments per NrnThread Id
-        //from nrn id, mech type, mech instance, to compartment
-        map< tuple<int, int, int> , Compartment* > fromMechToCompartment;
-
         NrnThread & nt = nrn_threads[i];
+        int neuronId = nt.presyns[n].gid_;
 
         //reconstructs tree with solver values
         for (int n=nt.end-1; n>=0; n--)
         {
-            Compartment & compartment = compartments[n];
+            Compartment & compartment = compartments[neuronId][n];
             compartment.setSolverValues(nt._actual_a[n], nt._actual_b[n], nt._actual_d[n], nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
 
             if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
             {
-                Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
+                Compartment & parentCompartment = compartments[neuronId][nt._v_parent_index[n]];
                 parentCompartment.addChild(&compartment);
             }
         }
 
         //reconstructs mechanisms for compartments
-        int dataOffset=0, pdataOffset=0;
+        int pdataOffset = 0;
+        int dataOffset  = 6*nt.end; //a,b,d,v,rhs,area
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
             int type = tml->index;
@@ -159,111 +160,91 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             int pdataSize = mechanisms[type].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
-                Compartment & compartment = compartments[ml->nodeindices[n]];
+                Compartment & compartment = compartments[neuronId][ml->nodeindices[n]];
                 compartment.addMechanism(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
-                //will allow us to reconstruct synapses
-                fromMechToCompartment[make_tuple(i, type, n)] = &compartment;
             }
         }
+        createNeuron(i, compartments[neuronId][0], gid2out[neuronId]->threshold_);
     }
+
 
     //reconstructs synapses
+    //We will "spike" once every synapse and receive as return the hpx address of the branch as return value
+    //First we build a map between synaptic info <NrnThread,type,n> to compartment
     for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
-        for (int n=0; n<nt.ncell; n++)
+        int neuronId = nt.presyns[n].gid_;
+        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
-            int preSynGid = nt.presyns[n].gid_;
-            if (gid2out.find(preSynGid)==gid2out.end()) continue; //no outcoming synapses
-            PreSyn * outSynapses = gid2out.at(preSynGid); //one PreSyn per neuron
-            for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contacts (outgoing Synapses)
+            int type = tml->index;
+            Memb_list *& ml = tml->ml;
+            for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
-                NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
-                Point_process * target = nc->target_;
-                int targetNrn = target->_tid;
-                int type = target->_type;
-                int instance = target->_i_instance;
-
-                tuple<int, int, int> keyTuple = make_tuple(targetNrn, type, instance);
-                Compartment * comp = fromMechToCompartment.at(keyTuple);
-                //comp->addSynapse(*nc->weight_, nc->delay_, type, instance);
-
-                //traverse tree up until find parent
-                int postSynCompartmentId = nrn_threads[targetNrn]._ml_list[type]->nodeindices[instance];
-                int postSynNeuronId = postSynCompartmentId;
-                while (postSynNeuronId > nrn_threads[targetNrn].ncell)
-                    postSynNeuronId = nrn_threads[targetNrn]._v_parent_index[postSynNeuronId];
-
-                //Synapse synapse(postSynCompartmentId, *nc->weight_, nc->delay_, mechType, mechInstance);
-                //synapses[postSynGid].push_back(std::make_tuple(preSynGid, synapse));
+                Compartment & compartment = compartments[neuronId][ml->nodeindices[n]];
+                fromMechToCompartment[make_tuple(neuronId, type, n)] = &compartment;
             }
         }
     }
 
-    //Build neurons
     for (int i=0; i<nrn_nthread; i++)
     {
+        vector<hpx_t> outgoingSynapses;
         NrnThread & nt = nrn_threads[i];
-        for (int n=0; n<nt.ncell; n++)
+        int neuronId = nt.presyns[n].gid_;
+        if (gid2out.find(neuronId)==gid2out.end()) continue; //no outgoing synapses
+        PreSyn * outSynapses = gid2out.at(preSynGid); //one PreSyn per neuron
+        hpx_addr_t lco = outSynapses->nc_cnt_>0 ? hpx_lco_and_new(outSynapses->nc_cnt_) : HPX_NULL;
+        for (int c=0; c<outSynapses->nc_cnt_; c++) //for all axonal contacts (outgoing Synapses)
         {
-            int neuronId = nt.presyns[n].gid_;
-            PreSyn * outSynapses = gid2out[neuronId];
-            double APThreshold = outSynapses->threshold_;
-            //createNeuron(neuronId, compartments.at(i).at(n), mechanisms, APThreshold, synapses.at(i).at(n));
+            NetCon * nc = netcon_in_presyn_order_[outSynapses->nc_index_+c];
+            Point_process * target = nc->target_;
+            int targetNrn = target->_tid; //or neuron if, if only 1 neuron per NrnThread
+            int type = target->_type;
+            int instance = target->_i_instance;
+
+            tuple<int, int, int> keyTuple = make_tuple(targetNrn, type, instance);
+            Compartment * comp = fromMechToCompartment.at(keyTuple);
+            hpx_t synapseBranch = HPX_NULL;
+            hpx_call_sync(getNeuronAddr(targetNrn), Neuron::addIncomingSynapse, &synapseBranch, sizeof(synapseBranch),
+                          comp, *nc->weight_, nc->delay_, type, instance);
+            outgoingSynapses.push_back(synapseBranch);
+            /*
+            //traverse tree up until find parent
+            int postSynCompartmentId = nrn_threads[targetNrn]._ml_list[type]->nodeindices[instance];
+            int postSynNeuronId = postSynCompartmentId;
+            while (postSynNeuronId > nrn_threads[targetNrn].ncell)
+                postSynNeuronId = nrn_threads[targetNrn]._v_parent_index[postSynNeuronId];
+            */
         }
+        if (lco != HPX_NULL)
+        {
+            hpx_lco_wait(lco);
+            hpx_lco_delete(lco, HPX_NULL);
+
+        }
+        hpx_call_sync(getNeuronAddr(neuronId), Neuron::addOutgoingSynapses, nullptr, 0, outgoingSynapses.data(), outgoingSynapses.size());
     }
-
-    //TODO do a collective call to convert Synapse addresses
-    //from ThreadId, mechType, mechInstance (in NrnThread)
-    //to branch hpx_t, mechType, mechInstance (in branch)
-
-
-    createBrain(neuronsCount, mechanisms, mechanismsCount);
-
-    nrn_cleanup(); //remode CoreNeuron data structs
 }
 
-void CoreNeuronDataLoader::createBrain(int neuronsCount, Mechanism * mechanisms, int mechanismsCount)
+void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, double APthreshold)
 {
-    //create Brain HPX structure
-    hpx_t neuronsAddr = hpx_gas_calloc_blocked(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    assert(neuronsAddr != HPX_NULL);
-
-    //serialize mechanisms dependencies
-    int totalDependenciesCount = accumulate(mechanisms, mechanisms+mechanismsCount, 0, [](int n, Mechanism & m){return n+m.dependenciesCount;});
-    int * mechsDependencies = new int [totalDependenciesCount];
-    int mechsOffset=0;
-    for_each(mechanisms, mechanisms+mechanismsCount, [&] (Mechanism & m)
-        { memcpy(&mechsDependencies[mechsOffset], m.dependencies, sizeof(int)*m.dependenciesCount);
-          mechsOffset+= m.dependenciesCount;
-        });
-
-    //Broadcasts (serialized) brain
-    printf("Broadcasting Circuit info...\n");
-    //int e = hpx_bcast_rsync(Brain::init, neuronsCount, neuronsAddr, mechanisms.data(), mechanisms.size(), mechsDependencies);
-    //assert(e == HPX_SUCCESS);
-
-    delete [] mechsDependencies;
+    hpx_t topBranch = createBranch(&topCompartment);
+    hpx_call_sync(getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APthreshold);
 }
 
-void CoreNeuronDataLoader::createNeuron(int gid, Compartment & topCompartment, vector<Mechanism> & mechanisms, double APThreshold, vector<Synapse> & synapses)
+hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment)
 {
-    hpx_t topBranch = createBranch(&topCompartment, mechanisms);
-    hpx_call_sync(getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APThreshold, synapses.data(), synapses.size());
-}
-
-hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Mechanism> & mechanisms)
-{
-    int mechsTypesCount = mechanisms.size();
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
-    vector<int> mechsCount(mechsTypesCount,0);
-    vector<vector<double>> data(mechsTypesCount); //data per mechanism id
-    vector<vector<Datum>> pdata(mechsTypesCount); //pdata per mechanism id
+    vector<int> mechsCount(mechanismsCount,0);
+    vector<vector<double>> data(mechanismsCount); //data per mechanism id
+    vector<vector<Datum>> pdata(mechanismsCount); //pdata per mechanism id
     Compartment *comp = nullptr;
-    int m=0; //number of mechs
+    int m=0; //number of mechs instances
+
     for (comp = topCompartment;
          comp->branches.size()==1;
          comp = comp->branches.front())
@@ -287,21 +268,21 @@ hpx_t CoreNeuronDataLoader::createBranch(Compartment * topCompartment, vector<Me
         n++;
     };
 
-    int branchesCount = comp->branches.size(); //final compartment of the branch
+    int branchesCount = comp->branches.size(); //children on final compartment of the branch
     hpx_t * branches = HPX_NULL;
     if (branchesCount > 0)
     {
         branches = new hpx_t[branchesCount];
         for (int c=0; c<branchesCount; c++)
-            branches[c]=createBranch(comp->branches[c], mechanisms);
+            branches[c]=createBranch(comp->branches[c]);
     }
 
-    //merge all vectors into one
+    //merge all data and pdata vectors into one
     vector<double> data_merged;
     vector<Datum> pdata_merged;
     data_merged.reserve(m);
     pdata_merged.reserve(m);
-    for (int i=0; i<mechsTypesCount; i++)
+    for (int i=0; i<mechanismsCount; i++)
     {
         data_merged.insert(data_merged.end(), data[i].begin(), data[i].end() );
         pdata_merged.insert(pdata_merged.end(), pdata[i].begin(), pdata[i].end() );

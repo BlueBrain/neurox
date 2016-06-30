@@ -35,11 +35,12 @@ class Branch
     double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * area;			///> current area per compartment
 
+    double * data;			   ///> all double data used: RHS, D, A, B, V, area, and mechanisms data
+    int * pdata;			   ///> pointer data (offsets)
+
     struct MechanismInstances
     {
-        double * data;			   ///> all double data used by all mechanisms
         int * dataOffsets;         ///> offset of each mechanims type in data
-        int * pdata;			   ///> pointer data (offsets) for mechanisms
         int * pdataOffsets;        ///> offset of each mechanims type in Pointer-data
         int * nodesIndices;        ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
         int * nodesIndicesOffsets; ///> compartments' indices for each mech type

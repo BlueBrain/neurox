@@ -68,25 +68,25 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
 }
 
 hpx_action_t Neuron::init = 0;
-int Neuron::init_handler(const int gid, const hpx_t topBranch,
-    double APThreshold)
+int Neuron::init_handler(const int gid, const hpx_t topBranch, double APthreshold)
 {
     neurox_hpx_pin(Neuron);
     //copy information
-    local->t=0; //TODO should be from InputParams
+    local->t=inputParams->t;
+    local->dt=inputParams->dt;
     local->soma=topBranch;
     local->id=gid;
-    local->thresholdAP=APThreshold;
+    local->APthreshold=  APthreshold;
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::addSynapses = 0;
-int Neuron::addSynapses_handler(Synapse * synapses, size_t synapsesCount)
+hpx_action_t Neuron::addOutgoingSynapses = 0;
+int Neuron::addOutgoingSynapses_handler(hpx_t * synapsesTargets, size_t synapsesCount)
 {
     neurox_hpx_pin(Neuron);
     local->synapsesCount=synapsesCount;
-    local->synapses = new Synapse[synapsesCount];
-    memcpy(local->synapses, synapses, sizeof(Synapse)*synapsesCount);
+    local->synapsesTargets = new hpx_t[synapsesCount];
+    memcpy(local->synapses, synapses, sizeof(hpx_t)*synapsesCount);
     neurox_hpx_unpin;
 }
 
@@ -103,9 +103,9 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
     hpx_t spikesLco = hpx_lco_and_new(local->synapsesCount);
     for (int s=0; s<local->synapsesCount; s++)
     {
-        synapses[s].deliveryTime = local->t+synapses[s].delay;
+        double deliveryTime = local->t+synapses[s].delay;
         hpx_call(local->synapsesTargets[s], Branch::queueSpike,
-                 spikesLco, &synapses[s], sizeof(Synapse));
+                 spikesLco, local->id, deliveryTime );
     }
     return spikesLco;
 }
@@ -114,6 +114,7 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
 void Neuron::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, init, init_handler, HPX_INT, HPX_ADDR, HPX_DOUBLE, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addSynapses, addSynapses_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addOutgoingSynapses, addOutgoingSynapses_handler, HPX_ADDR, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addIncomingSynapse, addIncomingSynapse_handle, HPX_POINTER, HPX_DOUBLE, HPX_DOUBLE, HPX_INT, HPX_INT);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, finitialize, finitialize_handler);
 }

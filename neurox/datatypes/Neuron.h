@@ -18,7 +18,6 @@ class Neuron
     //neuron metadata
     int id;					///> neuron global id
     hpx_t soma;		///> hpx address of the top compartment (soma)
-    //TODO this should be a Branch of size 1 instead, no need for hpx_t
     
     double t; ///> current time
     double dt; ///> time step size
@@ -27,9 +26,8 @@ class Neuron
     double cj; ///<1st or 2nd order solver ... (?)
     
     //outgoing synapses
-    double thresholdAP;      ///> Action Potential threshold
+    double APthreshold;      ///> Action Potential threshold
     int synapsesCount;       ///> number of outgoing synapses
-    Synapse * synapses;      ///> outgoing Synapses
     hpx_t * synapsesTargets; ///> hpx address of branch containing post-synaptic mechanism
 
     static void registerHpxActions(); ///> Register all HPX actions
@@ -37,13 +35,15 @@ class Neuron
     static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
-    static hpx_action_t addSynapses;  ///> Inserts Synapses (targets) in this Neuron
+    static hpx_action_t addOutgoingSynapses;  ///> Inserts outgoing synapses (targets) in this Neuron
+    static hpx_action_t addIncomingSynapse; ///> Inserts one incoming synapse on a branch;
 
 
   private:
     static int finitialize_handler(); ///> initialize.c
-    static int init_handler(const int gid, const hpx_t soma, double thresholdAP); ///> HPX constructor
-    static int addSynapses_handler(Synapse * synapses, size_t synapsesCount); ///>Inserts Synapses
+    static int init_handler(const int gid, const hpx_t topBranch, double APthreshold); ///> HPX constructor
+    static int addOutgoingSynapses_handler (hpx_t * synapsesTargets, int synapsesCount); ///>Inserts all outgoing Synapses
+    static int addIncomingSynapse_handler();
 };
 
 }

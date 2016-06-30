@@ -417,7 +417,7 @@ int Branch::secondOrderCurrent_handler()
 
 
 hpx_action_t Branch::queueSpike = 0;
-int Branch::queueSpike_handler(const Synapse * syn, size_t)
+int Branch::queueSpike_handler(const int preNeuronId, const double deliveryTime)
 {
     neurox_hpx_pin(Branch);
     //netcvode::PreSyn::send()
