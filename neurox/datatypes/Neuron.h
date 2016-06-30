@@ -29,6 +29,7 @@ class Neuron
     double APthreshold;      ///> Action Potential threshold
     int synapsesCount;       ///> number of outgoing synapses
     hpx_t * synapsesTargets; ///> hpx address of branch containing post-synaptic mechanism
+    double * synapsesDelays; ///> synaptic delay for each outgoing synapse
 
     static void registerHpxActions(); ///> Register all HPX actions
     static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
