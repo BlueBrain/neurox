@@ -32,20 +32,21 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
 
     //calculate offsets based on count
     int dataSize=0, pdataSize=0;
-    for (int i=0; i<Neurox::mechanismsCount; i++)
+    mechsInstances = new MechanismInstances(mechanismsCount);
+    for (int m=0; m<Neurox::mechanismsCount; m++)
     {
-        dataSize  += mechanisms[i].dataSize * mechsCounts[i];
-        pdataSize += mechanisms[i].pdataSize * mechsCounts[i];
-        mechsInstances.dataOffsets[i] = i==0 ? 0 : mechsInstances.dataOffsets[i-1]+mechsCounts[i];
+        dataSize  += mechanisms[m].dataSize * mechsCounts[m];
+        pdataSize += mechanisms[m].pdataSize * mechsCounts[m];
+        mechsInstances[m].dataOffsets[m] = m==0 ? 0 : mechsInstances[m].dataOffsets[m-1]+mechsCounts[m];
+        mechsInstances[m].data = new double[dataSize];
+        mechsInstances[m].pdata = new int[pdataSize];
+        memcpy(mechsInstances[m].data, &data[dataSize],  dataSize*sizeof(double));
+        memcpy(mechsInstances[m].pdata, &pdata[pdataSize], pdataSize*sizeof(int));
     }
+
     //copy children addresses
     for (int b=0; b<branchesCount; b++)
         this->branches[b]=branches[b];
-
-    mechsInstances.data = new double[dataSize];
-    mechsInstances.pdata = new int[pdataSize];
-    memcpy(mechsInstances.data, data,  dataSize*sizeof(double));
-    memcpy(mechsInstances.pdata, pdata, pdataSize*sizeof(int));
 }
 
 Branch::~Branch()
@@ -57,13 +58,16 @@ Branch::~Branch()
     delete [] rhs;
     delete [] area; //TODO is this ever used?
     delete [] branches;
-    delete [] mechsInstances.data;
-    delete [] mechsInstances.dataOffsets;
-    delete [] mechsInstances.pdata;
-    delete [] mechsInstances.pdataOffsets;
-    delete [] mechsInstances.nodesIndices;
-    delete [] mechsInstances.nodesIndicesOffsets;
-
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        delete [] mechsInstances[m].data;
+        delete [] mechsInstances[m].dataOffsets;
+        delete [] mechsInstances[m].pdata;
+        delete [] mechsInstances[m].pdataOffsets;
+        delete [] mechsInstances[m].nodesIndices;
+        delete [] mechsInstances[m].nodesIndicesOffsets;
+    }
+    delete [] mechsInstances;
 }
 
 hpx_action_t Branch::init = 0;

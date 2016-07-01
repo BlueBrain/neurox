@@ -22,6 +22,17 @@
 using namespace std;
 using namespace Neurox;
 using namespace Neurox::Input;
+using namespace Neurox::Input::Coreneuron;
+
+void CoreNeuronDataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
+{
+    nrn_threads[nrn_id].presyns[0].gid_;
+}
+
+void CoreNeuronDataLoader::getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance)
+{
+    //navigate all branches, get mechType and Instance
+}
 
 void CoreNeuronDataLoader::coreNeuronInitialSetup(int argc, char ** argv)
 {
@@ -123,74 +134,28 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     //requires one neuron per NRN_THREAD: in Blue config "CellGroupSize 1"
     neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     assert(neuronsCount == nrn_nthread);
+
     //allocate HPX memory space for neurons
     neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
     assert(neuronsAddr != HPX_NULL);
 
-    //create map of incoming and outgoing synapses
-    typedef struct SynapseOut
-    {
-        hpx_t synapseTargetAddr;
-        int synapseTargetGid;
-        double synapseDelay;
-    };
-
-    typedef struct SynapseIn
-    {
-        int preNeuronGid;
-        int mechId;
-        int mechInstance;
-        double weight;
-    };
-
-    map<int, vector<SynapseOut> > outSynapses;
-    map<int, vector<SynapseIn > > inSynapses;
+    //reconstructs neurons
     for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
-        int preNeuronId = nt.presyns[n].gid_;
-        PreSyn * ps = gid2out[preNeuronId];
-        //for all outgoing synapses...
-        for (int i = 0; i<ps->nc_cnt; i++)
-        {
-            NetCon* nc = netcon_in_presyn_order_[ps->nc_index_ + i];
+        assert(nt.ncell==1); //only 1 cell per NrnThreadId;
+        int neuronId =getNeuronIdFromNrnThreadId(i);
 
-            int postNeuronId = nc->target_->_tid;
-
-            SynapseIn synIn;
-            synIn.weight = nc->weight_;
-            synIn.mechType = nc->target_->_type;
-            synIn.mechInstance = nc->target_->_i_instance;
-            synIn.preNeuronGid = nc->target_->_tid;
-            inSynapses[postNeuronId].push_back(synIn);
-
-            SynapseOut synOut;
-            synOut.synapseTargetAddr = HPX_NULL; //to be populated later
-            synOut.synapseTargetGid = postNeuronId;
-            synOut.synapseDelay = nc->delay_;
-            outSynapses[preNeuronId].push_back(synOut);
-        }
-    }
-
-    //create the tree structure for all neurons and mechanisms
-    map<int,vector<Compartment>> compartments; //compartments per NrnThread Id
-    map< tuple<int, int, int, int> , Compartment* > fromMechToCompartment;
-    map< int, map <Compartment*, tuple<int, int, int, int> > > fromNeuronCompartmentToMech;
-
-    for (int i=0; i<nrn_nthread; i++)
-    {
-        NrnThread & nt = nrn_threads[i];
-        int neuronId = nt.presyns[n].gid_;
-
-        //reconstructs tree with solver values
+        //reconstructs compartments tree with solver values
+        vector<Compartment> compartments; //compartments
         for (int n=nt.end-1; n>=0; n--)
         {
-            Compartment & compartment = compartments[neuronId][n];
-            compartment.setSolverValues(nt._actual_a[n], nt._actual_b[n], nt._actual_d[n], nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
+            Compartment & compartment = compartments[n];
+            compartment.setValues(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n], nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
 
             if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
             {
-                Compartment & parentCompartment = compartments[neuronId][nt._v_parent_index[n]];
+                Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
                 parentCompartment.addChild(&compartment);
             }
         }
@@ -206,14 +171,57 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
             int pdataSize = mechanisms[type].pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
-                Compartment & compartment = compartments[neuronId][ml->nodeindices[n]];
+                Compartment & compartment = compartments[ml->nodeindices[n]];
                 compartment.addMechanism(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
         }
-        createNeuron(i, compartments[neuronId][0], gid2out[neuronId]->threshold_);
+
+        //get all incoming synapses for this neuron
+        //TODO O(n^2) loop, to be improved when I know how to get incoming spikes without exhaustive loop
+        for (int j=0; j<nrn_nthread; j++)
+        {
+            int preNeuronId = getNeuronIdFromNrnThreadId(j);
+            PreSyn * ps = gid2out[preNeuronId];
+            //for all outgoing synapses...
+            for (int s = 0; s<ps->nc_cnt; s++)
+            {
+                NetCon* nc = netcon_in_presyn_order_[ps->nc_index_ + s];
+                int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+
+                //if synapse is not for this neuron...
+                if (postNeuronId!=neuronId) continue;
+
+                SynapseIn synIn;
+                synIn.weight = nc->weight_;
+                getMechTypeAndInstanceForBranch(synIn.mechType, synIn.mechInstance);
+                synIn.preNeuronGid = neuronId;
+                inSynapses[postNeuronId].push_back(synIn);
+            }
+        }
+
+        //get all outgoing synapses
+        PreSyn * ps = gid2out[neuronId];
+        vector<SynapseOut> synapsesOut;
+        for (int s = 0; s<ps->nc_cnt; s++)
+        {
+            NetCon* nc = netcon_in_presyn_order_[ps->nc_index_ + s];
+            int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+            SynapseOut synOut;
+            synOut.synapseTargetAddr = HPX_NULL; //to be populated later
+            synOut.synapseTargetGid = postNeuronId;
+            synOut.synapseDelay = nc->delay_;
+            synapsesOut.push_back(synOut);
+        }
+
+
+        createNeuron(i, compartments[0], gid2out[neuronId]->threshold_);
     }
+
+
+
+
 
     //reconstructs synapses
     //We will "spike" once every synapse and receive as return the hpx address of the branch as return value
@@ -221,7 +229,7 @@ void CoreNeuronDataLoader::loadData(int argc, char ** argv)
     for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
-        int neuronId = nt.presyns[n].gid_;
+        int neuronId = getNeuronIdFromNrnThreadId(i);
         for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
         {
             int type = tml->index;

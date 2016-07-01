@@ -25,4 +25,19 @@ class Synapse
   private:
 };
 
+class SynapseOut
+{
+    hpx_t postNeuronAddr;
+    int postNeuronId;
+    double delay;
+};
+
+class SynapseIn
+{
+    int preNeuronId;
+    int mechType;
+    int mechInstance;
+    double weight;
+};
+
 }

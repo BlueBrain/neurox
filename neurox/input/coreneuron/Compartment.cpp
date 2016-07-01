@@ -7,6 +7,7 @@
 
 using namespace std;
 using namespace Neurox;
+using namespace Neurox::Input::Coreneuron;
 
 Compartment::~Compartment()
 {
@@ -14,9 +15,9 @@ Compartment::~Compartment()
         delete branches[c];
 }
 
-void Compartment::setSolverValues(double a, double b, double d, double v, double rhs, double area)
+void Compartment::setValues(int id, double a, double b, double d, double v, double rhs, double area)
 {
-    this->a=a; this->b=b; this->d=d; this->v=v; this->rhs=rhs; this->area=area;
+    this->id=id; this->a=a; this->b=b; this->d=d; this->v=v; this->rhs=rhs; this->area=area;
 };
 
 void Compartment::addChild(Compartment * child)
