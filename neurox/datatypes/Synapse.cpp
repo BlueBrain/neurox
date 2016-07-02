@@ -2,14 +2,22 @@
 
 using namespace Neurox;
 
-Synapse::Synapse(const hpx_t target, const double weight, const double delay, const int mechType, const int mechInstance)
-    :target(target), weight(weight), delay(delay) {};
+SynapseOut::SynapseOut(){};
 
-Synapse::Synapse(){};
+SynapseOut::SynapseOut(hpx_t postNeuronAddr, int postNeuronId, double delay)
+    :postNeuronAddr(postNeuronAddr), postNeuronId(postNeuronId), delay(delay){};
 
-Synapse::~Synapse(){};
+SynapseIn::SynapseIn(){};
 
-bool Synapse::operator<(const Synapse& rhs) const
+SynapseIn::SynapseIn(int preNeuronId, int mechType, int mechInstance, double weight)
+    :preNeuronId(preNeuronId), mechType(mechType), mechInstance(mechInstance), weight(weight) {};
+
+Spike::Spike(const double deliveryTime, SynapseIn * synapse)
+    :deliveryTime(deliveryTime), synapse(synapse) {};
+
+Spike::~Spike(){};
+
+bool Spike::operator<(const Spike& rhs) const
 {
     return deliveryTime < rhs.deliveryTime;
 }

@@ -36,14 +36,12 @@ class Neuron
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
     static hpx_action_t addOutgoingSynapses;  ///> Inserts outgoing synapses (targets) in this Neuron
-    static hpx_action_t addIncomingSynapse; ///> Inserts one incoming synapse on a branch;
 
 
   private:
     static int finitialize_handler(); ///> initialize.c
     static int init_handler(const int gid, const hpx_t topBranch, double APthreshold); ///> HPX constructor
-    static int addOutgoingSynapses_handler (hpx_t * synapsesTargets, int synapsesCount); ///>Inserts all outgoing Synapses
-    static int addIncomingSynapse_handler();
+    static int addOutgoingSynapses_handler (const SynapseOut * synapsesOut, const size_t size); ///>Sets all outgoing Synapses
 };
 
 }

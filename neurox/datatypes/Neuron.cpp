@@ -81,30 +81,30 @@ int Neuron::init_handler(const int gid, const hpx_t topBranch, double APthreshol
 }
 
 hpx_action_t Neuron::addOutgoingSynapses = 0;
-int Neuron::addOutgoingSynapses_handler(hpx_t * synapsesTargets, size_t synapsesCount)
+int Neuron::addOutgoingSynapses_handler(const SynapseOut * synapsesOut, const size_t size)
 {
     neurox_hpx_pin(Neuron);
-    local->synapsesCount=synapsesCount;
-    local->synapsesTargets = new hpx_t[synapsesCount];
-    memcpy(local->synapses, synapses, sizeof(hpx_t)*synapsesCount);
+    local->synapsesCount=size/sizeof(SynapseOut);
+    local->synapses = new SynapseOut[local->synapsesCount];
+    memcpy(local->synapses, synapsesOut, size);
     neurox_hpx_unpin;
 }
 
 /* TODO: for the synapses transmission:
  * Neuron only sends GID and delivery time as 2 bytes (so that data fits in the header).
- * Michael Hines says that sending the struct takes too much bandwith, therefore
- * they store the struct on the POST-SYNAPTIC side, and on the pre they only send the identifier
- * (ie pre-syn gid+delivery time)
+ * We can remove communication by sending delivery time as float;
  */
 hpx_t Neuron::fireActionPotential(Neuron * local)
 {
+    if (local->synapsesCount==0) return HPX_NULL;
+
     //netcvode.cpp::PreSyn::send()
-    Synapse *& synapses = local->synapses;
+    SynapseOut *& synapses = local->synapses;
     hpx_t spikesLco = hpx_lco_and_new(local->synapsesCount);
     for (int s=0; s<local->synapsesCount; s++)
     {
         double deliveryTime = local->t+synapses[s].delay;
-        hpx_call(local->synapsesTargets[s], Branch::queueSpike,
+        hpx_call(synapses[s].postNeuronAddr, Branch::queueSpike,
                  spikesLco, local->id, deliveryTime );
     }
     return spikesLco;
@@ -115,6 +115,5 @@ void Neuron::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, init, init_handler, HPX_INT, HPX_ADDR, HPX_DOUBLE, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addOutgoingSynapses, addOutgoingSynapses_handler, HPX_ADDR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addIncomingSynapse, addIncomingSynapse_handle, HPX_POINTER, HPX_DOUBLE, HPX_DOUBLE, HPX_INT, HPX_INT);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, finitialize, finitialize_handler);
 }

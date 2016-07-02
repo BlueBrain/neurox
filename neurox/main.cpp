@@ -33,7 +33,7 @@ static int main_hpx_handler( const int argc, char ** argv)
     assert(e == HPX_SUCCESS);
 
     //reads morphology data
-    Input::DataLoader::loadData(argc, argv);
+    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     hpx_par_for_sync( [&] (int i, void*) -> int

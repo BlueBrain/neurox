@@ -36,7 +36,7 @@ class Branch
     double * rhs;			///> right-hand side (solution vector) of Linear Algebra solver
     double * area;			///> current area per compartment
 
-    std::map<int, Neurox::SynapseIn*>; ///> incoming synapses per pre-neuron Id
+    std::map<int, Neurox::SynapseIn*> synapsesIn; ///> incoming synapses per pre-neuron Id
 
     struct MechanismInstances
     {
@@ -68,7 +68,7 @@ class Branch
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
 
     ///queue of incoming spikes (delivered at the end of the step)
-    std::priority_queue<Synapse> synapsesQueue;
+    std::priority_queue<Spike> synapsesQueue;
 
   private:
 
@@ -83,7 +83,7 @@ class Branch
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double v);
     static int callMechsFunction_handler(const Mechanism::Functions functionId, const double t, const double dt);
-    static int queueSpike_handler(const Synapse * syn, size_t);
+    static int queueSpike_handler(const int preNeuronId, double deliveryTime);
     static int deliverSpikes_handler();
     static int init_handler(const int n, const double *a, const double *b, const double *d,
                             const double *v, const double *rhs, const double *area,
