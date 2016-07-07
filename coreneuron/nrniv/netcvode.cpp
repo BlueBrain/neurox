@@ -295,7 +295,7 @@ bool NetCvode::deliver_event(double til, NrnThread* nt) {
     TQItem* q;
     if ((q = p[nt->id].tqe_->atomic_dq(til)) != 0) {
         DiscreteEvent* de = (DiscreteEvent*)q->data_;
-        double tt = q->t_;
+        double tt = q->t_; //tt is delivery time
         delete q;
 #if PRINT_EVENT
         if (print_event_) { de->pr("deliver", tt, this); }
@@ -433,9 +433,10 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     if (PP2NT(target_) != nt)
         printf("NetCon::deliver nt=%d target=%d\n", nt->id, PP2NT(target_)->id);
 
+    //make sure this NrnThread owns this synapse delivery
     nrn_assert(PP2NT(target_) == nt);
     int typ = target_->_type;
-    nt->_t = tt;
+    nt->_t = tt; //BM: sets time in NrnThread to delivery time!!
 
 //printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
     //calls NET_RECEIVE in mod files

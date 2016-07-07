@@ -37,7 +37,7 @@ class Compartment
     vector<int> mechsInstances;
     vector<double> data;
     vector<Datum> pdata;
-    vector<SynapseIn> synapsesIn;
+    vector<NetConX> synapsesIn;
   private:
 };
 

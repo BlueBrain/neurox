@@ -6,49 +6,36 @@ namespace Neurox
 {
 
 /**
- * @brief The SynapseOut class
- * Includes the synaptic information at the pre-synaptic neuron
- */
-class SynapseOut
-{
-  public:
-    SynapseOut();
-    SynapseOut(hpx_t postNeuronAddr, int postNeuronId, double delay);
-
-    hpx_t postNeuronAddr; ///> post-synaptic neuron address
-    int postNeuronId;     ///> post-synaptic neuron id
-    double delay;         ///> synaptic delay (soma-bouton distance + transmitters release delay)
-};
-
-/**
- * @brief The SynapseIn class
+ * @brief The NetCon class
+ * Equivalent to Coreneuron's NetCon in netcon.h
  * Includes the synaptic information at the post-synaptic neuron
  */
-class SynapseIn
+class NetConX
 {
   public:
-    SynapseIn();
-    SynapseIn(int preNeuronId, int mechType, int mechInstance, double weight);
+    NetConX();
+    NetConX(short int mechType, int mechInstance, double delay, double weight);
 
-    int preNeuronId;      ///> pre-synaptic neuron id
-    int mechType;         ///> mechanism type associated with this synapse
+    short int mechType;   ///> mechanism type associated with this synapse
     int mechInstance;     ///> mechanism instance, from the mechanism type
+    int delay;            ///> synaptic (soma-bouton distance + transmitters release delay)
     double weight;        ///> synaptic weight (0 means disabled)
 };
 
 /**
  * @brief The Spike delivery class
+ * Equivalent to NRNMPI_Spike in Coreneuron (nrnmpi.h)
  * Stores the information of a spike to be delivered (delivery time and Synaptic input info)
  */
 class Spike
 {
   public:
     Spike() = delete;
-    Spike(const double deliveryTime, SynapseIn * synapse);
+    Spike(const double deliveryTime, NetConX * netcon);
     ~Spike();
 
-    double deliveryTime;   ///> delivery time of synapse
-    SynapseIn * synapse;   ///> synapse to be delivered
+    double deliveryTime;  ///> delivery time of synapse
+    NetConX * netcon;     ///> synapse to be delivered
     bool operator<(const Spike& rhs) const; ///> less-than operator
 
   private:

@@ -3,9 +3,7 @@
 #include "neurox/Neurox.h"
 
 #include <map>
-#include <tuple>
-#include <list>
-#include <set>
+#include <vector>
 #include <memory>
 
 using namespace std;
@@ -32,13 +30,12 @@ class DataLoader
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
 
   private:
+    static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
+                                        int netconsOffset, map<int, std::vector<NetConX> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static void createBrain(int neuronsCount, Mechanism * mechanisms, int mechanismsCount);
-    static void createNeuron(int gid, Compartment & topCompartment, double APthreshold,
-                             vector<SynapseOut> & synapsesOut, vector<SynapseIn> & synapsesIn);
-    static hpx_t createBranch( Compartment * topCompartment, vector<SynapseIn> & synapsesIn);
+    static hpx_t createBranch( Compartment * topCompartment, map<int, vector<NetConX> > & netcons);
 
-    static void getNeuronIdFromNrnThreadId(int nrn_id);
+    static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
 };
 

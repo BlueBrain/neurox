@@ -13,6 +13,16 @@
 //typedefs
 typedef hpx_addr_t hpx_t;
 
+/* TODO
+#ifdef DOUBLE_PRECISION
+  typedef double floble;
+  typedef HPX_DOUBLE HPX_FLOBLE;
+#else
+  typedef float floble;
+  typedef HPX_FLOAT HPX_FLOBLE;
+#endif
+*/
+
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0
 #define THREAD_ID hpx_thread_get_tls_id()

@@ -26,22 +26,22 @@ class Neuron
     double cj; ///<1st or 2nd order solver ... (?)
     
     //outgoing synapses
-    double APthreshold;      ///> Action Potential threshold
-    int synapsesCount;       ///> number of outgoing synapses
-    SynapseOut * synapses;   ///> outgoing synapses
+    double APthreshold;  ///> Action Potential threshold
+    std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (neuron or branch)
 
     static void registerHpxActions(); ///> Register all HPX actions
     static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
     static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
-    static hpx_action_t addOutgoingSynapses;  ///> Inserts outgoing synapses (targets) in this Neuron
-
+    static hpx_action_t addSynapse;  ///> Inserts outgoing synapses (targets) in this Neuron
 
   private:
+    hpx_t synapsesMutex;   ///> mutex to protect the memory access to synapses vector
+
     static int finitialize_handler(); ///> initialize.c
     static int init_handler(const int gid, const hpx_t topBranch, double APthreshold); ///> HPX constructor
-    static int addOutgoingSynapses_handler (const SynapseOut * synapsesOut, const size_t size); ///>Sets all outgoing Synapses
+    static int addSynapse_handler (const hpx_t synapseTarget); ///>adds an outgoing Synapses
 };
 
 }

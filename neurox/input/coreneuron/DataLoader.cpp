@@ -20,11 +20,10 @@
 #include "neurox/Neurox.h"
 
 using namespace std;
-using namespace Neurox;
 using namespace Neurox::Input;
 using namespace Neurox::Input::Coreneuron;
 
-void DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
+int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
     nrn_threads[nrn_id].presyns[0].gid_;
 }
@@ -88,6 +87,22 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     // show all configuration parameters for current run
     input_params.show_cb_opts();
 }
+
+void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map<int, vector<NetConX> > & netcons)
+{
+    for (int s = 0; s<netconsCount; s++)
+    {
+      NetCon* nc = netcon_in_presyn_order_[netconsOffset + s];
+      int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+
+      //if synapse is not for this neuron...
+      if (postNeuronId!=neuronId) continue;
+
+      Neurox::NetConX netcon((short int) nc->target_->_type, (int) nc->target_->_i_instance, nc->delay_, *nc->weight_);
+      netcons[preNeuronId].push_back(netcon);
+    }
+}
+
 
 //TODO this is a hack to access the ion_global_map var defined in eion.c only
 //#include "coreneuron/nrnoc/eion.c"
@@ -173,55 +188,34 @@ void DataLoader::loadData(int argc, char ** argv)
             }
         }
 
-        //get all incoming synapses for this neuron
-        /*
-        //TODO O(n^2) loop, to be improved when I know how to get incoming spikes without exhaustive loop
-        for (int j=0; j<nrn_nthread; j++)
-        {
-            int preNeuronId = getNeuronIdFromNrnThreadId(j);
-            PreSyn * ps = gid2out[preNeuronId];
-        */
-        vector<SynapseIn> synapsesIn;
-        InputPreSyn * ips = gid2in[neuronId];
-        for (int s = 0; s<ips->nc_cnt; s++)
-        {
-            NetCon* nc = netcon_in_presyn_order_[ips->nc_index_ + s];
-            int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+        map<int, vector<NetConX>> netcons; //netcons per pre-synaptic neuron id
 
-            //if synapse is not for this neuron...
-            //if (postNeuronId!=neuronId) continue;
-            assert(postNeuronId==neuronId);
-
-            // TODO HOW to get pre syn neuron?
-            SynapseIn(-1, nc->target_->_type, nc->target_->_i_instance, nc->weight_);
-            synapsesIn.push_back(synIn);
+        //get all incoming synapses from neurons in other MPI ranks
+        for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
+             syn_it!=gid2in.end(); syn_it++)
+        {
+            int preNeuronId = syn_it->first;
+            InputPreSyn * ips = syn_it->second;
+            addNetConsForThisNeuron(neuronId, preNeuronId, ips->nc_cnt_, ips->nc_index_, netcons);
         }
 
-        //get all outgoing synapses
-        PreSyn * ps = gid2out[neuronId];
-        vector<SynapseOut> synapsesOut;
-        for (int s = 0; s<ps->nc_cnt; s++)
+        //get all incoming synapses from neurons in the same MPI rank
+        for (std::map<int, PreSyn*>::iterator syn_it = gid2out.begin();
+             syn_it!=gid2out.end(); syn_it++)
         {
-            NetCon* nc = netcon_in_presyn_order_[ps->nc_index_ + s];
-            int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
-            SynapseOut synOut(HPX_NULL, postNeuronId, nc->delay_);
-            synapsesOut.push_back(synOut);
+            int preNeuronId = syn_it->first;
+            PreSyn * ps = syn_it->second;
+            addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
         }
-        createNeuron(i, compartments[0], gid2out[neuronId]->threshold_, synapsesOut, synapsesIn);
+
+        //recursively create morphological tree, neuron metadata, and synapses
+        double APthreshold = gid2out.at(neuronId)->threshold_;
+        hpx_t topBranch = createBranch(&compartments.at(0), netcons);
+        hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0, neuronId, topBranch, APthreshold);
     }
 }
 
-void DataLoader::createNeuron(int gid, Compartment & topCompartment, double APthreshold, vector<SynapseOut> & synapsesOut, vector<SynapseIn> & synapsesIn)
-{
-    //recursively create tree
-    hpx_t topBranch = createBranch(&topCompartment, synapsesIn);
-
-    //create neuron meta-data and add all outgoing synapses;
-    hpx_call_sync(getNeuronAddr(gid), Neuron::init, NULL, 0, gid, topBranch, APthreshold);
-    hpx_call_sync(getNeuronAddr(gid), Neuron::addSynapsesOut, NULL, 0, synapsesOut.data(), synapsesOut.size()*sizeof(SynapseOut));
-}
-
-hpx_t DataLoader::createBranch(Compartment * topCompartment,  vector<SynapseIn> & synapsesIn)
+hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<NetConX> > & netcons)
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
@@ -260,7 +254,7 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  vector<SynapseIn> 
     {
         branches = new hpx_t[branchesCount];
         for (int c=0; c<branchesCount; c++)
-            branches[c]=createBranch(comp->branches[c]);
+            branches[c]=createBranch(comp->branches[c], netcons);
     }
 
     //merge all data and pdata vectors into one

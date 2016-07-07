@@ -11,7 +11,7 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
                const int *pdata, const int branchesCount, const hpx_t * branches)
     :n(n), branchesCount(branchesCount)
 {
-    synapsesQueueMutex = hpx_lco_sema_new(1);
+    spikesQueueMutex = hpx_lco_sema_new(1);
 
     this->a = new double[n];
     this->b = new double[n];
@@ -19,7 +19,6 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
     this->v = new double[n];
     this->rhs = new double[n];
     this->area = new double[n];
-    mechsInstances.dataOffsets = new int[Neurox::mechanismsCount+1];
     this->branches = new hpx_t[branchesCount];
 
     memcpy(this->a,a,n*sizeof(double));
@@ -32,12 +31,11 @@ Branch::Branch(const int n, const double *a, const double *b, const double *d,
 
     //calculate offsets based on count
     int dataSize=0, pdataSize=0;
-    mechsInstances = new MechanismInstances(mechanismsCount);
+    mechsInstances = new MechanismInstances[mechanismsCount];
     for (int m=0; m<Neurox::mechanismsCount; m++)
     {
         dataSize  += mechanisms[m].dataSize * mechsCounts[m];
         pdataSize += mechanisms[m].pdataSize * mechsCounts[m];
-        mechsInstances[m].dataOffsets[m] = m==0 ? 0 : mechsInstances[m].dataOffsets[m-1]+mechsCounts[m];
         mechsInstances[m].data = new double[dataSize];
         mechsInstances[m].pdata = new int[pdataSize];
         memcpy(mechsInstances[m].data, &data[dataSize],  dataSize*sizeof(double));
@@ -56,25 +54,22 @@ Branch::~Branch()
     delete [] a;
     delete [] v;
     delete [] rhs;
-    delete [] area; //TODO is this ever used?
+    delete [] area;
     delete [] branches;
     for (int m=0; m<mechanismsCount; m++)
     {
         delete [] mechsInstances[m].data;
-        delete [] mechsInstances[m].dataOffsets;
         delete [] mechsInstances[m].pdata;
-        delete [] mechsInstances[m].pdataOffsets;
         delete [] mechsInstances[m].nodesIndices;
-        delete [] mechsInstances[m].nodesIndicesOffsets;
     }
     delete [] mechsInstances;
 }
 
 hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int n, const double *a, const double *b, const double *d,
-                               const double *v, const double *rhs, const double *area,
-                               const int * mechsCount, const double *data,
-                               const Datum *pdata, const int branchesCount, const hpx_t * branches)
+                         const double *v, const double *rhs, const double *area,
+                         const int * mechsCount, const double *data,
+                         const Datum *pdata, const int branchesCount, const hpx_t * branches)
 {
     neurox_hpx_pin(Branch);
     local = new Branch(n,a,b,d,v,rhs,area,mechsCount, data, pdata, branchesCount, branches);
@@ -341,16 +336,16 @@ int Branch::callMechsFunction_handler(const Mechanism::Functions functionId, con
     Memb_list membList;
     NrnThread nrnThread;
 
-    Branch::MechanismInstances & mechs = local->mechsInstances;
     //TODO parallelize this loop
     //PS what if different mechanisms overwrite the same nodes voltage?
+    MechanismInstances * mechs = local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
         if (mechanisms[m].BAfunctions[functionId])
         {
-            membList.data  = &mechs.data[mechs.dataOffsets[m]];
-            membList.pdata = &mechs.pdata[mechs.pdataOffsets[m]];
-            membList.nodecount = (mechs.dataOffsets[m+1] - mechs.dataOffsets[m])/mechanisms[m].dataSize; //instances count
-            membList.nodeindices = &mechs.nodesIndices[mechs.nodesIndicesOffsets[m]];
+            membList.data  = mechs[m].data;
+            membList.pdata = mechs[m].pdata;
+            membList.nodecount = mechs[m].instancesCount;
+            membList.nodeindices = mechs[m].nodesIndices;
             membList._thread = NULL; //TODO: ThreadDatum never used ?
             nrnThread._actual_d = local->d;
             nrnThread._actual_rhs = local->rhs;
@@ -358,7 +353,26 @@ int Branch::callMechsFunction_handler(const Mechanism::Functions functionId, con
             nrnThread._actual_area = local->area;
             nrnThread._dt = dt;
             nrnThread._t = t;
-            if (functionId<BEFORE_AFTER_SIZE)
+            if (functionId == Mechanism::Functions::pntReceive ||
+                    functionId == Mechanism::Functions::pntReceiveInit)
+            {
+                Point_process pp;
+                while (!local->spikesQueue.empty() &&
+                       local->spikesQueue.top().deliveryTime < t+dt)
+                {
+                    Spike spike = local->spikesQueue.top();
+                    pp._i_instance = spike.netcon->mechInstance;
+                    pp._presyn = NULL;
+                    pp._tid = -1;
+                    pp._type = spike.netcon->mechType;
+                    nrnThread._t = spike.deliveryTime;
+                    //see netcvode.cpp:433 (NetCon::deliver)
+                    //We have to pass NrnThread, MembList, and deliveryTime instead
+                    mechanisms[mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->weight, 0);
+                    local->spikesQueue.pop();
+                }
+            }
+            else if (functionId<BEFORE_AFTER_SIZE)
                 mechanisms[m].BAfunctions[functionId](&nrnThread, &membList, m);
             else
                 switch(functionId)
@@ -383,10 +397,8 @@ int Branch::callMechsFunction_handler(const Mechanism::Functions functionId, con
                     break;
                 case Mechanism::Functions::threadCleanup:
                     mechanisms[m].membFunc.thread_cleanup_(membList._thread); break;
-                case Mechanism::Functions::setData:
-                    mechanisms[m].membFunc.setdata_(membList.data, membList.pdata); break;
                 default:
-                    printf("ERROR! Unknown function!!\n"); //TODO
+                    printf("ERROR! Unknown function %d!!\n", functionId);
                 }
         }
     neurox_hpx_recursive_branch_async_wait;
@@ -404,18 +416,16 @@ int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
-    MechanismInstances & mechs = local->mechsInstances;
+    MechanismInstances * mechs = local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
         if (mechanisms[m].BAfunctions[Mechanism::Functions::alloc] ) //TODO used to be if == ion_alloc()
         {
-            int * nodeIndices = &mechs.nodesIndices[m];
-            int indicesCount = mechs.nodesIndicesOffsets[m+1] - mechs.nodesIndicesOffsets[m];
-            double * mechData = &mechs.data[mechs.dataOffsets[m]];
-            for (int i=0; i<indicesCount; i++)
+            for (int i=0; i<mechs[m].instancesCount; i++)
             {
-                double * data = &mechData[i*nparm];
-                data[cur] += data[dcurdv] * local->rhs[nodeIndices[i]]; // cur += dcurdv * rhs(ni[i])
+                double * data = &mechs[m].data[i*nparm];
+                int & nodeIndex = mechs[m].nodesIndices[i];
+                data[cur] += data[dcurdv] * local->rhs[nodeIndex]; // cur += dcurdv * rhs(ni[i])
             }
         }
     }
@@ -423,43 +433,18 @@ int Branch::secondOrderCurrent_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::queueSpike = 0;
-int Branch::queueSpike_handler(const int preNeuronId, const double deliveryTime)
+hpx_action_t Branch::queueSpikes = 0;
+int Branch::queueSpikes_handler(const int preNeuronId, const double deliveryTime)
 {
     neurox_hpx_pin(Branch);
     //netcvode::PreSyn::send()
-    SynapseIn * synapseIn = "asda";
-    hpx_lco_sema_p(local->synapsesQueueMutex);
-    local->synapsesQueue.push(Spike(deliveryTime, synapseIn));
-    hpx_lco_sema_v_sync(local->synapsesQueueMutex);
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::deliverSpikes = 0;
-int Branch::deliverSpikes_handler()
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::deliverSpikes);
-
-    //netcvode.cpp::NetCvode::deliver_net_events()
-    //            ->NetCvode::deliver_events()
-    //            ->NetCvode::deliver_event()
-    //            ->NetCon::deliver()
-    // (runs NET_RECEIVE on mod files)
-
-    //Deliver all spikes
-    if (local->synapsesQueue.size()>0)
-    while (local->synapsesQueue.top().deliveryTime < t+dt)
+    for (auto nc = local->netcons.at(preNeuronId).begin();
+         nc!=local->netcons.at(preNeuronId).end(); nc++)
     {
-        hpx_lco_sema_p(local->synapsesQueueMutex);
-        Spike syn = local->synapsesQueue.top();
-        //(mechanisms[syn.mechType].functions[Mechanism::Functions::NetReceive])((void *) syn.mechInstance, (void *) syn.weight, syn.deliveryTime);
-        (mechanisms[syn.mechType].BAfunctions[Mechanism::Functions::NetReceive])(NULL,NULL,0);
-        //( short instancesCount, short dataSize, double * data, short pdataSize, int * pdata, int * nodesIndices)
-        local->synapsesQueue.pop();
-        hpx_lco_sema_v_sync(local->synapsesQueueMutex);
+      hpx_lco_sema_p(local->spikesQueueMutex);
+      local->spikesQueue.push( Spike(deliveryTime, &(*nc)) );
+      hpx_lco_sema_v_sync(local->spikesQueueMutex);
     }
-    neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 

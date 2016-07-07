@@ -326,7 +326,7 @@ void nrn_spike_exchange(NrnThread* nt) {
 #endif
 	wt = nrnmpi_wtime();
 
-	n = nrnmpi_spike_exchange();
+    n = nrnmpi_spike_exchange(); //TODO LOOK HERE
 
 	wt_ = nrnmpi_wtime() - wt;
 	wt = nrnmpi_wtime();
@@ -387,7 +387,7 @@ void nrn_spike_exchange(NrnThread* nt) {
 	n = ovfl_;
 #endif // nrn_spikebuf_size > 0
 	for (i = 0; i < n; ++i) {
-        gid2in_it = gid2in.find(spikein_[i].gid);
+        gid2in_it = gid2in.find(spikein_[i].gid); //TODO here is how we look for source GIDs
         if (gid2in_it != gid2in.end()) {
             InputPreSyn* ps = gid2in_it->second;
 			ps->send(spikein_[i].spiketime, net_cvode_instance, nt);

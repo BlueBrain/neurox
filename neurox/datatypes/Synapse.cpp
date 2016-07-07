@@ -2,18 +2,13 @@
 
 using namespace Neurox;
 
-SynapseOut::SynapseOut(){};
+NetConX::NetConX(){};
 
-SynapseOut::SynapseOut(hpx_t postNeuronAddr, int postNeuronId, double delay)
-    :postNeuronAddr(postNeuronAddr), postNeuronId(postNeuronId), delay(delay){};
+NetConX::NetConX(short int mechType, int mechInstance, double delay, double weight)
+    :mechType(mechType), mechInstance(mechInstance), delay(delay), weight(weight) {};
 
-SynapseIn::SynapseIn(){};
-
-SynapseIn::SynapseIn(int preNeuronId, int mechType, int mechInstance, double weight)
-    :preNeuronId(preNeuronId), mechType(mechType), mechInstance(mechInstance), weight(weight) {};
-
-Spike::Spike(const double deliveryTime, SynapseIn * synapse)
-    :deliveryTime(deliveryTime), synapse(synapse) {};
+Spike::Spike(const double deliveryTime, NetConX * synapse)
+    :deliveryTime(deliveryTime), netcon(synapse) {};
 
 Spike::~Spike(){};
 

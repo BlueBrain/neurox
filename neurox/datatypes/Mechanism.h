@@ -36,6 +36,8 @@ class Mechanism
     //from memb_func.h (before after functions not used on BBP models)
     Memb_func membFunc;
     mod_f_t BAfunctions[BEFORE_AFTER_SIZE]; ///>mechanism functions (with mod_f_t type)
+    pnt_receive_t pnt_receive;
+    pnt_receive_t pnt_receive_init;
 
     enum Functions
     {
@@ -56,10 +58,12 @@ class Mechanism
         threadTableCheck=12,
         setData=13,
         destructor=14,
-        NetReceive=15,
+        //point receive funcs
+        pntReceive=15,
+        pntReceiveInit=16,
         //capacitance functions start here
-        capacityCurrent=16, //not in mod files, it's in capac.c
-        capJacob=17,
+        capacityCurrent=17, //not in mod files, it's in capac.c
+        capJacob=18,
     };
 
     static void registerHpxActions(); ///> Register all HPX actions

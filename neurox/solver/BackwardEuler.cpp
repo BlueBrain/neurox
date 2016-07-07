@@ -34,7 +34,12 @@ int BackwardEuler::step_handler()
     //3. netcvode.cpp::NetCon::deliver()
     //calls NET_RECEIVE in mod files to receive synapses
     //TODO: are these the same ones sent, or from the previous interval?
-    hpx_call_sync(local->soma, Branch::deliverSpikes, NULL, 0);
+    //netcvode.cpp::NetCvode::deliver_net_events()
+    //            ->NetCvode::deliver_events()
+    //            ->NetCvode::deliver_event()
+    //            ->NetCon::deliver()
+    //            ->net_receive() on mod files
+    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::pntReceive, local->t, local->dt);
 
     local->t += .5*dt;
 
