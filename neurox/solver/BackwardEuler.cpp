@@ -33,7 +33,6 @@ int BackwardEuler::step_handler()
 
     //3. netcvode.cpp::NetCon::deliver()
     //calls NET_RECEIVE in mod files to receive synapses
-    //TODO: are these the same ones sent, or from the previous interval?
     //netcvode.cpp::NetCvode::deliver_net_events()
     //            ->NetCvode::deliver_events()
     //            ->NetCvode::deliver_event()

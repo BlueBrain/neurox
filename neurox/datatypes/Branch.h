@@ -57,7 +57,6 @@ class Branch
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
     static hpx_action_t callMechsFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
-    static hpx_action_t deliverNetEvents; ///> delivering of (queued) synapses (runs NET_RECEIVE on mod files)
     static hpx_action_t gaussianBackTriangulation; ///> Gaussian elimination's back triangulation: solve_core.c:triang()
     static hpx_action_t gaussianFwdSubstitution; ///> Gaussian elimination's forward substitution: solve_core.c:bksub()
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
@@ -84,7 +83,6 @@ class Branch
     static int setV_handler(const double v);
     static int callMechsFunction_handler(const Mechanism::Functions functionId, const double t, const double dt);
     static int queueSpikes_handler(const int preNeuronId, double deliveryTime);
-    static int deliverNetEvents_handler();
     static int init_handler(const int n, const double *a, const double *b, const double *d,
                             const double *v, const double *rhs, const double *area,
                             const int * mechsDataOffsets, const double *data,
