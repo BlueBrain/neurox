@@ -27,7 +27,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /**
- * @file memory_utils.c
+ * @file memory_utils.cpp
  * @date 25th Oct 2014
  *
  * @brief Provides functionality to report current memory usage
@@ -96,6 +96,7 @@ void report_mem_usage( const char *message, bool all_ranks )
     printf( " Memory (MBs) : %25s : Max %.4lf, Min %.4lf, Avg %.4lf \n", \
             message, mem_max, mem_min, mem_avg );
   }
+  fflush(stdout);
 }
 
 

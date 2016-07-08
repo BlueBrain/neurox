@@ -44,6 +44,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/utils/randoms/nrnran123.h"
 #include "coreneuron/utils/sdprintf.h"
 #include "coreneuron/nrniv/nrn_stats.h"
+#include "coreneuron/utils/reports/nrnreport.h"
 
 #if 0
 #include <fenv.h>
@@ -112,6 +113,10 @@ int main1( int argc, char **argv, char **env )
 
     report_mem_usage( "Before nrn_setup" );
 
+    //pass by flag so existing tests do not need a changed nrn_setup prototype.
+    nrn_setup_multiple = input_params.multiple;
+    nrn_setup_extracon = input_params.extracon;
+
     // reading *.dat files and setting up the data structures, setting mindelay
     nrn_setup( input_params, filesdat, nrn_need_byteswap );
 
@@ -136,6 +141,19 @@ int main1( int argc, char **argv, char **env )
     nrn_finitialize( 1, input_params.voltage );
 
     report_mem_usage( "After nrn_finitialize" );
+
+    ReportGenerator * r = NULL;
+
+    // if reports are enabled using ReportingLib
+    if ( input_params.report ) {
+
+        #ifdef ENABLE_REPORTING
+            r = new ReportGenerator(input_params.tstart, input_params.tstop, input_params.dt, input_params.dt_report, input_params.outpath);
+            r->register_report();
+        #else
+            printf("\n WARNING! : Can't enable reports, recompile with ReportingLib! \n");
+        #endif
+    }
 
     // call prcellstae for prcellgid
     if ( input_params.prcellgid >= 0 ) {
@@ -165,6 +183,9 @@ int main1( int argc, char **argv, char **env )
 
     // Cleaning the memory
     nrn_cleanup();
+
+    if(input_params.report && r)
+        delete r;
 
     // mpi finalize
     nrnmpi_finalize();

@@ -42,6 +42,7 @@ cn_parameters::cn_parameters()
     dt = 0.025;
 
     dt_io = 0.1;
+    dt_report = 0.1;
 
     celsius = 34.0;
     voltage = -65.0;
@@ -53,12 +54,16 @@ cn_parameters::cn_parameters()
     prcellgid = -1;
 
     threading = 0;
+    report = 0;
 
     patternstim = NULL;
 
     datpath = ".";
     outpath = ".";
     filesdat = "files.dat";
+
+    multiple = 1;
+    extracon = 0;
 }
 
 sd_ptr cn_parameters::get_filesdat_path( char *path_buf, size_t bufsz )
@@ -75,11 +80,14 @@ void cn_parameters::show_cb_opts()
         printf( "\n tstart: %g, tstop: %g, dt: %g, dt_io: %g", tstart, tstop, dt, dt_io );
         printf( " celsius: %g, voltage: %g, maxdelay: %g", celsius, voltage, maxdelay );
 
-        printf( "\n forwardskip: %g, spikebuf: %d, prcellgid: %d, threading : %d, mindelay : %g", \
-                forwardskip, spikebuf, prcellgid, threading, mindelay);
+        printf( "\n forwardskip: %g, spikebuf: %d, prcellgid: %d, multiple: %d, extracon: %d, threading : %d, mindelay : %g", \
+                forwardskip, spikebuf, prcellgid, multiple, extracon, threading, mindelay);
 
         printf( "\n patternstim: %s, datpath: %s, filesdat: %s, outpath: %s", \
                 patternstim, datpath, filesdat, outpath );
+
+        printf( "\n report: %d, report dt: %lf ", report, dt_report);
+
         if ( prcellgid >= 0 ) {
             printf( "\n prcellstate will be called for gid %d", prcellgid );
         }
@@ -120,6 +128,14 @@ void cn_parameters::show_cb_opts_help()
               Set the path for the output data to PATH (char*). The default value is '.'.\n\
        -k TIME, --forwardskip=TIME\n\
               Set forwardskip to TIME (double). The default value is '0.'.\n\
+       -r, --report\n\
+              Enable soma report.\n\
+       -w, --dt_report=TIME\n\
+              Set the dt for soma reports (using ReportingLib) to TIME (double). The default value is '0.1'.\n\n\
+       -z MULTIPLE, --multiple=MULTIPLE\n\
+              Model duplication factor. Model size is normal size * MULTIPLE (int). The default value is '1'.\n\
+       -x EXTRACON, --extracon=EXTRACON\n\
+              Number of extra random connections in each thread to other duplicate models (int). The default value is '0'.\n\
        -mpi\n\
               Enable MPI. In order to initialize MPI environment this argument must be specified.\n" );
 }
@@ -146,14 +162,18 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
             {"filesdat",  required_argument, 0, 'f'},
             {"outpath",   required_argument, 0, 'o'},
             {"forwardskip", required_argument, 0, 'k'},
+            {"multiple", required_argument, 0, 'z'},
+            {"extracon", required_argument, 0, 'x'},
             {"mpi",       optional_argument, 0, 'm'},
+            {"report",    no_argument, 0, 'r'},
+            {"dt_report", required_argument, 0, 'w'},
             {"help",      no_argument,       0, 'h'},
             {0, 0, 0, 0}
         };
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long( argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:m:h",
+        c = getopt_long( argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:m:z:x:rw:h",
                          long_options, &option_index );
 
         /* Detect the end of the options. */
@@ -230,8 +250,24 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
                 forwardskip = atof( optarg );
                 break;
 
+            case 'z':
+                multiple = atoi( optarg );
+                break;
+
+            case 'x':
+                extracon = atoi( optarg );
+                break;
+
             case 'm':
                 /// Reserved for "--mpi", which by this time should be taken care of
+                break;
+
+            case 'r':
+                report = 1;
+                break;
+
+            case 'w':
+                dt_report = atof( optarg );
                 break;
 
             case 'h':
