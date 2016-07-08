@@ -22,9 +22,9 @@ int Neuron::finitialize_handler()
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::before_initialize, local->t, local->dt);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::initialize, local->t, local->dt);
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::after_initialize, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::before_initialize, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::initialize, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::after_initialize, local->t, local->dt);
 
     Neuron::setupTreeMatrixMinimal(local);
 
@@ -36,10 +36,10 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     hpx_call_sync(local->soma, Branch::setupMatrixInitValues, NULL, 0);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::before_breakpoint, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::before_breakpoint, local->t, local->dt);
 
     //note that CAP has no current
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::current, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::current, local->t, local->dt);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
     // now the internal axial currents.
@@ -56,12 +56,12 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
     // note that CAP has no jacob
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::jacob, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::jacob, local->t, local->dt);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    hpx_call_sync(local->soma, Branch::callMechsFunction, NULL, 0, Mechanism::Functions::capJacob, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::callFunction, NULL, 0, Mechanism::Functions::capJacob, local->t, local->dt);
 
     //now add the axial currents
     hpx_call_sync(local->soma, Branch::setupMatrixLHS, NULL, 0, isSoma);
@@ -80,8 +80,8 @@ int Neuron::init_handler(const int gid, const hpx_t topBranch, double APthreshol
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::addSynapse = 0;
-int Neuron::addSynapse_handler(const hpx_t synapseTarget)
+hpx_action_t Neuron::addSynapseTarget = 0;
+int Neuron::addSynapseTarget_handler(const hpx_t synapseTarget)
 {
     neurox_hpx_pin(Neuron);
     hpx_lco_sema_p(local->synapsesMutex);
@@ -107,6 +107,6 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
 void Neuron::registerHpxActions()
 {
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED, init, init_handler, HPX_INT, HPX_ADDR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addSynapse, addSynapse_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addSynapseTarget, addSynapseTarget_handler, HPX_POINTER, HPX_SIZE_T);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, finitialize, finitialize_handler);
 }

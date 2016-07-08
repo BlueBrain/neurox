@@ -18,6 +18,8 @@
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 
 #include "neurox/Neurox.h"
+#include "neurox/datatypes/Mechanism.h"
+#include "neurox/datatypes/Branch.h"
 
 using namespace std;
 using namespace Neurox::Input;
@@ -26,6 +28,24 @@ using namespace Neurox::Input::Coreneuron;
 int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
     nrn_threads[nrn_id].presyns[0].gid_;
+}
+
+void DataLoader::fromHpxToCoreneuronDataStructs(
+        Branch * branch, Memb_list & membList,
+        NrnThread & nrnThread, short int mechType)
+{
+    Branch::MechanismInstances * mechs = branch->mechsInstances;
+    membList.data  = mechs[mechType].data;
+    membList.pdata = mechs[mechType].pdata;
+    membList.nodecount = mechs[mechType].instancesCount;
+    membList.nodeindices = mechs[mechType].nodesIndices;
+    membList._thread = NULL; //TODO: ThreadDatum never used ?
+    nrnThread._actual_d = branch->d;
+    nrnThread._actual_rhs = branch->rhs;
+    nrnThread._actual_v = branch->v;
+    nrnThread._actual_area = branch->area;
+    nrnThread._dt = dt;
+    nrnThread._t = t;
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
@@ -98,8 +118,11 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       //if synapse is not for this neuron...
       if (postNeuronId!=neuronId) continue;
 
-      Neurox::NetConX netcon((short int) nc->target_->_type, (int) nc->target_->_i_instance, nc->delay_, *nc->weight_);
+      short int mechType = (short int) nc->target_->_type;
+      Neurox::NetConX netcon(mechType, (int) nc->target_->_i_instance, nc->delay_,
+                             nc->weight_, pnt_receive_size[mechType], nc->active_);
       netcons[preNeuronId].push_back(netcon);
+      netcons[preNeuronId].shrink_to_fit();
     }
 }
 
@@ -219,12 +242,13 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
-    vector<int> mechsCount(mechanismsCount,0);
+    vector<int> instancesCount(mechanismsCount,0); //instances count per mechanism id
     vector<vector<double>> data(mechanismsCount); //data per mechanism id
     vector<vector<Datum>> pdata(mechanismsCount); //pdata per mechanism id
-    Compartment *comp = nullptr;
-    int m=0; //number of mechs instances
+    vector<vector<int> > nodesIndices(mechanismsCount); //nodes indices per mechanisms id
+    vector<hpx_t> branches; //children branches
 
+    Compartment *comp = nullptr;
     for (comp = topCompartment;
          comp->branches.size()==1;
          comp = comp->branches.front())
@@ -232,47 +256,30 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
         d.push_back(comp->d);
         b.push_back(comp->b);
         a.push_back(comp->a);
-        rhs.push_back(comp->rhs);
         v.push_back(comp->v);
+        rhs.push_back(comp->rhs);
         area.push_back(comp->area);
 
-        //copy all mechanisms sorted by type
-        for (int i=0; i<comp->mechsIds.size(); i++)
+        //copy all mechanisms instances (sorted by type)
+        for (int m=0; m<comp->mechsIds.size(); m++)
         {
-            int mechId = comp->mechsIds[i];
-            mechsCount[mechId]++;
-            data[i].insert(data[i].end(), comp->data.begin(), comp->data.end());
-            pdata[i].insert(pdata[i].end(), comp->pdata.begin(), comp->pdata.end());
-            m++;
+            int mechId = comp->mechsIds[m];
+            instancesCount[mechId]++;
+            data[mechId].insert (data[mechId].end(),  comp->data.begin(),  comp->data.end() );
+            pdata[mechId].insert(pdata[mechId].end(), comp->pdata.begin(), comp->pdata.end());
+            nodesIndices[mechId].push_back(n);
         }
         n++;
-    };
-
-    int branchesCount = comp->branches.size(); //children on final compartment of the branch
-    hpx_t * branches = HPX_NULL;
-    if (branchesCount > 0)
-    {
-        branches = new hpx_t[branchesCount];
-        for (int c=0; c<branchesCount; c++)
-            branches[c]=createBranch(comp->branches[c], netcons);
     }
 
-    //merge all data and pdata vectors into one
-    vector<double> data_merged;
-    vector<Datum> pdata_merged;
-    data_merged.reserve(m);
-    pdata_merged.reserve(m);
-    for (int i=0; i<mechanismsCount; i++)
-    {
-        data_merged.insert(data_merged.end(), data[i].begin(), data[i].end() );
-        pdata_merged.insert(pdata_merged.end(), pdata[i].begin(), pdata[i].end() );
-    }
+    for (int c=0; c<comp->branches.size(); c++)
+        branches[c]=createBranch(comp->branches[c], netcons);
 
-    //Allocate HPX Branch
+    //Allocate HPX Branch (TODO single node implementation)
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    hpx_call_sync(branchAddr, Branch::init, NULL, 0, n, a.data(), b.data(), d.data(),
-                  v.data(), rhs.data(), area.data(), m, mechsCount.data(), data_merged.data(),
-                  pdata_merged.data(), branchesCount, branches);
+    hpx_call_sync(branchAddr, Branch::init, NULL, 0,
+                  n, &a, &b, &d, &v, &rhs, &area, &instancesCount, &data,
+                  &pdata, &nodesIndices, &branches, &netcons);
 
     return branchAddr;
 }

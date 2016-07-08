@@ -3,49 +3,11 @@
 #include <algorithm>
 #include <numeric>
 
+//Serialization data structures
+//#include <boost/serialization/vector.hpp>
+#include <boost/serialization/map.hpp>
+
 using namespace Neurox;
-
-Branch::Branch(const int n, const double *a, const double *b, const double *d,
-               const double *v, const double *rhs, const double *area,
-               const int * mechsCounts, const double *data,
-               const int *pdata, const int branchesCount, const hpx_t * branches)
-    :n(n), branchesCount(branchesCount)
-{
-    spikesQueueMutex = hpx_lco_sema_new(1);
-
-    this->a = new double[n];
-    this->b = new double[n];
-    this->d = new double[n];
-    this->v = new double[n];
-    this->rhs = new double[n];
-    this->area = new double[n];
-    this->branches = new hpx_t[branchesCount];
-
-    memcpy(this->a,a,n*sizeof(double));
-    memcpy(this->b,b,n*sizeof(double));
-    memcpy(this->d,d,n*sizeof(double));
-    memcpy(this->v,v,n*sizeof(double));
-    memcpy(this->rhs,rhs,n*sizeof(double));
-    memcpy(this->area,area,n*sizeof(double));
-    memcpy(this->branches, branches, branchesCount*sizeof(hpx_t));
-
-    //calculate offsets based on count
-    int dataSize=0, pdataSize=0;
-    mechsInstances = new MechanismInstances[mechanismsCount];
-    for (int m=0; m<Neurox::mechanismsCount; m++)
-    {
-        dataSize  += mechanisms[m].dataSize * mechsCounts[m];
-        pdataSize += mechanisms[m].pdataSize * mechsCounts[m];
-        mechsInstances[m].data = new double[dataSize];
-        mechsInstances[m].pdata = new int[pdataSize];
-        memcpy(mechsInstances[m].data, &data[dataSize],  dataSize*sizeof(double));
-        memcpy(mechsInstances[m].pdata, &pdata[pdataSize], pdataSize*sizeof(int));
-    }
-
-    //copy children addresses
-    for (int b=0; b<branchesCount; b++)
-        this->branches[b]=branches[b];
-}
 
 Branch::~Branch()
 {
@@ -66,13 +28,59 @@ Branch::~Branch()
 }
 
 hpx_action_t Branch::init = 0;
-int Branch::init_handler(const int n, const double *a, const double *b, const double *d,
-                         const double *v, const double *rhs, const double *area,
-                         const int * mechsCount, const double *data,
-                         const Datum *pdata, const int branchesCount, const hpx_t * branches)
+int Branch::init_handler(const int n, std::vector<double> * a, const std::vector<double> *b,
+                         const std::vector<double> * d, const std::vector<double> * v,
+                         const std::vector<double> * rhs, const std::vector<double> * area,
+                         const std::vector<int> * instancesCount, const std::vector<std::vector<double> > * data,
+                         const std::vector<std::vector<double> > * pdata, std::vector<std::vector<int>> * nodesIndices,
+                         const std::vector<hpx_t> * branches, std::map<int, std::vector<NetConX> > * netcons)
 {
     neurox_hpx_pin(Branch);
-    local = new Branch(n,a,b,d,v,rhs,area,mechsCount, data, pdata, branchesCount, branches);
+    local->n = n;
+    local->branchesCount = branches->size();
+    local->spikesQueueMutex = hpx_lco_sema_new(1);
+    local->netcons.insert(netcons->begin(), netcons->end());
+
+    local->a = new double[n];
+    local->b = new double[n];
+    local->d = new double[n];
+    local->v = new double[n];
+    local->rhs = new double[n];
+    local->area = new double[n];
+    local->branches = new hpx_t[local->branchesCount];
+
+    std::copy(a->begin(), a->end(), local->a);
+    std::copy(b->begin(), b->end(), local->b);
+    std::copy(d->begin(), d->end(), local->d);
+    std::copy(v->begin(), v->end(), local->v);
+    std::copy(rhs->begin(), rhs->end(), local->rhs);
+    std::copy(area->begin(), area->end(), local->area);
+    std::copy(branches->begin(), branches->end(), local->branches);
+
+    //copy mechanisms instances
+    assert(mechanismsCount>0);
+    local->mechsInstances = new MechanismInstances[mechanismsCount];
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        local->mechsInstances[m].instancesCount = instancesCount->at(m);
+        local->mechsInstances[m].data = new double[instancesCount->at(m)*mechanisms[m].dataSize];
+        local->mechsInstances[m].pdata = new int[instancesCount->at(m)*mechanisms[m].pdataSize];
+        local->mechsInstances[m].nodesIndices = new int[instancesCount->at(m)];
+
+        std::copy(data->at(m).begin(),  data->at(m).end(),  local->mechsInstances[m].data);
+        std::copy(pdata->at(m).begin(), pdata->at(m).end(), local->mechsInstances[m].pdata);
+        std::copy(nodesIndices->at(m).begin(), nodesIndices->at(m).end(), local->mechsInstances[m].nodesIndices);
+    }
+
+    //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
+    hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
+    for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
+    {
+        int preNeuronId = getNeuronAddr(nc->first);
+        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, target) ;
+        assert(e==HPX_SUCCESS);
+    }
+
     neurox_hpx_unpin;;
 }
 
@@ -86,7 +94,6 @@ int Branch::setV_handler(const double v)
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
-
 
 hpx_action_t Branch::updateV = 0;
 int Branch::updateV_handler(const int secondOrder)
@@ -327,80 +334,99 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::callMechsFunction = 0;
-int Branch::callMechsFunction_handler(const Mechanism::Functions functionId, const double t, const double dt)
+hpx_action_t Branch::callFunction = 0;
+int Branch::callFunction_handler(const Mechanism::Functions functionId, const double t, const double dt)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callMechsFunction, functionId, t, dt);
+    neurox_hpx_recursive_branch_async_call(Branch::callFunction, functionId, t, dt);
 
     Memb_list membList;
     NrnThread nrnThread;
 
-    //TODO parallelize this loop
-    //PS what if different mechanisms overwrite the same nodes voltage?
-    MechanismInstances * mechs = local->mechsInstances;
-    for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m].BAfunctions[functionId])
+    if (functionId == Mechanism::Functions::pntReceive ||
+        functionId == Mechanism::Functions::pntReceiveInit)
+    {
+        Point_process pp;
+        while (!local->spikesQueue.empty() &&
+               local->spikesQueue.top().deliveryTime < t+dt)
         {
-            membList.data  = mechs[m].data;
-            membList.pdata = mechs[m].pdata;
-            membList.nodecount = mechs[m].instancesCount;
-            membList.nodeindices = mechs[m].nodesIndices;
-            membList._thread = NULL; //TODO: ThreadDatum never used ?
-            nrnThread._actual_d = local->d;
-            nrnThread._actual_rhs = local->rhs;
-            nrnThread._actual_v = local->v;
-            nrnThread._actual_area = local->area;
-            nrnThread._dt = dt;
-            nrnThread._t = t;
-            if (functionId == Mechanism::Functions::pntReceive ||
-                    functionId == Mechanism::Functions::pntReceiveInit)
+            Spike spike = local->spikesQueue.top();
+            if (spike.netcon->active)
             {
-                Point_process pp;
-                while (!local->spikesQueue.empty() &&
-                       local->spikesQueue.top().deliveryTime < t+dt)
-                {
-                    Spike spike = local->spikesQueue.top();
-                    pp._i_instance = spike.netcon->mechInstance;
-                    pp._presyn = NULL;
-                    pp._tid = -1;
-                    pp._type = spike.netcon->mechType;
-                    nrnThread._t = spike.deliveryTime;
-                    //see netcvode.cpp:433 (NetCon::deliver)
-                    //We have to pass NrnThread, MembList, and deliveryTime instead
-                    mechanisms[mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->weight, 0);
-                    local->spikesQueue.pop();
-                }
+                short int mechType = spike.netcon->mechType;
+                Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
+                pp._i_instance = spike.netcon->mechInstance;
+                pp._presyn = NULL;
+                pp._tid = -1;
+                pp._type = spike.netcon->mechType;
+                nrnThread._t = spike.deliveryTime;
+                //see netcvode.cpp:433 (NetCon::deliver)
+                //We have to pass NrnThread, MembList, and deliveryTime instead
+                if (functionId == Mechanism::Functions::pntReceive) {}
+                    //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+                else {}
+                    //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
             }
-            else if (functionId<BEFORE_AFTER_SIZE)
+            local->spikesQueue.pop();
+        }
+    }
+    else
+    {
+        //TODO this loop can be parallelized, but must respect the mechanisms dependency graph
+        //Also: The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
+        //The state function does not write to compartment, only reads, so no mutex needed
+        for (int m=0; m<mechanismsCount; m++)
+        {
+            Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, m);
+            if (functionId<BEFORE_AFTER_SIZE)
                 mechanisms[m].BAfunctions[functionId](&nrnThread, &membList, m);
             else
-                switch(functionId)
-                {
+            {
+              switch(functionId)
+              {
                 case Mechanism::Functions::alloc:
-                   mechanisms[m].membFunc.alloc(membList.data, membList.pdata, m); break;
+                    if (mechanisms[m].membFunc.alloc)
+                        mechanisms[m].membFunc.alloc(membList.data, membList.pdata, m);
+                    break;
                 case Mechanism::Functions::current:
-                    mechanisms[m].membFunc.current(&nrnThread, &membList, m); break;
+                    if (mechanisms[m].membFunc.current)
+                        mechanisms[m].membFunc.current(&nrnThread, &membList, m);
+                    break;
                 case Mechanism::Functions::state:
-                    mechanisms[m].membFunc.state(&nrnThread, &membList, m); break;
+                    if (mechanisms[m].membFunc.state)
+                        mechanisms[m].membFunc.state(&nrnThread, &membList, m);
+                    break;
                 case Mechanism::Functions::jacob:
-                    mechanisms[m].membFunc.jacob(&nrnThread, &membList, m); break;
+                    if (mechanisms[m].membFunc.jacob)
+                        mechanisms[m].membFunc.jacob(&nrnThread, &membList, m);
+                    break;
                 case Mechanism::Functions::initialize:
-                    mechanisms[m].membFunc.initialize(&nrnThread, &membList, m); break;
+                    if (mechanisms[m].membFunc.initialize)
+                        mechanisms[m].membFunc.initialize(&nrnThread, &membList, m);
+                    break;
                 case Mechanism::Functions::destructor:
-                    mechanisms[m].membFunc.destructor(); break;
+                    if (mechanisms[m].membFunc.destructor)
+                        mechanisms[m].membFunc.destructor();
+                    break;
                 case Mechanism::Functions::threadMemInit:
-                    mechanisms[m].membFunc.thread_mem_init_(membList._thread); break;
+                    if (mechanisms[m].membFunc.thread_mem_init_)
+                        mechanisms[m].membFunc.thread_mem_init_(membList._thread);
+                    break;
                 case Mechanism::Functions::threadTableCheck:
-                    mechanisms[m].membFunc.thread_table_check_
-                        (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, m);
+                    if (mechanisms[m].membFunc.thread_table_check_)
+                        mechanisms[m].membFunc.thread_table_check_
+                            (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, m);
                     break;
                 case Mechanism::Functions::threadCleanup:
-                    mechanisms[m].membFunc.thread_cleanup_(membList._thread); break;
+                    if (mechanisms[m].membFunc.thread_cleanup_)
+                        mechanisms[m].membFunc.thread_cleanup_(membList._thread);
+                    break;
                 default:
                     printf("ERROR! Unknown function %d!!\n", functionId);
-                }
+              }
+            }
         }
+    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -456,7 +482,7 @@ void Branch::registerHpxActions()
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianFwdSubstitution, gaussianFwdSubstitution_handler, HPX_CHAR, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_CHAR);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setV, setV_handler, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callMechsFunction, callMechsFunction_handler, HPX_INT, HPX_DOUBLE, HPX_DOUBLE);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callFunction, callFunction_handler, HPX_INT, HPX_DOUBLE, HPX_DOUBLE);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixInitValues, setupMatrixInitValues_handler);
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  init, init_handler, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,

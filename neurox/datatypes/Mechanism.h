@@ -41,7 +41,7 @@ class Mechanism
 
     enum Functions
     {
-        //BA functions start here (size BEFORE_AFTER_SIZE)
+        //BA functions start here (of size BEFORE_AFTER_SIZE)
         before_initialize=0,
         after_initialize=1,
         before_breakpoint=2,

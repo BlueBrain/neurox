@@ -4,7 +4,8 @@
 #include "neurox/Neurox_hpx.h"
 #include "neurox/datatypes/Capacitance.h"
 #include "neurox/input/InputParams.h"
-#include "neurox/datatypes/Synapse.h"
+#include "neurox/datatypes/NetCon.h"
+#include "neurox/datatypes/Spike.h"
 #include "neurox/datatypes/Mechanism.h"
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"
@@ -28,7 +29,7 @@ namespace Neurox
 
     inline static hpx_t getNeuronAddr(int i) {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
-    }; ///> returns hpx address for i-th neuron
+    } ///> returns hpx address for i-th neuron
 
     static hpx_action_t setInputParams;	///> Initializes InputParams
     static hpx_action_t setMechanisms;	///> Initializes Mechanisms
