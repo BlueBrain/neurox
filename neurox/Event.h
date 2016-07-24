@@ -6,16 +6,15 @@
 namespace neurox {
 
 /// Enumerator of all (used) event types
-enum EventType
-{
-  kDiscreteEvent=0,
-  //kTstopEvent=1,
-  kNetCon=2,
-  //kSelfEvent=3,
-  //kPreSyn=4,
-  //kNetParEvent=7,
-  //kInputPreSyn=20,
-  kVecPlayContinuous=-4
+enum EventType {
+  kDiscreteEvent = 0,
+  // kTstopEvent=1,
+  kNetCon = 2,
+  // kSelfEvent=3,
+  // kPreSyn=4,
+  // kNetParEvent=7,
+  // kInputPreSyn=20,
+  kVecPlayContinuous = -4
 };
 
 class Branch;
