@@ -66,13 +66,14 @@ class Branch {
     static hpx_action_t MechFunction;
 
     static int MechFunction_handler(const int* mechType_ptr, const size_t);
-    static void Init_handler(Mechanism::ModFunction* func_ptr, const size_t);
-    static void Reduce_handler(Mechanism::ModFunction* lhs,
-                               const Mechanism::ModFunction* rhs, const size_t);
+    static void Init_handler(Mechanism::ModFunctions* func_ptr, const size_t);
+    static void Reduce_handler(Mechanism::ModFunctions* lhs,
+                               const Mechanism::ModFunctions* rhs,
+                               const size_t);
 
     // for current function accumulation of shadow arrays
     hpx_t rhs_d_mutex;
-    hpx_t i_didv_mutex[Mechanism::Ion::kSizeWriteableIons];
+    hpx_t i_didv_mutex[Mechanism::IonTypes::kSizeWriteableIons];
     static void AccumulateRHSandD(NrnThread* nt, Memb_list* ml, int,
                                   void* args);
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
@@ -126,7 +127,7 @@ class Branch {
   static hpx_action_t BackwardEulerOnLocality;
   static hpx_action_t ThreadTableCheck;
 
-  void CallModFunction(const Mechanism::ModFunction functionId);
+  void CallModFunction(const Mechanism::ModFunctions functionId);
   void
   InitVecPlayContinous();  ///> start NetEvents and PlayVect on events queue
   void AddEventToQueue(floble_t t, Event* e);

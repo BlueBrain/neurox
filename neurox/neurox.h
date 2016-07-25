@@ -1,11 +1,5 @@
 #pragma once
 
-// hard-coded mechanism types
-#define NEUROX_ICLAMP_ 7
-#define NEUROX_PROBAMPANMDA_EMS_ 137
-#define NEUROX_PROBGABAAB_EMS_ 139
-#define NEUROX_STOCHKV_ 151
-
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
 typedef double spike_time_t;  ///> spikes timing unit
