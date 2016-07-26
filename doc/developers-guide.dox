@@ -226,8 +226,8 @@ parameters which can be set from the command line: <br><br>
               Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
        -k TIME, \--forwardskip=TIME<br>
               Set forwardskip to TIME (double). The default value is '0.'.<br><br>
-       -r, \--report<br>
-              Enable soma report.<br><br>
+       -r TYPE, \--report=TYPE<br>
+              Enable voltage report with specificied type (0 for disable, 1 for soma, 2 for full compartment).<br><br>
        -w, \--dt_report=TIME<br>
               Set the dt for soma reports (using ReportingLib) to TIME (double). The default value is '0.1'.<br><br>
        -z MULTIPLE, \--multiple=MULTIPLE<br>
