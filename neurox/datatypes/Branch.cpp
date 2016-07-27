@@ -77,7 +77,7 @@ int Branch::init_handler(const int n, std::vector<double> * a, const std::vector
     for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
     {
         int preNeuronId = getNeuronAddr(nc->first);
-        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, target) ;
+        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
         assert(e==HPX_SUCCESS);
     }
 
@@ -85,23 +85,23 @@ int Branch::init_handler(const int n, std::vector<double> * a, const std::vector
 }
 
 hpx_action_t Branch::setV = 0;
-int Branch::setV_handler(const double v)
+int Branch::setV_handler(const double * v, const size_t v_size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::setV, v);
+    neurox_hpx_recursive_branch_async_call(Branch::setV, &v, v_size);
     for (int n=0; n<local->n; n++)
-        local->v[n]=v;
+        local->v[n]=*v;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::updateV = 0;
-int Branch::updateV_handler(const int secondOrder)
+int Branch::updateV_handler(const int * secondOrder, size_t secondOrder_size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::updateV, secondOrder);
+    neurox_hpx_recursive_branch_async_call(Branch::updateV, &secondOrder, secondOrder_size);
     for (int i=0; i<local->n; i++)
-        local->v[i] += (secondOrder ? 2 : 1) * local->rhs[i];
+        local->v[i] += (*secondOrder ? 2 : 1) * local->rhs[i];
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -121,7 +121,9 @@ int Branch::setupMatrixInitValues_handler()
 }
 
 hpx_action_t Branch::setupMatrixRHS = 0;
-int Branch::setupMatrixRHS_handler(const char isSoma, const double parentV)
+int Branch::setupMatrixRHS_handler(
+        const char * isSoma, const size_t isSoma_size,
+        const double * parentV, const size_t parentV_size)
 {
     neurox_hpx_pin(Branch);
 
@@ -136,9 +138,9 @@ int Branch::setupMatrixRHS_handler(const char isSoma, const double parentV)
     double dv=-1;
 
     //for (i = i2; i < i3; ++i))
-    if (!isSoma)
+    if (!*isSoma)
     {
-        dv = parentV-v[0];
+        dv = *parentV-v[0];
         rhs[0] -= b[0]*dv;
         returnValue = a[0]*dv;
     }
@@ -160,7 +162,8 @@ int Branch::setupMatrixRHS_handler(const char isSoma, const double parentV)
         futures[c] = hpx_lco_future_new(sizeof(double));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], Branch::setupMatrixRHS, futures[c], local->v[n-1], isSomaFlag);
+        hpx_call(local->branches[c], Branch::setupMatrixRHS, futures[c],
+                 &isSomaFlag, isSoma_size, &v[n-1], parentV_size);
     }
 
     if (branchesCount > 0) //required or fails
@@ -190,7 +193,7 @@ struct BackTriangFuture
 }; ///> future value of the back-triangulation method
 
 hpx_action_t Branch::gaussianBackTriangulation = 0;
-int Branch::gaussianBackTriangulation_handler(const char isSoma)
+int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t isSoma_size)
 {
     neurox_hpx_pin(Branch);
     int n = local->n;
@@ -203,6 +206,7 @@ int Branch::gaussianBackTriangulation_handler(const char isSoma)
     hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
     void  ** addrs  = branchesCount ? new void*[branchesCount]  : nullptr;
     size_t * sizes  = branchesCount ? new size_t[branchesCount] : nullptr;
+
     BackTriangFuture * values = branchesCount ? new BackTriangFuture[branchesCount] : nullptr;
 
     char isSomaFlag=0;
@@ -211,7 +215,7 @@ int Branch::gaussianBackTriangulation_handler(const char isSoma)
         futures[c] = hpx_lco_future_new(sizeof (BackTriangFuture));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(BackTriangFuture);
-        hpx_call(local->branches[c], Branch::gaussianBackTriangulation, futures[c], isSomaFlag);
+        hpx_call(local->branches[c], Branch::gaussianBackTriangulation, futures[c], &isSomaFlag, isSoma_size);
     }
 
     if (branchesCount > 0) //required or fails
@@ -239,7 +243,7 @@ int Branch::gaussianBackTriangulation_handler(const char isSoma)
     delete [] values;
 
     //value to be decremented will be sent to parent branch (except soma)
-    if (!isSoma)
+    if (!*isSoma)
     {
         BackTriangFuture futureData;
         q = a[0] / d[0];
@@ -252,7 +256,9 @@ int Branch::gaussianBackTriangulation_handler(const char isSoma)
 
 
 hpx_action_t Branch::gaussianFwdSubstitution = 0;
-int Branch::gaussianFwdSubstitution_handler(const char isSoma, const double parentRHS)
+int Branch::gaussianFwdSubstitution_handler(
+        const char * isSoma, const size_t,
+        const double * parentRHS, const size_t)
 {
     neurox_hpx_pin(Branch);
     double *b   = local->b;
@@ -260,24 +266,24 @@ int Branch::gaussianFwdSubstitution_handler(const char isSoma, const double pare
     double *rhs = local->rhs;
     int n = local->n;
 
-    if(isSoma)
+    if(*isSoma)
     {
         rhs[0] /= d[0];
     }
     else for (int i=0; i<n; i++)
     {
-        rhs[i] -= b[i] * (i==0 ? parentRHS : rhs[i-1]);
+        rhs[i] -= b[i] * (i==0 ? *parentRHS : rhs[i-1]);
         rhs[i] /= d[i];
     }
 
     char isSomaFlag=0;
     double childrenRHS=rhs[n-1];
-    neurox_hpx_recursive_branch_sync(Branch::gaussianFwdSubstitution, isSomaFlag, childrenRHS);
+    neurox_hpx_recursive_branch_sync(Branch::gaussianFwdSubstitution, &isSomaFlag, sizeof(isSomaFlag), &childrenRHS, sizeof(childrenRHS));
     neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::setupMatrixLHS = 0;
-int Branch::setupMatrixLHS_handler(const char isSoma)
+int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size)
 {
     neurox_hpx_pin(Branch);
     int n = local->n;
@@ -289,7 +295,7 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
     double returnValue = -1; //contribution to upper branch
 
     //for (i = i2; i < i3; ++i))
-    if (!isSoma)
+    if (!*isSoma)
     {
         d[0] -= b[0];
         returnValue = a[0];
@@ -311,7 +317,7 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
         futures[c] = hpx_lco_future_new(sizeof(double));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], Branch::setupMatrixLHS, futures[c], isSomaFlag);
+        hpx_call(local->branches[c], Branch::setupMatrixLHS, futures[c], &isSomaFlag, isSoma_size);
     }
 
     if (branchesCount > 0) //required or fails
@@ -334,99 +340,114 @@ int Branch::setupMatrixLHS_handler(const char isSoma)
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::callFunction = 0;
-int Branch::callFunction_handler(const Mechanism::Functions functionId, const double t, const double dt)
+
+hpx_action_t Branch::callNetReceiveFunction = 0;
+int Branch::callNetReceiveFunction_handler(
+        const double * t, const size_t t_size,
+        const double * dt, const size_t dt_size,
+        const double * initFunction, const size_t initFunction_size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callFunction, functionId, t, dt);
+    neurox_hpx_recursive_branch_async_call(Branch::callNetReceiveFunction,
+        t, t_size, dt, dt_size, initFunction, initFunction_size );
+
+    Memb_list membList;
+    NrnThread nrnThread;
+    Point_process pp;
+    while (!local->spikesQueue.empty() &&
+           local->spikesQueue.top().deliveryTime < *t+*dt)
+    {
+        Spike spike = local->spikesQueue.top();
+        if (spike.netcon->active)
+        {
+            short int mechType = spike.netcon->mechType;
+            Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
+            pp._i_instance = spike.netcon->mechInstance;
+            pp._presyn = NULL;
+            pp._tid = -1;
+            pp._type = spike.netcon->mechType;
+            nrnThread._t = spike.deliveryTime;
+            //see netcvode.cpp:433 (NetCon::deliver)
+            //We have to pass NrnThread, MembList, and deliveryTime instead
+            if (*initFunction)
+            {
+                    //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+            }
+            else
+            {
+                    //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+            }
+        }
+        local->spikesQueue.pop();
+    }
+
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::callModFunction = 0;
+int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t functionId_size)
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId, functionId_size);
 
     Memb_list membList;
     NrnThread nrnThread;
 
-    if (functionId == Mechanism::Functions::pntReceive ||
-        functionId == Mechanism::Functions::pntReceiveInit)
-    {
-        Point_process pp;
-        while (!local->spikesQueue.empty() &&
-               local->spikesQueue.top().deliveryTime < t+dt)
-        {
-            Spike spike = local->spikesQueue.top();
-            if (spike.netcon->active)
-            {
-                short int mechType = spike.netcon->mechType;
-                Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
-                pp._i_instance = spike.netcon->mechInstance;
-                pp._presyn = NULL;
-                pp._tid = -1;
-                pp._type = spike.netcon->mechType;
-                nrnThread._t = spike.deliveryTime;
-                //see netcvode.cpp:433 (NetCon::deliver)
-                //We have to pass NrnThread, MembList, and deliveryTime instead
-                if (functionId == Mechanism::Functions::pntReceive) {}
-                    //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-                else {}
-                    //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-            }
-            local->spikesQueue.pop();
-        }
-    }
-    else
-    {
         //TODO this loop can be parallelized, but must respect the mechanisms dependency graph
         //Also: The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
         //The state function does not write to compartment, only reads, so no mutex needed
         for (int m=0; m<mechanismsCount; m++)
         {
             Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, m);
-            if (functionId<BEFORE_AFTER_SIZE)
-                mechanisms[m].BAfunctions[functionId](&nrnThread, &membList, m);
+            if (*functionId<BEFORE_AFTER_SIZE)
+                mechanisms[m].BAfunctions[*functionId](&nrnThread, &membList, m);
             else
             {
-              switch(functionId)
+              switch(*functionId)
               {
-                case Mechanism::Functions::alloc:
+                case Mechanism::ModFunction::alloc:
                     if (mechanisms[m].membFunc.alloc)
                         mechanisms[m].membFunc.alloc(membList.data, membList.pdata, m);
                     break;
-                case Mechanism::Functions::current:
+                case Mechanism::ModFunction::current:
                     if (mechanisms[m].membFunc.current)
                         mechanisms[m].membFunc.current(&nrnThread, &membList, m);
                     break;
-                case Mechanism::Functions::state:
+                case Mechanism::ModFunction::state:
                     if (mechanisms[m].membFunc.state)
                         mechanisms[m].membFunc.state(&nrnThread, &membList, m);
                     break;
-                case Mechanism::Functions::jacob:
+                case Mechanism::ModFunction::jacob:
                     if (mechanisms[m].membFunc.jacob)
                         mechanisms[m].membFunc.jacob(&nrnThread, &membList, m);
                     break;
-                case Mechanism::Functions::initialize:
+                case Mechanism::ModFunction::initialize:
                     if (mechanisms[m].membFunc.initialize)
                         mechanisms[m].membFunc.initialize(&nrnThread, &membList, m);
                     break;
-                case Mechanism::Functions::destructor:
+                case Mechanism::ModFunction::destructor:
                     if (mechanisms[m].membFunc.destructor)
                         mechanisms[m].membFunc.destructor();
                     break;
-                case Mechanism::Functions::threadMemInit:
+                case Mechanism::ModFunction::threadMemInit:
                     if (mechanisms[m].membFunc.thread_mem_init_)
                         mechanisms[m].membFunc.thread_mem_init_(membList._thread);
                     break;
-                case Mechanism::Functions::threadTableCheck:
+                case Mechanism::ModFunction::threadTableCheck:
                     if (mechanisms[m].membFunc.thread_table_check_)
                         mechanisms[m].membFunc.thread_table_check_
                             (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, m);
                     break;
-                case Mechanism::Functions::threadCleanup:
+                case Mechanism::ModFunction::threadCleanup:
                     if (mechanisms[m].membFunc.thread_cleanup_)
                         mechanisms[m].membFunc.thread_cleanup_(membList._thread);
                     break;
                 default:
-                    printf("ERROR! Unknown function %d!!\n", functionId);
+                    printf("ERROR! Unknown function %d!!\n", *functionId);
               }
             }
         }
-    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -445,7 +466,7 @@ int Branch::secondOrderCurrent_handler()
     MechanismInstances * mechs = local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
-        if (mechanisms[m].BAfunctions[Mechanism::Functions::alloc] ) //TODO used to be if == ion_alloc()
+        if (mechanisms[m].BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
         {
             for (int i=0; i<mechs[m].instancesCount; i++)
             {
@@ -460,15 +481,16 @@ int Branch::secondOrderCurrent_handler()
 }
 
 hpx_action_t Branch::queueSpikes = 0;
-int Branch::queueSpikes_handler(const int preNeuronId, const double deliveryTime)
+int Branch::queueSpikes_handler(const int * preNeuronId, const size_t,
+                                const double * deliveryTime, const size_t)
 {
     neurox_hpx_pin(Branch);
     //netcvode::PreSyn::send()
-    for (auto nc = local->netcons.at(preNeuronId).begin();
-         nc!=local->netcons.at(preNeuronId).end(); nc++)
+    for (auto nc = local->netcons.at(*preNeuronId).begin();
+         nc!=local->netcons.at(*preNeuronId).end(); nc++)
     {
       hpx_lco_sema_p(local->spikesQueueMutex);
-      local->spikesQueue.push( Spike(deliveryTime, &(*nc)) );
+      local->spikesQueue.push( Spike(*deliveryTime, &(*nc)) );
       hpx_lco_sema_v_sync(local->spikesQueueMutex);
     }
     neurox_hpx_unpin;
@@ -476,15 +498,20 @@ int Branch::queueSpikes_handler(const int preNeuronId, const double deliveryTime
 
 void Branch::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixRHS, setupMatrixRHS_handler, HPX_CHAR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_CHAR);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  updateV, updateV_handler, HPX_INT);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianFwdSubstitution, gaussianFwdSubstitution_handler, HPX_CHAR, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_CHAR);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setV, setV_handler, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  callFunction, callFunction_handler, HPX_INT, HPX_DOUBLE, HPX_DOUBLE);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  setupMatrixInitValues, setupMatrixInitValues_handler);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_PINNED,  init, init_handler, HPX_INT, HPX_POINTER,
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED,  setupMatrixRHS, setupMatrixRHS_handler,
+                        HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  updateV, updateV_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, gaussianFwdSubstitution, gaussianFwdSubstitution_handler,
+                         HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_POINTER, HPX_SIZE_T);
+    //TODO separate function from BA function!
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callModFunction, callModFunction_handler, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, callNetReceiveFunction, callNetReceiveFunction_handler,
+                        HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixInitValues, setupMatrixInitValues_handler);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
                         HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
 }

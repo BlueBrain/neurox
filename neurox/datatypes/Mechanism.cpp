@@ -52,14 +52,14 @@ Mechanism::~Mechanism(){
 };
 
 hpx_action_t Mechanism::setMechanisms = 0;
-int Mechanism::setMechanisms_handler(const Mechanism * mechanisms, const size_t count)
+int Mechanism::setMechanisms_handler(const Mechanism * mechanisms, const size_t mechanisms_size)
 {
     neurox_hpx_pin(uint64_t);
     if (Neurox::mechanisms==NULL)
         delete [] Neurox::mechanisms;
 
-    Neurox::mechanisms = new Mechanism[count];
-    memcpy(Neurox::mechanisms, mechanisms, sizeof(Mechanism)*count);
+    Neurox::mechanisms = new Mechanism[mechanisms_size*sizeof(Mechanism)];
+    memcpy(Neurox::mechanisms, mechanisms, mechanisms_size);
     neurox_hpx_unpin;
 }
 

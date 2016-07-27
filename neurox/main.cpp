@@ -18,13 +18,13 @@
 using namespace Neurox;
 
 int Neurox::neuronsCount=-1;
-hpx_t Neurox::neuronsAddr=HPX_NULL;
+hpx_t Neurox::neuronsAddr = HPX_NULL;
 int Neurox::mechanismsCount=-1;
-Mechanism * Neurox::mechanisms=NULL;
+Mechanism * Neurox::mechanisms = nullptr;
 Input::InputParams * Neurox::inputParams = nullptr;
 
 static hpx_action_t main_hpx = 0;
-static int main_hpx_handler( const int argc, char ** argv)
+static int main_hpx_handler( char **argv, size_t argc)
 {
     //populate InputParams from command line, and broadcasts to all compute nodes
     Input::InputParams inputParams(argc, argv);
@@ -74,23 +74,23 @@ static int main_hpx_handler( const int argc, char ** argv)
 }
 
 int main1_hpx(int argc, char** argv)
-{
-    //hpx initialisation
-    if (hpx_init(&argc, &argv) != 0)
-    {
-        printf("HPX failed to initialize!\n");
-        return -1;
-    }
-    printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
-
+{ 
     //register HPX methods
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_INT, HPX_POINTER);
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_SIZE_T);
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
     Mechanism::registerHpxActions();
     Solver::BackwardEuler::registerHpxActions();
 
-    //start HPX
+    //Init HPX
+    if (hpx_init(&argc, &argv) != 0)
+    {
+        printf("HPX failed to initialize!\n");
+        return 1;
+    }
+    printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
+
+    //Run main
     int e = hpx_run(&main_hpx, argc, argv);
 
     //clean up

@@ -31,6 +31,7 @@ class Neuron
 
     static void registerHpxActions(); ///> Register all HPX actions
     static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
+    static void callMechanismsModFunction(Neuron * local, Mechanism::ModFunction functionId); ///> Calls MOD functions on all mechanisms
     static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
@@ -39,9 +40,11 @@ class Neuron
   private:
     hpx_t synapsesMutex;   ///> mutex to protect the memory access to synapses vector
 
+    static int init_handler(const int * gid, const size_t gid_size,
+                            const hpx_t * topBranch, const size_t topBranch_size,
+                            const double * APthreshold, const size_t APT_size); ///> HPX constructor
+    static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
     static int finitialize_handler(); ///> initialize.c
-    static int init_handler(const int gid, const hpx_t topBranch, double APthreshold); ///> HPX constructor
-    static int addSynapseTarget_handler (const hpx_t synapseTarget); ///>adds an outgoing Synapses
 };
 
 }

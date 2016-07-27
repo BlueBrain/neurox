@@ -60,7 +60,8 @@ class Branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
     static hpx_action_t setupMatrixInitValues; ///> set D and RHS of all compartments to 0
     static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
-    static hpx_action_t callFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
+    static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
+    static hpx_action_t callNetReceiveFunction; ///> calls NetReceive Functions
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
     static hpx_action_t gaussianBackTriangulation; ///> Gaussian elimination's back triangulation: solve_core.c:triang()
     static hpx_action_t gaussianFwdSubstitution; ///> Gaussian elimination's forward substitution: solve_core.c:bksub()
@@ -70,22 +71,30 @@ class Branch
 
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
 
-    static int setupMatrixRHS_handler(const char isSoma, const double v_parent);
-    static int setupMatrixLHS_handler(const char isSoma);
-    static int updateV_handler(const int secondOrder);
-    static int gaussianBackTriangulation_handler(const char isSoma);
-    static int gaussianFwdSubstitution_handler(const char isSoma, const double parentRHS);
+    static int setupMatrixRHS_handler(const char * isSoma, const size_t,
+                                      const double * parentV, const size_t);
+    static int setupMatrixLHS_handler(const char * isSoma, const size_t);
+    static int updateV_handler(const int * secondOrder, const size_t);
+    static int gaussianBackTriangulation_handler(const char * isSoma, const size_t);
+    static int gaussianFwdSubstitution_handler(const char * isSoma, const size_t,
+                                               const double * parentRHS, const size_t);
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
-    static int setV_handler(const double v);
-    static int callFunction_handler(const Mechanism::Functions functionId, const double t, const double dt);
-    static int queueSpikes_handler(const int preNeuronId, double deliveryTime);
-    static int init_handler(const int n, std::vector<double> * a, const std::vector<double> *b,
-                            const std::vector<double> * d, const std::vector<double> * v,
-                            const std::vector<double> * rhs, const std::vector<double> * area,
-                            const std::vector<int> * instancesCount,const std::vector<std::vector<double> > * data,
-                            const std::vector<std::vector<double> > * pdata, std::vector<std::vector<int>> * nodesIndices,
-                            const std::vector<hpx_t> * branches, std::map<int, std::vector<NetConX> > * netcons);
+    static int setV_handler(const double * v, const size_t);
+    static int callNetReceiveFunction_handler(
+            const double * t, const size_t,
+            const double * dt, const size_t,
+            const double * initFunctionFlag, const size_t);
+    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
+    static int queueSpikes_handler(const int * preNeuronId, const size_t,
+                                   const double * deliveryTime, const size_t);
+    static int init_handler(
+            const int n, std::vector<double> * a, const std::vector<double> *b,
+            const std::vector<double> * d, const std::vector<double> * v,
+            const std::vector<double> * rhs, const std::vector<double> * area,
+            const std::vector<int> * instancesCount,const std::vector<std::vector<double> > * data,
+            const std::vector<std::vector<double> > * pdata, std::vector<std::vector<int>> * nodesIndices,
+            const std::vector<hpx_t> * branches, std::map<int, std::vector<NetConX> > * netcons);
 };
 
 }; //namespace

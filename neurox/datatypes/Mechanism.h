@@ -39,7 +39,7 @@ class Mechanism
     pnt_receive_t pnt_receive;
     pnt_receive_t pnt_receive_init;
 
-    enum Functions
+    enum ModFunction
     {
         //BA functions start here (of size BEFORE_AFTER_SIZE)
         before_initialize=0,
@@ -58,19 +58,16 @@ class Mechanism
         threadTableCheck=12,
         setData=13,
         destructor=14,
-        //point receive funcs
-        pntReceive=15,
-        pntReceiveInit=16,
         //capacitance functions start here
-        capacityCurrent=17, //not in mod files, it's in capac.c
-        capJacob=18,
+        capacityCurrent=15, //not in mod files, it's in capac.c
+        capJacob=16,
     };
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t setMechanisms; ///> Sets Mechanism
 
 private:
-    static int setMechanisms_handler(const Mechanism * mechanisms, const size_t count);
+    static int setMechanisms_handler(const Mechanism * mechanisms, const size_t);
 };
 
 };

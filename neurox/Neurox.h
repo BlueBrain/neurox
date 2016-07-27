@@ -22,7 +22,7 @@ namespace Neurox
     extern int neuronsCount; 	///> total neurons count in the system
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
 
-    extern int mechanismsCount;    ///> number of mechanisms
+    extern int mechanismsCount; ///> number of mechanisms
     extern Neurox::Mechanism * mechanisms; ///> Unique information per mechanism type
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line (TODO should go away at some point)

@@ -70,3 +70,20 @@ typedef hpx_addr_t hpx_t;
 #define neurox_hpx_recursive_branch_sync(Func, ...) \
     neurox_hpx_recursive_branch_async_call (Func, __HPX_NARGS(__VA_ARGS__) ) \
     neurox_hpx_recursive_branch_async_wait
+
+///shortcut for the long syntax of the declaration of hpx functions
+/*
+#define neroux_hpx_register_action(func, nvars) \
+#if   nvars == 0
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler)
+#elif nvars == 1
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, Func, Func##_handler, \
+    HPX_POINTER, HPX_SIZE_T);
+#elif nvars == 2
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, Func, Func##_handler, \
+    HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
+#elif nvars == 3
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, Func, Func##_handler, \
+    HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
+#endif
+*/
