@@ -71,19 +71,31 @@ typedef hpx_addr_t hpx_t;
     neurox_hpx_recursive_branch_async_call (Func, __HPX_NARGS(__VA_ARGS__) ) \
     neurox_hpx_recursive_branch_async_wait
 
-///shortcut for the long syntax of the declaration of hpx functions
-/*
-#define neroux_hpx_register_action(func, nvars) \
-#if   nvars == 0
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler)
-#elif nvars == 1
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, Func, Func##_handler, \
+
+//auxiliars for neurox_hpx_register_action
+#define neurox_hpx_register_action_0(func) \
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler);
+#define neurox_hpx_register_action_1(func) \
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, func, func##_handler, \
     HPX_POINTER, HPX_SIZE_T);
-#elif nvars == 2
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, Func, Func##_handler, \
-    HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-#elif nvars == 3
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, Func, Func##_handler, \
-    HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-#endif
-*/
+#define neurox_hpx_register_action_2(func) \
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, \
+    func, func##_handler, HPX_INT, HPX_POINTER, HPX_POINTER);
+#define neurox_hpx_register_action_3(func) \
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_COMPRESSED, \
+    func, func##_handler, HPX_POINTER, HPX_SIZE_T);
+#define neurox_hpx_register_action_4(func) \
+    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED | HPX_COMPRESSED, \
+    func, func##_handler, HPX_INT, HPX_POINTER, HPX_POINTER);
+
+/**
+ * shortcut for the declaration of hpx functions.
+ * Pass function type and name:
+ * 0 : no arguments
+ * 1 : one argument
+ * 2 : more than one arguments
+ * 3 : one argument (compressed)
+ * 4 : more than one arguments (compressed)
+ */
+#define neurox_hpx_register_action(funcType, func) \
+    neurox_hpx_register_action_##funcType(func)

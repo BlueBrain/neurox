@@ -73,11 +73,18 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
 }
 
 hpx_action_t Neuron::init = 0;
-int Neuron::init_handler(const int * gid, const size_t,
-                         const hpx_t * topBranch, const size_t,
-                         const double * APthreshold, const size_t)
+int Neuron::init_handler(int nargs, void *args[], size_t sizes[])
 {
     neurox_hpx_pin(Neuron);
+    assert(nargs==3);
+    assert(sizes[0]==sizeof(int));
+    assert(sizes[1]==sizeof(hpx_t));
+    assert(sizes[2]==sizeof(double));
+
+    const int * gid = (int*) args[0];
+    const hpx_t * topBranch = (hpx_t*) args[1];
+    const double * APthreshold = (double*) args[2];
+
     //copy information
     local->t=inputParams->t;
     local->dt=inputParams->dt;
@@ -113,8 +120,7 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
 
 void Neuron::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, init, init_handler,
-                        HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, addSynapseTarget, addSynapseTarget_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, finitialize, finitialize_handler);
+    neurox_hpx_register_action(2, init);
+    neurox_hpx_register_action(1, Neuron::addSynapseTarget);
+    neurox_hpx_register_action(0, Neuron::finitialize);
 }

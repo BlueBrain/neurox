@@ -121,11 +121,12 @@ int Branch::setupMatrixInitValues_handler()
 }
 
 hpx_action_t Branch::setupMatrixRHS = 0;
-int Branch::setupMatrixRHS_handler(
-        const char * isSoma, const size_t isSoma_size,
-        const double * parentV, const size_t parentV_size)
+int Branch::setupMatrixRHS_handler(const int nargs, const void *args[], const size_t[])
 {
     neurox_hpx_pin(Branch);
+    assert(nargs==2);
+    const char * isSoma = (const char*) args[0];
+    const double * parentV = (const double*) args[1];
 
     int n = local->n;
     double *a   = local->a;
@@ -163,7 +164,7 @@ int Branch::setupMatrixRHS_handler(
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(double);
         hpx_call(local->branches[c], Branch::setupMatrixRHS, futures[c],
-                 &isSomaFlag, isSoma_size, &v[n-1], parentV_size);
+                 &isSomaFlag, sizeof(isSomaFlag), &v[n-1], sizeof(v[n-1]));
     }
 
     if (branchesCount > 0) //required or fails
@@ -256,11 +257,13 @@ int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t 
 
 
 hpx_action_t Branch::gaussianFwdSubstitution = 0;
-int Branch::gaussianFwdSubstitution_handler(
-        const char * isSoma, const size_t,
-        const double * parentRHS, const size_t)
+int Branch::gaussianFwdSubstitution_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
+    assert(nargs==2);
+    const char * isSoma = (const char *) args[0];
+    const double *parentRHS = (const double *) args[1];
+
     double *b   = local->b;
     double *d   = local->d;
     double *rhs = local->rhs;
@@ -342,14 +345,15 @@ int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size
 
 
 hpx_action_t Branch::callNetReceiveFunction = 0;
-int Branch::callNetReceiveFunction_handler(
-        const double * t, const size_t t_size,
-        const double * dt, const size_t dt_size,
-        const double * initFunction, const size_t initFunction_size)
+int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
+    assert(nargs==3);
+    const double * t = (const double *) args[0];
+    const double * dt = (const double *) args[1];
+    const char * initFunction = (const char*) args[2];
     neurox_hpx_recursive_branch_async_call(Branch::callNetReceiveFunction,
-        t, t_size, dt, dt_size, initFunction, initFunction_size );
+        t, sizes[0], dt, sizes[1], initFunction, sizes[2]);
 
     Memb_list membList;
     NrnThread nrnThread;
@@ -481,10 +485,13 @@ int Branch::secondOrderCurrent_handler()
 }
 
 hpx_action_t Branch::queueSpikes = 0;
-int Branch::queueSpikes_handler(const int * preNeuronId, const size_t,
-                                const double * deliveryTime, const size_t)
+int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
+    assert(nargs==2);
+    const int * preNeuronId = (const int *) args[0];
+    const double * deliveryTime = (const double*) args[1];
+
     //netcvode::PreSyn::send()
     for (auto nc = local->netcons.at(*preNeuronId).begin();
          nc!=local->netcons.at(*preNeuronId).end(); nc++)
@@ -498,20 +505,15 @@ int Branch::queueSpikes_handler(const int * preNeuronId, const size_t,
 
 void Branch::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED,  setupMatrixRHS, setupMatrixRHS_handler,
-                        HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixLHS, setupMatrixLHS_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  updateV, updateV_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  gaussianBackTriangulation, gaussianBackTriangulation_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, gaussianFwdSubstitution, gaussianFwdSubstitution_handler,
-                         HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setV, setV_handler, HPX_POINTER, HPX_SIZE_T);
-    //TODO separate function from BA function!
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  callModFunction, callModFunction_handler, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED, callNetReceiveFunction, callNetReceiveFunction_handler,
-                        HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T, HPX_POINTER, HPX_SIZE_T);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setupMatrixInitValues, setupMatrixInitValues_handler);
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  init, init_handler, HPX_INT, HPX_POINTER,
-                        HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER,
-                        HPX_POINTER, HPX_POINTER, HPX_INT, HPX_POINTER);
+    neurox_hpx_register_action(2, Branch::setupMatrixRHS);
+    neurox_hpx_register_action(1, Branch::setupMatrixLHS);
+    neurox_hpx_register_action(1, Branch::updateV);
+    neurox_hpx_register_action(1, Branch::gaussianBackTriangulation);
+    neurox_hpx_register_action(2, Branch::gaussianFwdSubstitution);
+    neurox_hpx_register_action(1, Branch::setV);
+    neurox_hpx_register_action(1, Branch::callModFunction);
+    neurox_hpx_register_action(1, Branch::callNetReceiveFunction);
+    neurox_hpx_register_action(0, Branch::setupMatrixInitValues);
+    neurox_hpx_register_action(2, Branch::init);
+    neurox_hpx_register_action(2, Branch::queueSpikes);
 }

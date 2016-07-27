@@ -78,5 +78,5 @@ int BackwardEuler::step_handler()
 
 void BackwardEuler::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, step, step_handler);
+    neurox_hpx_register_action(0, step);
 }

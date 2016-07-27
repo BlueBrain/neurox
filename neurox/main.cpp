@@ -76,7 +76,7 @@ static int main_hpx_handler( char **argv, size_t argc)
 int main1_hpx(int argc, char** argv)
 { 
     //register HPX methods
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED, main_hpx, main_hpx_handler, HPX_POINTER, HPX_SIZE_T);
+    neurox_hpx_register_action(1, main);
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
     Mechanism::registerHpxActions();
@@ -91,7 +91,7 @@ int main1_hpx(int argc, char** argv)
     printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
 
     //Run main
-    int e = hpx_run(&main_hpx, argc, argv);
+    int e = hpx_run(&main_hpx, argv, argc);
 
     //clean up
     hpx_finalize();

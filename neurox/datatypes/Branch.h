@@ -71,23 +71,17 @@ class Branch
 
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
 
-    static int setupMatrixRHS_handler(const char * isSoma, const size_t,
-                                      const double * parentV, const size_t);
+    static int setupMatrixRHS_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int setupMatrixLHS_handler(const char * isSoma, const size_t);
     static int updateV_handler(const int * secondOrder, const size_t);
     static int gaussianBackTriangulation_handler(const char * isSoma, const size_t);
-    static int gaussianFwdSubstitution_handler(const char * isSoma, const size_t,
-                                               const double * parentRHS, const size_t);
+    static int gaussianFwdSubstitution_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double * v, const size_t);
-    static int callNetReceiveFunction_handler(
-            const double * t, const size_t,
-            const double * dt, const size_t,
-            const double * initFunctionFlag, const size_t);
+    static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
-    static int queueSpikes_handler(const int * preNeuronId, const size_t,
-                                   const double * deliveryTime, const size_t);
+    static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(
             const int n, std::vector<double> * a, const std::vector<double> *b,
             const std::vector<double> * d, const std::vector<double> * v,

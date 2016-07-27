@@ -65,5 +65,5 @@ int Mechanism::setMechanisms_handler(const Mechanism * mechanisms, const size_t 
 
 void Mechanism::registerHpxActions()
 {
-    HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED,  setMechanisms, setMechanisms_handler, HPX_POINTER, HPX_SIZE_T);
+    neurox_hpx_register_action(1, Mechanism::setMechanisms);
 }
