@@ -8,7 +8,7 @@ Dependencies
 - cmake 2.8.12+: www.cmake.org
 - hpx 4+: https://hpx.crest.iu.edu/
 - tclap: http://tclap.sourceforge.net/
-- libCoreNeuron: https://github.com/brunomaga/coreneuron
+- libCoreNeuron: https://github.com/BlueBrain/coreneuron
 
 ## set-up
 
@@ -66,5 +66,6 @@ To check for coding style errors, use `ccplint.py` (https://raw.githubuserconten
 ```
 find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
+False positives can be ignored by putting `// NOLINT` at the end of the line or `// NOLINTNEXTLINE` in the previous line.
 
 Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
