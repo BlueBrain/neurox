@@ -17,12 +17,6 @@
 
 using namespace Neurox;
 
-int Neurox::neuronsCount=-1;
-hpx_t Neurox::neuronsAddr = HPX_NULL;
-int Neurox::mechanismsCount=-1;
-Mechanism * Neurox::mechanisms = nullptr;
-Input::InputParams * Neurox::inputParams = nullptr;
-
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char **argv, size_t argc)
 {
@@ -76,10 +70,10 @@ static int main_hpx_handler( char **argv, size_t argc)
 int main1_hpx(int argc, char** argv)
 { 
     //register HPX methods
-    neurox_hpx_register_action(1, main);
+    neurox_hpx_register_action(1, main_hpx);
+    Neurox::registerHpxActions();
     Neuron::registerHpxActions();
     Branch::registerHpxActions();
-    Mechanism::registerHpxActions();
     Solver::BackwardEuler::registerHpxActions();
 
     //Init HPX

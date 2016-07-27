@@ -62,12 +62,7 @@ class Mechanism
         capacityCurrent=15, //not in mod files, it's in capac.c
         capJacob=16,
     };
-
-    static void registerHpxActions(); ///> Register all HPX actions
-    static hpx_action_t setMechanisms; ///> Sets Mechanism
-
 private:
-    static int setMechanisms_handler(const Mechanism * mechanisms, const size_t);
 };
 
 };

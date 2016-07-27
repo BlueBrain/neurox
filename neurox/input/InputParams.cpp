@@ -83,16 +83,3 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         //TODO
     }
 }
-/*
-hpx_action_t InputParams::setInputParams = 0;
-int InputParams::setInputParams_handler(const Input::InputParams * inputParams, const size_t size)
-{
-    neurox_hpx_pin(uint64_t);
-    if (Neurox::inputParams==NULL)
-        delete Neurox::inputParams;
-
-    Neurox::inputParams = new Input::InputParams();
-    memcpy(Neurox::inputParams, inputParams, size);
-    neurox_hpx_unpin;
-};
-*/

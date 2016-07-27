@@ -120,7 +120,7 @@ hpx_t Neuron::fireActionPotential(Neuron * local)
 
 void Neuron::registerHpxActions()
 {
-    neurox_hpx_register_action(2, init);
+    neurox_hpx_register_action(2, Neuron::init);
     neurox_hpx_register_action(1, Neuron::addSynapseTarget);
     neurox_hpx_register_action(0, Neuron::finitialize);
 }
