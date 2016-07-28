@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.2, 2016-07-27T17:43:39. -->
+<!-- Written by QtCreator 4.0.2, 2016-07-27T18:53:25. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -165,8 +165,8 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">coreneuron_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-e 100 -d ../tests/integration/ring/ --celsius 6.3</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"></value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-e 100 -d ../../tests/integration/ring/ --celsius 6.3</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory">/home/bmagalha/Workspace/neurox/build-qt/bin</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory.default">/home/bmagalha/Workspace/neurox/build-qt/apps</value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>

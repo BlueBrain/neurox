@@ -20,14 +20,14 @@ using namespace Neurox;
 static hpx_action_t main_hpx = 0;
 static int main_hpx_handler( char **argv, size_t argc)
 {
+    //reads morphology data
+    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
+
     //populate InputParams from command line, and broadcasts to all compute nodes
     Input::InputParams inputParams(argc, argv);
     printf("Broadcasting InputParams...\n");
     int e = hpx_bcast_rsync(Neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
-
-    //reads morphology data
-    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     hpx_par_for_sync( [&] (int i, void*) -> int

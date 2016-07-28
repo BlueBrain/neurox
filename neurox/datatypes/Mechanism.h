@@ -15,23 +15,24 @@ namespace Neurox
 class Mechanism
 {
   public:
-    Mechanism(){};
+    Mechanism();
     ~Mechanism();
 
-    Mechanism(const short type, const short dataSize, const short pdataSize,
-              const short dependenciesCount, const char pntMap,
-              const char isArtificial, const int * dependencies,
-              const char isIon, const double conci, const double conco, const double charge); //for ions only
+    Mechanism(const short int type, const short int dataSize, const short int pdataSize,
+              const char isArtificial, const char pntMap, const char isIon,
+              const double conci, const double conco, const double charge,
+              const short int symLengh = 0, const char * sym = nullptr,
+              const short int dependenciesCount = 0, const int * dependencies = nullptr);
 
     short int type, dataSize, pdataSize, dependenciesCount;
     char pntMap, isArtificial;
+    short int symLength; ///> length of the name of the mechanism;
+    int isIon;
     int * dependencies; ///> Id of dependencies mechanisms
 
     //For ionic mechanisms
-    int isIon;
     double conci, conco, charge; //from global_conci, global_conco, global_charge variables
-
-    char name[64]; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
+    char *sym; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)
     Memb_func membFunc;

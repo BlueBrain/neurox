@@ -32,7 +32,7 @@ extern "C" {extern void modl_reg(void);}
 
 int main(int argc, char** argv, char** /*env*/) {
   return main1_hpx(argc, argv);
-  //return main1(argc, argv, env);
+  //return main1(argc, argv, 0);
 }
 
 /// Declare an empty function if Neurodamus mechanisms are not used, otherwise register them in mechs/cfile/mod_func.c

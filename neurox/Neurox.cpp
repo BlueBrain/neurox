@@ -18,43 +18,44 @@ int setInputParams_handler(const Input::InputParams * data, const size_t)
         delete [] Neurox::inputParams;
 
     inputParams = new Neurox::Input::InputParams();
-    memcpy(Neurox::inputParams, data, sizeof(inputParams));
+    memcpy(Neurox::inputParams, data, sizeof(Neurox::Input::InputParams));
     neurox_hpx_unpin;
 }
 
 hpx_action_t setMechanisms = 0;
-int setMechanisms_handler(const int nargs, const void *args[], const size_t[])
+int setMechanisms_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs=4 where:
-     * args[0] = number of mechanisms
-     * args[1] = array of all mechanisms info
-     * args[2] = number of dependencies per mechanism
-     * args[3] = array of all mechanisms dependencies
+     * nargs=3 where:
+     * args[0] = array of all mechanisms info
+     * args[1] = array of all mechanisms dependencies
+     * args[2] = array of all mechanisms names (sym)
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
+    assert(nargs==3);
 
     if (mechanisms!=nullptr)
         delete [] Neurox::mechanisms;
 
-    //Copy basic mechanisms data
-    mechanismsCount = *((int*) args[0]);
+    mechanismsCount = sizes[0]/sizeof(Mechanism);
     mechanisms = new Neurox::Mechanism[mechanismsCount];
-    memcpy(mechanisms, args[1], mechanismsCount*sizeof(Mechanism));
 
-    //Copy dependencies data
-    int offset=0;
+    int offsetDependencies=0;
+    int offsetSym=0;
     for (int m=0; m<mechanismsCount; m++)
     {
-        int dependenciesCount = ((int*) args[2])[m];
-        int * dependencies = &((int*) args[3])[offset];
+        Mechanism & mech = ((Mechanism*) args[0])[m];
+        int * dependencies = &((int*) args[1])[offsetDependencies];
+        char * sym = &((char*) args[2])[offsetSym];
 
-        mechanisms[m].dependenciesCount = dependenciesCount;
-        mechanisms[m].dependencies = new int[dependenciesCount];
-        memcpy(mechanisms[m].dependencies, dependencies, dependenciesCount*sizeof(int));
-        offset += dependenciesCount;
+        mechanisms[m] = Mechanism (mech.type, mech.dataSize, mech.pdataSize,
+                                   mech.isArtificial, mech.pntMap, mech.isIon,
+                                   mech.conci, mech.conco, mech.charge,
+                                   mech.symLength, mech.sym,
+                                   mech.dependenciesCount, dependencies);
+        offsetDependencies +=  mech.dependenciesCount;
+        offsetSym += mech.symLength;
     }
     neurox_hpx_unpin;
 }

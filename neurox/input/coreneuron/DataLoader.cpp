@@ -50,10 +50,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
 {
-    //memory footprint after HPX initialisation
-    report_mem_usage( "After hpx_init" );
-
-    char prcellname[1024], filesdat_buf[1024], datpath[1024];
+    char prcellname[1024], filesdat_buf[1024];
 
     // initialise default coreneuron parameters
     //initnrn(); //part of GlobalInfo constructor
@@ -65,19 +62,19 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.read_cb_opts( argc, argv );
 
     // set global variables for start time, timestep and temperature
-    t = input_params.tstart; // input_params.tstart;
-    dt = input_params.dt ; //input_params.dt;
-    rev_dt = 1/input_params.dt; //(int)(1./dt);
-    celsius = input_params.celsius ; //input_params.celsius;
+    t = input_params.tstart;
+    dt = input_params.dt;
+    rev_dt = (int)(1./dt);
+    celsius = input_params.celsius;
 
     // full path of files.dat file
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
 
     // memory footprint after mpi initialisation
-    report_mem_usage( "After MPI_Init" );
+    report_mem_usage( "After HPX_Init" );
 
     // reads mechanism information from bbcore_mech.dat
-    mk_mech( datpath );
+    mk_mech( input_params.datpath );
 
     report_mem_usage( "After mk_mech" );
 
@@ -91,13 +88,17 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
 
     report_mem_usage( "Before nrn_setup" );
 
-    // reading *.dat files and setting up the data structures
-    nrn_setup( input_params, filesdat, nrn_need_byteswap);
+    //pass by flag so existing tests do not need a changed nrn_setup prototype.
+    nrn_setup_multiple = input_params.multiple;
+    nrn_setup_extracon = input_params.extracon;
+
+    // reading *.dat files and setting up the data structures, setting mindelay
+    nrn_setup( input_params, filesdat, nrn_need_byteswap );
 
     report_mem_usage( "After nrn_setup " );
 
     // Invoke PatternStim
-    if ( input_params.patternstim) {
+    if ( input_params.patternstim ) {
         nrn_mkPatternStim( input_params.patternstim );
     }
 
@@ -146,23 +147,40 @@ void DataLoader::loadData(int argc, char ** argv)
             fprintf(dotfile, "%d -- %d;\n", nt->_v_parent_index[i], i);
         fprintf(dotfile, "}\n");
         fclose(dotfile);
-    }
+    }  
 
     //Reconstructs unique data related to each mechanism
-    mechanismsCount = 0;
-    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=nullptr; tml = tml->next)
-        mechanismsCount++;
-    mechanisms = new Mechanism[mechanismsCount];
-
-    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=nullptr; tml = tml->next) //For every mechanism
+    /**
+     * nargs=3 where:
+     * args[0] = array of all mechanisms info
+     * args[1] = array of all mechanisms dependencies
+     * args[2] = array of all mechanisms names (sym)
+     */
+    std::vector<Mechanism> mechsData;
+    std::vector<int> mechsDependencies;
+    std::vector<char> mechsSym;
+    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
-        mechanisms[type] = Mechanism(type, nrn_prop_param_size_[type],
-                nrn_prop_dparam_size_[type],tml->ndependencies,
-                pnt_map[type], nrn_is_artificial_[type], tml->dependencies, nrn_is_ion(type),
-                -1, -1, -1);
-                //ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
+        int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
+        mechsData.push_back(
+            Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
+                       nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
+                       -1, -1, -1, //TODO: ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
+                       symLength, NULL,
+                       tml->ndependencies, NULL));
+
+        mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
+        mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
+
+    printf("Broadcasting Mechanisms...\n");
+    int e = hpx_bcast_rsync(Neurox::setMechanisms,
+                            mechsData.data(), sizeof(Mechanism)*mechsData.size(),
+                            mechsDependencies.data(), sizeof(int)* mechsDependencies.size(),
+                            mechsSym.data(), sizeof(char)*mechsSym.size());
+
+    assert(e == HPX_SUCCESS);
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
     neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
@@ -196,7 +214,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //reconstructs mechanisms for compartments
         int pdataOffset = 0;
         int dataOffset  = 6*nt.end; //a,b,d,v,rhs,area
-        for (NrnThreadMembList* tml = nt.tml; tml!=nullptr; tml = tml->next) //For every mechanism
+        for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int type = tml->index;
             Memb_list *& ml = tml->ml; //Mechanisms application to each compartment
@@ -248,7 +266,7 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
     vector<vector<int> > nodesIndices(mechanismsCount); //nodes indices per mechanisms id
     vector<hpx_t> branches; //children branches
 
-    Compartment *comp = nullptr;
+    Compartment *comp = NULL;
     for (comp = topCompartment;
          comp->branches.size()==1;
          comp = comp->branches.front())
