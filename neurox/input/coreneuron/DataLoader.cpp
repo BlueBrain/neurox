@@ -174,12 +174,11 @@ void DataLoader::loadData(int argc, char ** argv)
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
 
-    printf("Broadcasting Mechanisms...\n");
+    printf("Broadcasting %d mechanisms...\n", mechsData.size());
     int e = hpx_bcast_rsync(Neurox::setMechanisms,
                             mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                             mechsDependencies.data(), sizeof(int)* mechsDependencies.size(),
                             mechsSym.data(), sizeof(char)*mechsSym.size());
-
     assert(e == HPX_SUCCESS);
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"

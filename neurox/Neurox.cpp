@@ -63,7 +63,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 void registerHpxActions()
 {
     neurox_hpx_register_action(1,Neurox::setInputParams);
-    neurox_hpx_register_action(3,Neurox::setMechanisms);
+    neurox_hpx_register_action(2,Neurox::setMechanisms);
 }
 
 };
