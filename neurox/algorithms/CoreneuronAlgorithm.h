@@ -29,7 +29,7 @@ class CoreneuronAlgorithm : public Algorithm {
     CommunicationBarrier();
     ~CommunicationBarrier();
 
-    static constexpr int commStepSize = 4;  ///> Fixed communication step size
+    static constexpr int kCommStepSize = 4;  ///> Fixed communication step size
   };
 };
 

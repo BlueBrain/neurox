@@ -43,7 +43,7 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 #include "neurox/input/Debugger.h"
 
 // Debug flags
-#define NEUROX_PRINT_TIME_DEPENDENCY_
+//#define NEUROX_PRINT_TIME_DEPENDENCY
 //#define NDEBUG
 
 namespace neurox {

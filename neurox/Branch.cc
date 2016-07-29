@@ -383,7 +383,7 @@ Branch::~Branch() {
 hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(nargs == 17 || nargs == 18);  // 16 for normal init, 17 for benchmark
                                        // (initializes, benchmarks, and clears
                                        // memory)
@@ -423,34 +423,34 @@ int Branch::Init_handler(const int nargs, const void *args[],
 
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
+    for (int i = 0; i < CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
          i++)
       local->BackwardEulerStep();
     double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    NEUROX_MEM_UNPIN_CONTINUE_(timeElapsed);
+    NEUROX_MEM_UNPIN_CONTINUE(timeElapsed);
   }
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::InitSoma = 0;
 int Branch::InitSoma_handler(const int nargs, const void *args[],
                              const size_t[]) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(nargs == 2);
   const neuron_id_t neuronId = *(const neuron_id_t *)args[0];
   const floble_t APthreshold = *(const floble_t *)args[1];
   local->soma = new Neuron(neuronId, APthreshold);
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::Clear = 0;
 int Branch::Clear_handler() {
-  NEUROX_MEM_PIN_(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::Clear);
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
   delete local;
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::InitVecPlayContinous() {
@@ -504,7 +504,7 @@ void Branch::CallModFunction(const Mechanism::ModFunctions functionId) {
 hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(nargs == (input_params->algorithm ==
                            AlgorithmType::kBackwardEulerTimeDependencyLCO
                        ? 3
@@ -524,13 +524,13 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
   algorithm->AfterReceiveSpikes(local, target, preNeuronId, spikeTime, maxTime);
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::UpdateTimeDependency = 0;
 int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
                                          const size_t[]) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   assert(nargs == 2 || nargs == 3);
 
   // auto source = libhpx_parcel_get_source(p);
@@ -546,7 +546,7 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   timeDependencies->UpdateTimeDependency(preNeuronId, (floble_t)maxTime,
                                          local->soma ? local->soma->gid : -1,
                                          initPhase);
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::Finitialize2() {
@@ -627,17 +627,17 @@ void Branch::BackwardEulerStep() {
 
 hpx_action_t Branch::BackwardEuler = 0;
 int Branch::BackwardEuler_handler(const int *steps_ptr, const size_t size) {
-  NEUROX_MEM_PIN_(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::BackwardEuler, steps_ptr, size);
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::BackwardEuler, steps_ptr, size);
   algorithm->Run(local, steps_ptr);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::BackwardEulerOnLocality = 0;
 int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
-  NEUROX_MEM_PIN_(uint64_t);
+  NEUROX_MEM_PIN(uint64_t);
   assert(input_params->allReduceAtLocality);
   assert(input_params->algorithm ==
              AlgorithmType::kBackwardEulerSlidingTimeWindow ||
@@ -648,7 +648,7 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
           ->size();
   const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
   const int commStepSize =
-      CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
+      CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
   const int reductionsPerCommStep =
       AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
   const int stepsPerReduction = commStepSize / reductionsPerCommStep;
@@ -680,29 +680,29 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
     }
   }
   hpx_lco_delete_sync(localityNeuronsLCO);
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
-  NEUROX_MEM_PIN_(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::ThreadTableCheck);
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::ThreadTableCheck);
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::Finitialize = 0;
 int Branch::Finitialize_handler() {
-  NEUROX_MEM_PIN_(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(Branch::Finitialize);
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Finitialize);
   local->Finitialize2();
 #if !defined(NDEBUG)
 // Input::Debugger::StepAfterStepFinitialize(local,
 // &nrn_threads[local->nt->id]);
 #endif
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
-  NEUROX_MEM_UNPIN_;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::SetupTreeMatrix() {
@@ -792,7 +792,7 @@ Branch::BranchTree::~BranchTree() {
 
 hpx_action_t Branch::BranchTree::InitLCOs = 0;
 int Branch::BranchTree::InitLCOs_handler() {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   BranchTree *branchTree = local->branchTree;
   if (branchTree) {
     offset_t branchesCount = branchTree->branchesCount;
@@ -826,9 +826,9 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma)  // send my LCO to parent
-      NEUROX_MEM_UNPIN_CONTINUE_(branchTree->withParentLCO);
+      NEUROX_MEM_UNPIN_CONTINUE(branchTree->withParentLCO);
   }
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
@@ -881,7 +881,7 @@ Branch::MechanismsGraph::~MechanismsGraph() {
 hpx_action_t Branch::MechanismsGraph::MechFunction = 0;
 int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
                                                   const size_t) {
-  NEUROX_MEM_PIN_(Branch);
+  NEUROX_MEM_PIN(Branch);
   int type = *mechType_ptr;
   assert(type != CAP);  // capacitance should be outside mechanisms graph
   assert(local->mechsGraph->mechsLCOs[mechanisms_map[type]] != HPX_NULL);
@@ -905,7 +905,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
             local->mechsGraph->mechsLCOs[mechanisms_map[mech->successors[c]]],
             sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
   }
-  NEUROX_MEM_UNPIN_;
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::MechanismsGraph::AccumulateRHSandD(NrnThread *nt, Memb_list *ml,
@@ -948,23 +948,23 @@ void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunctions *lhs,
 }
 
 void Branch::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::Clear);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::Finitialize);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, Branch::ThreadTableCheck);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Clear);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Finitialize);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::ThreadTableCheck);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR,
                           Branch::BranchTree::InitLCOs);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_, Branch::BackwardEuler);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Branch::BackwardEuler);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
                           Branch::BackwardEulerOnLocality);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_SINGLE_VAR_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
                           Branch::MechanismsGraph::MechFunction);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::Init);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::InitSoma);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, Branch::AddSpikeEvent);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::Init);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::InitSoma);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::AddSpikeEvent);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
                           Branch::UpdateTimeDependency);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_REDUCE_OP_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
                           Branch::MechanismsGraph::Init);
-  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_REDUCE_OP_,
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
                           Branch::MechanismsGraph::Reduce);
 }
