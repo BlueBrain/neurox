@@ -64,7 +64,7 @@ void mk_mech(const char* datpath) {
   FILE* f;
   f = fopen(fname, "r");
   nrn_assert(f);
-//  printf("reading %s\n", fname);
+  printf("opening %s\n", fname.get());
   int n=0;
   nrn_assert(fscanf(f, "%d\n", &n) == 1);
 
@@ -130,6 +130,7 @@ void mk_mech(const char* datpath) {
 
   /// Calling the rest of additional Neurodamus or other _reg functions from the file mod_func.c
   /// (built during the config time from mech/mod_func.c.pl)
+  printf("============ FLAG2\n");
   modl_reg();
 }
 

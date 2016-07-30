@@ -44,6 +44,12 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
     }
     else this->sym=nullptr;
 
+    registerMechFunctions();
+};
+
+void Mechanism::registerMechFunctions()
+{
+    int type = this->type;
     //register functions //TODO will not work in more than 1 compute node
     this->membFunc.alloc = memb_func[type].alloc;
     this->membFunc.setdata_ = memb_func[type].setdata_;
@@ -66,7 +72,7 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
         //not implemented by CoreNeuron, undefined bam leads to SEGFAULT:
         //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
     }
-};
+}
 
 Mechanism::~Mechanism(){
     delete [] dependencies;

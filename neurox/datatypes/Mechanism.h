@@ -63,7 +63,9 @@ class Mechanism
         capacityCurrent=15, //not in mod files, it's in capac.c
         capJacob=16,
     };
+
 private:
+    void registerMechFunctions(); ///> register mechanisms (register_mech() in register_mech.c)
 };
 
 };
