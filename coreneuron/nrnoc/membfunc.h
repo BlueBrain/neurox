@@ -86,6 +86,7 @@ typedef struct BAMech {
 } BAMech;
 extern BAMech** bamech_;
 
+extern double ** get_ion_global_map();
 extern Memb_func* memb_func;
 extern int n_memb_func;
 #define NRNPOINTER 4 /* added on to list of mechanism variables.These are

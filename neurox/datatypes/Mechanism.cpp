@@ -37,8 +37,8 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
 
     registerMechFunctions();
     //registerBAFunctions();
-    if (isIon)
-        registerIonicCharges();
+    //if (isIon)
+     //   registerIonicCharges();
 };
 
 void Mechanism::registerBAFunctions()
@@ -70,11 +70,9 @@ void Mechanism::registerMechFunctions()
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
 }
 
-//extern double *** ion_global_map_ptr;
-extern double ** ion_global_map;
 void Mechanism::registerIonicCharges()
 {
-    //double ** ion_global_map = *ion_global_map_ptr;
+    double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
     conci = ion_global_map[type][0];
     conco = ion_global_map[type][1];
     charge = ion_global_map[type][2];

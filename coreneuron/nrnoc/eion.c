@@ -66,8 +66,8 @@ int nrn_is_ion(int type) {
 }
 static int ion_global_map_size;
 
-double** ion_global_map; //remove the static keyword from this line
-double*** ion_global_map_ptr = &ion_global_map; //or add this line
+static double** ion_global_map; //remove the static keyword from this line
+double** get_ion_global_map() { return ion_global_map;}
 #define global_conci(type) ion_global_map[type][0]
 #define global_conco(type) ion_global_map[type][1]
 #define global_charge(type) ion_global_map[type][2]

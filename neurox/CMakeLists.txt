@@ -5,7 +5,9 @@ FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 set(neurox_all_c_files ${neurox_all_c_files})
-add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files})
+add_library(neurox ${COMPILE_LIBRARY_TYPE}
+    ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files}
+    )
 
 target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
 
@@ -20,7 +22,14 @@ install(TARGETS neurox
 
 
 #binary (copy from apps/CMakeLists.txt)
-include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/coreneuron ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/coreneuron ${PROJECT_BINARY_DIR}/neurox ${PROJECT_SOURCE_DIR}/neurox)
+include_directories(
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/coreneuron
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_BINARY_DIR}/coreneuron
+    ${PROJECT_BINARY_DIR}/neurox
+    ${PROJECT_SOURCE_DIR}/neurox
+    )
 
 # The mechanism registration function will be defined depending on whether we
 # are using neurodamus list of mechanisms
@@ -36,7 +45,7 @@ set_target_properties(neurox_exec PROPERTIES
                             OUTPUT_NAME "neurox_exec"
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-target_link_libraries(neurox_exec coreneuron neurox ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} ${HPX_LIBRARIES} ${reportinglib_LIBRARY})
+target_link_libraries(neurox_exec neurox coreneuron ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} ${HPX_LIBRARIES} ${reportinglib_LIBRARY})
 
 install(TARGETS neurox_exec
          DESTINATION ${BIN_INSTALL_DIR}/)
