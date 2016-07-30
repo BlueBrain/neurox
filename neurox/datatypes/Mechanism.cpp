@@ -1,18 +1,10 @@
 #include "neurox/Neurox.h"
 #include <cstring>
-//#include "coreneuron/nrnoc/membfunc.h" //Memb_func, BAMech
+
+#include "coreneuron/nrnoc/membdef.h" //Memb_func, BAMech
 
 using namespace std;
 using namespace Neurox;
-
-//from capac.c
-extern void cap_alloc(double*, Datum*, int type);
-extern void cap_init(NrnThread*, Memb_list*, int);
-
-//from eion.c
-extern void ion_alloc();
-extern void ion_cur(NrnThread*, Memb_list*, int);
-extern void ion_init(NrnThread*, Memb_list*, int);
 
 Mechanism::Mechanism():
  type(-1), dataSize(-1), pdataSize(-1), dependenciesCount(-1), pntMap(0),
@@ -22,19 +14,19 @@ Mechanism::Mechanism():
 
 Mechanism::Mechanism(const short int type, const short int dataSize, const short int pdataSize,
                      const char isArtificial, const char pntMap, const char isIon,
-                     const double conci, const double conco, const double charge,
                      const short int symLength, const char * sym,
                      const short int dependenciesCount, const int * dependencies):
-    type(type), dataSize(dataSize), pdataSize(pdataSize), dependenciesCount(dependenciesCount),
+    type(type), dataSize(dataSize), pdataSize(pdataSize),
     pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), conci(conci), conco(conco), charge(charge)
+    symLength(symLength), isIon(isIon),
+    dependencies(nullptr), sym(nullptr),
+    conci(-1), conco(-1), charge(-1)
 {
     if (dependencies != nullptr && dependenciesCount>0)
     {
         this->dependencies = new int[dependenciesCount];
         std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
     }
-    else this->dependencies=nullptr;
 
     if (sym != nullptr && symLength>0)
     {
@@ -42,10 +34,23 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
         std::memcpy(this->sym, sym, symLength);
         this->sym[symLength] = '\0';
     }
-    else this->sym=nullptr;
 
     registerMechFunctions();
+    //registerBAFunctions();
+    if (isIon)
+        registerIonicCharges();
 };
+
+void Mechanism::registerBAFunctions()
+{
+    //Copy Before-After functions
+    //register_mech.c::hoc_reg_ba()
+    for (int i=0; i< BEFORE_AFTER_SIZE; i++)
+    {
+        //BUG not implemented by CoreNeuron, undefined bam leads to SEGFAULT:
+        this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
+    }
+}
 
 void Mechanism::registerMechFunctions()
 {
@@ -63,15 +68,16 @@ void Mechanism::registerMechFunctions()
     this->membFunc.thread_size_ = memb_func[type].thread_size_;
     //look up tables are created and destroyed inside mod files, not accessible via coreneuron
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
+}
 
-    //Copy Before-After functions
-    //register_mech.c::hoc_reg_ba()
-    for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-    {
-        this->BAfunctions[i] = nullptr;
-        //not implemented by CoreNeuron, undefined bam leads to SEGFAULT:
-        //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
-    }
+//extern double *** ion_global_map_ptr;
+extern double ** ion_global_map;
+void Mechanism::registerIonicCharges()
+{
+    //double ** ion_global_map = *ion_global_map_ptr;
+    conci = ion_global_map[type][0];
+    conco = ion_global_map[type][1];
+    charge = ion_global_map[type][2];
 }
 
 Mechanism::~Mechanism(){

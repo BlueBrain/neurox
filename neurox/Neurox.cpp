@@ -54,7 +54,6 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 
         mechanisms[m] = Mechanism (mech.type, mech.dataSize, mech.pdataSize,
                                    mech.isArtificial, mech.pntMap, mech.isIon,
-                                   mech.conci, mech.conco, mech.charge,
                                    mech.symLength, mech.sym,
                                    mech.dependenciesCount, dependencies);
         offsetDependencies +=  mech.dependenciesCount;

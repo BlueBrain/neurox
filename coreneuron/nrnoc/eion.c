@@ -64,9 +64,10 @@ static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 int nrn_is_ion(int type) {
     return (memb_func[type].alloc == ion_alloc);
 }
-
 static int ion_global_map_size;
-static double** ion_global_map;
+
+double** ion_global_map; //remove the static keyword from this line
+double*** ion_global_map_ptr = &ion_global_map; //or add this line
 #define global_conci(type) ion_global_map[type][0]
 #define global_conco(type) ion_global_map[type][1]
 #define global_charge(type) ion_global_map[type][2]

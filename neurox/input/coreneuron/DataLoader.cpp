@@ -166,7 +166,6 @@ void DataLoader::loadData(int argc, char ** argv)
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       -1, -1, -1, //TODO: ion_global_map[type][0], ion_global_map[type][1], ion_global_map[type][2]);
                        symLength, NULL,
                        tml->ndependencies, NULL));
 

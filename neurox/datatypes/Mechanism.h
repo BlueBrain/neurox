@@ -20,7 +20,6 @@ class Mechanism
 
     Mechanism(const short int type, const short int dataSize, const short int pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
-              const double conci, const double conco, const double charge,
               const short int symLengh = 0, const char * sym = nullptr,
               const short int dependenciesCount = 0, const int * dependencies = nullptr);
 
@@ -66,6 +65,8 @@ class Mechanism
 
 private:
     void registerMechFunctions(); ///> register mechanisms (register_mech() in register_mech.c)
+    void registerIonicCharges();  ///> register ionic charges (ion_reg() in eion.c)
+    void registerBAFunctions();   ///> register Before-After functions
 };
 
 };
