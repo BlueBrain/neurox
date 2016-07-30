@@ -213,12 +213,11 @@ void hoc_register_prop_size(int type, int psize, int dpsize) {
 
   pold = nrn_prop_param_size_[type];
   dpold = nrn_prop_dparam_size_[type];
-  printf("Comparing %s prop sizes psize %d %d, dpsize %d %d\n", memb_func[type].sym, psize, pold, dpsize, dpold);
   fflush(stdout);
   if (psize != pold || dpsize != dpold) {
     printf("%s prop sizes differ psize %d %d   dpsize %d %d\n", memb_func[type].sym, psize, pold, dpsize, dpold);
     fflush(stdout);
-    assert(0);
+    assert(0); //if fails here on StochKv, it's a bug on mod2c (i think), open data/bbpcore_data.c and change pdata from 18 to 24 (it's 24 on the mode file)
     exit(1);
   }
   nrn_prop_param_size_[type] = psize;
