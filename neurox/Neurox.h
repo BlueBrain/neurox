@@ -25,9 +25,9 @@ namespace Neurox
 
     extern int mechanismsCount; ///> number of mechanisms
     extern Neurox::Mechanism * mechanisms; ///> Unique information per mechanism type
-
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
 
+    extern hpx_action_t main;               ///> execution starting point (called via hpx_run)
     extern hpx_action_t setInputParams;	    ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	    ///> Initializes Mechanisms
 
@@ -37,6 +37,7 @@ namespace Neurox
 
     void registerHpxActions(); ///> Register all HPX actions
 
+    static int main_handler( char **argv, size_t argc);
     static int setInputParams_handler(const Input::InputParams * data, const size_t); ///> handler for setInputParams
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]); ///> handler for setMechanisms
 } ;

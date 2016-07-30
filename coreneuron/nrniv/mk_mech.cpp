@@ -130,7 +130,6 @@ void mk_mech(const char* datpath) {
 
   /// Calling the rest of additional Neurodamus or other _reg functions from the file mod_func.c
   /// (built during the config time from mech/mod_func.c.pl)
-  printf("============ FLAG2\n");
   modl_reg();
 }
 

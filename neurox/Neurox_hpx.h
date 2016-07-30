@@ -66,7 +66,6 @@ typedef hpx_addr_t hpx_t;
     }
 
 ///hpx wrappers for sync call of a function to all children branches
-//(hpx_call(local->branches[c], Func, lco, __VA_ARGS__); does not work)
 #define neurox_hpx_recursive_branch_sync(Func, ...) \
     neurox_hpx_recursive_branch_async_call (Func, __HPX_NARGS(__VA_ARGS__) ) \
     neurox_hpx_recursive_branch_async_wait
