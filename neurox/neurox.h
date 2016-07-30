@@ -13,34 +13,34 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 #include "neurox/hpx.h"
 
 // Definition of meta data specific to a given algorithm
-#include "neurox/algorithms/AlgorithmMetaData.h"
+#include "neurox/algorithms/algorithm_metadata.h"
 
 // auxiliary classes defining events, synapses and mechanisms
-#include "neurox/Event.h"
-#include "neurox/Mechanism.h"
-#include "neurox/NetCon.h"
-#include "neurox/VecPlayContinuous.h"
+#include "neurox/event.h"
+#include "neurox/mechanism.h"
+#include "neurox/net_con.h"
+#include "neurox/vec_play_continuous.h"
 
 // morphology classes (branches and soma)
-#include "neurox/Branch.h"
-#include "neurox/Neuron.h"
+#include "neurox/branch.h"
+#include "neurox/neuron.h"
 
 // Fixed-step Backward-Euler solver
-#include "neurox/solver/HinesSolver.h"
+#include "neurox/solver/hines_solver.h"
 
 // Tools
-#include "neurox/tools/CmdLineParser.h"
-#include "neurox/tools/LoadBalancing.h"
-#include "neurox/tools/Statistics.h"
-#include "neurox/tools/Vectorizer.h"
+#include "neurox/tools/cmd_line_parser.h"
+#include "neurox/tools/load_balancing.h"
+#include "neurox/tools/statistics.h"
+#include "neurox/tools/vectorizer.h"
 
 // Algorithms
-#include "neurox/algorithms/Algorithm.h"
+#include "neurox/algorithms/algorithm.h"
 
 // CoreNeuron-based input
-#include "neurox/input/Compartment.h"
-#include "neurox/input/DataLoader.h"
-#include "neurox/input/Debugger.h"
+#include "neurox/input/compartment.h"
+#include "neurox/input/data_loader.h"
+#include "neurox/input/debugger.h"
 
 // Debug flags
 //#define NEUROX_PRINT_TIME_DEPENDENCY
