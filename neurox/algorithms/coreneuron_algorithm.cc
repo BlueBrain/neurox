@@ -1,0 +1,47 @@
+#include "neurox/algorithms/coreneuron_algorithm.h"
+
+using namespace neurox;
+using namespace neurox::algorithms;
+
+CoreneuronAlgorithm::CoreneuronAlgorithm() {}
+
+CoreneuronAlgorithm::~CoreneuronAlgorithm() {}
+
+CoreneuronAlgorithm::CommunicationBarrier::CommunicationBarrier() { assert(0); }
+
+CoreneuronAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
+  assert(0);
+}
+
+const AlgorithmType CoreneuronAlgorithm::GetType() {
+  return AlgorithmType::kBackwardEulerCoreneuron;
+}
+
+const char* CoreneuronAlgorithm::GetTypeString() {
+  return "BackwardEulerCoreneuron";
+}
+
+void CoreneuronAlgorithm::Init() { assert(0); }
+
+void CoreneuronAlgorithm::Clear() {}
+
+double CoreneuronAlgorithm::Launch() {
+  int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+  int totalSteps = Algorithm::getTotalStepsCount();
+  hpx_time_t now = hpx_time_now();
+  assert(0);
+  double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
+  input::Debugger::CompareAllBranches();
+  return elapsedTime;
+}
+
+void CoreneuronAlgorithm::StepBegin(Branch*) { assert(0); }
+
+void CoreneuronAlgorithm::StepEnd(Branch* b, hpx_t) { assert(0); }
+
+void CoreneuronAlgorithm::Run(Branch* b, const void* args) { assert(0); }
+
+hpx_t CoreneuronAlgorithm::SendSpikes(Neuron* neuron, double tt, double) {
+  assert(0);
+  return HPX_NULL;
+}
