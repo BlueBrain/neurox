@@ -15,10 +15,9 @@ Compartment::~Compartment()
         delete branches[c];
 }
 
-void Compartment::setValues(int id, double a, double b, double d, double v, double rhs, double area)
-{
-    this->id=id; this->a=a; this->b=b; this->d=d; this->v=v; this->rhs=rhs; this->area=area;
-};
+Compartment::Compartment(int id, double a, double b, double d,
+                            double v, double rhs, double area):
+    id(id), a(a), b(b), d(d), v(v), rhs(rhs), area(area) {};
 
 void Compartment::addChild(Compartment * child)
 {

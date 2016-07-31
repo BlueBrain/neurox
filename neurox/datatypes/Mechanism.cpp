@@ -37,8 +37,16 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
 
     registerMechFunctions();
     //registerBAFunctions();
-    //if (isIon)
-     //   registerIonicCharges();
+    if (isIon)
+        registerIonicCharges();
+
+#ifdef DEBUG
+    printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
+           "      pntMap %d, isIon %d, symLength %d, sym %s, dependenciesCount %d\n"
+           "      conci %.2f, conco %.2f, charge %.2f\n",
+           type, dataSize, pdataSize, isArtificial, pntMap, isIon, symLength,
+           sym!=nullptr ? sym : "", dependenciesCount, conci, conco, charge);
+#endif
 };
 
 void Mechanism::registerBAFunctions()

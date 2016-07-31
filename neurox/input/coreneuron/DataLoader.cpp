@@ -127,15 +127,11 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
     }
 }
 
-
-//TODO this is a hack to access the ion_global_map var defined in eion.c only
-//#include "coreneuron/nrnoc/eion.c"
-//extern double** ion_global_map;
 void DataLoader::loadData(int argc, char ** argv)
 { 
     coreNeuronInitialSetup(argc, argv);
 
-    //TODO: Debug: plot morphologies as dot file
+#ifdef DEBUG
     for (int k=0; k<nrn_nthread; k++)
     {
         FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(k)+".dot").c_str(), "wt");
@@ -147,10 +143,10 @@ void DataLoader::loadData(int argc, char ** argv)
             fprintf(dotfile, "%d -- %d;\n", nt->_v_parent_index[i], i);
         fprintf(dotfile, "}\n");
         fclose(dotfile);
-    }  
+    }
+#endif
 
-    //Reconstructs unique data related to each mechanism
-    /**
+    /** Reconstructs unique data related to each mechanism*
      * nargs=3 where:
      * args[0] = array of all mechanisms info
      * args[1] = array of all mechanisms dependencies
@@ -166,8 +162,8 @@ void DataLoader::loadData(int argc, char ** argv)
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, NULL,
-                       tml->ndependencies, NULL));
+                       symLength, NULL, //set to NULL because will be serialized below
+                       tml->ndependencies, NULL));  //set to NULL because will be serialized below
 
         mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
@@ -181,11 +177,15 @@ void DataLoader::loadData(int argc, char ** argv)
     assert(e == HPX_SUCCESS);
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
-    neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    assert(neuronsCount == nrn_nthread);
+    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    if(neuronsCount == nrn_nthread)
+        printf("Warning: neurons count %d not equal to nrn_nthread %d\n", neuronsCount, nrn_nthread);
 
     //allocate HPX memory space for neurons
-    neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    printf("Broadcasting %d neurons...\n", neuronsCount);
+    hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    e = hpx_bcast_rsync(Neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
+    assert(e == HPX_SUCCESS);
     assert(neuronsAddr != HPX_NULL);
 
     //reconstructs neurons
@@ -199,13 +199,13 @@ void DataLoader::loadData(int argc, char ** argv)
         vector<Compartment> compartments; //compartments
         for (int n=nt.end-1; n>=0; n--)
         {
-            Compartment & compartment = compartments[n];
-            compartment.setValues(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n], nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
+            compartments[n] = Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
+                                  nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
 
             if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
             {
                 Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
-                parentCompartment.addChild(&compartment);
+                parentCompartment.addChild(&compartments[n]);
             }
         }
 

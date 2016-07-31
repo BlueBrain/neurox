@@ -10,7 +10,7 @@ using namespace Neurox::Input;
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():
   tstart(0), tstop(100), dt(0.025), dt_io(0.1), celsius(34),
-  voltage(-65), maxdelay(10), forwardSkip(0),  prcellgid(-1)
+  voltage(-65), forwardSkip(0),  prcellgid(-1)
 {
     //TODO: missing some inits
     memset(patternStim,'0',2048);
@@ -33,7 +33,7 @@ void InputParams::parseCommandLine(int argc, char ** argv)
     //read command line arguments (via tclap)
     try {
         //message printed (help text, text delimiter, version)
-        TCLAP::CmdLine cmd("Welcome to NeuroX TODO what to write here", ' ', "0.1");
+        TCLAP::CmdLine cmd("NeuroX Simulator", ' ', "0.1");
 
         //add all parameters
         TCLAP::ValueArg<double> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"double");
@@ -72,14 +72,12 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->prcellgid = prcellgid.getValue();
         this->forwardSkip = forwardskip.getValue();
         this->voltage = DEF_vrest;
-        this->maxdelay = 10;
-        this->mindelay = dt.getValue();
         this->secondorder = DEF_secondorder;
         this->rev_dt = 1/dt.getValue();
         this->celsius = DEF_celsius;
     }
     catch (TCLAP::ArgException & e)
     {
-        //TODO
+        printf("TCLAP error: %s for argument %s\n", e.error().c_str(), e.argId().c_str());
     }
 }

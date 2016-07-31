@@ -13,6 +13,20 @@ int mechanismsCount=-1;
 Mechanism * mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
+hpx_action_t setNeurons = 0;
+int setNeurons_handler(const int nargs, const void *args[], const size_t[])
+{
+    /** nargs=2 where
+     * args[0] = neuronsCount
+     * args[1] = neuronsAddr
+     */
+    assert(nargs==2);
+    neurox_hpx_pin(uint64_t);
+    neuronsCount = *(int*)args[0];
+    neuronsAddr = *(hpx_t*)args[1];
+    neurox_hpx_unpin;
+}
+
 hpx_action_t setInputParams = 0;
 int setInputParams_handler(const Input::InputParams * data, const size_t)
 {
@@ -54,7 +68,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 
         mechanisms[m] = Mechanism (mech.type, mech.dataSize, mech.pdataSize,
                                    mech.isArtificial, mech.pntMap, mech.isIon,
-                                   mech.symLength, mech.sym,
+                                   mech.symLength, sym,
                                    mech.dependenciesCount, dependencies);
         offsetDependencies +=  mech.dependenciesCount;
         offsetSym += mech.symLength;
@@ -115,8 +129,10 @@ static int main_handler( char **argv, size_t argc)
 void registerHpxActions()
 {
     neurox_hpx_register_action(1,Neurox::main);
+    neurox_hpx_register_action(2,Neurox::setNeurons);
     neurox_hpx_register_action(1,Neurox::setInputParams);
     neurox_hpx_register_action(2,Neurox::setMechanisms);
+
 }
 
 };

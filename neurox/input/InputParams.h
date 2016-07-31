@@ -32,8 +32,6 @@ class InputParams
     double tstop;		///> stop time of simulation in msec*/
     double dt_io;    	///> i/o timestep to use in msec*/
     double voltage;     ///> initial voltage set on all neurons
-    double maxdelay;    ///> TODO: do we need this?
-    double mindelay;    ///> minimum synaptic delay
     double forwardSkip;	///> forward skip time
 
     char inputPath[2048];	///> path of input directory

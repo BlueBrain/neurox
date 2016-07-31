@@ -22,9 +22,8 @@ class Compartment
 {
   public:
     Compartment()=delete;
+    Compartment(int id, double a, double b, double d, double v, double rhs, double area);
     ~Compartment();
-
-    void setValues(int id, double a, double b, double d, double v, double rhs, double area);
 
     void addChild(Compartment* child);
 
