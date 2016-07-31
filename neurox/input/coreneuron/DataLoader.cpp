@@ -132,13 +132,13 @@ void DataLoader::loadData(int argc, char ** argv)
     coreNeuronInitialSetup(argc, argv);
 
 #ifdef DEBUG
-    for (int k=0; k<nrn_nthread; k++)
+    for (int i=0; i<nrn_nthread; i++)
     {
-        FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(k)+".dot").c_str(), "wt");
-        fprintf(dotfile, "graph G%d\n{\n", k );
+        FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+".dot").c_str(), "wt");
+        fprintf(dotfile, "graph G%d\n{\n", i );
 
         //for all nodes in this NrnThread
-        NrnThread * nt = &nrn_threads[k];
+        NrnThread * nt = &nrn_threads[i];
         for (int i=nt->ncell; i<nt->end; i++)
             fprintf(dotfile, "%d -- %d;\n", nt->_v_parent_index[i], i);
         fprintf(dotfile, "}\n");
@@ -192,22 +192,38 @@ void DataLoader::loadData(int argc, char ** argv)
     for (int i=0; i<nrn_nthread; i++)
     {
         NrnThread & nt = nrn_threads[i];
+        if (nt.ncell!=1)
+        {
+            printf("Warning: ignoring NrnThread %d because it has %d neurons instead of 1\n", i);
+            continue;
+        }
+
         assert(nt.ncell==1); //only 1 cell per NrnThreadId;
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
-        //reconstructs compartments tree with solver values
-        vector<Compartment> compartments; //compartments
-        for (int n=nt.end-1; n>=0; n--)
-        {
-            compartments[n] = Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
-                                  nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]);
+        //reconstructs matrix (solver) values
+        vector<Compartment> compartments;
+        for (int n=0; n<nt.end; n++)
+            compartments.push_back(
+                Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
+                            nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]));
 
-            if ( n>=nt.ncell) //if it is not top node, i.e. has a parent
-            {
-                Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
-                parentCompartment.addChild(&compartments[n]);
-            }
+        //reconstructs parents tree
+        for (int n=nt.end-1; n>0; n--) //exclude top (no parent)
+        {
+            Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
+            parentCompartment.addChild(&compartments[n]);
         }
+
+#ifdef DEBUG
+        FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+"_hpx.dot").c_str(), "wt");
+        fprintf(dotfile, "graph G%d\n{\n", i );
+        for (auto c : compartments)
+            for (auto k : c.branches)
+                fprintf(dotfile, "%d -- %d;\n", c.id, k->id);
+        fprintf(dotfile, "}\n");
+        fclose(dotfile);
+#endif
 
         //reconstructs mechanisms for compartments
         int pdataOffset = 0;

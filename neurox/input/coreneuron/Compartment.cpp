@@ -9,11 +9,7 @@ using namespace std;
 using namespace Neurox;
 using namespace Neurox::Input::Coreneuron;
 
-Compartment::~Compartment()
-{
-    for (int c=0; c<branches.size(); c++)
-        delete branches[c];
-}
+Compartment::~Compartment(){};
 
 Compartment::Compartment(int id, double a, double b, double d,
                             double v, double rhs, double area):
