@@ -50,10 +50,10 @@ typedef hpx_addr_t hpx_t;
 
 ///hpx wrappers for async call a function to all children branches (phase 1 - launch threads)
 #define neurox_hpx_recursive_branch_async_call(Func, ...) \
-    hpx_addr_t lco = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
+    hpx_addr_t lco_branches = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
     for (int c=0; c<local->branchesCount; c++) \
     { \
-        int e = _hpx_call(local->branches[c], Func, lco, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
+        int e = _hpx_call(local->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
         assert(e==HPX_SUCCESS); \
     }
 
@@ -61,22 +61,22 @@ typedef hpx_addr_t hpx_t;
 #define neurox_hpx_recursive_branch_async_wait \
     if (local->branchesCount>0) \
     { \
-        hpx_lco_wait(lco); \
-        hpx_lco_delete(lco, HPX_NULL); \
+        hpx_lco_wait(lco_branches); \
+        hpx_lco_delete(lco_branches, HPX_NULL); \
     }
 
 ///hpx wrappers for sync call of a function to all children mechanisms
 #define neurox_hpx_recursive_mechanism_sync(mechType, Func, ...) \
-    short int dependenciesCount = mechanisms[mechType].dependenciesCount; \
-    hpx_addr_t lco =  dependenciesCount > 0 ? hpx_lco_and_new(dependenciesCount) : HPX_NULL; \
-    for (short int d=0; d<dependenciesCount; d++) \
+    short int childrenCount = getMechanism(mechType).childrenCount; \
+    hpx_addr_t lco =  childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL; \
+    for (short int c=0; c<childrenCount; c++) \
     { \
-        short int dependency = mechanisms[mechType].dependencies[d]; \
-        int e = _hpx_call(target, Func, lco, dependency, sizeof(dependency), \
-                          __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
+        int childMechType = getMechanism(mechType).children[c]; \
+        int e = _hpx_call(target, Func, lco, __HPX_NARGS(__VA_ARGS__), \
+                          childMechType, sizeof(childMechType), ##__VA_ARGS__) ; \
         assert(e==HPX_SUCCESS); \
     } \
-    if (dependenciesCount>0) \
+    if (childrenCount>0) \
     { \
         hpx_lco_wait(lco); \
         hpx_lco_delete(lco, HPX_NULL); \

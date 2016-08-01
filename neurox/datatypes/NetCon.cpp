@@ -5,7 +5,7 @@ using namespace Neurox;
 
 NetConX::NetConX(){};
 
-NetConX::NetConX(short int mechType, int mechInstance, double delay, double * args, short int argsCount, char active)
+NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, char active)
     :mechType(mechType), argsCount(argsCount), mechInstance(mechInstance), delay(delay), active(active)
 {
     this->args=new double[argsCount];

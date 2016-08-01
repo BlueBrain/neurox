@@ -2,35 +2,36 @@
 #include <cstring>
 
 #include "coreneuron/nrnoc/membdef.h" //Memb_func, BAMech
+#include "coreneuron/nrnoc/multicore.h" //NrnThread
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list
+#include "coreneuron/nrniv/netcon.h"
 
 using namespace std;
 using namespace Neurox;
 
-Mechanism::Mechanism():
- type(-1), dataSize(-1), pdataSize(-1), dependenciesCount(-1), pntMap(0),
- isArtificial(0), dependencies(nullptr), isIon(0), conci(-1), conco(-1),
- charge(-1), sym(nullptr)
-{};
-
-Mechanism::Mechanism(const short int type, const short int dataSize, const short int pdataSize,
+Mechanism::Mechanism(const int type, const short int dataSize, const short int pdataSize,
                      const char isArtificial, const char pntMap, const char isIon,
                      const short int symLength, const char * sym,
-                     const short int dependenciesCount, const short int * dependencies):
+                     const char isTopMechanism,
+                     const short int childrenCount, const int * children):
     type(type), dataSize(dataSize), pdataSize(pdataSize),
-    dependenciesCount(dependenciesCount),
+    childrenCount(childrenCount),
     pntMap(pntMap), isArtificial(isArtificial),
+    isTopMechanism(isTopMechanism),
     symLength(symLength), isIon(isIon),
-    dependencies(nullptr), sym(nullptr),
+    children(nullptr), sym(nullptr),
     conci(-1), conco(-1), charge(-1)
 {
-    if (dependencies != nullptr && dependenciesCount>0)
+    if (children != nullptr)
     {
-        this->dependencies = new  short int[dependenciesCount];
-        std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(short int));
+        assert(childrenCount>0);
+        this->children = new int[childrenCount];
+        std::memcpy(this->children, children, childrenCount*sizeof(int));
     }
 
-    if (sym != nullptr && symLength>0)
+    if (sym != nullptr)
     {
+        assert(symLength>0);
         this->sym = new char[symLength+1];
         std::memcpy(this->sym, sym, symLength);
         this->sym[symLength] = '\0';
@@ -43,10 +44,10 @@ Mechanism::Mechanism(const short int type, const short int dataSize, const short
 
 #ifdef DEBUG
     printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
-           "      pntMap %d, isIon %d, symLength %d, sym %s, dependenciesCount %d\n"
+           "      pntMap %d, isIon %d, symLength %d, sym %s, childrenCount %d\n"
            "      conci %.2f, conco %.2f, charge %.2f\n",
            type, dataSize, pdataSize, isArtificial, pntMap, isIon, symLength,
-           sym!=nullptr ? sym : "", dependenciesCount, conci, conco, charge);
+           sym!=nullptr ? sym : "", childrenCount, conci, conco, charge);
 #endif
 };
 
@@ -88,8 +89,8 @@ void Mechanism::registerIonicCharges()
 }
 
 Mechanism::~Mechanism(){
-    delete [] dependencies;
     delete [] sym;
+    delete [] children;
 };
 
 hpx_action_t Mechanism::callModFunction = 0;
@@ -102,14 +103,9 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
      * args[0] = Id of the mechanism to be called
      * args[1] = Id of the function to be called
      */
-    short int mechType = *(short int*)args[0];
+    int mechType = *(int*)args[0];
     Mechanism::ModFunction functionId = *(ModFunction*)args[1];
-    Mechanism & mech = mechanisms[mechType];
-
-    //call this function in all mechanisms that should run first
-    //(ie the children on the tree of mechanisms dependencies)
-    neurox_hpx_recursive_mechanism_sync(mechType, Mechanism::callModFunction,
-                                        args[1], sizes[1]);
+    Mechanism & mech = getMechanism(mechType);
 
     Memb_list membList;
     NrnThread nrnThread;
@@ -166,65 +162,42 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
               }
             }
 
+    //call this function in all mechanisms that depend on this one
+    //(ie the children on the tree of mechanisms dependencies)
+    neurox_hpx_recursive_mechanism_sync(mechType, Mechanism::callModFunction,
+                                        args[1], sizes[1]);
+
     neurox_hpx_unpin;
 }
 
-hpx_action_t Mechanism::callNetReceiveFunction = 0;
-int Mechanism::callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[])
+void Mechanism::callNetReceiveFunction(
+        const void * branch, const Spike * spike,
+        const char isInitFunction, const double t, const double dt)
 {
-    neurox_hpx_pin(Branch); //we are in a Branch's memory space
-    assert(nargs==4);
-    /** nargs=4 where:
-     * args[0] = Id of the mechanism to be called
-     * args[1] = function flag: NetReceiveInit (1) or NetReceive(0)
-     * args[2] = actual time
-     * args[3] = timestep size
-     */
-    short int mechType = *(short int*)args[0];
-    const char * initFunction = (const char*) args[1];
-    const double * t = (const double *) args[2];
-    const double * dt = (const double *) args[3];
-    Mechanism & mech = mechanisms[mechType];
-
-    //call this function in all mechanisms that should run first
-    //(ie the children on the tree of mechanisms dependencies)
-    neurox_hpx_recursive_mechanism_sync(mechType, Mechanism::callModFunction,
-                                        args[1], sizes[1], args[2], sizes[2], args[3], sizes[3]);
-
     Memb_list membList;
     NrnThread nrnThread;
+    Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs
+            ((Branch*) branch, membList, nrnThread, type);
+
     Point_process pp;
-    while (!local->spikesQueue.empty() &&
-           local->spikesQueue.top().deliveryTime < *t+*dt)
+    pp._i_instance = spike->netcon->mechInstance;
+    pp._presyn = NULL;
+    pp._tid = -1;
+    pp._type = spike->netcon->mechType;
+    nrnThread._t = spike->deliveryTime;
+    //see netcvode.cpp:433 (NetCon::deliver)
+    //We have to pass NrnThread, MembList, and deliveryTime instead
+    if (isInitFunction)
     {
-        Spike spike = local->spikesQueue.top();
-        if (spike.netcon->active)
-        {
-            short int mechType = spike.netcon->mechType;
-            Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
-            pp._i_instance = spike.netcon->mechInstance;
-            pp._presyn = NULL;
-            pp._tid = -1;
-            pp._type = spike.netcon->mechType;
-            nrnThread._t = spike.deliveryTime;
-            //see netcvode.cpp:433 (NetCon::deliver)
-            //We have to pass NrnThread, MembList, and deliveryTime instead
-            if (*initFunction)
-            {
-                    //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-            }
-            else
-            {
-                    //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-            }
-        }
-        local->spikesQueue.pop();
+        //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
     }
-    neurox_hpx_unpin;
+    else
+    {
+        //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+    }
 }
 
 void Mechanism::registerHpxActions()
 {
     neurox_hpx_register_action(2, Mechanism::callModFunction);
-    neurox_hpx_register_action(2, Mechanism::callNetReceiveFunction);
 }

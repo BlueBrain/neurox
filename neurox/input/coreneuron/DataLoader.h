@@ -31,7 +31,7 @@ class DataLoader
 
     ///converts local branch data to coreneuron compatible (to use on mechanisms calls)
     static void fromHpxToCoreneuronDataStructs(Branch * branch, Memb_list & membList,
-                                               NrnThread & nrnThread, short int mechType);
+                                               NrnThread & nrnThread, int mechType);
 
   private:
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,

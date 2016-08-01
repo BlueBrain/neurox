@@ -1,10 +1,6 @@
 #pragma once
 
 #include "neurox/Neurox.h"
-#include "coreneuron/nrnoc/membfunc.h"
-#include "coreneuron/nrnoc/membdef.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnconf.h"
 #include <queue>
 #include <map>
 #include <vector>

@@ -32,7 +32,7 @@ int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 
 void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
-        NrnThread & nrnThread, short int mechType)
+        NrnThread & nrnThread, int mechType)
 {
     Branch::MechanismInstances * mechs = branch->mechsInstances;
     membList.data  = mechs[mechType].data;
@@ -119,7 +119,7 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       //if synapse is not for this neuron...
       if (postNeuronId!=neuronId) continue;
 
-      short int mechType = (short int) nc->target_->_type;
+      int mechType = nc->target_->_type;
       Neurox::NetConX netcon(mechType, (int) nc->target_->_i_instance, nc->delay_,
                              nc->weight_, pnt_receive_size[mechType], nc->active_);
       netcons[preNeuronId].push_back(netcon);
@@ -134,7 +134,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
     {
-        FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+".dot").c_str(), "wt");
+        FILE *dotfile = fopen(string("compartments"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+".dot").c_str(), "wt");
         fprintf(dotfile, "graph G%d\n{\n", i );
 
         //for all nodes in this NrnThread
@@ -149,38 +149,56 @@ void DataLoader::loadData(int argc, char ** argv)
     /** Reconstructs unique data related to each mechanism*
      * nargs=3 where:
      * args[0] = array of all mechanisms info
-     * args[1] = array of all mechanisms dependencies
+     * args[1] = array of all mechanisms depedencies (children on mechanisms execution tree)
      * args[2] = array of all mechanisms names (sym)
      */
     std::vector<Mechanism> mechsData;
-    std::vector<int> mechsDependencies;
+    std::vector<int> mechsChildren;
     std::vector<char> mechsSym;
-    int ndependencies=0; //TODO no graph of dependecies so far, points to previous
-    int dependencies[1];
     for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
+
+        //TODO: for graph: remove circular or dual connections, should be a regular tree not a graph
+        //no dependencies graph for now, next mechanism is the next in load sequence
+        int childrenCount = tml->next!=NULL ? 1 : 0;
+        int children[1] = { tml->next ? (short) tml->next->index: (short) -1};
+        char isTopMechanism = tml == nrn_threads[0].tml ? 1 : 0;
+
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, NULL, //set to NULL because will be serialized below
-                       //tml->ndependencies, NULL));  //set to NULL because will be serialized below
-                       ndependencies, NULL));  //set to NULL because will be serialized below
+                       symLength, nullptr, //set to NULL because will be serialized below
+                       isTopMechanism, childrenCount, nullptr));  //set to NULL because will be serialized below
 
         //mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
-        mechsDependencies.insert(mechsDependencies.end(), dependencies, dependencies + ndependencies);
+        mechsChildren.insert(mechsChildren.end(), children, children + childrenCount);
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
-        ndependencies=1;
-        dependencies[0] = type;
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
     int e = hpx_bcast_rsync(Neurox::setMechanisms,
                             mechsData.data(), sizeof(Mechanism)*mechsData.size(),
-                            mechsDependencies.data(), sizeof(short int)* mechsDependencies.size(),
+                            mechsChildren.data(), sizeof(int)* mechsChildren.size(),
                             mechsSym.data(), sizeof(char)*mechsSym.size());
     assert(e == HPX_SUCCESS);
+
+#ifdef DEBUG
+    FILE *dotfile = fopen(string("mechanisms"+to_string(HPX_LOCALITY_ID)+".dot").c_str(), "wt");
+    fprintf(dotfile, "digraph G\n{\n");
+    for (int m =0; m< mechanismsCount; m++)
+    {
+        Mechanism & mech = mechanisms[m];
+        if (mech.isTopMechanism)
+            fprintf(dotfile, "%s -> %d;\n", "start", mech.type);
+
+        for (int d=0; d<mech.childrenCount; d++)
+            fprintf(dotfile, "%d -> %d;\n", mech.type, mech.children[d]);
+    }
+    fprintf(dotfile, "}\n");
+    fclose(dotfile);
+#endif
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
     int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
@@ -238,8 +256,9 @@ void DataLoader::loadData(int argc, char ** argv)
         {
             int type = tml->index;
             Memb_list *& ml = tml->ml; //Mechanisms application to each compartment
-            int dataSize  = mechanisms[type].dataSize;
-            int pdataSize = mechanisms[type].pdataSize;
+            Mechanism & mech = getMechanism(type);
+            int dataSize  = mech.dataSize;
+            int pdataSize = mech.pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
             {
                 Compartment & compartment = compartments[ml->nodeindices[n]];
@@ -280,7 +299,6 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
-    size_t mechanismsCount = mechanisms.size();
     vector<int> instancesCount(mechanismsCount,0); //instances count per mechanism id
     vector<vector<double>> data(mechanismsCount); //data per mechanism id
     vector<vector<Datum>> pdata(mechanismsCount); //pdata per mechanism id

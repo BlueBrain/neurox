@@ -10,7 +10,8 @@ namespace Neurox
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 int mechanismsCount=-1;
-std::map<short int, Neurox::Mechanism> mechanisms;
+extern int * mechanismsMap = nullptr;
+Neurox::Mechanism * mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
 hpx_action_t setNeurons = 0;
@@ -46,31 +47,42 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     /**
      * nargs=3 where:
      * args[0] = array of all mechanisms info
-     * args[1] = array of all mechanisms dependencies
+     * args[1] = array of all mechanisms dependencies (children in mechanisms tree)
      * args[2] = array of all mechanisms names (sym)
      */
 
     neurox_hpx_pin(uint64_t);
     assert(nargs==3);
-
     mechanismsCount = sizes[0]/sizeof(Mechanism);
+    mechanisms = new Mechanism[mechanismsCount];
 
-    int offsetDependencies=0;
+    int offsetChildren=0;
     int offsetSym=0;
+    int maxMechType=-1;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism & mech = ((Mechanism*) args[0])[m];
-        short int * dependencies = &((short int*) args[1])[offsetDependencies];
-        char * sym = &((char*) args[2])[offsetSym];
-
-        mechanisms[mech.type] = Mechanism (
+        int * children = mech.childrenCount == 0 ? nullptr : &((int*) args[1])[offsetChildren];
+        char * sym = mech.symLength == 0 ? nullptr : &((char*) args[2])[offsetSym];
+        Mechanism * finalMech = new Mechanism(
                     mech.type, mech.dataSize, mech.pdataSize,
                     mech.isArtificial, mech.pntMap, mech.isIon,
                     mech.symLength, sym,
-                    mech.dependenciesCount, dependencies);
-        offsetDependencies +=  mech.dependenciesCount;
+                    mech.isTopMechanism, mech.childrenCount, children);
+        mechanisms[m] = *finalMech;
+        offsetChildren +=  mech.childrenCount;
         offsetSym += mech.symLength;
+        if (mech.type > maxMechType)
+            maxMechType = mech.type;
     }
+
+    //initializes map of mechanisms ids to offset
+    mechanismsMap = new int[maxMechType];
+    for (int i=0; i<maxMechType; i++)
+        mechanismsMap[i]=-1;
+    for (int m=0; m<mechanismsCount; m++)
+        mechanismsMap[mechanisms[m].type]=m;
+
     neurox_hpx_unpin;
 }
 

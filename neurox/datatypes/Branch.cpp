@@ -18,7 +18,7 @@ Branch::~Branch()
     delete [] rhs;
     delete [] area;
     delete [] branches;
-    for (int m=0; m<mechanisms.size(); m++)
+    for (int m=0; m<mechanismsCount; m++)
     {
         delete [] mechsInstances[m].data;
         delete [] mechsInstances[m].pdata;
@@ -58,8 +58,6 @@ int Branch::init_handler(const int n, std::vector<double> * a, const std::vector
     std::copy(branches->begin(), branches->end(), local->branches);
 
     //copy mechanisms instances
-    size_t mechanismsCount = mechanisms.size();
-    assert(mechanismsCount>0);
     local->mechsInstances = new MechanismInstances[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
     {
@@ -349,11 +347,32 @@ int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], 
 {
     neurox_hpx_pin(Branch);
 
-    //start the same process in children branches
     assert(nargs==3);
-    neurox_hpx_recursive_branch_async_call(Branch::callNetReceiveFunction,
+    /** nargs=3 where:
+     * args[0] = function flag: NetReceiveInit (1) or NetReceive(0)
+     * args[1] = actual time
+     * args[2] = timestep size
+     */
+    neurox_hpx_recursive_branch_sync(Branch::callNetReceiveFunction,
         args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
 
+    const char isInitFunction = *(const char*) args[0];
+    const double t = *(const double *) args[1];
+    const double dt = *(const double *) args[2];
+
+    //*sequential* delivery of received spikes
+    while (!local->spikesQueue.empty() &&
+           local->spikesQueue.top().deliveryTime < t+dt)
+    {
+        Spike spike = local->spikesQueue.top();
+        if (spike.netcon->active)
+        {
+             int mechType = spike.netcon->mechType;
+             getMechanism(mechType).callNetReceiveFunction
+                     (local, &spike, isInitFunction, t, dt);
+        }
+        local->spikesQueue.pop();
+    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -364,7 +383,27 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
 
-    //hpx_par_call_sync();
+    int topDependenciesCount = 0;
+    for (int m=0; m<mechanismsCount; m++)
+        if (mechanisms[m].isTopMechanism)
+            topDependenciesCount++;
+    assert(topDependenciesCount>0);
+
+    //*parallel* execution of independent mechanisms
+    hpx_t lco_mechs = hpx_lco_and_new(topDependenciesCount);
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        Mechanism & mech = mechanisms[m];
+        if (mech.isTopMechanism)
+        {
+            int e = hpx_call(target, Mechanism::callModFunction, lco_mechs,
+                              &mech.type, sizeof(mech.type),
+                              functionId_ptr, functionId_size);
+            assert(e==HPX_SUCCESS);
+        }
+    }
+    hpx_lco_wait(lco_mechs);
+    hpx_lco_delete(lco_mechs, HPX_NULL);
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -381,17 +420,16 @@ int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
-    MechanismInstances * mechs = local->mechsInstances;
-    for (auto it : mechanisms)
+    MechanismInstances * mechInstances= local->mechsInstances;
+    for (int m=0; m<mechanismsCount; m++)
     {
-        Mechanism & mech = it.second;
-        int m = mech.type;
+        Mechanism & mech = mechanisms[m];
         if (mech.BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
         {
-            for (int i=0; i<mechs[m].instancesCount; i++)
+            for (int i=0; i<mechInstances[m].instancesCount; i++)
             {
-                double * data = &mechs[m].data[i*nparm];
-                int & nodeIndex = mechs[m].nodesIndices[i];
+                double * data = &mechInstances[m].data[i*nparm];
+                int & nodeIndex = mechInstances[m].nodesIndices[i];
                 data[cur] += data[dcurdv] * local->rhs[nodeIndex]; // cur += dcurdv * rhs(ni[i])
             }
         }

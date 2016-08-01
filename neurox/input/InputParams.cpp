@@ -1,8 +1,9 @@
 ﻿#include "neurox/Neurox.h"
 #include "tclap/CmdLine.h"
-
 #include "stdio.h"
 #include "string.h"
+
+#include "coreneuron/nrnoc/membdef.h"
 
 using namespace Neurox;
 using namespace Neurox::Input;

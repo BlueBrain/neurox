@@ -15,19 +15,23 @@ namespace Neurox
 class Mechanism
 {
   public:
-    Mechanism();
+    Mechanism(){};
     ~Mechanism();
 
-    Mechanism(const short int type, const short int dataSize, const short int pdataSize,
+    Mechanism(const int type, const short int dataSize, const short int pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
               const short int symLengh = 0, const char * sym = nullptr,
-              const short int dependenciesCount = 0, const short int * dependencies = nullptr);
+              const char isTopMechanism = 0,
+              const short int childrenCount = 0, const int * children = nullptr
+              );
 
-    short int type, dataSize, pdataSize, dependenciesCount;
-    char pntMap, isArtificial;
+    int type;
+    short int dataSize, pdataSize, childrenCount;
     short int symLength; ///> length of the name of the mechanism;
-    int isIon;
-    short int * dependencies; ///> Id of dependencies mechanisms
+    char pntMap, isArtificial;
+    char isTopMechanism; ///> wether it can be executed directly or requires other to run prior
+    char isIon;
+    int * children; ///> Id of dependencies mechanisms
 
     //For ionic mechanisms
     double conci, conco, charge; //from global_conci, global_conco, global_charge variables
@@ -63,16 +67,19 @@ class Mechanism
         capJacob=16,
     };
 
+    void callNetReceiveFunction(
+            const void * branch, const Spike * spike,
+            const char isInitFunction, const double t, const double dt);
+
     static void registerHpxActions();
     static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
-    static hpx_action_t callNetReceiveFunction; ///> calls NetReceive Functions
 
 private:
     void registerIonicCharges();  ///> register ionic charges (ion_reg() in eion.c)
     void registerBAFunctions();   ///> register Before-After functions
     void registerMechFunctions(); ///> register mechanisms functions (mod_t_f type)
     static int callModFunction_handler(const int nargs, const void *args[], const size_t[]);
-    static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t[]);
+
 };
 
 };

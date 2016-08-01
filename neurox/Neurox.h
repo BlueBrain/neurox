@@ -24,7 +24,11 @@ namespace Neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
-    extern std::map<short int, Neurox::Mechanism> mechanisms; ///> maps of mechanisms, per mechanism id
+
+    extern int mechanismsCount; ///> number of mechanisms
+    extern Neurox::Mechanism * mechanisms; ///> buffer of all mechanisms, per mechanism id
+    extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
+
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
 
     extern hpx_action_t main;               ///> execution starting point (called via hpx_run)
@@ -35,6 +39,11 @@ namespace Neurox
     inline static hpx_t getNeuronAddr(int i) {
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     } ///> returns hpx address for i-th neuron
+
+    inline static Neurox::Mechanism & getMechanism(int type)
+    {
+        return mechanisms[mechanismsMap[type]];
+    }
 
     void registerHpxActions(); ///> Register all HPX actions
 

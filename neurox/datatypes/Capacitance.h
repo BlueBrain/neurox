@@ -6,7 +6,6 @@
 #include "coreneuron/nrnoc/nrnoc_ml.h" //ThreadDatum
 #include "coreneuron/nrnconf.h" //Datum
 
-
 namespace Neurox
 {
 /**

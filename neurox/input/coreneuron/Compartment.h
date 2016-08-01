@@ -1,9 +1,6 @@
 #pragma once
 
 #include "neurox/Neurox.h"
-
-#include "coreneuron/nrnconf.h"
-
 #include <memory>
 #include <vector>
 
