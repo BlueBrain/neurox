@@ -65,11 +65,27 @@ typedef hpx_addr_t hpx_t;
         hpx_lco_delete(lco, HPX_NULL); \
     }
 
+///hpx wrappers for sync call of a function to all children mechanisms
+#define neurox_hpx_recursive_mechanism_sync(mechType, Func, ...) \
+    short int dependenciesCount = mechanisms[mechType].dependenciesCount; \
+    hpx_addr_t lco =  dependenciesCount > 0 ? hpx_lco_and_new(dependenciesCount) : HPX_NULL; \
+    for (short int d=0; d<dependenciesCount; d++) \
+    { \
+        short int dependency = mechanisms[mechType].dependencies[d]; \
+        int e = _hpx_call(target, Func, lco, dependency, sizeof(dependency), \
+                          __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
+        assert(e==HPX_SUCCESS); \
+    } \
+    if (dependenciesCount>0) \
+    { \
+        hpx_lco_wait(lco); \
+        hpx_lco_delete(lco, HPX_NULL); \
+    }
+
 ///hpx wrappers for sync call of a function to all children branches
 #define neurox_hpx_recursive_branch_sync(Func, ...) \
     neurox_hpx_recursive_branch_async_call (Func, __HPX_NARGS(__VA_ARGS__) ) \
     neurox_hpx_recursive_branch_async_wait
-
 
 //auxiliars for neurox_hpx_register_action
 #define neurox_hpx_register_action_0(func) \

@@ -21,13 +21,13 @@ class Mechanism
     Mechanism(const short int type, const short int dataSize, const short int pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
               const short int symLengh = 0, const char * sym = nullptr,
-              const short int dependenciesCount = 0, const int * dependencies = nullptr);
+              const short int dependenciesCount = 0, const short int * dependencies = nullptr);
 
     short int type, dataSize, pdataSize, dependenciesCount;
     char pntMap, isArtificial;
     short int symLength; ///> length of the name of the mechanism;
     int isIon;
-    int * dependencies; ///> Id of dependencies mechanisms
+    short int * dependencies; ///> Id of dependencies mechanisms
 
     //For ionic mechanisms
     double conci, conco, charge; //from global_conci, global_conco, global_charge variables
@@ -63,10 +63,16 @@ class Mechanism
         capJacob=16,
     };
 
+    static void registerHpxActions();
+    static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
+    static hpx_action_t callNetReceiveFunction; ///> calls NetReceive Functions
+
 private:
-    void registerMechFunctions(); ///> register mechanisms (register_mech() in register_mech.c)
     void registerIonicCharges();  ///> register ionic charges (ion_reg() in eion.c)
     void registerBAFunctions();   ///> register Before-After functions
+    void registerMechFunctions(); ///> register mechanisms functions (mod_t_f type)
+    static int callModFunction_handler(const int nargs, const void *args[], const size_t[]);
+    static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t[]);
 };
 
 };

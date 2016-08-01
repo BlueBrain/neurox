@@ -155,6 +155,8 @@ void DataLoader::loadData(int argc, char ** argv)
     std::vector<Mechanism> mechsData;
     std::vector<int> mechsDependencies;
     std::vector<char> mechsSym;
+    int ndependencies=0; //TODO no graph of dependecies so far, points to previous
+    int dependencies[1];
     for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
@@ -163,16 +165,20 @@ void DataLoader::loadData(int argc, char ** argv)
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
                        symLength, NULL, //set to NULL because will be serialized below
-                       tml->ndependencies, NULL));  //set to NULL because will be serialized below
+                       //tml->ndependencies, NULL));  //set to NULL because will be serialized below
+                       ndependencies, NULL));  //set to NULL because will be serialized below
 
-        mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
+        //mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
+        mechsDependencies.insert(mechsDependencies.end(), dependencies, dependencies + ndependencies);
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
+        ndependencies=1;
+        dependencies[0] = type;
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
     int e = hpx_bcast_rsync(Neurox::setMechanisms,
                             mechsData.data(), sizeof(Mechanism)*mechsData.size(),
-                            mechsDependencies.data(), sizeof(int)* mechsDependencies.size(),
+                            mechsDependencies.data(), sizeof(short int)* mechsDependencies.size(),
                             mechsSym.data(), sizeof(char)*mechsSym.size());
     assert(e == HPX_SUCCESS);
 
@@ -274,6 +280,7 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
+    size_t mechanismsCount = mechanisms.size();
     vector<int> instancesCount(mechanismsCount,0); //instances count per mechanism id
     vector<vector<double>> data(mechanismsCount); //data per mechanism id
     vector<vector<Datum>> pdata(mechanismsCount); //pdata per mechanism id

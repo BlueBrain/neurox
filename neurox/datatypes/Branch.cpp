@@ -18,7 +18,7 @@ Branch::~Branch()
     delete [] rhs;
     delete [] area;
     delete [] branches;
-    for (int m=0; m<mechanismsCount; m++)
+    for (int m=0; m<mechanisms.size(); m++)
     {
         delete [] mechsInstances[m].data;
         delete [] mechsInstances[m].pdata;
@@ -58,6 +58,7 @@ int Branch::init_handler(const int n, std::vector<double> * a, const std::vector
     std::copy(branches->begin(), branches->end(), local->branches);
 
     //copy mechanisms instances
+    size_t mechanismsCount = mechanisms.size();
     assert(mechanismsCount>0);
     local->mechsInstances = new MechanismInstances[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
@@ -343,115 +344,28 @@ int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size
     neurox_hpx_unpin;
 }
 
-
 hpx_action_t Branch::callNetReceiveFunction = 0;
 int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==3);
-    const double * t = (const double *) args[0];
-    const double * dt = (const double *) args[1];
-    const char * initFunction = (const char*) args[2];
-    neurox_hpx_recursive_branch_async_call(Branch::callNetReceiveFunction,
-        t, sizes[0], dt, sizes[1], initFunction, sizes[2]);
 
-    Memb_list membList;
-    NrnThread nrnThread;
-    Point_process pp;
-    while (!local->spikesQueue.empty() &&
-           local->spikesQueue.top().deliveryTime < *t+*dt)
-    {
-        Spike spike = local->spikesQueue.top();
-        if (spike.netcon->active)
-        {
-            short int mechType = spike.netcon->mechType;
-            Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
-            pp._i_instance = spike.netcon->mechInstance;
-            pp._presyn = NULL;
-            pp._tid = -1;
-            pp._type = spike.netcon->mechType;
-            nrnThread._t = spike.deliveryTime;
-            //see netcvode.cpp:433 (NetCon::deliver)
-            //We have to pass NrnThread, MembList, and deliveryTime instead
-            if (*initFunction)
-            {
-                    //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-            }
-            else
-            {
-                    //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
-            }
-        }
-        local->spikesQueue.pop();
-    }
+    //start the same process in children branches
+    assert(nargs==3);
+    neurox_hpx_recursive_branch_async_call(Branch::callNetReceiveFunction,
+        args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::callModFunction = 0;
-int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t functionId_size)
+int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId, functionId_size);
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
 
-    Memb_list membList;
-    NrnThread nrnThread;
+    //hpx_par_call_sync();
 
-        //TODO this loop can be parallelized, but must respect the mechanisms dependency graph
-        //Also: The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
-        //The state function does not write to compartment, only reads, so no mutex needed
-        for (int m=0; m<mechanismsCount; m++)
-        {
-            Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, m);
-            if (*functionId<BEFORE_AFTER_SIZE)
-                mechanisms[m].BAfunctions[*functionId](&nrnThread, &membList, m);
-            else
-            {
-              switch(*functionId)
-              {
-                case Mechanism::ModFunction::alloc:
-                    if (mechanisms[m].membFunc.alloc)
-                        mechanisms[m].membFunc.alloc(membList.data, membList.pdata, m);
-                    break;
-                case Mechanism::ModFunction::current:
-                    if (mechanisms[m].membFunc.current)
-                        mechanisms[m].membFunc.current(&nrnThread, &membList, m);
-                    break;
-                case Mechanism::ModFunction::state:
-                    if (mechanisms[m].membFunc.state)
-                        mechanisms[m].membFunc.state(&nrnThread, &membList, m);
-                    break;
-                case Mechanism::ModFunction::jacob:
-                    if (mechanisms[m].membFunc.jacob)
-                        mechanisms[m].membFunc.jacob(&nrnThread, &membList, m);
-                    break;
-                case Mechanism::ModFunction::initialize:
-                    if (mechanisms[m].membFunc.initialize)
-                        mechanisms[m].membFunc.initialize(&nrnThread, &membList, m);
-                    break;
-                case Mechanism::ModFunction::destructor:
-                    if (mechanisms[m].membFunc.destructor)
-                        mechanisms[m].membFunc.destructor();
-                    break;
-                case Mechanism::ModFunction::threadMemInit:
-                    if (mechanisms[m].membFunc.thread_mem_init_)
-                        mechanisms[m].membFunc.thread_mem_init_(membList._thread);
-                    break;
-                case Mechanism::ModFunction::threadTableCheck:
-                    if (mechanisms[m].membFunc.thread_table_check_)
-                        mechanisms[m].membFunc.thread_table_check_
-                            (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, m);
-                    break;
-                case Mechanism::ModFunction::threadCleanup:
-                    if (mechanisms[m].membFunc.thread_cleanup_)
-                        mechanisms[m].membFunc.thread_cleanup_(membList._thread);
-                    break;
-                default:
-                    printf("ERROR! Unknown function %d!!\n", *functionId);
-              }
-            }
-        }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -468,9 +382,11 @@ int Branch::secondOrderCurrent_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
     MechanismInstances * mechs = local->mechsInstances;
-    for (int m=0; m<mechanismsCount; m++)
+    for (auto it : mechanisms)
     {
-        if (mechanisms[m].BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
+        Mechanism & mech = it.second;
+        int m = mech.type;
+        if (mech.BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
         {
             for (int i=0; i<mechs[m].instancesCount; i++)
             {
@@ -512,7 +428,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::gaussianFwdSubstitution);
     neurox_hpx_register_action(1, Branch::setV);
     neurox_hpx_register_action(1, Branch::callModFunction);
-    neurox_hpx_register_action(1, Branch::callNetReceiveFunction);
+    neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
     neurox_hpx_register_action(0, Branch::setupMatrixInitValues);
     neurox_hpx_register_action(2, Branch::init);
     neurox_hpx_register_action(2, Branch::queueSpikes);

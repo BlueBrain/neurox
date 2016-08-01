@@ -10,7 +10,7 @@ namespace Neurox
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 int mechanismsCount=-1;
-Mechanism * mechanisms = nullptr;
+std::map<short int, Neurox::Mechanism> mechanisms;
 Input::InputParams * inputParams = nullptr;
 
 hpx_action_t setNeurons = 0;
@@ -20,8 +20,9 @@ int setNeurons_handler(const int nargs, const void *args[], const size_t[])
      * args[0] = neuronsCount
      * args[1] = neuronsAddr
      */
-    assert(nargs==2);
+
     neurox_hpx_pin(uint64_t);
+    assert(nargs==2);
     neuronsCount = *(int*)args[0];
     neuronsAddr = *(hpx_t*)args[1];
     neurox_hpx_unpin;
@@ -31,7 +32,7 @@ hpx_action_t setInputParams = 0;
 int setInputParams_handler(const Input::InputParams * data, const size_t)
 {
     neurox_hpx_pin(uint64_t);
-    if (mechanisms!=nullptr)
+    if (inputParams!=nullptr)
         delete [] Neurox::inputParams;
 
     inputParams = new Neurox::Input::InputParams();
@@ -52,24 +53,21 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     neurox_hpx_pin(uint64_t);
     assert(nargs==3);
 
-    if (mechanisms!=nullptr)
-        delete [] Neurox::mechanisms;
-
     mechanismsCount = sizes[0]/sizeof(Mechanism);
-    mechanisms = new Neurox::Mechanism[mechanismsCount];
 
     int offsetDependencies=0;
     int offsetSym=0;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism & mech = ((Mechanism*) args[0])[m];
-        int * dependencies = &((int*) args[1])[offsetDependencies];
+        short int * dependencies = &((short int*) args[1])[offsetDependencies];
         char * sym = &((char*) args[2])[offsetSym];
 
-        mechanisms[m] = Mechanism (mech.type, mech.dataSize, mech.pdataSize,
-                                   mech.isArtificial, mech.pntMap, mech.isIon,
-                                   mech.symLength, sym,
-                                   mech.dependenciesCount, dependencies);
+        mechanisms[mech.type] = Mechanism (
+                    mech.type, mech.dataSize, mech.pdataSize,
+                    mech.isArtificial, mech.pntMap, mech.isIon,
+                    mech.symLength, sym,
+                    mech.dependenciesCount, dependencies);
         offsetDependencies +=  mech.dependenciesCount;
         offsetSym += mech.symLength;
     }

@@ -12,6 +12,7 @@ int main(int argc, char** argv)
     Neurox::registerHpxActions();
     Neurox::Neuron::registerHpxActions();
     Neurox::Branch::registerHpxActions();
+    Neurox::Mechanism::registerHpxActions();
     Neurox::Solver::BackwardEuler::registerHpxActions();
 
     //Init HPX
