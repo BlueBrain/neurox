@@ -31,23 +31,16 @@ namespace Neurox
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
 
-    extern hpx_action_t main;               ///> execution starting point (called via hpx_run)
+    extern hpx_action_t main;           ///> execution starting point (called via hpx_run)
     extern hpx_action_t setNeurons;     ///> Initialized neurons and neuronsAddr global vars
-    extern hpx_action_t setInputParams;	    ///> Initializes InputParams
-    extern hpx_action_t setMechanisms;	    ///> Initializes Mechanisms
+    extern hpx_action_t setInputParams; ///> Initializes InputParams
+    extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
-    inline static hpx_t getNeuronAddr(int i) {
-        return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
-    } ///> returns hpx address for i-th neuron
-
-    inline static Neurox::Mechanism & getMechanismFromType(int type)
-    {
-        return mechanisms[mechanismsMap[type]];
-    }
-
+    hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
+    Neurox::Mechanism & getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
-    static int main_handler( char **argv, size_t argc);
+    static int main_handler( char **argv, size_t argc); ///> handler of main
     static int setNeurons_handler(const int nargs, const void *args[], const size_t []); ///>handler of setNeuronsAddr
     static int setInputParams_handler(const Input::InputParams * data, const size_t); ///> handler for setInputParams
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]); ///> handler for setMechanisms

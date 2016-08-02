@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.2, 2016-08-01T15:18:57. -->
+<!-- Written by QtCreator 4.0.3, 2016-08-02T13:17:27. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
-  <value type="QByteArray">{903edcd9-37a3-441d-8deb-1d7841ea25f7}</value>
+  <value type="QByteArray">{eae0a417-820e-45b0-99b8-efb62b24ef5c}</value>
  </data>
  <data>
   <variable>ProjectExplorer.Project.ActiveTarget</variable>
@@ -75,7 +75,7 @@
      <value type="QString">CMAKE_BUILD_TYPE:STRING=Debug</value>
      <value type="QString">CMAKE_CXX_COMPILER:STRING=mpicxx</value>
      <value type="QString">CMAKE_C_COMPILER:STRING=/usr/bin/mpicc</value>
-     <value type="QString">QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}</value>
+     <value type="QString">QT_QMAKE_EXECUTABLE:STRING=/home/bmagalha/Qt/5.7/gcc_64/bin/qmake</value>
      <value type="QString">UNIT_TESTS:BOOL=OFF</value>
     </valuelist>
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/bmagalha/Workspace/neurox/build-qt</value>

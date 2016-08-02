@@ -14,6 +14,14 @@ extern int * mechanismsMap = nullptr;
 Neurox::Mechanism * mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
+hpx_t getNeuronAddr(int i) {
+    return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
+}
+
+Neurox::Mechanism & getMechanismFromType(int type) {
+    return mechanisms[mechanismsMap[type]];
+}
+
 hpx_action_t setNeurons = 0;
 int setNeurons_handler(const int nargs, const void *args[], const size_t[])
 {

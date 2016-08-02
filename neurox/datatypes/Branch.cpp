@@ -27,19 +27,109 @@ Branch::~Branch()
     delete [] mechsInstances;
 }
 
-hpx_action_t Branch::init = 0;
-int Branch::init_handler(const int n, std::vector<double> * a, const std::vector<double> *b,
-                         const std::vector<double> * d, const std::vector<double> * v,
-                         const std::vector<double> * rhs, const std::vector<double> * area,
-                         const std::vector<int> * instancesCount, const std::vector<std::vector<double> > * data,
-                         const std::vector<std::vector<double> > * pdata, std::vector<std::vector<int>> * nodesIndices,
-                         const std::vector<hpx_t> * branches, std::map<int, std::vector<NetConX> > * netcons)
+hpx_action_t Branch::initMechanismsInstances = 0;
+int Branch::initMechanismsInstances_handler(const int nargs, const void *args[], const size_t sizes[])
 {
+    /**
+     * nargs = 4 where
+     * args[0] = arrays of number of instances per mechanism
+     * args[1] = array of data for all mechanisms
+     * args[2] = array of pdata for all mechanisms
+     * args[3] = array of compartment/node index where the mechanisms are applied to
+     */
+
     neurox_hpx_pin(Branch);
+    assert(nargs==4);
+
+    const int m = sizes[0]/sizeof(int);
+    assert (m==mechanismsCount);
+
+    const int * instancesCount = (const int*) args[0];
+    const double * data =  (const double*) args[1];
+    const double * pdata = (const double*) args[2];
+    const int * nodesIndices = (const int*) args[3];
+
+    int dataOffset=0;
+    int pdataOffset=0;
+    int nodesIndicesOffset=0;
+
+    local->mechsInstances = new MechanismInstances[m];
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        MechanismInstances & instance = local->mechsInstances[m];
+        instance.instancesCount = instancesCount[m];
+        int totalDataSize = mechanisms[m].dataSize * instance.instancesCount;
+        int totalPdataSize = mechanisms[m].pdataSize * instance.instancesCount;
+        instance.data = new double[totalDataSize];
+        instance.pdata = new int[totalPdataSize];
+        instance.nodesIndices = new int[instance.instancesCount];
+        memcpy(instance.data, &data[dataOffset], sizeof(double)*totalDataSize);
+        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
+        memcpy(instance.nodesIndices, &nodesIndices[nodesIndicesOffset], sizeof(int)*instance.instancesCount);
+        dataOffset += totalDataSize;
+        pdataOffset += totalPdataSize;
+        nodesIndicesOffset += instance.instancesCount;
+    }
+
+    neurox_hpx_unpin;;
+}
+
+hpx_action_t Branch::initNetCons = 0;
+int Branch::initNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
+{
+    /**
+     * nargs = 2 where
+     * args[0] = array of netcons
+     * args[1] = array of args per netcon
+     */
+
+    neurox_hpx_pin(Branch);
+    assert(nargs==7);
+
+    //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
+    hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
+    for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
+    {
+        int preNeuronId = getNeuronAddr(nc->first); //false, he may not be in the network
+        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
+        assert(e==HPX_SUCCESS);
+    }
+
+    neurox_hpx_unpin;
+}
+
+Branch::MechanismInstances & Branch::getMechanismInstanceFromType(int type)
+{
+    return mechsInstances[mechanismsMap[type]];
+}
+
+hpx_action_t Branch::init = 0;
+int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
+{
+    /**
+     * nargs = 7 where
+     * args[0] = a, vector A per compartment
+     * args[1] = b, vector B per compartment
+     * args[2] = d, vector D per compartment
+     * args[3] = v, vector V per compartment
+     * args[4] = rhs, vector RHS per compartment
+     * args[5] = area, vector 'area' per compartment
+     * args[6] = branches, children branches
+     */
+
+    neurox_hpx_pin(Branch);
+    assert(nargs==7);
+    const int n = sizes[0]/sizeof(double);
+    const double * a = (const double*) args[0];
+    const double * b = (const double*) args[1];
+    const double * d = (const double*) args[2];
+    const double * v = (const double*) args[3];
+    const double * rhs = (const double*) args[4];
+    const double * area = (const double*) args[5];
+    const hpx_t * branches = (const hpx_t*) args[6];
+
     local->n = n;
-    local->branchesCount = branches->size();
-    local->spikesQueueMutex = hpx_lco_sema_new(1);
-    local->netcons.insert(netcons->begin(), netcons->end());
+    local->branchesCount = sizes[6]/sizeof(hpx_t);
 
     local->a = new double[n];
     local->b = new double[n];
@@ -49,36 +139,13 @@ int Branch::init_handler(const int n, std::vector<double> * a, const std::vector
     local->area = new double[n];
     local->branches = new hpx_t[local->branchesCount];
 
-    std::copy(a->begin(), a->end(), local->a);
-    std::copy(b->begin(), b->end(), local->b);
-    std::copy(d->begin(), d->end(), local->d);
-    std::copy(v->begin(), v->end(), local->v);
-    std::copy(rhs->begin(), rhs->end(), local->rhs);
-    std::copy(area->begin(), area->end(), local->area);
-    std::copy(branches->begin(), branches->end(), local->branches);
-
-    //copy mechanisms instances
-    local->mechsInstances = new MechanismInstances[mechanismsCount];
-    for (int m=0; m<mechanismsCount; m++)
-    {
-        local->mechsInstances[m].instancesCount = instancesCount->at(m);
-        local->mechsInstances[m].data = new double[instancesCount->at(m)*mechanisms[m].dataSize];
-        local->mechsInstances[m].pdata = new int[instancesCount->at(m)*mechanisms[m].pdataSize];
-        local->mechsInstances[m].nodesIndices = new int[instancesCount->at(m)];
-
-        std::copy(data->at(m).begin(),  data->at(m).end(),  local->mechsInstances[m].data);
-        std::copy(pdata->at(m).begin(), pdata->at(m).end(), local->mechsInstances[m].pdata);
-        std::copy(nodesIndices->at(m).begin(), nodesIndices->at(m).end(), local->mechsInstances[m].nodesIndices);
-    }
-
-    //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
-    hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
-    for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
-    {
-        int preNeuronId = getNeuronAddr(nc->first);
-        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
-        assert(e==HPX_SUCCESS);
-    }
+    memcpy(local->a, a, sizes[0]);
+    memcpy(local->b, b, sizes[1]);
+    memcpy(local->d, d, sizes[2]);
+    memcpy(local->v, v, sizes[3]);
+    memcpy(local->rhs, rhs, sizes[4]);
+    memcpy(local->area, area, sizes[5]);
+    memcpy(local->branches, branches, sizes[6]);
 
     neurox_hpx_unpin;;
 }
@@ -469,5 +536,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
     neurox_hpx_register_action(0, Branch::setupMatrixInitValues);
     neurox_hpx_register_action(2, Branch::init);
+    neurox_hpx_register_action(2, Branch::initMechanismsInstances);
+    neurox_hpx_register_action(2, Branch::initNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
 }

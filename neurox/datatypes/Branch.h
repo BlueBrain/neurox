@@ -33,9 +33,9 @@ class Branch
     {
         int instancesCount; ///> number of instances of particular mechanism
         double * data;	    ///> and mechanisms data (double)
-        int * pdata;		///> pointer data (offsets)
-        int * nodesIndices; ///> nodeindices contains all nodes this extension is responsible for, ordered according to the matrix
-    } * mechsInstances;     ///> Arrays of mechanism instances (per mechanism type, total size of Neuron::mechanismsCount)
+        int * pdata;		///> pointer data (offsets) //TODO this could be unsigned short or int
+        int * nodesIndices; ///> index of node this instance will be applied to //TODO this could be unsigned short
+    } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
     //List of children branches
     int branchesCount;		///> number of branches
@@ -49,8 +49,13 @@ class Branch
     ///queue of incoming spikes (to be delivered at the end of the step), sorted by delivery time
     std::priority_queue<Spike> spikesQueue;
 
+    /// returns all instances of mechanisms type 'type'
+    inline MechanismInstances & getMechanismInstanceFromType(int type);
+
     static void registerHpxActions(); ///> Register all HPX actions
-    static hpx_action_t init; ///> Initializes Branch
+    static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
+    static hpx_action_t initMechanismsInstances; ///> Initializes applications of mechanisms to this branch
+    static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t setupMatrixRHS; ///> finitialize.c::nrn_finitialize
     static hpx_action_t setupMatrixLHS; ///> finitialize.c::nrn_finitialize
     static hpx_action_t updateV; ///> fadvance_core.c : update()
@@ -78,13 +83,9 @@ class Branch
     static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int init_handler(
-            const int n, std::vector<double> * a, const std::vector<double> *b,
-            const std::vector<double> * d, const std::vector<double> * v,
-            const std::vector<double> * rhs, const std::vector<double> * area,
-            const std::vector<int> * instancesCount,const std::vector<std::vector<double> > * data,
-            const std::vector<std::vector<double> > * pdata, std::vector<std::vector<int>> * nodesIndices,
-            const std::vector<hpx_t> * branches, std::map<int, std::vector<NetConX> > * netcons);
+    static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int initMechanismsInstances_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
 };
 
 }; //namespace

@@ -29,7 +29,7 @@ class Compartment
     int id;
     vector<Compartment*> branches;
     double a,b,d,v,rhs,area;
-    vector<int> mechsIds;
+    vector<int> mechsTypes;
     vector<int> mechsInstances;
     vector<double> data;
     vector<Datum> pdata;

@@ -23,7 +23,7 @@ void Compartment::addChild(Compartment * child)
 
 void Compartment::addMechanismInstance(int mechType, int instance, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
-    mechsIds.push_back(mechType);
+    mechsTypes.push_back(mechType);
     mechsInstances.push_back(instance);
 
     if (data!=nullptr)
