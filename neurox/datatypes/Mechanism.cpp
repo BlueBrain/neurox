@@ -105,7 +105,7 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
      */
     int mechType = *(int*)args[0];
     Mechanism::ModFunction functionId = *(ModFunction*)args[1];
-    Mechanism & mech = getMechanism(mechType);
+    Mechanism & mech = getMechanismFromType(mechType);
 
     Memb_list membList;
     NrnThread nrnThread;

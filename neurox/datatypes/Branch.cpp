@@ -368,7 +368,7 @@ int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], 
         if (spike.netcon->active)
         {
              int mechType = spike.netcon->mechType;
-             getMechanism(mechType).callNetReceiveFunction
+             getMechanismFromType(mechType).callNetReceiveFunction
                      (local, &spike, isInitFunction, t, dt);
         }
         local->spikesQueue.pop();

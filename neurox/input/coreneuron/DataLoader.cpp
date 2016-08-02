@@ -109,7 +109,7 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
-void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map<int, vector<NetConX> > & netcons)
+void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map<int, vector<NetConX*> > & netcons)
 {
     for (int s = 0; s<netconsCount; s++)
     {
@@ -120,10 +120,9 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
-      Neurox::NetConX netcon(mechType, (int) nc->target_->_i_instance, nc->delay_,
+      Neurox::NetConX * netcon = new Neurox::NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
                              nc->weight_, pnt_receive_size[mechType], nc->active_);
       netcons[preNeuronId].push_back(netcon);
-      netcons[preNeuronId].shrink_to_fit();
     }
 }
 
@@ -134,7 +133,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
     {
-        FILE *dotfile = fopen(string("compartments"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+".dot").c_str(), "wt");
+        FILE *dotfile = fopen(string("compartments_NrnThread"+to_string(i)+".dot").c_str(), "wt");
         fprintf(dotfile, "graph G%d\n{\n", i );
 
         //for all nodes in this NrnThread
@@ -185,19 +184,19 @@ void DataLoader::loadData(int argc, char ** argv)
     assert(e == HPX_SUCCESS);
 
 #ifdef DEBUG
-    FILE *dotfile = fopen(string("mechanisms"+to_string(HPX_LOCALITY_ID)+".dot").c_str(), "wt");
-    fprintf(dotfile, "digraph G\n{\n");
+    FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
+    fprintf(fileMechs, "digraph G\n{\n");
     for (int m =0; m< mechanismsCount; m++)
     {
         Mechanism & mech = mechanisms[m];
         if (mech.isTopMechanism)
-            fprintf(dotfile, "%s -> %d;\n", "start", mech.type);
+            fprintf(fileMechs, "%s -> %d;\n", "start", mech.type);
 
         for (int d=0; d<mech.childrenCount; d++)
-            fprintf(dotfile, "%d -> %d;\n", mech.type, mech.children[d]);
+            fprintf(fileMechs, "%d -> %d;\n", mech.type, mech.children[d]);
     }
-    fprintf(dotfile, "}\n");
-    fclose(dotfile);
+    fprintf(fileMechs, "}\n");
+    fclose(fileMechs);
 #endif
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
@@ -211,6 +210,12 @@ void DataLoader::loadData(int argc, char ** argv)
     e = hpx_bcast_rsync(Neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(e == HPX_SUCCESS);
     assert(neuronsAddr != HPX_NULL);
+
+
+#ifdef DEBUG
+    FILE *fileSynapses = fopen(string("synapses.dot").c_str(), "wt");
+    fprintf(fileSynapses, "digraph G\n{\n");
+#endif
 
     //reconstructs neurons
     for (int i=0; i<nrn_nthread; i++)
@@ -240,35 +245,38 @@ void DataLoader::loadData(int argc, char ** argv)
         }
 
 #ifdef DEBUG
-        FILE *dotfile = fopen(string("graph"+to_string(HPX_LOCALITY_ID)+"_"+to_string(i)+"_hpx.dot").c_str(), "wt");
-        fprintf(dotfile, "graph G%d\n{\n", i );
+        FILE *fileCompartments = fopen(string("compartmentshpx_"+to_string(neuronId)+"_hpx.dot").c_str(), "wt");
+        fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
         for (auto c : compartments)
             for (auto k : c.branches)
-                fprintf(dotfile, "%d -- %d;\n", c.id, k->id);
-        fprintf(dotfile, "}\n");
-        fclose(dotfile);
+                fprintf(fileCompartments, "%d -- %d;\n", c.id, k->id);
+        fprintf(fileCompartments, "}\n");
+        fclose(fileCompartments);
 #endif
 
         //reconstructs mechanisms for compartments
-        int pdataOffset = 0;
-        int dataOffset  = 6*nt.end; //a,b,d,v,rhs,area
+
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
+            int pdataOffset = 0;
+            int dataOffset  = 0; //6*nt.end; //(a,b,d,v,rhs,area for NrnThread->_data)
             int type = tml->index;
             Memb_list *& ml = tml->ml; //Mechanisms application to each compartment
-            Mechanism & mech = getMechanism(type);
+            Mechanism & mech = getMechanismFromType(type);
             int dataSize  = mech.dataSize;
             int pdataSize = mech.pdataSize;
-            for (int n=0; n<ml->nodecount; n++) //for every compartment this mech type is applied to
+            for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
+                //TODO: I think ml->data is vectorized!
+                assert (ml->nodeindices[n] < compartments.size());
                 Compartment & compartment = compartments[ml->nodeindices[n]];
-                compartment.addMechanism(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
+                compartment.addMechanismInstance(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
         }
 
-        map<int, vector<NetConX>> netcons; //netcons per pre-synaptic neuron id
+        map<int, vector<NetConX*> > netcons; //netcons per pre-synaptic neuron id
 
         //get all incoming synapses from neurons in other MPI ranks
         for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
@@ -288,14 +296,28 @@ void DataLoader::loadData(int argc, char ** argv)
             addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
         }
 
+#ifdef DEBUG
+        for (auto nc : netcons)
+            fprintf(fileSynapses, "%d -> %d [label=\"%d\"];\n", nc.first, neuronId, nc.second.size());
+#endif
+
         //recursively create morphological tree, neuron metadata, and synapses
-        double APthreshold = gid2out.at(neuronId)->threshold_;
+        double APthreshold = -45; //TODO
+        if(gid2out.find(neuronId) != gid2out.end())
+            APthreshold = gid2out.at(neuronId)->threshold_;
+        else
+            printf("Warning, no entry for neuron %d in gid2out, assiming APThreshold of %.1f.\n", neuronId, APthreshold);
         hpx_t topBranch = createBranch(&compartments.at(0), netcons);
         hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0, neuronId, topBranch, APthreshold);
     }
+
+#ifdef DEBUG
+    fprintf(fileSynapses, "}\n");
+    fclose(fileSynapses);
+#endif
 }
 
-hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<NetConX> > & netcons)
+hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info

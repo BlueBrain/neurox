@@ -67,11 +67,11 @@ typedef hpx_addr_t hpx_t;
 
 ///hpx wrappers for sync call of a function to all children mechanisms
 #define neurox_hpx_recursive_mechanism_sync(mechType, Func, ...) \
-    short int childrenCount = getMechanism(mechType).childrenCount; \
+    short int childrenCount = getMechanismFromType(mechType).childrenCount; \
     hpx_addr_t lco =  childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL; \
     for (short int c=0; c<childrenCount; c++) \
     { \
-        int childMechType = getMechanism(mechType).children[c]; \
+        int childMechType = getMechanismFromType(mechType).children[c]; \
         int e = _hpx_call(target, Func, lco, __HPX_NARGS(__VA_ARGS__), \
                           childMechType, sizeof(childMechType), ##__VA_ARGS__) ; \
         assert(e==HPX_SUCCESS); \

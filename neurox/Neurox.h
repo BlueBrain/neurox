@@ -40,7 +40,7 @@ namespace Neurox
         return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
     } ///> returns hpx address for i-th neuron
 
-    inline static Neurox::Mechanism & getMechanism(int type)
+    inline static Neurox::Mechanism & getMechanismFromType(int type)
     {
         return mechanisms[mechanismsMap[type]];
     }

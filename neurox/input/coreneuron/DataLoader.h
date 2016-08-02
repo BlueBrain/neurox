@@ -35,9 +35,9 @@ class DataLoader
 
   private:
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
-                                        int netconsOffset, map<int, std::vector<NetConX> > & netcons);
+                                        int netconsOffset, map<int, std::vector<NetConX*> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static hpx_t createBranch( Compartment * topCompartment, map<int, vector<NetConX> > & netcons);
+    static hpx_t createBranch( Compartment * topCompartment, map<int, vector<NetConX*> > & netcons);
 
     static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
