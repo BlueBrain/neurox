@@ -46,7 +46,7 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
 
     const int * instancesCount = (const int*) args[0];
     const double * data =  (const double*) args[1];
-    const double * pdata = (const double*) args[2];
+    const int * pdata = (const int*) args[2];
     const int * nodesIndices = (const int*) args[3];
 
     int dataOffset=0;

@@ -97,14 +97,15 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 hpx_action_t main = 0;
 static int main_handler( char **argv, size_t argc)
 {
-    //reads morphology data
-    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
-
     //populate InputParams from command line, and broadcasts to all compute nodes
     Input::InputParams inputParams(argc, argv);
     printf("Broadcasting InputParams...\n");
     int e = hpx_bcast_rsync(Neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
+
+    //reads morphology data
+    printf("Loading input data from Coreneuron...\n");
+    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     hpx_par_for_sync( [&] (int i, void*) -> int

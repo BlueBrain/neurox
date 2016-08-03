@@ -46,8 +46,9 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, childrenCount %d\n"
            "      conci %.2f, conco %.2f, charge %.2f\n",
-           type, dataSize, pdataSize, isArtificial, pntMap, isIon, symLength,
-           sym!=nullptr ? sym : "", childrenCount, conci, conco, charge);
+           this->type, this->dataSize, this->pdataSize, this->isArtificial,
+           this->pntMap, this->isIon, this->symLength, this->sym, this->childrenCount,
+           this->conci, this->conco, this->charge);
 #endif
 };
 
@@ -87,6 +88,8 @@ void Mechanism::registerIonicCharges()
     conco = ion_global_map[type][1];
     charge = ion_global_map[type][2];
 }
+
+Mechanism::Mechanism(){}
 
 Mechanism::~Mechanism(){
     delete [] sym;

@@ -73,24 +73,19 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
 }
 
 hpx_action_t Neuron::init = 0;
-int Neuron::init_handler(int nargs, void *args[], size_t sizes[])
+int Neuron::init_handler(const int nargs, const void *args[], const size_t[])
 {
     neurox_hpx_pin(Neuron);
     assert(nargs==3);
-    assert(sizes[0]==sizeof(int));
-    assert(sizes[1]==sizeof(hpx_t));
-    assert(sizes[2]==sizeof(double));
+    const int neuronId = *(const int*) args[0];
+    const hpx_t topBranch = *(const hpx_t*) args[1];
+    const double APthreshold = *(const double*) args[2];
 
-    const int * gid = (int*) args[0];
-    const hpx_t * topBranch = (hpx_t*) args[1];
-    const double * APthreshold = (double*) args[2];
-
-    //copy information
-    local->t=inputParams->t;
-    local->dt=inputParams->dt;
-    local->soma=*topBranch;
-    local->id=*gid;
-    local->APthreshold=*APthreshold;
+    local->t = inputParams->t;
+    local->dt = inputParams->dt;
+    local->soma = topBranch;
+    local->id = neuronId;
+    local->APthreshold = APthreshold;
     neurox_hpx_unpin;
 }
 

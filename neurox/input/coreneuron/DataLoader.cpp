@@ -171,7 +171,6 @@ void DataLoader::loadData(int argc, char ** argv)
                        symLength, nullptr, //set to NULL because will be serialized below
                        isTopMechanism, childrenCount, nullptr));  //set to NULL because will be serialized below
 
-        //mechsDependencies.insert(mechsDependencies.end(), tml->dependencies, tml->dependencies + tml->ndependencies);
         mechsChildren.insert(mechsChildren.end(), children, children + childrenCount);
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
@@ -182,6 +181,8 @@ void DataLoader::loadData(int argc, char ** argv)
                             mechsChildren.data(), sizeof(int)* mechsChildren.size(),
                             mechsSym.data(), sizeof(char)*mechsSym.size());
     assert(e == HPX_SUCCESS);
+
+    mechsData.clear(); mechsChildren.clear(); mechsSym.clear();
 
 #ifdef DEBUG
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
@@ -231,25 +232,25 @@ void DataLoader::loadData(int argc, char ** argv)
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
         //reconstructs matrix (solver) values
-        vector<Compartment> compartments;
+        vector<Compartment*> compartments;
         for (int n=0; n<nt.end; n++)
             compartments.push_back(
-                Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
-                            nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]));
+                new Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
+                                nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]));
 
         //reconstructs parents tree
         for (int n=nt.end-1; n>0; n--) //exclude top (no parent)
         {
-            Compartment & parentCompartment = compartments[nt._v_parent_index[n]];
-            parentCompartment.addChild(&compartments[n]);
+            Compartment * parentCompartment = compartments[nt._v_parent_index[n]];
+            parentCompartment->addChild(compartments[n]);
         }
 
 #ifdef DEBUG
         FILE *fileCompartments = fopen(string("compartmentshpx_"+to_string(neuronId)+"_hpx.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
         for (auto c : compartments)
-            for (auto k : c.branches)
-                fprintf(fileCompartments, "%d -- %d;\n", c.id, k->id);
+            for (auto k : c->branches)
+                fprintf(fileCompartments, "%d -- %d;\n", c->id, k->id);
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
 #endif
@@ -260,7 +261,7 @@ void DataLoader::loadData(int argc, char ** argv)
             int pdataOffset = 0;
             int dataOffset  = 0; //6*nt.end; //(a,b,d,v,rhs,area for NrnThread->_data)
             int type = tml->index;
-            Memb_list *& ml = tml->ml; //Mechanisms application to each compartment
+            Memb_list * ml = tml->ml; //Mechanisms application to each compartment
             Mechanism & mech = getMechanismFromType(type);
             int dataSize  = mech.dataSize;
             int pdataSize = mech.pdataSize;
@@ -268,8 +269,8 @@ void DataLoader::loadData(int argc, char ** argv)
             {
                 //TODO: I think ml->data is vectorized!
                 assert (ml->nodeindices[n] < compartments.size());
-                Compartment & compartment = compartments[ml->nodeindices[n]];
-                compartment.addMechanismInstance(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
+                Compartment * compartment = compartments[ml->nodeindices[n]];
+                compartment->addMechanismInstance(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -303,13 +304,18 @@ void DataLoader::loadData(int argc, char ** argv)
         //recursively create morphological tree, neuron metadata, and synapses
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
-        hpx_t topBranch = createBranch(&compartments.at(0), netcons);
+        hpx_t topBranch = createBranch(compartments.at(0), netcons);
         hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0,
-                      neuronId, sizeof(neuronId), topBranch, sizeof(topBranch),
-                      APthreshold, sizeof(APthreshold));
+                      &neuronId, sizeof(int),
+                      &topBranch, sizeof(hpx_t),
+                      &APthreshold, sizeof(double));
 
-        for (auto nc : netcons)
-            delete &nc.second;
+        for (auto c : compartments)
+            delete c;
+
+        for (auto nc_it : netcons)
+            for (auto nc : nc_it.second)
+                delete nc;
     }
 
 #ifdef DEBUG
@@ -322,12 +328,11 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
-    vector<hpx_t> branches; //children branches
 
-    vector<int> instancesCount(0); //instances count per mechanism type
-    vector<vector<double>> data; //data per mechanism type
-    vector<vector<int>> pdata; //pdata per mechanism type
-    vector<vector<int> > nodesIndices; //nodes indices per mechanism type
+    vector<int> instancesCount (mechanismsCount); //instances count per mechanism type (initialized to 0)
+    vector<vector<double>> data(mechanismsCount); //data per mechanism type
+    vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
+    vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
 
     //iterate through all compartments on the branch
     Compartment *comp = NULL;
@@ -345,24 +350,25 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
         //copy all mechanisms instances
         int dataOffset=0;
         int pdataOffset=0;
-        for (int m=0; m<comp->mechsTypes.size(); m++)
+        for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
-            Mechanism & mech = getMechanismFromType(mechType);
             int mechOffset = mechanismsMap[mechType];
-            for (int i=0; i<mech.dataSize; i++)
-                data[mechOffset].push_back(comp->data[dataOffset+i]);
-            for (int i=0; i<mech.dataSize; i++)
-                pdata[mechOffset].push_back(comp->pdata[pdataOffset+i]);
+            assert(mechOffset>=0 && mechOffset<mechanismsCount);
+            Mechanism & mech = mechanisms[mechOffset];
+
+            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech.dataSize] );
+            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech.pdataSize] );
             nodesIndices[mechOffset].push_back(n);
             dataOffset += mech.dataSize;
             pdataOffset += mech.pdataSize;
-            instancesCount[m]++;
+            instancesCount[mechOffset]++;
         }
         n++;
     }
 
-    //recursively create branches
+    //recursively create children branches
+    vector<hpx_t> branches (comp->branches.size());
     for (int c=0; c<comp->branches.size(); c++)
         branches[c]=createBranch(comp->branches[c], netcons);
 
@@ -393,10 +399,9 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
                   pdata[0].data(), pdata[0].size()*sizeof(int),
                   nodesIndices[0].data(), nodesIndices[0].size()*sizeof(int));
 
-    data[0].clear(); pdata[0].clear(); nodesIndices[0].clear(); instancesCount.clear();
-
     //serialize all netcons and initialize them
     //... TODO get mech instance righ,t and neurons id (preNeuronId is not in the circuit)
+    //hpx_call_sync(branchAddr, Branch::initMechanismsInstances, NULL, 0);
 
     return branchAddr;
 }

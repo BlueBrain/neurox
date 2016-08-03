@@ -15,7 +15,7 @@ namespace Neurox
 class Mechanism
 {
   public:
-    Mechanism(){};
+    Mechanism();
     ~Mechanism();
 
     Mechanism(const int type, const short int dataSize, const short int pdataSize,

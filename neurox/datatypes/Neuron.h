@@ -40,7 +40,7 @@ class Neuron
   private:
     hpx_t synapsesMutex;   ///> mutex to protect the memory access to synapses vector
 
-    static int init_handler(int nargs, void *args[], size_t sizes[]); ///> HPX constructor
+    static int init_handler(const int nargs, const void *args[], const size_t sizes[]); ///> HPX constructor
     static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
     static int finitialize_handler(); ///> initialize.c
 };
