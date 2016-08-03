@@ -133,7 +133,9 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
     {
-        FILE *dotfile = fopen(string("compartments_NrnThread"+to_string(i)+".dot").c_str(), "wt");
+        int neuronId =getNeuronIdFromNrnThreadId(i);
+
+        FILE *dotfile = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(dotfile, "graph G%d\n{\n", i );
 
         //for all nodes in this NrnThread
@@ -214,8 +216,11 @@ void DataLoader::loadData(int argc, char ** argv)
 
 
 #ifdef DEBUG
-    FILE *fileSynapses = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileSynapses, "digraph G\n{\n");
+    FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
+    std::set<int> availableNeuronsIds;
+    for (int i=0; i<nrn_nthread; i++)
+        availableNeuronsIds.insert(getNeuronIdFromNrnThreadId(i));
+    fprintf(fileNetcons, "digraph G\n{\n");
 #endif
 
     //reconstructs neurons
@@ -246,7 +251,7 @@ void DataLoader::loadData(int argc, char ** argv)
         }
 
 #ifdef DEBUG
-        FILE *fileCompartments = fopen(string("compartmentshpx_"+to_string(neuronId)+"_hpx.dot").c_str(), "wt");
+        FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
         for (auto c : compartments)
             for (auto k : c->branches)
@@ -297,8 +302,16 @@ void DataLoader::loadData(int argc, char ** argv)
         }
 
 #ifdef DEBUG
+        int netConsFromOthers=0;
         for (auto nc : netcons)
-            fprintf(fileSynapses, "%d -> %d [label=\"%d\"];\n", nc.first, neuronId, nc.second.size());
+        {
+            if (availableNeuronsIds.find(nc.first) == availableNeuronsIds.end())
+                netConsFromOthers++;
+            else
+                fprintf(fileNetcons, "%d -> %d [label=\"%d\"];\n", nc.first, neuronId, nc.second.size());
+        }
+        if (netConsFromOthers>0)
+                fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
 #endif
 
         //recursively create morphological tree, neuron metadata, and synapses
@@ -319,8 +332,8 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
 #ifdef DEBUG
-    fprintf(fileSynapses, "}\n");
-    fclose(fileSynapses);
+    fprintf(fileNetcons, "}\n");
+    fclose(fileNetcons);
 #endif
 }
 
