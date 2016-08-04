@@ -30,7 +30,7 @@ class Branch
     double * rhs;		///> right-hand side (solution vector) of Linear Algebra solver
     double * area;		///> current area per compartment
 
-    struct MechanismInstances
+    struct MechanismInstance
     {
         int instancesCount; ///> number of instances of particular mechanism
         double * data;	    ///> and mechanisms data (double)
@@ -51,7 +51,7 @@ class Branch
     std::priority_queue<Spike> spikesQueue;
 
     /// returns all instances of mechanisms type 'type'
-    inline MechanismInstances & getMechanismInstanceFromType(int type);
+    inline MechanismInstance & getMechanismInstanceFromType(int type);
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
@@ -78,7 +78,7 @@ class Branch
     static int setupMatrixLHS_handler();
     static int updateV_handler(const int * secondOrder, const size_t);
     static int gaussianBackTriangulation_handler();
-    static int gaussianFwdSubstitution_handler(const double * parentRHS_ptr, const size_t);
+    static int gaussianFwdSubstitution_handler(const double *, const size_t);
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double * v, const size_t);

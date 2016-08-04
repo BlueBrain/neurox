@@ -66,6 +66,11 @@ void Mechanism::registerBAFunctions()
 
 void Mechanism::registerMechFunctions()
 {
+    if (this->sym && strcmp("capacitance", this->sym))
+    {
+        return;
+    }
+
     int type = this->type;
     //register functions //TODO will not work in more than 1 compute node
     this->membFunc.alloc = memb_func[type].alloc;

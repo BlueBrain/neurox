@@ -3,10 +3,6 @@
 #include <algorithm>
 #include <numeric>
 
-//Serialization data structures
-//#include <boost/serialization/vector.hpp>
-#include <boost/serialization/map.hpp>
-
 using namespace Neurox;
 
 Branch::~Branch()
@@ -53,10 +49,10 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
     int pdataOffset=0;
     int nodesIndicesOffset=0;
 
-    local->mechsInstances = new MechanismInstances[m];
+    local->mechsInstances = new MechanismInstance[m];
     for (int m=0; m<mechanismsCount; m++)
     {
-        MechanismInstances & instance = local->mechsInstances[m];
+        MechanismInstance & instance = local->mechsInstances[m];
         instance.instancesCount = instancesCount[m];
         int totalDataSize = mechanisms[m].dataSize * instance.instancesCount;
         int totalPdataSize = mechanisms[m].pdataSize * instance.instancesCount;
@@ -98,7 +94,7 @@ int Branch::initNetCons_handler(const int nargs, const void *args[], const size_
     neurox_hpx_unpin;
 }
 
-Branch::MechanismInstances & Branch::getMechanismInstanceFromType(int type)
+Branch::MechanismInstance & Branch::getMechanismInstanceFromType(int type)
 {
     return mechsInstances[mechanismsMap[type]];
 }
@@ -484,7 +480,7 @@ int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
-    MechanismInstances * mechInstances= local->mechsInstances;
+    MechanismInstance * mechInstances= local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism & mech = mechanisms[m];

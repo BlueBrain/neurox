@@ -5,12 +5,13 @@
 #include "coreneuron/nrnoc/membfunc.h" //mod_f_t, mod_alloc_t
 #include "coreneuron/nrnoc/nrnoc_ml.h" //ThreadDatum
 #include "coreneuron/nrnconf.h" //Datum
+#include "coreneuron/nrnoc/multicore.h" //NrnThread
 
 namespace Neurox
 {
 /**
  * @brief The Mechanisms class
- * Stores unique mechanisms information and dependencies
+ * Stores the unique metadata of each mechanism
  */
 class Mechanism
 {

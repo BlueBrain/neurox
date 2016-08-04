@@ -84,7 +84,7 @@ typedef hpx_addr_t hpx_t;
 
 ///hpx wrappers for sync call of a function to all children branches
 #define neurox_hpx_recursive_branch_sync(Func, ...) \
-    neurox_hpx_recursive_branch_async_call (Func, __HPX_NARGS(__VA_ARGS__) ) \
+    neurox_hpx_recursive_branch_async_call (Func, __VA_ARGS__ ) \
     neurox_hpx_recursive_branch_async_wait
 
 //auxiliars for neurox_hpx_register_action

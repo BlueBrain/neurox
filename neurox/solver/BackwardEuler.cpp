@@ -20,6 +20,8 @@ void BackwardEuler::solve()
             //for every communication step
             for (double t_comm=0; t_comm<inputParams->tstop; t_comm += dt_comm )
             {
+                printf("time = %.2f ms\n", t_comm);
+
                 //communication step (spike exchange)
                 //TODO [...]
 
@@ -74,24 +76,24 @@ int BackwardEuler::step_handler()
     local->setupTreeMatrixMinimal();
 
     //Linear Algebra: Gaussian elimination. solve_core.c:nrn_solve_minimal()
-    char isSoma=1;
-    hpx_call_sync(local->soma, Branch::gaussianBackTriangulation, NULL, 0, isSoma);
-    hpx_call_sync(local->soma, Branch::gaussianFwdSubstitution, NULL, 0, isSoma);
+    double parentRHS=0;
+    hpx_call_sync(local->soma, Branch::gaussianBackTriangulation, NULL, 0);
+    hpx_call_sync(local->soma, Branch::gaussianFwdSubstitution,   NULL, 0, &parentRHS, sizeof(parentRHS));
 
     //eion.c : second_order_cur()
     if (inputParams->secondorder == 2)
         hpx_call_sync(local->soma, Branch::secondOrderCurrent, NULL, 0);
 
     //fadvance_core.c : update()
-    hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder);
-    hpx_call_sync(local->soma, Branch::callModFunction, NULL, 0, Mechanism::ModFunction::capacityCurrent, local->t, local->dt);
+    hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder, sizeof(inputParams->secondorder));
+    local->callModFunction(Mechanism::ModFunction::capacityCurrent);
     //TODO: this is not a MOD file function, its in capac.c, has to be converted!
 
     local->t += .5*dt;
 
     //	fixed_play_continuous(nth); TODO
-    hpx_call_sync(local->soma, Branch::callModFunction, NULL, 0, Mechanism::ModFunction::state, local->t, local->dt); //nonvint(nth);
-    hpx_call_sync(local->soma, Branch::callModFunction, NULL, 0, Mechanism::ModFunction::after_solve, local->t, local->dt);
+    local->callModFunction(Mechanism::ModFunction::state);
+    local->callModFunction(Mechanism::ModFunction::after_solve);
 
     //wait for all post-synaptic neurons to receive (not process) synapses
     if (spikesLco != HPX_NULL)

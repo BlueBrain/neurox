@@ -34,7 +34,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
-    Branch::MechanismInstances * mechs = branch->mechsInstances;
+    Branch::MechanismInstance * mechs = branch->mechsInstances;
     membList.data  = mechs[mechType].data;
     membList.pdata = mechs[mechType].pdata;
     membList.nodecount = mechs[mechType].instancesCount;
@@ -229,7 +229,7 @@ void DataLoader::loadData(int argc, char ** argv)
         NrnThread & nt = nrn_threads[i];
         if (nt.ncell!=1)
         {
-            printf("Warning: ignoring NrnThread %d because it has %d neurons instead of 1\n", i);
+            printf("Warning: ignoring NrnThread %d because it has %d neurons instead of 1\n", i, nt.ncell);
             continue;
         }
 

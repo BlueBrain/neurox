@@ -19,6 +19,7 @@ double Neuron::getSomaVoltage()
 void Neuron::callModFunction(Mechanism::ModFunction functionId)
 {
     //TODO is it worth to make a local call instead of a call to hpx address?
+    //same will all calls to soma hpx_t
     //eg. callModFunction_handler
     //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
 }
