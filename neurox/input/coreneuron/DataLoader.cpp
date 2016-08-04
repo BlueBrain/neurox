@@ -135,15 +135,15 @@ void DataLoader::loadData(int argc, char ** argv)
     {
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
-        FILE *dotfile = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
-        fprintf(dotfile, "graph G%d\n{\n", i );
+        FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
+        fprintf(fileCompartments, "graph G%d\n{\n", i );
 
         //for all nodes in this NrnThread
         NrnThread * nt = &nrn_threads[i];
         for (int i=nt->ncell; i<nt->end; i++)
-            fprintf(dotfile, "%d -- %d;\n", nt->_v_parent_index[i], i);
-        fprintf(dotfile, "}\n");
-        fclose(dotfile);
+            fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[i], i);
+        fprintf(fileCompartments, "}\n");
+        fclose(fileCompartments);
     }
 #endif
 
@@ -254,8 +254,12 @@ void DataLoader::loadData(int argc, char ** argv)
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
         for (auto c : compartments)
+        {
+            if (c->branches.size()>1)
+                fprintf(fileCompartments, "%d [style=filled, fillcolor=beige];\n",  c->id);
             for (auto k : c->branches)
                 fprintf(fileCompartments, "%d -- %d;\n", c->id, k->id);
+        }
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
 #endif

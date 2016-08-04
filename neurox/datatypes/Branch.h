@@ -67,6 +67,7 @@ class Branch
     static hpx_action_t gaussianBackTriangulation; ///> Gaussian elimination's back triangulation: solve_core.c:triang()
     static hpx_action_t gaussianFwdSubstitution; ///> Gaussian elimination's forward substitution: solve_core.c:bksub()
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
+    static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
 
   private:
 
@@ -86,6 +87,7 @@ class Branch
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initMechanismsInstances_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int getSomaVoltage_handler();
 };
 
 }; //namespace

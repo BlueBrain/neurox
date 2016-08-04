@@ -8,9 +8,23 @@ Neuron::~Neuron()
     synapsesMutex = hpx_lco_sema_new(1);
 }
 
-void Neuron::callMechanismsModFunction(Neuron * local, Mechanism::ModFunction functionId)
+double Neuron::getSomaVoltage()
 {
-     hpx_call_sync(local->soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
+    double Vm;
+    hpx_call_sync(soma, Branch::getSomaVoltage, &Vm, sizeof(double));
+    return Vm;
+}
+
+void Neuron::callModFunction(Mechanism::ModFunction functionId)
+{
+    //TODO fix
+     //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
+}
+
+void Neuron::callNetReceiveFunction(char isInitFunction)
+{
+    //TODO fix
+     //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId), t, dt);
 }
 
 hpx_action_t Neuron::finitialize=0;
@@ -27,9 +41,9 @@ int Neuron::finitialize_handler()
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
-    callMechanismsModFunction(local, Mechanism::ModFunction::before_initialize);
-    callMechanismsModFunction(local, Mechanism::ModFunction::initialize);
-    callMechanismsModFunction(local, Mechanism::ModFunction::after_initialize);
+    local->callModFunction(Mechanism::ModFunction::before_initialize);
+    local->callModFunction(Mechanism::ModFunction::initialize);
+    local->callModFunction(Mechanism::ModFunction::after_initialize);
     Neuron::setupTreeMatrixMinimal(local);
 
     neurox_hpx_unpin;
@@ -40,10 +54,10 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     hpx_call_sync(local->soma, Branch::setupMatrixInitValues, NULL, 0);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-    callMechanismsModFunction(local, Mechanism::ModFunction::before_breakpoint);
+    local->callModFunction(Mechanism::ModFunction::before_breakpoint);
 
     //note that CAP has no current
-    callMechanismsModFunction(local, Mechanism::ModFunction::current);
+    local->callModFunction(Mechanism::ModFunction::current);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
     // now the internal axial currents.
@@ -61,12 +75,12 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
     // note that CAP has no jacob
-    callMechanismsModFunction(local, Mechanism::ModFunction::jacob);
+    local->callModFunction(Mechanism::ModFunction::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    callMechanismsModFunction(local, Mechanism::ModFunction::capJacob);
+    local->callModFunction(Mechanism::ModFunction::capJacob);
 
     //now add the axial currents
     hpx_call_sync(local->soma, Branch::setupMatrixLHS, NULL, 0, &isSoma, sizeof(isSoma));

@@ -154,7 +154,7 @@ hpx_action_t Branch::setV = 0;
 int Branch::setV_handler(const double * v, const size_t v_size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::setV, &v, v_size);
+    neurox_hpx_recursive_branch_async_call(Branch::setV, v, v_size);
     for (int n=0; n<local->n; n++)
         local->v[n]=*v;
     neurox_hpx_recursive_branch_async_wait;
@@ -170,6 +170,13 @@ int Branch::updateV_handler(const int * secondOrder, size_t secondOrder_size)
         local->v[i] += (*secondOrder ? 2 : 1) * local->rhs[i];
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::getSomaVoltage=0;
+int Branch::getSomaVoltage_handler()
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_unpin_continue(local->v[0]);
 }
 
 hpx_action_t Branch::setupMatrixInitValues = 0;
@@ -539,4 +546,5 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::initMechanismsInstances);
     neurox_hpx_register_action(2, Branch::initNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
+    neurox_hpx_register_action(0, Branch::getSomaVoltage);
 }

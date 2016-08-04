@@ -20,7 +20,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     isTopMechanism(isTopMechanism),
     symLength(symLength), isIon(isIon),
     children(nullptr), sym(nullptr),
-    conci(-1), conco(-1), charge(-1)
+    conci(-1), conco(-1), charge(-1) //registered in registerIonicCharges()
 {
     if (children != nullptr)
     {

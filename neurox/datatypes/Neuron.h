@@ -31,7 +31,10 @@ class Neuron
 
     static void registerHpxActions(); ///> Register all HPX actions
     static void setupTreeMatrixMinimal(Neuron * local); ///>set_tree_matrix_minimal
-    static void callMechanismsModFunction(Neuron * local, Mechanism::ModFunction functionId); ///> Calls MOD functions on all mechanisms
+    void callModFunction(Mechanism::ModFunction functionId); ///> Calls a MOD function on all mechanisms
+    void callNetReceiveFunction(char isInitFunction); ///> Calls NetReceive function on all branches
+    double getSomaVoltage(); ///> gets Soma voltage
+
     static hpx_t fireActionPotential(Neuron * local); ///> fires AP, returns LCO for sent synapses
     static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron

@@ -9,11 +9,26 @@ BackwardEuler::~BackwardEuler() {}
 
 void BackwardEuler::solve(double dt, double tstop)
 {
-    //TODO this should sync not every dt but all t_min_delay?
-    for (double t=0; t<tstop; t+=dt)
-        hpx_par_for_sync( [&] (int i, void*) -> int
-            { return hpx_call_sync(getNeuronAddr(i), BackwardEuler::step, NULL, 0); },
-            0, neuronsCount, NULL);
+    //for all neurons
+    hpx_par_for_sync( [&] (int i, void*) -> int
+        {
+            double dt = inputParams->dt;
+            double commStepSize = 0.1; //TODO get the collective minimum value
+
+            //loop through every step
+            for (double t=0; t<inputParams->tstop; t += commStepSize )
+            {
+                //computation steps
+                for (double tc=0; tc<commStepSize; tc += dt)
+                    hpx_call_sync(getNeuronAddr(i), BackwardEuler::step, NULL, 0);
+
+                //communication step (spike exchange)
+                //TODO [...]
+            }
+
+            return HPX_SUCCESS;
+        },
+    0, neuronsCount, NULL);
 }
 
 hpx_action_t BackwardEuler::step = 0;
@@ -22,14 +37,14 @@ int BackwardEuler::step_handler()
     neurox_hpx_pin(Neuron); //We are in a Neuron
 
     //1. multicore.c::nrn_thread_table_check()
-    hpx_call_sync(local->soma, Branch::callModFunction, NULL, 0, Mechanism::ModFunction::threadTableCheck, local->t, local->dt);
+    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
 
     //2. multicore.c::nrn_fixed_step_thread()
 
     //2.1 cvodestb::deliver_net_events(nth);
     //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
     //TODO check APT: if (local->topBranch->v[0] local->thresholdAP)
-    bool reachedThresold = true;
+    bool reachedThresold = local->getSomaVoltage() >= local->APthreshold;
     hpx_addr_t spikesLco = reachedThresold ? Neuron::fireActionPotential(local) : HPX_NULL;
 
     //3. netcvode.cpp::NetCon::deliver()
@@ -39,7 +54,7 @@ int BackwardEuler::step_handler()
     //            ->NetCvode::deliver_event()
     //            ->NetCon::deliver()
     //            ->net_receive() on mod files
-    hpx_call_sync(local->soma, Branch::callNetReceiveFunction, NULL, 0, local->t, local->dt);
+    local->callNetReceiveFunction(0);
 
     local->t += .5*dt;
 
