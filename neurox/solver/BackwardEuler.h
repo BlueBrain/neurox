@@ -18,7 +18,7 @@ class BackwardEuler
     ~BackwardEuler();
 
     static void registerHpxActions(); ///> Registers all HPX actions
-    static void solve(double dt, double tstop); ///> netpar.cpp:BBS_netpar_solve()
+    static void solve(); ///> netpar.cpp:BBS_netpar_solve()
     static hpx_action_t step; ///> performs one Backward Euler step in all neurons
 
   private:

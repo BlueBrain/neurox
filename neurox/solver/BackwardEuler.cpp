@@ -7,23 +7,34 @@ using namespace Neurox::Solver;
 
 BackwardEuler::~BackwardEuler() {}
 
-void BackwardEuler::solve(double dt, double tstop)
+void BackwardEuler::solve()
 {
     //for all neurons
     hpx_par_for_sync( [&] (int i, void*) -> int
         {
             double dt = inputParams->dt;
-            double commStepSize = 0.1; //TODO get the collective minimum value
+            double t_io = inputParams->dt_io;
+            double dt_comm = 0.1; //TODO get the collective minimum value
+            hpx_t neuronAddr= getNeuronAddr(i);
 
-            //loop through every step
-            for (double t=0; t<inputParams->tstop; t += commStepSize )
+            //for every communication step
+            for (double t_comm=0; t_comm<inputParams->tstop; t_comm += dt_comm )
             {
-                //computation steps
-                for (double tc=0; tc<commStepSize; tc += dt)
-                    hpx_call_sync(getNeuronAddr(i), BackwardEuler::step, NULL, 0);
-
                 //communication step (spike exchange)
                 //TODO [...]
+
+                //for every computation step inside of the communication step
+                for (double t=t_comm; t<t_comm+dt_comm; t += dt)
+                {
+                    hpx_call_sync(neuronAddr, BackwardEuler::step, NULL, 0);
+
+                    //if we are at the output time instant (or passed it), output to file
+                    if (t >= t_io)
+                    {
+                        //output
+                        t_io += inputParams->dt_io;
+                    }
+                }
             }
 
             return HPX_SUCCESS;
@@ -43,9 +54,9 @@ int BackwardEuler::step_handler()
 
     //2.1 cvodestb::deliver_net_events(nth);
     //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
-    //TODO check APT: if (local->topBranch->v[0] local->thresholdAP)
+    //TODO this voltage access should be done on a local memory access, see conversation with Luke
     bool reachedThresold = local->getSomaVoltage() >= local->APthreshold;
-    hpx_addr_t spikesLco = reachedThresold ? Neuron::fireActionPotential(local) : HPX_NULL;
+    hpx_addr_t spikesLco = reachedThresold ? local->fireActionPotential() : HPX_NULL;
 
     //3. netcvode.cpp::NetCon::deliver()
     //calls NET_RECEIVE in mod files to receive synapses
@@ -54,13 +65,13 @@ int BackwardEuler::step_handler()
     //            ->NetCvode::deliver_event()
     //            ->NetCon::deliver()
     //            ->net_receive() on mod files
-    local->callNetReceiveFunction(0);
+    local->callNetReceiveFunction(0); //TODO replace 0/1 by Function::NetReceive and Function::NetReceiveInit
 
     local->t += .5*dt;
 
     //TODO: fixed_play_continuous; for PlayRecord (whole logic missing)
 
-    Neuron::setupTreeMatrixMinimal(local);
+    local->setupTreeMatrixMinimal();
 
     //Linear Algebra: Gaussian elimination. solve_core.c:nrn_solve_minimal()
     char isSoma=1;

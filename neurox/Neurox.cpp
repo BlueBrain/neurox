@@ -125,7 +125,7 @@ static int main_handler( char **argv, size_t argc)
     //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
     //}
 
-    Solver::BackwardEuler::solve(inputParams.dt, inputParams.tstop); //BBS_netpar_solve( inputParams.tstop );
+    Solver::BackwardEuler::solve(); //BBS_netpar_solve( inputParams.tstop );
     assert(e == HPX_SUCCESS);
 
     BBS_netpar_solve( inputParams.tstop );

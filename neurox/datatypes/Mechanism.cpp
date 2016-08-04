@@ -38,7 +38,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     }
 
     registerMechFunctions();
-    //registerBAFunctions();
+    registerBAFunctions();
     if (isIon)
         registerIonicCharges();
 
@@ -59,7 +59,8 @@ void Mechanism::registerBAFunctions()
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
     {
         //BUG not implemented by CoreNeuron, undefined bam leads to SEGFAULT:
-        this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
+        //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
+        this->BAfunctions[i] = NULL;
     }
 }
 
@@ -118,7 +119,8 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
 
     Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
     if (functionId<BEFORE_AFTER_SIZE)
-        mech.BAfunctions[functionId](&nrnThread, &membList, mechType);
+        if (mech.BAfunctions[functionId])
+            mech.BAfunctions[functionId](&nrnThread, &membList, mechType);
     else
     {
         switch(functionId)

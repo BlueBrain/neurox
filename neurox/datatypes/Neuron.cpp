@@ -10,6 +10,7 @@ Neuron::~Neuron()
 
 double Neuron::getSomaVoltage()
 {
+    //TODO make local call
     double Vm;
     hpx_call_sync(soma, Branch::getSomaVoltage, &Vm, sizeof(double));
     return Vm;
@@ -17,14 +18,15 @@ double Neuron::getSomaVoltage()
 
 void Neuron::callModFunction(Mechanism::ModFunction functionId)
 {
-    //TODO fix
-     //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
+    //TODO is it worth to make a local call instead of a call to hpx address?
+    //eg. callModFunction_handler
+    //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
 }
 
 void Neuron::callNetReceiveFunction(char isInitFunction)
 {
     //TODO fix
-     //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId), t, dt);
+    //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId), t, dt);
 }
 
 hpx_action_t Neuron::finitialize=0;
@@ -44,29 +46,28 @@ int Neuron::finitialize_handler()
     local->callModFunction(Mechanism::ModFunction::before_initialize);
     local->callModFunction(Mechanism::ModFunction::initialize);
     local->callModFunction(Mechanism::ModFunction::after_initialize);
-    Neuron::setupTreeMatrixMinimal(local);
+    local->setupTreeMatrixMinimal();
 
     neurox_hpx_unpin;
 }
 
-void Neuron::setupTreeMatrixMinimal(Neuron * local)
+void Neuron::setupTreeMatrixMinimal()
 {
-    hpx_call_sync(local->soma, Branch::setupMatrixInitValues, NULL, 0);
+    hpx_call_sync(soma, Branch::setupMatrixInitValues, NULL, 0);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-    local->callModFunction(Mechanism::ModFunction::before_breakpoint);
+    callModFunction(Mechanism::ModFunction::before_breakpoint);
 
     //note that CAP has no current
-    local->callModFunction(Mechanism::ModFunction::current);
+    callModFunction(Mechanism::ModFunction::current);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
     // now the internal axial currents.
     //The extracellular mechanism contribution is already done.
     //	rhs += ai_j*(vi_j - vi)
-    char isSoma=1;
     double dummyVoltage=-1;
-    hpx_call_sync(local->soma, Branch::setupMatrixRHS, NULL, 0,
-                  &isSoma, sizeof(isSoma), &dummyVoltage, sizeof(dummyVoltage));
+    hpx_call_sync(soma, Branch::setupMatrixRHS, NULL, 0,
+                  &dummyVoltage, sizeof(dummyVoltage));
 
     // calculate left hand side of
     //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
@@ -75,15 +76,15 @@ void Neuron::setupTreeMatrixMinimal(Neuron * local)
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
     // note that CAP has no jacob
-    local->callModFunction(Mechanism::ModFunction::jacob);
+    callModFunction(Mechanism::ModFunction::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    local->callModFunction(Mechanism::ModFunction::capJacob);
+    callModFunction(Mechanism::ModFunction::capJacob);
 
     //now add the axial currents
-    hpx_call_sync(local->soma, Branch::setupMatrixLHS, NULL, 0, &isSoma, sizeof(isSoma));
+    hpx_call_sync(soma, Branch::setupMatrixLHS, NULL, 0);
 }
 
 hpx_action_t Neuron::init = 0;
@@ -114,16 +115,16 @@ int Neuron::addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t)
     neurox_hpx_unpin;
 }
 
-hpx_t Neuron::fireActionPotential(Neuron * local)
+hpx_t Neuron::fireActionPotential()
 {
-    if (local->synapses.size()==0)
+    if (synapses.size()==0)
         return HPX_NULL;
 
     //netcvode.cpp::PreSyn::send()
-    hpx_t spikesLco = hpx_lco_and_new(local->synapses.size());
-    for (int s=0; s<local->synapses.size(); s++)
-        hpx_call(local->synapses[s], Branch::queueSpikes, spikesLco,
-                 &local->id, sizeof(local->id), &local->t, sizeof(local->t) );
+    hpx_t spikesLco = hpx_lco_and_new(synapses.size());
+    for (int s=0; s<synapses.size(); s++)
+        hpx_call(synapses[s], Branch::queueSpikes, spikesLco,
+                 &id, sizeof(id), &t, sizeof(t) );
     return spikesLco;
 }
 

@@ -321,7 +321,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //recursively create morphological tree, neuron metadata, and synapses
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
-        hpx_t topBranch = createBranch(compartments.at(0), netcons);
+        hpx_t topBranch = createBranch((char) 1, compartments.at(0), netcons);
         hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0,
                       &neuronId, sizeof(int),
                       &topBranch, sizeof(hpx_t),
@@ -341,7 +341,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
@@ -387,16 +387,20 @@ hpx_t DataLoader::createBranch(Compartment * topCompartment,  map<int, vector<Ne
     //recursively create children branches
     vector<hpx_t> branches (comp->branches.size());
     for (int c=0; c<comp->branches.size(); c++)
-        branches[c]=createBranch(comp->branches[c], netcons);
+        branches[c]=createBranch((char) 0, comp->branches[c], netcons);
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
 
     //initiate main branch information (n, a, b, d, v, rhs, area, branchesCount, branches)
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
-                  a.data(), sizeof(double)*a.size(), b.data(), sizeof(double)*b.size(),
-                  d.data(), sizeof(double)*d.size(), v.data(), sizeof(double)*v.size(),
-                  rhs.data(), sizeof(double)*rhs.size(), area.data(), sizeof(double)*area.size(),
+                  &isSoma, sizeof(char),
+                  a.data(), sizeof(double)*a.size(),
+                  b.data(), sizeof(double)*b.size(),
+                  d.data(), sizeof(double)*d.size(),
+                  v.data(), sizeof(double)*v.size(),
+                  rhs.data(), sizeof(double)*rhs.size(),
+                  area.data(), sizeof(double)*area.size(),
                   branches.data(), sizeof(hpx_t)*branches.size());
 
     //merge all vectors into the first one

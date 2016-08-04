@@ -107,45 +107,47 @@ hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs = 7 where
-     * args[0] = a, vector A per compartment
-     * args[1] = b, vector B per compartment
-     * args[2] = d, vector D per compartment
-     * args[3] = v, vector V per compartment
-     * args[4] = rhs, vector RHS per compartment
-     * args[5] = area, vector 'area' per compartment
-     * args[6] = branches, children branches
+     * nargs = 8 where
+     * args[0] = isSoma (1 or 0)
+     * args[1] = a, vector A per compartment
+     * args[2] = b, vector B per compartment
+     * args[3] = d, vector D per compartment
+     * args[4] = v, vector V per compartment
+     * args[5] = rhs, vector RHS per compartment
+     * args[6] = area, vector 'area' per compartment
+     * args[7] = branches, children branches
      */
 
     neurox_hpx_pin(Branch);
-    assert(nargs==7);
-    const int n = sizes[0]/sizeof(double);
-    const double * a = (const double*) args[0];
-    const double * b = (const double*) args[1];
-    const double * d = (const double*) args[2];
-    const double * v = (const double*) args[3];
-    const double * rhs = (const double*) args[4];
-    const double * area = (const double*) args[5];
-    const hpx_t * branches = (const hpx_t*) args[6];
+    assert(nargs==8);
 
-    local->n = n;
-    local->branchesCount = sizes[6]/sizeof(hpx_t);
+    local->isSoma = *(const char*) args[0];
+    local->n = sizes[1]/sizeof(double);
+    local->branchesCount = sizes[7]/sizeof(hpx_t);
 
-    local->a = new double[n];
-    local->b = new double[n];
-    local->d = new double[n];
-    local->v = new double[n];
-    local->rhs = new double[n];
-    local->area = new double[n];
+    const double * a = (const double*) args[1];
+    const double * b = (const double*) args[2];
+    const double * d = (const double*) args[3];
+    const double * v = (const double*) args[4];
+    const double * rhs = (const double*) args[5];
+    const double * area = (const double*) args[6];
+    const hpx_t * branches = (const hpx_t*) args[7];
+
+    local->a = new double[local->n];
+    local->b = new double[local->n];
+    local->d = new double[local->n];
+    local->v = new double[local->n];
+    local->rhs = new double[local->n];
+    local->area = new double[local->n];
     local->branches = new hpx_t[local->branchesCount];
 
-    memcpy(local->a, a, sizes[0]);
-    memcpy(local->b, b, sizes[1]);
-    memcpy(local->d, d, sizes[2]);
-    memcpy(local->v, v, sizes[3]);
-    memcpy(local->rhs, rhs, sizes[4]);
-    memcpy(local->area, area, sizes[5]);
-    memcpy(local->branches, branches, sizes[6]);
+    memcpy(local->a, a, sizes[1]);
+    memcpy(local->b, b, sizes[2]);
+    memcpy(local->d, d, sizes[3]);
+    memcpy(local->v, v, sizes[4]);
+    memcpy(local->rhs, rhs, sizes[5]);
+    memcpy(local->area, area, sizes[6]);
+    memcpy(local->branches, branches, sizes[7]);
 
     neurox_hpx_unpin;;
 }
@@ -194,14 +196,10 @@ int Branch::setupMatrixInitValues_handler()
 }
 
 hpx_action_t Branch::setupMatrixRHS = 0;
-int Branch::setupMatrixRHS_handler(const int nargs, const void *args[], const size_t[])
+int Branch::setupMatrixRHS_handler(const double * parentV_ptr, const size_t)
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2);
-    const char * isSoma = (const char*) args[0];
-    const double * parentV = (const double*) args[1];
-
-    int n = local->n;
+    const int n = local->n;
     double *a   = local->a;
     double *b   = local->b;
     double *v   = local->v;
@@ -212,9 +210,9 @@ int Branch::setupMatrixRHS_handler(const int nargs, const void *args[], const si
     double dv=-1;
 
     //for (i = i2; i < i3; ++i))
-    if (!*isSoma)
+    if (!local->isSoma)
     {
-        dv = *parentV-v[0];
+        dv = *parentV_ptr-v[0];
         rhs[0] -= b[0]*dv;
         returnValue = a[0]*dv;
     }
@@ -230,14 +228,13 @@ int Branch::setupMatrixRHS_handler(const int nargs, const void *args[], const si
     void  ** addrs  = new void*[branchesCount];
     size_t * sizes  = new size_t[branchesCount];
     double * values = new double[branchesCount];
-    char isSomaFlag=0;
     for (int c = 0; c < local->branchesCount; c++)
     {
         futures[c] = hpx_lco_future_new(sizeof(double));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(double);
         hpx_call(local->branches[c], Branch::setupMatrixRHS, futures[c],
-                 &isSomaFlag, sizeof(isSomaFlag), &v[n-1], sizeof(v[n-1]));
+                 &v[n-1], sizeof(v[n-1]));
     }
 
     if (branchesCount > 0) //required or fails
@@ -255,7 +252,7 @@ int Branch::setupMatrixRHS_handler(const int nargs, const void *args[], const si
     delete [] sizes;
     delete [] values;
 
-    if (!isSoma)
+    if (!local->isSoma)
         neurox_hpx_unpin_continue(returnValue);
     neurox_hpx_unpin;
 }
@@ -267,7 +264,7 @@ struct BackTriangFuture
 }; ///> future value of the back-triangulation method
 
 hpx_action_t Branch::gaussianBackTriangulation = 0;
-int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t isSoma_size)
+int Branch::gaussianBackTriangulation_handler()
 {
     neurox_hpx_pin(Branch);
     int n = local->n;
@@ -283,13 +280,12 @@ int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t 
 
     BackTriangFuture * values = branchesCount ? new BackTriangFuture[branchesCount] : nullptr;
 
-    char isSomaFlag=0;
     for (int c = 0; c < branchesCount; c++)
     {
         futures[c] = hpx_lco_future_new(sizeof (BackTriangFuture));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(BackTriangFuture);
-        hpx_call(local->branches[c], Branch::gaussianBackTriangulation, futures[c], &isSomaFlag, isSoma_size);
+        hpx_call(local->branches[c], Branch::gaussianBackTriangulation, futures[c]);
     }
 
     if (branchesCount > 0) //required or fails
@@ -317,7 +313,7 @@ int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t 
     delete [] values;
 
     //value to be decremented will be sent to parent branch (except soma)
-    if (!*isSoma)
+    if (!local->isSoma)
     {
         BackTriangFuture futureData;
         q = a[0] / d[0];
@@ -330,36 +326,31 @@ int Branch::gaussianBackTriangulation_handler(const char * isSoma, const size_t 
 
 
 hpx_action_t Branch::gaussianFwdSubstitution = 0;
-int Branch::gaussianFwdSubstitution_handler(const int nargs, const void *args[], const size_t sizes[])
+int Branch::gaussianFwdSubstitution_handler(const double * parentRHS_ptr, const size_t)
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2);
-    const char * isSoma = (const char *) args[0];
-    const double *parentRHS = (const double *) args[1];
-
     double *b   = local->b;
     double *d   = local->d;
     double *rhs = local->rhs;
     int n = local->n;
 
-    if(*isSoma)
+    if(local->isSoma)
     {
         rhs[0] /= d[0];
     }
     else for (int i=0; i<n; i++)
     {
-        rhs[i] -= b[i] * (i==0 ? *parentRHS : rhs[i-1]);
+        rhs[i] -= b[i] * (i==0 ? *parentRHS_ptr : rhs[i-1]);
         rhs[i] /= d[i];
     }
 
-    char isSomaFlag=0;
     double childrenRHS=rhs[n-1];
-    neurox_hpx_recursive_branch_sync(Branch::gaussianFwdSubstitution, &isSomaFlag, sizeof(isSomaFlag), &childrenRHS, sizeof(childrenRHS));
+    neurox_hpx_recursive_branch_sync(Branch::gaussianFwdSubstitution, &childrenRHS, sizeof(childrenRHS));
     neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::setupMatrixLHS = 0;
-int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size)
+int Branch::setupMatrixLHS_handler()
 {
     neurox_hpx_pin(Branch);
     int n = local->n;
@@ -371,7 +362,7 @@ int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size
     double returnValue = -1; //contribution to upper branch
 
     //for (i = i2; i < i3; ++i))
-    if (!*isSoma)
+    if (!local->isSoma)
     {
         d[0] -= b[0];
         returnValue = a[0];
@@ -387,13 +378,12 @@ int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size
     void  ** addrs  = new void*[branchesCount];
     size_t * sizes  = new size_t[branchesCount];
     double * values = new double[branchesCount];
-    char isSomaFlag=0;
     for (int c = 0; c<local->branchesCount; c++)
     {
         futures[c] = hpx_lco_future_new(sizeof(double));
         addrs[c]   = &values[c];
         sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], Branch::setupMatrixLHS, futures[c], &isSomaFlag, isSoma_size);
+        hpx_call(local->branches[c], Branch::setupMatrixLHS, futures[c]);
     }
 
     if (branchesCount > 0) //required or fails
@@ -411,7 +401,7 @@ int Branch::setupMatrixLHS_handler(const char * isSoma, const size_t isSoma_size
     delete [] sizes;
     delete [] values;
 
-    if (!isSoma)
+    if (!local->isSoma)
         neurox_hpx_unpin_continue(returnValue);
     neurox_hpx_unpin;
 }
@@ -533,11 +523,11 @@ int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_
 
 void Branch::registerHpxActions()
 {
-    neurox_hpx_register_action(2, Branch::setupMatrixRHS);
-    neurox_hpx_register_action(1, Branch::setupMatrixLHS);
+    neurox_hpx_register_action(1, Branch::setupMatrixRHS);
+    neurox_hpx_register_action(0, Branch::setupMatrixLHS);
     neurox_hpx_register_action(1, Branch::updateV);
-    neurox_hpx_register_action(1, Branch::gaussianBackTriangulation);
-    neurox_hpx_register_action(2, Branch::gaussianFwdSubstitution);
+    neurox_hpx_register_action(0, Branch::gaussianBackTriangulation);
+    neurox_hpx_register_action(1, Branch::gaussianFwdSubstitution);
     neurox_hpx_register_action(1, Branch::setV);
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(2, Branch::callNetReceiveFunction);

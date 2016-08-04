@@ -21,13 +21,14 @@ class Branch
     ~Branch();
 
     //sparse matrix information:
-    short int n;	///> number of compartments
-    double * a;		///> top diagonal of Linear Algebra sparse tridiagonal matrix
-    double * b;		///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
-    double * d;		///> main diagonal of Linear Algebra spart tridiagonal matrix
-    double * v;		///> current voltage per compartment
-    double * rhs;	///> right-hand side (solution vector) of Linear Algebra solver
-    double * area;	///> current area per compartment
+    short int n;		///> number of compartments
+    char isSoma;        ///> is this branch the top branch of the morphology tree (ie constains soma?)
+    double * a;			///> top diagonal of Linear Algebra sparse tridiagonal matrix
+    double * b;			///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
+    double * d;			///> main diagonal of Linear Algebra spart tridiagonal matrix
+    double * v;			///> current voltage per compartment
+    double * rhs;		///> right-hand side (solution vector) of Linear Algebra solver
+    double * area;		///> current area per compartment
 
     struct MechanismInstances
     {
@@ -73,11 +74,11 @@ class Branch
 
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
 
-    static int setupMatrixRHS_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int setupMatrixLHS_handler(const char * isSoma, const size_t);
+    static int setupMatrixRHS_handler(const double * parentV_ptr, const size_t);
+    static int setupMatrixLHS_handler();
     static int updateV_handler(const int * secondOrder, const size_t);
-    static int gaussianBackTriangulation_handler(const char * isSoma, const size_t);
-    static int gaussianFwdSubstitution_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int gaussianBackTriangulation_handler();
+    static int gaussianFwdSubstitution_handler(const double * parentRHS_ptr, const size_t);
     static int secondOrderCurrent_handler();
     static int setupMatrixInitValues_handler();
     static int setV_handler(const double * v, const size_t);
