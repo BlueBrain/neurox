@@ -12,8 +12,8 @@ using namespace NeuroX::Input::Coreneuron;
 Compartment::~Compartment(){};
 
 Compartment::Compartment(int id, double a, double b, double d,
-                            double v, double rhs, double area):
-    id(id), a(a), b(b), d(d), v(v), rhs(rhs), area(area) {};
+                            double v, double rhs, double area, int p):
+    id(id), a(a), b(b), d(d), v(v), rhs(rhs), area(area), p(p) {};
 
 void Compartment::addChild(Compartment * child)
 {

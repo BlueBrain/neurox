@@ -41,6 +41,12 @@ class DataLoader
 
     static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
+
+private:
+    static Compartment* getBranchSectionData(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
+                              vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
+                              vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
+                              vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices, char recursive);
 };
 
 }; //Coreneuron

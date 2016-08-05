@@ -241,7 +241,8 @@ void DataLoader::loadData(int argc, char ** argv)
         for (int n=0; n<nt.end; n++)
             compartments.push_back(
                 new Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
-                                nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n]));
+                                nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n],
+                                nt._v_parent_index[n]));
 
         //reconstructs parents tree
         for (int n=nt.end-1; n>0; n--) //exclude top (no parent)
@@ -341,21 +342,14 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
+                          vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
+                          vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
+                          vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices, char multiSplit)
 {
-    int n=0; //number of compartments
-    vector<double> d, b, a, rhs, v, area; //compartments info
-
-    vector<int> instancesCount (mechanismsCount); //instances count per mechanism type (initialized to 0)
-    vector<vector<double>> data(mechanismsCount); //data per mechanism type
-    vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
-    vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
-
     //iterate through all compartments on the branch
-    Compartment *comp = NULL;
-    for (comp = topCompartment;
-         comp->branches.size()==1;
-         comp = comp->branches.front())
+    Compartment *comp = topCompartment;
+    while(1)
     {
         d.push_back(comp->d);
         b.push_back(comp->b);
@@ -363,6 +357,7 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
         v.push_back(comp->v);
         rhs.push_back(comp->rhs);
         area.push_back(comp->area);
+        p.push_back(comp->p);
 
         //copy all mechanisms instances
         int dataOffset=0;
@@ -382,12 +377,54 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
             instancesCount[mechOffset]++;
         }
         n++;
-    }
 
-    //recursively create children branches
+        if (comp->branches.size()==0) //leaf
+            return comp;
+
+        if (comp->branches.size() > 1) //bifurcation
+        {
+            if (!multiSplit)
+            {
+              Compartment * bottomComp = NULL;
+              for (int c=0; c<comp->branches.size(); c++)
+                bottomComp = getBranchSectionData(comp->branches[c], n, d, b, a, rhs, v,
+                                        area, p, instancesCount, data, pdata, nodesIndices,
+                                        multiSplit);
+            }
+            return comp;
+        }
+
+        //otherwise, iterate (take the next compartment in the sequence)
+        comp = comp->branches.front();
+    }
+    assert(0);
+    return NULL; //should never enter here
+}
+
+hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+{
+    int n=0; //number of compartments
+    vector<double> d, b, a, rhs, v, area; //compartments info
+    vector<int> p; //parent nodes index
+
+    vector<int> instancesCount (mechanismsCount); //instances count per mechanism type (initialized to 0)
+    vector<vector<double>> data(mechanismsCount); //data per mechanism type
+    vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
+    vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
+
+    char multiSplit=0;
+    Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v,
+                                              area, p, instancesCount, data, pdata, nodesIndices,
+                                              multiSplit);
     vector<hpx_t> branches (comp->branches.size());
-    for (int c=0; c<comp->branches.size(); c++)
+
+
+    if (multiSplit) //next branches will be *hpx children* of this one
+    {
+      //recursively create children branches
+      for (int c=0; c<comp->branches.size(); c++)
         branches[c]=createBranch((char) 0, comp->branches[c], netcons);
+    }
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
@@ -401,10 +438,10 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
                   v.data(), sizeof(double)*v.size(),
                   rhs.data(), sizeof(double)*rhs.size(),
                   area.data(), sizeof(double)*area.size(),
-                  branches.data(), sizeof(hpx_t)*branches.size(),
-                  NULL, 0);
+                  multiSplit ? branches.data() : NULL, multiSplit ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSplit ? NULL : p.data(), multiSplit ? 0 : sizeof(int)*p.size());
 
-    //merge all vectors into the first one
+    //merge all mechanisms vectors into the first one
     for (int m=1; m<mechanismsCount; m++)
     {
         data[0].insert(data[0].end(), data[m].begin(), data[m].end());

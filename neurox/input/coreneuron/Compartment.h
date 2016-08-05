@@ -19,7 +19,7 @@ class Compartment
 {
   public:
     Compartment()=delete;
-    Compartment(int id, double a, double b, double d, double v, double rhs, double area);
+    Compartment(int id, double a, double b, double d, double v, double rhs, double area, int p=-999);
     ~Compartment();
 
     void addChild(Compartment* child);
@@ -29,6 +29,7 @@ class Compartment
     int id;
     vector<Compartment*> branches;
     double a,b,d,v,rhs,area;
+    int p;
     vector<int> mechsTypes;
     vector<int> mechsInstances;
     vector<double> data;

@@ -31,6 +31,8 @@ class Branch
     double * area;	///> current area per compartment
     int *p;         ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
+    //TODO variables n and p can be short int unless we merge several neurons (a la CoreNeuron)
+
     struct MechanismInstance
     {
         int instancesCount; ///> number of instances of particular mechanism
