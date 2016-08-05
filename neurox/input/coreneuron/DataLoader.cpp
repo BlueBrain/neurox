@@ -170,8 +170,8 @@ void DataLoader::loadData(int argc, char ** argv)
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, nullptr, //set to NULL because will be serialized below
-                       isTopMechanism, childrenCount, nullptr));  //set to NULL because will be serialized below
+                       symLength, NULL, //sym will be serialized below
+                       isTopMechanism, childrenCount, NULL));  //children will be serialized below
 
         mechsChildren.insert(mechsChildren.end(), children, children + childrenCount);
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);

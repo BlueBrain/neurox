@@ -80,7 +80,7 @@ private:
     void disableMechFunctions(); ///> sets to NULL all function pointers
     void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
     void registerCapacitance();   ///> register mechanism of type "capacitance"
-    void registerBAFunctions();   ///> register Before-After functions
+    void registerBeforeAfterFunctions();   ///> register Before-After functions
     void registerModMechanism(); ///> register mechanisms functions (mod_t_f type)
     static int callModFunction_handler(const int nargs, const void *args[], const size_t[]);
 

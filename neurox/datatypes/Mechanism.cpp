@@ -21,9 +21,9 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     isTopMechanism(isTopMechanism),
     symLength(symLength), isIon(isIon),
     children(nullptr), sym(nullptr),
-    conci(-1), conco(-1), charge(-1) //registered in registerIonicCharges()
+    conci(-1), conco(-1), charge(-1)
 {
-    disableMechFunctions();
+
 
     if (children != nullptr)
     {
@@ -40,6 +40,10 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
         this->sym[symLength] = '\0';
     }
 
+    if (sym==nullptr && children == nullptr) //not constructing, just serialized for transmission
+        return;
+
+    disableMechFunctions();
     if (this->type == CAP) //capacitance: capac.c
         registerCapacitance();
     else if (this->isIon)  //ion: eion.c
@@ -47,7 +51,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     else //general mechanism: mod file
         registerModMechanism();
 
-    //registerBAFunctions();
+    //registerBeforeAfterFunctions();
 
 #ifdef DEBUG
     printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
@@ -59,7 +63,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
 #endif
 };
 
-void Mechanism::registerBAFunctions()
+void Mechanism::registerBeforeAfterFunctions()
 {
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
@@ -133,6 +137,8 @@ extern void ion_alloc(double*, int*, int type);
 
 void Mechanism::registerIon()
 {
+    assert(this->isIon);
+
     double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
     conci = ion_global_map[type][0];
     conco = ion_global_map[type][1];

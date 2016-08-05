@@ -2,6 +2,7 @@
 #include "string.h"
 
 using namespace NeuroX;
+using namespace NeuroX::Solver;
 
 Neuron::~Neuron()
 {
@@ -19,9 +20,7 @@ double Neuron::getSomaVoltage()
 void Neuron::callModFunction(Mechanism::ModFunction functionId)
 {
     //TODO is it worth to make a local call instead of a call to hpx address?
-    //same will all calls to soma hpx_t
-    //eg. callModFunction_handler
-    printf("FLAG3: function id is %d\n", functionId);
+    //same will all calls to soma hpx_t eg. callModFunction_handler
     hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
 }
 
@@ -70,7 +69,7 @@ void Neuron::setupTreeMatrixMinimal()
     //The extracellular mechanism contribution is already done.
     //	rhs += ai_j*(vi_j - vi)
     double dummyVoltage=-1;
-    hpx_call_sync(soma, Branch::setupMatrixRHS, NULL, 0,
+    hpx_call_sync(soma, HinesSolver::setupMatrixRHS, NULL, 0,
                   &dummyVoltage, sizeof(dummyVoltage));
 
     // calculate left hand side of
@@ -88,7 +87,7 @@ void Neuron::setupTreeMatrixMinimal()
     callModFunction(Mechanism::ModFunction::capacitanceJacob);
 
     //now add the axial currents
-    hpx_call_sync(soma, Branch::setupMatrixLHS, NULL, 0);
+    hpx_call_sync(soma, HinesSolver::setupMatrixLHS, NULL, 0);
 }
 
 hpx_action_t Neuron::init = 0;

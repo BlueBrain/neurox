@@ -12,8 +12,9 @@
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"
 
-//Solvers
+//Fixed-step Backward-Euler solver
 #include "neurox/solver/BackwardEuler.h"
+#include "neurox/solver/HinesSolver.h"
 
 //CoreNeuron data loader
 #include "neurox/input/coreneuron/Compartment.h"

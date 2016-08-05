@@ -66,8 +66,8 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
 
     //Linear Algebra: Gaussian elimination. solve_core.c:nrn_solve_minimal()
     double parentRHS=0;
-    hpx_call_sync(local->soma, Branch::gaussianBackTriangulation, NULL, 0);
-    hpx_call_sync(local->soma, Branch::gaussianFwdSubstitution,   NULL, 0, &parentRHS, sizeof(parentRHS));
+    hpx_call_sync(local->soma, HinesSolver::gaussianBackTriangulation, NULL, 0);
+    hpx_call_sync(local->soma, HinesSolver::gaussianFwdSubstitution,   NULL, 0, &parentRHS, sizeof(parentRHS));
 
     //eion.c : second_order_cur()
     if (inputParams->secondorder == 2)

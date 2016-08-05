@@ -149,8 +149,12 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
     if (sizes[8]>0)
     {
-        local->p = new short int[local->n];
+        local->p = new int[local->n];
         memcpy(local->p, args[8], sizes[8]);
+    }
+    else
+    {
+        local->p = NULL;
     }
 
     neurox_hpx_unpin;;
@@ -199,230 +203,20 @@ int Branch::setupMatrixInitValues_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::setupMatrixRHS = 0;
-int Branch::setupMatrixRHS_handler(const double * parentV_ptr, const size_t)
-{
-    neurox_hpx_pin(Branch);
-    const int n = local->n;
-    double *a   = local->a;
-    double *b   = local->b;
-    double *v   = local->v;
-    double *rhs = local->rhs;
-    int branchesCount = local->branchesCount;
-
-    double returnValue = -1; //contribution to upper branch
-    double dv=-1;
-
-    //for (i = i2; i < i3; ++i))
-    if (!local->isSoma)
-    {
-        dv = *parentV_ptr-v[0];
-        rhs[0] -= b[0]*dv;
-        returnValue = a[0]*dv;
-    }
-    for (int i=1; i<local->n; i++)
-    {
-        dv = v[i-1]-v[i];
-        rhs[i] -= b[i]*dv;
-        rhs[i-1] += a[i]*dv;
-    }
-
-    //send/receive contribution to/from branches
-    hpx_t * futures = new hpx_t[branchesCount];
-    void  ** addrs  = new void*[branchesCount];
-    size_t * sizes  = new size_t[branchesCount];
-    double * values = new double[branchesCount];
-    for (int c = 0; c < local->branchesCount; c++)
-    {
-        futures[c] = hpx_lco_future_new(sizeof(double));
-        addrs[c]   = &values[c];
-        sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], Branch::setupMatrixRHS, futures[c],
-                 &v[n-1], sizeof(v[n-1]));
-    }
-
-    if (branchesCount > 0) //required or fails
-        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-
-    //received contributions, can now update value
-    for (int c = 0; c < branchesCount; c++)
-    {
-        rhs[n-1] += values[c];
-        hpx_lco_delete(futures[c], HPX_NULL);
-    }
-
-    delete [] futures;
-    delete [] addrs;
-    delete [] sizes;
-    delete [] values;
-
-    if (!local->isSoma)
-        neurox_hpx_unpin_continue(returnValue);
-    neurox_hpx_unpin;
-}
-
-struct BackTriangFuture
-{
-    double rhs;
-    double b;
-}; ///> future value of the back-triangulation method
-
-hpx_action_t Branch::gaussianBackTriangulation = 0;
-int Branch::gaussianBackTriangulation_handler()
-{
-    neurox_hpx_pin(Branch);
-    int n = local->n;
-    double *a   = local->a;
-    double *b   = local->b;
-    double *d   = local->d;
-    double *rhs = local->rhs;
-    int branchesCount = local->branchesCount;
-
-    hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-    void  ** addrs  = branchesCount ? new void*[branchesCount]  : nullptr;
-    size_t * sizes  = branchesCount ? new size_t[branchesCount] : nullptr;
-
-    BackTriangFuture * values = branchesCount ? new BackTriangFuture[branchesCount] : nullptr;
-
-    for (int c = 0; c < branchesCount; c++)
-    {
-        futures[c] = hpx_lco_future_new(sizeof (BackTriangFuture));
-        addrs[c]   = &values[c];
-        sizes[c]   = sizeof(BackTriangFuture);
-        hpx_call(local->branches[c], Branch::gaussianBackTriangulation, futures[c]);
-    }
-
-    if (branchesCount > 0) //required or fails
-        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-
-    //bottom compartment can now be updated with children's contribution
-    for (int c = 0; c < branchesCount; c++)
-    {
-        d[n-1]   -= values[c].b;
-        rhs[n-1] -= values[c].rhs;
-        hpx_lco_delete(futures[c], HPX_NULL);
-    }
-
-    double q;
-    for (int i = n - 1; i >= 1; --i)
-    {
-        q = a[i]/d[i];
-        d[i-1]   -= q * b[i];
-        rhs[i-1] -= q * rhs[i];
-    }
-
-    delete [] futures;
-    delete [] addrs;
-    delete [] sizes;
-    delete [] values;
-
-    //value to be decremented will be sent to parent branch (except soma)
-    if (!local->isSoma)
-    {
-        BackTriangFuture futureData;
-        q = a[0] / d[0];
-        futureData.b   = q * b[0];
-        futureData.rhs = q * rhs[0];
-        neurox_hpx_unpin_continue(futureData);
-    }
-    neurox_hpx_unpin;
-}
-
-
-hpx_action_t Branch::gaussianFwdSubstitution = 0;
-int Branch::gaussianFwdSubstitution_handler(const double * parentRHS_ptr, const size_t)
-{
-    neurox_hpx_pin(Branch);
-    double *b   = local->b;
-    double *d   = local->d;
-    double *rhs = local->rhs;
-    int n = local->n;
-
-    if(local->isSoma)
-    {
-        rhs[0] /= d[0];
-    }
-    else for (int i=0; i<n; i++)
-    {
-        rhs[i] -= b[i] * (i==0 ? *parentRHS_ptr : rhs[i-1]);
-        rhs[i] /= d[i];
-    }
-
-    double childrenRHS=rhs[n-1];
-    neurox_hpx_recursive_branch_sync(Branch::gaussianFwdSubstitution, &childrenRHS, sizeof(childrenRHS));
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::setupMatrixLHS = 0;
-int Branch::setupMatrixLHS_handler()
-{
-    neurox_hpx_pin(Branch);
-    int n = local->n;
-    double *a   = local->a;
-    double *b   = local->b;
-    double *d   = local->d;
-    int branchesCount = local->branchesCount;
-
-    double returnValue = -1; //contribution to upper branch
-
-    //for (i = i2; i < i3; ++i))
-    if (!local->isSoma)
-    {
-        d[0] -= b[0];
-        returnValue = a[0];
-    }
-    for (int i=1; i<local->n; i++)
-    {
-        d[i]   -= b[i];
-        d[i-1] -= a[i];
-    }
-
-    //send/receive contribution to/from branches
-    hpx_t * futures = new hpx_t[branchesCount];
-    void  ** addrs  = new void*[branchesCount];
-    size_t * sizes  = new size_t[branchesCount];
-    double * values = new double[branchesCount];
-    for (int c = 0; c<local->branchesCount; c++)
-    {
-        futures[c] = hpx_lco_future_new(sizeof(double));
-        addrs[c]   = &values[c];
-        sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], Branch::setupMatrixLHS, futures[c]);
-    }
-
-    if (branchesCount > 0) //required or fails
-        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-
-    //received contributions, can now update value
-    for (int c = 0; c < branchesCount; c++)
-    {
-        d[n-1] -= values[c];
-        hpx_lco_delete(futures[c], HPX_NULL);
-    }
-
-    delete [] futures;
-    delete [] addrs;
-    delete [] sizes;
-    delete [] values;
-
-    if (!local->isSoma)
-        neurox_hpx_unpin_continue(returnValue);
-    neurox_hpx_unpin;
-}
-
 hpx_action_t Branch::callNetReceiveFunction = 0;
 int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
 
     assert(nargs==3);
+    neurox_hpx_recursive_branch_sync(Branch::callNetReceiveFunction,
+        args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
+
     /** nargs=3 where:
      * args[0] = function flag: NetReceiveInit (1) or NetReceive(0)
      * args[1] = actual time
      * args[2] = timestep size
      */
-    neurox_hpx_recursive_branch_sync(Branch::callNetReceiveFunction,
-        args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
 
     const char isInitFunction = *(const char*) args[0];
     const double t = *(const double *) args[1];
@@ -450,8 +244,6 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
-
-    printf ("FLAG1 : function id is %d\n", *functionId_ptr);
 
     //only for capacitance mechanism
     if (*functionId_ptr == Mechanism::ModFunction::capacitanceCurrent
@@ -540,11 +332,7 @@ int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_
 
 void Branch::registerHpxActions()
 {
-    neurox_hpx_register_action(1, Branch::setupMatrixRHS);
-    neurox_hpx_register_action(0, Branch::setupMatrixLHS);
     neurox_hpx_register_action(1, Branch::updateV);
-    neurox_hpx_register_action(0, Branch::gaussianBackTriangulation);
-    neurox_hpx_register_action(1, Branch::gaussianFwdSubstitution);
     neurox_hpx_register_action(1, Branch::setV);
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
