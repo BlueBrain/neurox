@@ -53,19 +53,19 @@ class Mechanism
         after_solve=3,
         before_step=4,
         //memb_func functions start here
-        current=5,
-        jacob=6,
+        alloc=5,
+        current=6,
         state=7,
-        initialize=8,
-        alloc=9,
-        threadMemInit=10,
-        threadCleanup=11,
-        threadTableCheck=12,
-        setData=13,
-        destructor=14,
+        jacob=8,
+        initialize=9,
+        destructor=10,
+        threadMemInit=11,
+        threadCleanup=12,
+        threadTableCheck=13,
+        setData=14,
         //capacitance functions start here
-        capacityCurrent=15, //not in mod files, it's in capac.c
-        capJacob=16,
+        capacitanceCurrent=15, //not in mod files, it's in capac.c
+        capacitanceJacob=16,
     };
 
     void callNetReceiveFunction(

@@ -66,11 +66,30 @@ void Mechanism::registerBAFunctions()
 
 void Mechanism::registerMechFunctions()
 {
-    if (this->sym && strcmp("capacitance", this->sym))
+    this->membFunc.alloc = 0;
+    this->membFunc.setdata_ = 0;
+    this->membFunc.destructor = 0;
+    this->membFunc.current = 0;
+    this->membFunc.jacob = 0;
+    this->membFunc.state = 0;
+    this->membFunc.initialize = 0;
+    this->membFunc.thread_cleanup_ = 0;
+    this->membFunc.thread_mem_init_ = 0;
+    this->membFunc.thread_size_ = 0;
+    //look up tables are created and destroyed inside mod files, not accessible via coreneuron
+    this->membFunc.thread_table_check_ = 0;
+
+    if (this->sym && strcmp("capacitance", this->sym)==0) //if is a capacitance
     {
+        //register_mech(mechanism, cap_alloc, (mod_f_t)0, (mod_f_t)0, (mod_f_t)0, (mod_f_t)cap_init, -1, 1);
+        this->membFunc.alloc = Capacitance::cap_alloc;
+        this->membFunc.initialize = Capacitance::cap_init;
+        this->membFunc.current = Capacitance::nrn_capacity_current;
+        this->membFunc.jacob = Capacitance::nrn_cap_jacob;
         return;
     }
-
+    else{
+    /*
     int type = this->type;
     //register functions //TODO will not work in more than 1 compute node
     this->membFunc.alloc = memb_func[type].alloc;
@@ -85,7 +104,10 @@ void Mechanism::registerMechFunctions()
     this->membFunc.thread_size_ = memb_func[type].thread_size_;
     //look up tables are created and destroyed inside mod files, not accessible via coreneuron
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
+    */
+    }
 }
+
 
 void Mechanism::registerIonicCharges()
 {
@@ -109,11 +131,11 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     assert(nargs==2);
 
     /** nargs=2 where:
-     * args[0] = Id of the mechanism to be called
-     * args[1] = Id of the function to be called
+     * args[0] = Id of the function to be called
+     * args[1] = Id of the mechanism to be called
      */
-    int mechType = *(int*)args[0];
-    Mechanism::ModFunction functionId = *(ModFunction*)args[1];
+    Mechanism::ModFunction functionId = *(ModFunction*)args[0];
+    int mechType = *(int*)args[1];
     Mechanism & mech = getMechanismFromType(mechType);
 
     Memb_list membList;
@@ -122,18 +144,24 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
     //The state function does not write to compartment, only reads, so no mutex needed
 
+    //printf("FLAG2: ModFunction id %u (size %d) .\n", functionId, sizeof(functionId));
     Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
-    if (functionId<BEFORE_AFTER_SIZE)
-        if (mech.BAfunctions[functionId])
-            mech.BAfunctions[functionId](&nrnThread, &membList, mechType);
-    else
+    switch(functionId)
     {
-        switch(functionId)
-        {
+            case Mechanism::before_initialize:
+            case Mechanism::after_initialize:
+            case Mechanism::before_breakpoint:
+            case Mechanism::after_solve:
+            case Mechanism::before_step:
+                   if (mech.BAfunctions[(int) functionId])
+                       mech.BAfunctions[(int) functionId](&nrnThread, &membList, mechType);
+                break;
             case Mechanism::ModFunction::alloc:
                 if (mech.membFunc.alloc)
                     mech.membFunc.alloc(membList.data, membList.pdata, mechType);
                 break;
+            case Mechanism::ModFunction::capacitanceCurrent:
+                assert(mechType == CAP);
             case Mechanism::ModFunction::current:
                 if (mech.membFunc.current)
                     mech.membFunc.current(&nrnThread, &membList, mechType);
@@ -142,6 +170,8 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                 if (mech.membFunc.state)
                     mech.membFunc.state(&nrnThread, &membList, mechType);
                 break;
+            case Mechanism::ModFunction::capacitanceJacob:
+                assert(mechType == CAP);
             case Mechanism::ModFunction::jacob:
                 if (mech.membFunc.jacob)
                     mech.membFunc.jacob(&nrnThread, &membList, mechType);
@@ -168,15 +198,26 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                     mech.membFunc.thread_cleanup_(membList._thread);
                 break;
             default:
-                printf("ERROR! Unknown function %d!!\n", functionId);
-              }
-            }
+                printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
+                exit(1);
+    }
 
     //call this function in all mechanisms that depend on this one
     //(ie the children on the tree of mechanisms dependencies)
-    neurox_hpx_recursive_mechanism_sync(mechType, Mechanism::callModFunction,
-                                        args[1], sizes[1]);
-
+    short int childrenCount = getMechanismFromType(mechType).childrenCount;
+    hpx_addr_t lco =  childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
+    for (short int c=0; c<childrenCount; c++)
+    {
+        int childMechType = getMechanismFromType(mechType).children[c];
+        int e = hpx_call(HPX_HERE, Mechanism::callModFunction, lco,
+                         args[0], sizes[0], &childMechType, sizeof(childMechType));
+        assert(e==HPX_SUCCESS);
+    }
+    if (childrenCount>0)
+    {
+        hpx_lco_wait(lco);
+        hpx_lco_delete(lco, HPX_NULL);
+    }
     neurox_hpx_unpin;
 }
 

@@ -22,7 +22,7 @@ class BackwardEuler
     static hpx_action_t step; ///> performs one Backward Euler step in all neurons
 
   private:
-    static int  step_handler();
+    static int step_handler(const int * stepsCount_ptr, const size_t);
 } ;
 
 } //Solver

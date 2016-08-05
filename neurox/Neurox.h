@@ -26,7 +26,7 @@ namespace Neurox
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
-    extern Neurox::Mechanism * mechanisms; ///> buffer of all mechanisms, per mechanism id
+    extern Neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms, by mechanism id (NULL for undefined undefined)
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line

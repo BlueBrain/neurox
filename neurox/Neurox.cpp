@@ -11,7 +11,7 @@ int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 int mechanismsCount=-1;
 extern int * mechanismsMap = nullptr;
-Neurox::Mechanism * mechanisms = nullptr;
+Neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
 hpx_t getNeuronAddr(int i) {
@@ -19,7 +19,7 @@ hpx_t getNeuronAddr(int i) {
 }
 
 Neurox::Mechanism & getMechanismFromType(int type) {
-    return mechanisms[mechanismsMap[type]];
+    return *mechanisms[mechanismsMap[type]];
 }
 
 hpx_action_t setNeurons = 0;
@@ -62,7 +62,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     neurox_hpx_pin(uint64_t);
     assert(nargs==3);
     mechanismsCount = sizes[0]/sizeof(Mechanism);
-    mechanisms = new Mechanism[mechanismsCount];
+    mechanisms = new Mechanism*[mechanismsCount];
 
     int offsetChildren=0;
     int offsetSym=0;
@@ -72,12 +72,11 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
         Mechanism & mech = ((Mechanism*) args[0])[m];
         int * children = mech.childrenCount == 0 ? nullptr : &((int*) args[1])[offsetChildren];
         char * sym = mech.symLength == 0 ? nullptr : &((char*) args[2])[offsetSym];
-        Mechanism * finalMech = new Mechanism(
+        mechanisms[m] = new Mechanism(
                     mech.type, mech.dataSize, mech.pdataSize,
                     mech.isArtificial, mech.pntMap, mech.isIon,
                     mech.symLength, sym,
                     mech.isTopMechanism, mech.childrenCount, children);
-        mechanisms[m] = *finalMech;
         offsetChildren +=  mech.childrenCount;
         offsetSym += mech.symLength;
         if (mech.type > maxMechType)
@@ -89,7 +88,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     for (int i=0; i<maxMechType; i++)
         mechanismsMap[i]=-1;
     for (int m=0; m<mechanismsCount; m++)
-        mechanismsMap[mechanisms[m].type]=m;
+        mechanismsMap[mechanisms[m]->type]=m;
 
     neurox_hpx_unpin;
 }

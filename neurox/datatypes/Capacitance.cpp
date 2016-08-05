@@ -21,10 +21,6 @@ using namespace Neurox;
 #endif
 
 static const char *mechanism[] = { "0", "capacitance", "cm",0, "i_cap", 0,0 };
-static void cap_alloc(double*, Datum*, int type);
-static void cap_init(NrnThread*, Memb_list*, int);
-
-//void Capacitance::capac_reg_(void) //DELETED
 
 #define nparm 2
 
@@ -38,7 +34,12 @@ for pure implicit fixed step it is 1/dt
 It used to be static but is now a thread data variable
 */
 
-void Capacitance::nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
+void Capacitance::capac_reg_()
+{
+    //This is done by the Neurox::Mechanism constructor instead
+}
+
+void Capacitance::nrn_cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
     int _cntml_actual = ml->nodecount;
     int _cntml_padded = ml->_nodecount_padded;
     int _iml;
@@ -59,7 +60,7 @@ void Capacitance::nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
     }
 }
 
-static void Capacitance::cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
+void Capacitance::cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
     int _cntml_actual = ml->nodecount;
     int _cntml_padded = ml->_nodecount_padded;
     int _iml;
@@ -76,7 +77,7 @@ static void Capacitance::cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
     }
 }
 
-void Capacitance::nrn_capacity_current(NrnThread* _nt, Memb_list* ml) {
+void Capacitance::nrn_capacity_current(NrnThread* _nt, Memb_list* ml, int type) {
     int _cntml_actual = ml->nodecount;
     int _cntml_padded = ml->_nodecount_padded;
     int _iml;

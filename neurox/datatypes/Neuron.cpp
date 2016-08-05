@@ -21,13 +21,15 @@ void Neuron::callModFunction(Mechanism::ModFunction functionId)
     //TODO is it worth to make a local call instead of a call to hpx address?
     //same will all calls to soma hpx_t
     //eg. callModFunction_handler
-    //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
+    printf("FLAG3: function id is %d\n", functionId);
+    hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
 }
 
 void Neuron::callNetReceiveFunction(char isInitFunction)
 {
     //TODO fix
-    //hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId), t, dt);
+    //hpx_call_sync(soma, Branch::callNetReceiveFunction, NULL, 0,
+                  //&functionId, sizeof(functionId), &t, sizeof(t), &dt, sizeof(dt);
 }
 
 hpx_action_t Neuron::finitialize=0;
@@ -44,6 +46,7 @@ int Neuron::finitialize_handler()
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
+    //TODO we can call this at branch level, run the three inside branch, not sequentially at neuron
     local->callModFunction(Mechanism::ModFunction::before_initialize);
     local->callModFunction(Mechanism::ModFunction::initialize);
     local->callModFunction(Mechanism::ModFunction::after_initialize);
@@ -82,7 +85,7 @@ void Neuron::setupTreeMatrixMinimal()
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect. note, the first is CAP
-    callModFunction(Mechanism::ModFunction::capJacob);
+    callModFunction(Mechanism::ModFunction::capacitanceJacob);
 
     //now add the axial currents
     hpx_call_sync(soma, Branch::setupMatrixLHS, NULL, 0);

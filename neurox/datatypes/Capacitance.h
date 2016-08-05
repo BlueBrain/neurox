@@ -14,11 +14,11 @@ namespace Neurox
  */
 namespace Capacitance
 {
-    //void capac_reg_(void) //DELETED;
-    void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml);
-    static void cap_init(NrnThread* _nt, Memb_list* ml, int type );
-    void nrn_capacity_current(NrnThread* _nt, Memb_list* ml);
-    static void cap_alloc(double*, Datum*, int);
+    void capac_reg_();
+    void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml, int type);
+    void cap_init(NrnThread* _nt, Memb_list* ml, int type );
+    void nrn_capacity_current(NrnThread* _nt, Memb_list* ml, int type);
+    void cap_alloc(double*, Datum*, int);
 };
 
 };

@@ -1,6 +1,7 @@
 #include "neurox/Neurox.h"
 #include <numeric>
 #include <algorithm>
+#include <math.h>
 
 using namespace Neurox;
 using namespace Neurox::Solver;
@@ -13,31 +14,17 @@ void BackwardEuler::solve()
     hpx_par_for_sync( [&] (int i, void*) -> int
         {
             double dt = inputParams->dt;
-            double t_io = inputParams->dt_io;
             double dt_comm = 0.1; //TODO get the collective minimum value
-            hpx_t neuronAddr= getNeuronAddr(i);
+            int stepsCountPerComm = dt_comm / dt;
 
-            //for every communication step
+            //wait for all synapses from all synapses from before
+            //TODO [...]
+
+            //perform communication steps of duration 'dt_comm' until reaching 'tstop'
             for (double t_comm=0; t_comm<inputParams->tstop; t_comm += dt_comm )
-            {
-                printf("time = %.2f ms\n", t_comm);
-
-                //communication step (spike exchange)
-                //TODO [...]
-
-                //for every computation step inside of the communication step
-                for (double t=t_comm; t<t_comm+dt_comm; t += dt)
-                {
-                    hpx_call_sync(neuronAddr, BackwardEuler::step, NULL, 0);
-
-                    //if we are at the output time instant (or passed it), output to file
-                    if (t >= t_io)
-                    {
-                        //output
-                        t_io += inputParams->dt_io;
-                    }
-                }
-            }
+                //for every comm step, perform 'stepsCountPerComm' computation steps
+                hpx_call_sync( getNeuronAddr(i), BackwardEuler::step, NULL, 0,
+                              &stepsCountPerComm, sizeof(stepsCountPerComm));
 
             return HPX_SUCCESS;
         },
@@ -45,10 +32,12 @@ void BackwardEuler::solve()
 }
 
 hpx_action_t BackwardEuler::step = 0;
-int BackwardEuler::step_handler()
+int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
 {
-    neurox_hpx_pin(Neuron); //We are in a Neuron
+  neurox_hpx_pin(Neuron); //We are in a Neuron
 
+  for (int s=0; s<*stepsCount_ptr; s++)
+  {
     //1. multicore.c::nrn_thread_table_check()
     local->callModFunction(Mechanism::ModFunction::threadTableCheck);
 
@@ -86,7 +75,7 @@ int BackwardEuler::step_handler()
 
     //fadvance_core.c : update()
     hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder, sizeof(inputParams->secondorder));
-    local->callModFunction(Mechanism::ModFunction::capacityCurrent);
+    local->callModFunction(Mechanism::ModFunction::capacitanceCurrent);
     //TODO: this is not a MOD file function, its in capac.c, has to be converted!
 
     local->t += .5*dt;
@@ -95,16 +84,23 @@ int BackwardEuler::step_handler()
     local->callModFunction(Mechanism::ModFunction::state);
     local->callModFunction(Mechanism::ModFunction::after_solve);
 
+    //if we are at the output time instant output to file
+    if (fmod(local->t, inputParams->dt_io) == 0)
+    {
+        //output
+    }
+
     //wait for all post-synaptic neurons to receive (not process) synapses
     if (spikesLco != HPX_NULL)
     {
         hpx_lco_wait(spikesLco);
         hpx_lco_delete(spikesLco, HPX_NULL);
     }
-    neurox_hpx_unpin;
+  }
+  neurox_hpx_unpin;
 }
 
 void BackwardEuler::registerHpxActions()
 {
-    neurox_hpx_register_action(0, step);
+    neurox_hpx_register_action(1, step);
 }

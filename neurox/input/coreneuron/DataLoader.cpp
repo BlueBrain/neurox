@@ -191,12 +191,12 @@ void DataLoader::loadData(int argc, char ** argv)
     fprintf(fileMechs, "digraph G\n{\n");
     for (int m =0; m< mechanismsCount; m++)
     {
-        Mechanism & mech = mechanisms[m];
-        if (mech.isTopMechanism)
-            fprintf(fileMechs, "%s -> %d;\n", "start", mech.type);
+        Mechanism * mech = mechanisms[m];
+        if (mech->isTopMechanism)
+            fprintf(fileMechs, "%s -> %d;\n", "start", mech->type);
 
-        for (int d=0; d<mech.childrenCount; d++)
-            fprintf(fileMechs, "%d -> %d;\n", mech.type, mech.children[d]);
+        for (int d=0; d<mech->childrenCount; d++)
+            fprintf(fileMechs, "%d -> %d;\n", mech->type, mech->children[d]);
     }
     fprintf(fileMechs, "}\n");
     fclose(fileMechs);
@@ -372,13 +372,13 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
             int mechType = comp->mechsTypes[m];
             int mechOffset = mechanismsMap[mechType];
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
-            Mechanism & mech = mechanisms[mechOffset];
+            Mechanism * mech = mechanisms[mechOffset];
 
-            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech.dataSize] );
-            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech.pdataSize] );
+            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
+            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
             nodesIndices[mechOffset].push_back(n);
-            dataOffset += mech.dataSize;
-            pdataOffset += mech.pdataSize;
+            dataOffset += mech->dataSize;
+            pdataOffset += mech->pdataSize;
             instancesCount[mechOffset]++;
         }
         n++;

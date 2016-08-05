@@ -54,8 +54,8 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
     {
         MechanismInstance & instance = local->mechsInstances[m];
         instance.instancesCount = instancesCount[m];
-        int totalDataSize = mechanisms[m].dataSize * instance.instancesCount;
-        int totalPdataSize = mechanisms[m].pdataSize * instance.instancesCount;
+        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
+        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
         instance.data = new double[totalDataSize];
         instance.pdata = new int[totalPdataSize];
         instance.nodesIndices = new int[instance.instancesCount];
@@ -443,27 +443,38 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
 
-    int topDependenciesCount = 0;
-    for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m].isTopMechanism)
-            topDependenciesCount++;
-    assert(topDependenciesCount>0);
+    printf ("FLAG1 : function id is %d\n", *functionId_ptr);
 
-    //*parallel* execution of independent mechanisms
-    hpx_t lco_mechs = hpx_lco_and_new(topDependenciesCount);
-    for (int m=0; m<mechanismsCount; m++)
+    //only for capacitance mechanism
+    if (*functionId_ptr == Mechanism::ModFunction::capacitanceCurrent
+     || *functionId_ptr == Mechanism::ModFunction::capacitanceJacob)
     {
-        Mechanism & mech = mechanisms[m];
-        if (mech.isTopMechanism)
-        {
-            int e = hpx_call(target, Mechanism::callModFunction, lco_mechs,
-                              &mech.type, sizeof(mech.type),
-                              functionId_ptr, functionId_size);
-            assert(e==HPX_SUCCESS);
-        }
+        int mechType = CAP;
+        hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
+                      functionId_ptr, functionId_size,
+                      &mechType, sizeof(mechType));
     }
-    hpx_lco_wait(lco_mechs);
-    hpx_lco_delete(lco_mechs, HPX_NULL);
+    else
+    {
+      //*parallel* execution of independent mechanisms
+      int topDependenciesCount = 0;
+      for (int m=0; m<mechanismsCount; m++)
+        if (mechanisms[m]->isTopMechanism)
+            topDependenciesCount++;
+      assert(topDependenciesCount>0);
+
+      hpx_t lco_mechs = hpx_lco_and_new(topDependenciesCount);
+      for (int m=0; m<mechanismsCount; m++)
+      {
+        Mechanism * mech = mechanisms[m];
+        if (mechanisms[m]->isTopMechanism)
+            hpx_call(HPX_HERE, Mechanism::callModFunction, lco_mechs,
+                              functionId_ptr, functionId_size,
+                              &(mech->type), sizeof(mech->type));
+      }
+      hpx_lco_wait(lco_mechs);
+      hpx_lco_delete(lco_mechs, HPX_NULL);
+    }
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -483,8 +494,8 @@ int Branch::secondOrderCurrent_handler()
     MechanismInstance * mechInstances= local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
-        Mechanism & mech = mechanisms[m];
-        if (mech.BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
+        Mechanism * mech = mechanisms[m];
+        if (mech->BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
         {
             for (int i=0; i<mechInstances[m].instancesCount; i++)
             {
