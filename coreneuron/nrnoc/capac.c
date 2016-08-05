@@ -128,6 +128,6 @@ void nrn_capacity_current(NrnThread* _nt, Memb_list* ml, int type) {
 /* the rest can be constructed automatically from the above info*/
 
 void cap_alloc(double* data, Datum* pdata, int type) {
-	(void)pdata; (void)type; /* unused */
+    (void)pdata; (void)type; (void)type; /* unused */
 	data[0] = DEF_cm;	/*default capacitance/cm^2*/
 }

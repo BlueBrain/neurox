@@ -285,7 +285,8 @@ void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	}
 }
 
-void ion_alloc() {
+void ion_alloc(double* data, Datum* pdata, int type)  {
+    (void)pdata; (void)type; (void)type; /* unused */
 	assert(0);
 }
 

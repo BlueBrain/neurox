@@ -119,7 +119,7 @@ extern void cap_alloc(double*, Datum*, int type);
 extern void cap_init(struct NrnThread*, Memb_list*, int);
 
 //exposing ion functions from nrnoc/eion.c
-extern void ion_alloc();
+extern void ion_alloc(double*, int*, int type);
 extern void ion_cur(struct NrnThread*, Memb_list*, int);
 extern void ion_init(struct NrnThread*, Memb_list*, int);
 

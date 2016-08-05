@@ -126,6 +126,11 @@ void Mechanism::registerCapacitance()
     //this->membFunc.jacob = Capacitance::nrn_cap_jacob;
 }
 
+//from eion.c
+extern void ion_init(NrnThread* nt, Memb_list* ml, int type);
+extern void ion_cur(NrnThread* nt, Memb_list* ml, int type);
+extern void ion_alloc(double*, int*, int type);
+
 void Mechanism::registerIon()
 {
     double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
@@ -133,10 +138,9 @@ void Mechanism::registerIon()
     conco = ion_global_map[type][1];
     charge = ion_global_map[type][2];
 
-    this->membFunc.alloc = cap_alloc;
-    this->membFunc.initialize = cap_init;
-    this->membFunc.current = nrn_capacity_current;
-    this->membFunc.jacob = nrn_cap_jacob;
+    this->membFunc.alloc = ion_alloc; //assert(0) should never be called
+    this->membFunc.initialize = ion_init;
+    this->membFunc.current = ion_cur;
 }
 
 Mechanism::~Mechanism(){
