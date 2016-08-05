@@ -2,7 +2,7 @@
 
 #include "neurox/Neurox.h"
 
-namespace Neurox
+namespace NeuroX
 {
 
 namespace Input
@@ -44,5 +44,5 @@ class InputParams
 
 };
 }; //InputParams
-}; //Neurox
+}; //NeuroX
 

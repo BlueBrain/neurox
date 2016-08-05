@@ -5,8 +5,8 @@
 
 #include "coreneuron/nrnoc/membdef.h"
 
-using namespace Neurox;
-using namespace Neurox::Input;
+using namespace NeuroX;
+using namespace NeuroX::Input;
 
 InputParams::InputParams ():
   //from nrnoptarg.cpp::cn_parameters():

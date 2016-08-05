@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <math.h>
 
-using namespace Neurox;
-using namespace Neurox::Solver;
+using namespace NeuroX;
+using namespace NeuroX::Solver;
 
 BackwardEuler::~BackwardEuler() {}
 

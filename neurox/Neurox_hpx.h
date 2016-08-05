@@ -1,5 +1,5 @@
 /**
- * @file Neurox_hpx.h
+ * @file NeuroX_hpx.h
  * Includes:
  * - wrappers around HPX functions that are applicable to our use case;
  * - typedefs for HPX related data types

@@ -4,21 +4,21 @@
 #include "nrniv/nrniv_decl.h"
 #include "nrniv/nrn_stats.h"
 
-namespace Neurox
+namespace NeuroX
 {
 
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 int mechanismsCount=-1;
 extern int * mechanismsMap = nullptr;
-Neurox::Mechanism ** mechanisms = nullptr;
+NeuroX::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
 }
 
-Neurox::Mechanism * getMechanismFromType(int type) {
+NeuroX::Mechanism * getMechanismFromType(int type) {
     return mechanisms[mechanismsMap[type]];
 }
 
@@ -42,10 +42,10 @@ int setInputParams_handler(const Input::InputParams * data, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     if (inputParams!=nullptr)
-        delete [] Neurox::inputParams;
+        delete [] NeuroX::inputParams;
 
-    inputParams = new Neurox::Input::InputParams();
-    memcpy(Neurox::inputParams, data, sizeof(Neurox::Input::InputParams));
+    inputParams = new NeuroX::Input::InputParams();
+    memcpy(NeuroX::inputParams, data, sizeof(NeuroX::Input::InputParams));
     neurox_hpx_unpin;
 }
 
@@ -99,12 +99,12 @@ static int main_handler( char **argv, size_t argc)
     //populate InputParams from command line, and broadcasts to all compute nodes
     printf("Input::InputParams...\n");
     Input::InputParams inputParams(argc, argv);
-    int e = hpx_bcast_rsync(Neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
+    int e = hpx_bcast_rsync(NeuroX::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
 
     //reads morphology data
     printf("Input::Coreneuron::DataLoader::loadData...\n");
-    Neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
+    NeuroX::Input::Coreneuron::DataLoader::loadData(argc, argv);
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     printf("Neuron::finitialize...\n");
@@ -144,10 +144,10 @@ static int main_handler( char **argv, size_t argc)
 
 void registerHpxActions()
 {
-    neurox_hpx_register_action(1,Neurox::main);
-    neurox_hpx_register_action(2,Neurox::setNeurons);
-    neurox_hpx_register_action(1,Neurox::setInputParams);
-    neurox_hpx_register_action(2,Neurox::setMechanisms);
+    neurox_hpx_register_action(1,NeuroX::main);
+    neurox_hpx_register_action(2,NeuroX::setNeurons);
+    neurox_hpx_register_action(1,NeuroX::setInputParams);
+    neurox_hpx_register_action(2,NeuroX::setMechanisms);
 
 }
 

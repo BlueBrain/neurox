@@ -1,7 +1,7 @@
 #include "neurox/Neurox.h"
 #include "string.h"
 
-using namespace Neurox;
+using namespace NeuroX;
 
 Neuron::~Neuron()
 {

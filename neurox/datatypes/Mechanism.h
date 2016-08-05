@@ -7,7 +7,7 @@
 #include "coreneuron/nrnconf.h" //Datum
 #include "coreneuron/nrnoc/multicore.h" //NrnThread
 
-namespace Neurox
+namespace NeuroX
 {
 /**
  * @brief The Mechanisms class
@@ -16,7 +16,7 @@ namespace Neurox
 class Mechanism
 {
   public:
-    Mechanism();
+    Mechanism()=delete;
     ~Mechanism();
 
     Mechanism(const int type, const short int dataSize, const short int pdataSize,

@@ -2,7 +2,7 @@
 
 #include "neurox/Neurox.h"
 
-namespace Neurox
+namespace NeuroX
 {
 
 /**

@@ -1,6 +1,6 @@
 #include "neurox/Neurox.h"
 
-using namespace Neurox;
+using namespace NeuroX;
 
 Spike::Spike(const double deliveryTime, NetConX * synapse)
     :deliveryTime(deliveryTime), netcon(synapse) {}

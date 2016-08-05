@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <numeric>
 
-using namespace Neurox;
+using namespace NeuroX;
 
 Branch::~Branch()
 {
@@ -103,7 +103,7 @@ hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs = 8 where
+     * nargs = 9 where
      * args[0] = isSoma (1 or 0)
      * args[1] = a, vector A per compartment
      * args[2] = b, vector B per compartment
@@ -111,39 +111,47 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[4] = v, vector V per compartment
      * args[5] = rhs, vector RHS per compartment
      * args[6] = area, vector 'area' per compartment
-     * args[7] = branches, children branches
+     * args[7] = branches, children branches (if any)
+     * args[8] = parent compartment indices (if any)
+     * NOTE: args[7] or args[8] or both must have size>0
      */
 
     neurox_hpx_pin(Branch);
-    assert(nargs==8);
+    assert(nargs==9);
 
     local->isSoma = *(const char*) args[0];
     local->n = sizes[1]/sizeof(double);
-    local->branchesCount = sizes[7]/sizeof(hpx_t);
-
-    const double * a = (const double*) args[1];
-    const double * b = (const double*) args[2];
-    const double * d = (const double*) args[3];
-    const double * v = (const double*) args[4];
-    const double * rhs = (const double*) args[5];
-    const double * area = (const double*) args[6];
-    const hpx_t * branches = (const hpx_t*) args[7];
-
     local->a = new double[local->n];
     local->b = new double[local->n];
     local->d = new double[local->n];
     local->v = new double[local->n];
     local->rhs = new double[local->n];
     local->area = new double[local->n];
-    local->branches = new hpx_t[local->branchesCount];
 
-    memcpy(local->a, a, sizes[1]);
-    memcpy(local->b, b, sizes[2]);
-    memcpy(local->d, d, sizes[3]);
-    memcpy(local->v, v, sizes[4]);
-    memcpy(local->rhs, rhs, sizes[5]);
-    memcpy(local->area, area, sizes[6]);
-    memcpy(local->branches, branches, sizes[7]);
+    memcpy(local->a, args[1], sizes[1]);
+    memcpy(local->b, args[2], sizes[2]);
+    memcpy(local->d, args[3], sizes[3]);
+    memcpy(local->v, args[4], sizes[4]);
+    memcpy(local->rhs, args[5], sizes[5]);
+    memcpy(local->area, args[6], sizes[6]);
+
+    if (sizes[7]>0)
+    {
+        local->branchesCount = sizes[7]/sizeof(hpx_t);
+        local->branches = new hpx_t[local->branchesCount];
+        memcpy(local->branches, args[7], sizes[7]);
+    }
+    else
+    {
+        local->branchesCount = 0;
+        local->branches = nullptr;
+    }
+
+    if (sizes[8]>0)
+    {
+        local->p = new short int[local->n];
+        memcpy(local->p, args[8], sizes[8]);
+    }
 
     neurox_hpx_unpin;;
 }
@@ -456,6 +464,9 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     }
     else
     {
+        assert(*functionId_ptr != Mechanism::ModFunction::capacitanceCurrent
+            && *functionId_ptr != Mechanism::ModFunction::capacitanceJacob);
+
       //*parallel* execution of independent mechanisms
       int topDependenciesCount = 0;
       for (int m=0; m<mechanismsCount; m++)

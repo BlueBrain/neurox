@@ -2,7 +2,7 @@
 
 #include "neurox/Neurox.h"
 
-namespace Neurox
+namespace NeuroX
 {
 
 namespace Solver
@@ -27,4 +27,4 @@ class BackwardEuler
 
 } //Solver
 
-} //Neurox
+} //NeuroX

@@ -5,7 +5,7 @@
 #include <map>
 #include <vector>
 
-namespace  Neurox {
+namespace  NeuroX {
 
 /**
  * @brief The Branch class
@@ -29,6 +29,7 @@ class Branch
     double * v;			///> current voltage per compartment
     double * rhs;		///> right-hand side (solution vector) of Linear Algebra solver
     double * area;		///> current area per compartment
+    short int *p;       ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
     struct MechanismInstance
     {
@@ -39,7 +40,7 @@ class Branch
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
     //List of children branches
-    int branchesCount;		///> number of branches
+    int branchesCount;		///> number of branches (if any)
     hpx_t *branches;		///> hpx address of the branches branches
 
     /** map of incoming netcons per pre-synaptic id

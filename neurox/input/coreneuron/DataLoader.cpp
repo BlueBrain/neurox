@@ -22,8 +22,8 @@
 #include "neurox/datatypes/Branch.h"
 
 using namespace std;
-using namespace Neurox::Input;
-using namespace Neurox::Input::Coreneuron;
+using namespace NeuroX::Input;
+using namespace NeuroX::Input::Coreneuron;
 
 int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
@@ -120,14 +120,14 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
-      Neurox::NetConX * netcon = new Neurox::NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
+      NeuroX::NetConX * netcon = new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
                              nc->weight_, pnt_receive_size[mechType], nc->active_);
       netcons[preNeuronId].push_back(netcon);
     }
 }
 
 void DataLoader::loadData(int argc, char ** argv)
-{ 
+{
     coreNeuronInitialSetup(argc, argv);
 
 #ifdef DEBUG
@@ -178,7 +178,7 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
-    int e = hpx_bcast_rsync(Neurox::setMechanisms,
+    int e = hpx_bcast_rsync(NeuroX::setMechanisms,
                             mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                             mechsChildren.data(), sizeof(int)* mechsChildren.size(),
                             mechsSym.data(), sizeof(char)*mechsSym.size());
@@ -210,7 +210,7 @@ void DataLoader::loadData(int argc, char ** argv)
     //allocate HPX memory space for neurons
     printf("Broadcasting %d neurons...\n", neuronsCount);
     hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    e = hpx_bcast_rsync(Neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
+    e = hpx_bcast_rsync(NeuroX::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(e == HPX_SUCCESS);
     assert(neuronsAddr != HPX_NULL);
 
@@ -401,7 +401,8 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
                   v.data(), sizeof(double)*v.size(),
                   rhs.data(), sizeof(double)*rhs.size(),
                   area.data(), sizeof(double)*area.size(),
-                  branches.data(), sizeof(hpx_t)*branches.size());
+                  branches.data(), sizeof(hpx_t)*branches.size(),
+                  NULL, 0);
 
     //merge all vectors into the first one
     for (int m=1; m<mechanismsCount; m++)

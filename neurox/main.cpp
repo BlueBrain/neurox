@@ -9,11 +9,11 @@ void modl_reg() {} ///No additional mechs, dont register any external
 int main(int argc, char** argv)
 { 
     //register HPX methods
-    Neurox::registerHpxActions();
-    Neurox::Neuron::registerHpxActions();
-    Neurox::Branch::registerHpxActions();
-    Neurox::Mechanism::registerHpxActions();
-    Neurox::Solver::BackwardEuler::registerHpxActions();
+    NeuroX::registerHpxActions();
+    NeuroX::Neuron::registerHpxActions();
+    NeuroX::Branch::registerHpxActions();
+    NeuroX::Mechanism::registerHpxActions();
+    NeuroX::Solver::BackwardEuler::registerHpxActions();
 
     //Init HPX
     if (hpx_init(&argc, &argv) != 0)
@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
 
     //Run main
-    int e = hpx_run(&Neurox::main, argv, argc);
+    int e = hpx_run(&NeuroX::main, argv, argc);
 
     //clean up
     hpx_finalize();

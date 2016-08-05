@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace Neurox
+namespace NeuroX
 {
 
 namespace Input
@@ -39,4 +39,4 @@ class Compartment
 
 }; //Coreneuron
 }; //Input
-}; //Neurox
+}; //NeuroX

@@ -1,8 +1,7 @@
 #include "neurox/Neurox.h"
-#include "neurox/datatypes/Mechanism.h"
 
 using namespace std;
-using namespace Neurox;
+using namespace NeuroX;
 
 /********************************
   *  This is a copy of capac.c  *
@@ -36,7 +35,7 @@ It used to be static but is now a thread data variable
 
 void Capacitance::capac_reg_()
 {
-    //This is done by the Neurox::Mechanism constructor instead
+    //This is done by the NeuroX::Mechanism constructor instead
 }
 
 void Capacitance::nrn_cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
@@ -68,7 +67,7 @@ void Capacitance::cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
     (void)_nt; (void)type; (void) _cntml_padded; /* unused */
 #if LAYOUT == 1 /*AoS*/
     for (_iml=0; _iml < _cntml_actual; _iml++) {
-        vdata = ml->data + _iml*nparm;
+        vdata = ml->data + _iml*nparm; //get right position in data array
 #else
     vdata = ml->data;
     for (_iml=0; _iml < _cntml_actual; _iml++) {

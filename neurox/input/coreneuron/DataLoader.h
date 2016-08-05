@@ -8,7 +8,7 @@
 
 using namespace std;
 
-namespace Neurox
+namespace NeuroX
 {
 
 namespace Input
@@ -45,4 +45,4 @@ class DataLoader
 
 }; //Coreneuron
 }; //Input
-}; //Neurox
+}; //NeuroX

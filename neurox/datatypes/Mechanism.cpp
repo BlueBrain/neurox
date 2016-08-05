@@ -7,7 +7,7 @@
 #include "coreneuron/nrniv/netcon.h"
 
 using namespace std;
-using namespace Neurox;
+using namespace NeuroX;
 
 Mechanism::Mechanism(const int type, const short int dataSize, const short int pdataSize,
                      const char isArtificial, const char pntMap, const char isIon,
@@ -117,8 +117,6 @@ void Mechanism::registerIonicCharges()
     charge = ion_global_map[type][2];
 }
 
-Mechanism::Mechanism(){}
-
 Mechanism::~Mechanism(){
     delete [] sym;
     delete [] children;
@@ -143,8 +141,6 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
 
     //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
     //The state function does not write to compartment, only reads, so no mutex needed
-
-    //printf("FLAG2: ModFunction id %u (size %d) .\n", functionId, sizeof(functionId));
     Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
     switch(functionId)
     {
@@ -202,21 +198,25 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                 exit(1);
     }
 
+    if (functionId  != Mechanism::ModFunction::capacitanceJacob
+     && functionId  != Mechanism::ModFunction::capacitanceCurrent)
+    {
     //call this function in all mechanisms that depend on this one
     //(ie the children on the tree of mechanisms dependencies)
-    short int childrenCount = mech->childrenCount;
-    hpx_addr_t lco = childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
-    for (short int c=0; c<childrenCount; c++)
-    {
+      short int childrenCount = mech->childrenCount;
+      hpx_addr_t lco = childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
+      for (short int c=0; c<childrenCount; c++)
+      {
         int childMechType =  mech->children[c];
         int e = hpx_call(HPX_HERE, Mechanism::callModFunction, lco,
                          args[0], sizes[0], &childMechType, sizeof(childMechType));
         assert(e==HPX_SUCCESS);
-    }
-    if (childrenCount>0)
-    {
+      }
+      if (childrenCount>0)
+      {
         hpx_lco_wait(lco);
         hpx_lco_delete(lco, HPX_NULL);
+      }
     }
     neurox_hpx_unpin;
 }

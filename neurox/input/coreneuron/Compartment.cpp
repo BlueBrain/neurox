@@ -6,8 +6,8 @@
 #include <vector>
 
 using namespace std;
-using namespace Neurox;
-using namespace Neurox::Input::Coreneuron;
+using namespace NeuroX;
+using namespace NeuroX::Input::Coreneuron;
 
 Compartment::~Compartment(){};
 
