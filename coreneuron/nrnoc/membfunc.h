@@ -78,7 +78,6 @@ typedef struct Memb_func {
 #define AFTER_SOLVE 3
 #define BEFORE_STEP 4
 #define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
-
 typedef struct BAMech {
 	mod_f_t f;
 	int type;
@@ -86,12 +85,13 @@ typedef struct BAMech {
 } BAMech;
 extern BAMech** bamech_;
 
-extern double ** get_ion_global_map();
 extern Memb_func* memb_func;
 extern int n_memb_func;
 #define NRNPOINTER 4 /* added on to list of mechanism variables.These are
 pointers which connect variables  from other mechanisms via the _ppval array.
 */
+
+extern double ** get_ion_global_map();
 
 #define _AMBIGUOUS 5
 

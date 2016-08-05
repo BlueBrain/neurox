@@ -516,8 +516,8 @@ void setup_cleanup() {
     neg_gid2out.clear();
 }
 
-void nrn_setup(cn_input_params& input_params, const char *filesdat, int byte_swap)
-{
+void nrn_setup(cn_input_params& input_params, const char *filesdat, int byte_swap) {
+
   /// Number of local cell groups
   int ngroup = 0;
 

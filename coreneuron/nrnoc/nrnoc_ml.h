@@ -32,25 +32,25 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnconf.h"
 
 typedef union ThreadDatum {
-    double val; ///> Never used?
-    int i; ///> Id of NrnThread
-    double* pval; ///> used in mod2c/src/nocpout.c
+	double val;
+	int i;
+	double* pval;
 	void* _pvoid;
 }ThreadDatum;
 
 typedef struct Memb_list {
 #if CACHEVEC != 0
-    /** nodeindices contains all nodes this extension is responsible for,
-     *  ordered according to the matrix. This allows to access the matrix
-     *  directly via the nrn_actual_* arrays instead of accessing it in the
-     *  order of insertion and via the node-structure, making it more
-     *  cache-efficient */
+	/* nodeindices contains all nodes this extension is responsible for,
+	 * ordered according to the matrix. This allows to access the matrix
+	 * directly via the nrn_actual_* arrays instead of accessing it in the
+	 * order of insertion and via the node-structure, making it more
+	 * cache-efficient */
 	int *nodeindices;
 #endif /* CACHEVEC */
-    double* data; ///< offset for the double data in nt._data
-    Datum* pdata; ///< offset for the Datum data in nt._nvdata
-    ThreadDatum* _thread; /**< thread specific data (when static is no good) */
-    int nodecount; /**< actual node count (ie how many nodes have this mechanism ??) */
+	double* data;
+	Datum* pdata;
+	ThreadDatum* _thread; /* thread specific data (when static is no good) */
+	int nodecount; /* actual node count */
 	int _nodecount_padded;
 } Memb_list;
 

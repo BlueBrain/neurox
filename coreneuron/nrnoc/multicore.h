@@ -41,61 +41,61 @@ typedef void NetCon;
 typedef void PreSyn;
 #endif
 
-typedef struct NrnThreadMembList{ /**< patterned after CvMembList in cvodeobj.h */
+typedef struct NrnThreadMembList{ /* patterned after CvMembList in cvodeobj.h */
     struct NrnThreadMembList* next;
     struct Memb_list* ml;
     int index;
-    int *dependencies; /**< list of mechanism types that this mechanism depends on*/
-    int ndependencies; /**< for scheduling we need to know the dependency count */
+    int *dependencies; /* list of mechanism types that this mechanism depends on*/
+    int ndependencies; /* for scheduling we need to know the dependency count */
 } NrnThreadMembList;
 
 typedef struct NrnThreadBAList {
-    struct Memb_list* ml; /**< an item in the NrnThreadMembList */
+    struct Memb_list* ml; /* an item in the NrnThreadMembList */
     struct BAMech* bam;
     struct NrnThreadBAList* next;
 } NrnThreadBAList;
 
 typedef struct NrnThread {
-    double _t;  ///< current simulation time (?)
-    double _dt; ///< time step (?)
-    double cj; ///<1st or 2nd order solver (?)
+	double _t;
+	double _dt;
+	double cj;
 
 	NrnThreadMembList* tml;
 	Memb_list** _ml_list;
-        Point_process* pntprocs; ///< synapses and artificial cells with and without gid
-    PreSyn* presyns; ///< all the output PreSyn with and without gid
+        Point_process* pntprocs; // synapses and artificial cells with and without gid
+	PreSyn* presyns; // all the output PreSyn with and without gid
         NetCon* netcons;
-    double* weights; ///< size n_weight. NetCon.weight_ points into this array.
+	double* weights; // size n_weight. NetCon.weight_ points into this array.
 
-        int n_pntproc, n_presyn, n_input_presyn, n_netcon, n_weight; ///< only for model_size
+        int n_pntproc, n_presyn, n_input_presyn, n_netcon, n_weight; // only for model_size
 
-        int ncell; /**< analogous to old rootnodecount (? shouldnt this be offset of first node)*/
-    int end;    /**< 1 + position of last in v_node array. Now v_node_count. */
-    int id; /**< this is nrn_threads[id] */
+        int ncell; /* analogous to old rootnodecount */
+	int end;    /* 1 + position of last in v_node array. Now v_node_count. */
+	int id; /* this is nrn_threads[id] */
         int _stop_stepping;
-    int n_vecplay; /**< number of instances of VecPlayContinuous */
+	int n_vecplay; /* number of instances of VecPlayContinuous */
 
-    size_t _ndata, _nidata, _nvdata; /**< sizes */
-    double* _data;   /**< all the other double* and Datum to doubles point into here*/
-    int* _idata;     /**< all the Datum to ints index into here */
-    void** _vdata;   /**< pointers to Point_Process (?) */
-    void** _vecplay; /**< array of instances of VecPlayContinuous */
+	size_t _ndata, _nidata, _nvdata; /* sizes */
+	double* _data; /* all the other double* and Datum to doubles point into here*/
+	int* _idata; /* all the Datum to ints index into here */
+	void** _vdata; /* all the Datum to pointers index into here */
+	void** _vecplay; /* array of instances of VecPlayContinuous */
 
-    double* _actual_rhs; //a pointer to a position in data
-    double* _actual_d; //a pointer to a position in data
-    double* _actual_a; //a pointer to a position in data
-    double* _actual_b; //a pointer to a position in data
-    double* _actual_v; //a pointer to a position in data
-    double* _actual_area; //a pointer to a position in data
-    double* _shadow_rhs; /**< Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
-    double* _shadow_d; /**< Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
+	double* _actual_rhs;
+	double* _actual_d;
+	double* _actual_a;
+	double* _actual_b;
+	double* _actual_v;
+	double* _actual_area;
+	double* _shadow_rhs; /* Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
+	double* _shadow_d; /* Not pointer into _data. Avoid race for multiple POINT_PROCESS in same compartment */
 	int* _v_parent_index;
-    char* _sp13mat; /**< handle to general sparse matrix */
-    struct Memb_list* _ecell_memb_list; /**< normally nil */
+	char* _sp13mat; /* handle to general sparse matrix */
+	struct Memb_list* _ecell_memb_list; /* normally nil */
 
-    double _ctime; /**< computation time in seconds (using nrnmpi_wtime) */
+	double _ctime; /* computation time in seconds (using nrnmpi_wtime) */
 
-    NrnThreadBAList* tbl[BEFORE_AFTER_SIZE]; /**< wasteful since almost all empty */
+	NrnThreadBAList* tbl[BEFORE_AFTER_SIZE]; /* wasteful since almost all empty */
 
     void* mapping;  /* section to segment mapping information */
 

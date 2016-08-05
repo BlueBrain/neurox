@@ -295,7 +295,7 @@ bool NetCvode::deliver_event(double til, NrnThread* nt) {
     TQItem* q;
     if ((q = p[nt->id].tqe_->atomic_dq(til)) != 0) {
         DiscreteEvent* de = (DiscreteEvent*)q->data_;
-        double tt = q->t_; //tt is delivery time
+        double tt = q->t_;
         delete q;
 #if PRINT_EVENT
         if (print_event_) { de->pr("deliver", tt, this); }
@@ -425,7 +425,6 @@ void NetCon::send(double tt, NetCvode* ns, NrnThread* nt) {
     }
 }
 	
-//TODO: LOOK HERE 2
 void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     (void)ns;
     nrn_assert(target_);
@@ -433,13 +432,11 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     if (PP2NT(target_) != nt)
         printf("NetCon::deliver nt=%d target=%d\n", nt->id, PP2NT(target_)->id);
 
-    //make sure this NrnThread owns this synapse delivery
     nrn_assert(PP2NT(target_) == nt);
     int typ = target_->_type;
-    nt->_t = tt; //BM: sets time in NrnThread to delivery time!!
+    nt->_t = tt;
 
 //printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
-    //calls NET_RECEIVE in mod files
     POINT_RECEIVE(typ, target_, weight_, 0);
 #ifdef DEBUG
     if (errno && nrn_errno_check(typ)) 
@@ -472,7 +469,6 @@ void PreSyn::send(double tt, NetCvode* ns, NrnThread* nt) {
 #endif //NRNMPI
 }
 	
-//TODO LOOK HERE 1
 void InputPreSyn::send(double tt, NetCvode* ns, NrnThread* nt) {
     for (int i = nc_cnt_-1; i >= 0; --i) {
         NetCon* d = netcon_in_presyn_order_[nc_index_ + i];

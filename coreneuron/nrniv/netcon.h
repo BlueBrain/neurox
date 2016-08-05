@@ -66,7 +66,7 @@ class NetCon : public DiscreteEvent {
 public:
     Point_process* target_;
     double delay_;
-    double* weight_; //array
+    double* weight_;
     bool active_;
 
 	NetCon();
@@ -108,9 +108,9 @@ public:
 
 class PreSyn : public ConditionEvent {
 public:
-    Point_process* pntsrc_; /// Needed for prcellstate currently //NOT USED IN COMPUTATION
+    Point_process* pntsrc_; /// Needed for prcellstate currently
     NrnThread* nt_;
-    double* thvar_; //pointer to threshold variable (Vm soma or end of an axon)
+    double* thvar_;
     double threshold_;
     int nc_index_; //replaces dil_, index into global NetCon** netcon_in_presyn_order_ for the current PreSyn
     int nc_cnt_; // how many netcon PreSyn has starting at nc_index_

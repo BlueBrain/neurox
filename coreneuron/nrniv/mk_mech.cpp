@@ -64,7 +64,7 @@ void mk_mech(const char* datpath) {
   FILE* f;
   f = fopen(fname, "r");
   nrn_assert(f);
-  printf("opening %s\n", fname.get());
+//  printf("reading %s\n", fname);
   int n=0;
   nrn_assert(fscanf(f, "%d\n", &n) == 1);
 
