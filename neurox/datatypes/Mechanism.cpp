@@ -1,6 +1,7 @@
 #include "neurox/Neurox.h"
 #include <cstring>
 
+#include "coreneuron/nrnoc/membfunc.h" //mod_f_t
 #include "coreneuron/nrnoc/membdef.h" //Memb_func, BAMech
 #include "coreneuron/nrnoc/multicore.h" //NrnThread
 #include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list
@@ -22,6 +23,8 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     children(nullptr), sym(nullptr),
     conci(-1), conco(-1), charge(-1) //registered in registerIonicCharges()
 {
+    disableMechFunctions();
+
     if (children != nullptr)
     {
         assert(childrenCount>0);
@@ -37,10 +40,14 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
         this->sym[symLength] = '\0';
     }
 
-    registerMechFunctions();
-    registerBAFunctions();
-    if (isIon)
-        registerIonicCharges();
+    if (this->type == CAP) //capacitance: capac.c
+        registerCapacitance();
+    else if (this->isIon)  //ion: eion.c
+        registerIon();
+    else //general mechanism: mod file
+        registerModMechanism();
+
+    //registerBAFunctions();
 
 #ifdef DEBUG
     printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
@@ -57,38 +64,31 @@ void Mechanism::registerBAFunctions()
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-    {
-        //BUG not implemented by CoreNeuron, undefined bam leads to SEGFAULT:
-        //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
-        this->BAfunctions[i] = NULL;
-    }
+        this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
 }
 
-void Mechanism::registerMechFunctions()
+void Mechanism::disableMechFunctions()
 {
-    this->membFunc.alloc = 0;
-    this->membFunc.setdata_ = 0;
-    this->membFunc.destructor = 0;
-    this->membFunc.current = 0;
-    this->membFunc.jacob = 0;
-    this->membFunc.state = 0;
-    this->membFunc.initialize = 0;
-    this->membFunc.thread_cleanup_ = 0;
-    this->membFunc.thread_mem_init_ = 0;
-    this->membFunc.thread_size_ = 0;
-    //look up tables are created and destroyed inside mod files, not accessible via coreneuron
-    this->membFunc.thread_table_check_ = 0;
+    for (int i=0; i< BEFORE_AFTER_SIZE; i++)
+        this->BAfunctions[i] = NULL;
 
-    if (this->sym && strcmp("capacitance", this->sym)==0) //if is a capacitance
-    {
-        //register_mech(mechanism, cap_alloc, (mod_f_t)0, (mod_f_t)0, (mod_f_t)0, (mod_f_t)cap_init, -1, 1);
-        this->membFunc.alloc = Capacitance::cap_alloc;
-        this->membFunc.initialize = Capacitance::cap_init;
-        this->membFunc.current = Capacitance::nrn_capacity_current;
-        this->membFunc.jacob = Capacitance::nrn_cap_jacob;
-        return;
-    }
-    else{
+    this->membFunc.alloc = NULL;
+    this->membFunc.current = NULL;
+    this->membFunc.state = NULL;
+    this->membFunc.jacob = NULL;
+    this->membFunc.initialize = NULL;
+    this->membFunc.destructor = NULL;
+    this->membFunc.thread_mem_init_ = NULL;
+    this->membFunc.thread_cleanup_ = NULL;
+    this->membFunc.thread_table_check_ = NULL;
+    this->membFunc.setdata_ = NULL;
+
+    this->membFunc.thread_size_ = -1;
+    this->membFunc.is_point = -1;
+}
+
+void Mechanism::registerModMechanism()
+{
     /*
     int type = this->type;
     //register functions //TODO will not work in more than 1 compute node
@@ -105,16 +105,38 @@ void Mechanism::registerMechFunctions()
     //look up tables are created and destroyed inside mod files, not accessible via coreneuron
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
     */
-    }
 }
 
+//from coreneuron/nrnoc/capac.c
+extern void cap_alloc(double*, int*, int type);
+extern void cap_init(struct NrnThread*, Memb_list*, int);
+extern void nrn_capacity_current(struct NrnThread*, Memb_list*, int);
+extern void nrn_cap_jacob(struct NrnThread*, Memb_list*, int);
 
-void Mechanism::registerIonicCharges()
+void Mechanism::registerCapacitance()
+{
+    assert(this->sym && strcmp("capacitance", this->sym)==0);
+    this->membFunc.alloc = cap_alloc;
+    this->membFunc.initialize = cap_init;
+    this->membFunc.current = nrn_capacity_current;
+    this->membFunc.jacob = nrn_cap_jacob;
+    //this->membFunc.alloc = Capacitance::cap_alloc;
+    //this->membFunc.initialize = Capacitance::cap_init;
+    //this->membFunc.current = Capacitance::nrn_capacity_current;
+    //this->membFunc.jacob = Capacitance::nrn_cap_jacob;
+}
+
+void Mechanism::registerIon()
 {
     double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
     conci = ion_global_map[type][0];
     conco = ion_global_map[type][1];
     charge = ion_global_map[type][2];
+
+    this->membFunc.alloc = cap_alloc;
+    this->membFunc.initialize = cap_init;
+    this->membFunc.current = nrn_capacity_current;
+    this->membFunc.jacob = nrn_cap_jacob;
 }
 
 Mechanism::~Mechanism(){

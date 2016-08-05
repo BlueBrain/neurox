@@ -34,11 +34,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
-    Branch::MechanismInstance * mechs = branch->mechsInstances;
-    membList.data  = mechs[mechType].data;
-    membList.pdata = mechs[mechType].pdata;
-    membList.nodecount = mechs[mechType].instancesCount;
-    membList.nodeindices = mechs[mechType].nodesIndices;
+    Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
+    membList.data  = mechsInstances[mechType].data;
+    membList.pdata = mechsInstances[mechType].pdata;
+    membList.nodecount = mechsInstances[mechType].instancesCount;
+    membList.nodeindices = mechsInstances[mechType].nodesIndices;
     membList._thread = NULL; //TODO: ThreadDatum never used ?
     nrnThread._actual_d = branch->d;
     nrnThread._actual_rhs = branch->rhs;

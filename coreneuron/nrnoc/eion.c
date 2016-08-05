@@ -54,10 +54,6 @@ static char *mechanism[] = { /*just a template*/
 	0
 };
 
-static void ion_alloc();
-static void ion_cur(NrnThread*, Memb_list*, int);
-static void ion_init(NrnThread*, Memb_list*, int);
-
 double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
@@ -232,7 +228,7 @@ double nrn_nernst_coef(type) int type; {
 
 
 /* Must be called prior to any channels which update the currents */
-static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
+void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -261,7 +257,7 @@ static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 /* Must be called prior to other models which possibly also initialize
 	concentrations based on their own states
 */
-static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
+void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -289,7 +285,7 @@ static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	}
 }
 
-static void ion_alloc() {
+void ion_alloc() {
 	assert(0);
 }
 

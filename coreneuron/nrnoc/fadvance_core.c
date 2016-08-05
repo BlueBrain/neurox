@@ -133,7 +133,7 @@ static void update(NrnThread* _nt){
 	}
 	if (_nt->tml) {
 		assert(_nt->tml->index == CAP);
-		nrn_capacity_current(_nt, _nt->tml->ml);
+        nrn_capacity_current(_nt, _nt->tml->ml, _nt->tml->index);
 	}
 
 }

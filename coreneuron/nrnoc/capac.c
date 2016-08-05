@@ -41,8 +41,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 static const char *mechanism[] = { "0", "capacitance", "cm",0, "i_cap", 0,0 };
-static void cap_alloc(double*, Datum*, int type);
-static void cap_init(NrnThread*, Memb_list*, int);
 
 #define nparm 2
 
@@ -65,14 +63,15 @@ for pure implicit fixed step it is 1/dt
 It used to be static but is now a thread data variable
 */
 
-void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
+void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
 	double *vdata;
 	double cfac = .001 * _nt->cj;
   (void) _cntml_padded; /* unused when layout=1*/
-	{ /*if (use_cachevec) {*/
+  (void) type; /* unused*/
+    { /*if (use_cachevec) {*/
 		int* ni = ml->nodeindices;
 #if LAYOUT == 1 /*AoS*/
 		for (_iml=0; _iml < _cntml_actual; _iml++) {
@@ -86,7 +85,7 @@ void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
 	}
 }
 
-static void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
+void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -103,13 +102,14 @@ static void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	}
 }
 
-void nrn_capacity_current(NrnThread* _nt, Memb_list* ml) {
+void nrn_capacity_current(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
 	double *vdata;
 	double cfac = .001 * _nt->cj;
   (void) _cntml_padded; /* unused when layout=1*/
+  (void) type; /* unused*/
 	/* since rhs is dvm for a full or half implicit step */
 	/* (nrn_update_2d() replaces dvi by dvi-dvx) */
 	/* no need to distinguish secondorder */
@@ -127,7 +127,7 @@ void nrn_capacity_current(NrnThread* _nt, Memb_list* ml) {
 
 /* the rest can be constructed automatically from the above info*/
 
-static void cap_alloc(double* data, Datum* pdata, int type) {
+void cap_alloc(double* data, Datum* pdata, int type) {
 	(void)pdata; (void)type; /* unused */
 	data[0] = DEF_cm;	/*default capacitance/cm^2*/
 }

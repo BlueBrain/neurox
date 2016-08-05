@@ -491,11 +491,10 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     neurox_hpx_unpin;
 }
 
-//eion.c:
-#define	nparm 5
-#define cur 3
+//from eion.c
+#define nparm 5
+#define cur	3
 #define dcurdv 4
-static void ion_alloc() { assert(0); } //used in secondOrderCurrent (below)
 
 hpx_action_t Branch::secondOrderCurrent = 0;
 int Branch::secondOrderCurrent_handler()
@@ -506,14 +505,14 @@ int Branch::secondOrderCurrent_handler()
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
-        if (mech->BAfunctions[Mechanism::ModFunction::alloc] ) //TODO used to be if == ion_alloc()
+        if (!mech->isIon) continue;
+        assert(nparm==mech->dataSize); //see '#define nparm 5' in eion.c
+
+        for (int i=0; i<mechInstances[m].instancesCount; i++)
         {
-            for (int i=0; i<mechInstances[m].instancesCount; i++)
-            {
-                double * data = &mechInstances[m].data[i*nparm];
-                int & nodeIndex = mechInstances[m].nodesIndices[i];
-                data[cur] += data[dcurdv] * local->rhs[nodeIndex]; // cur += dcurdv * rhs(ni[i])
-            }
+            double * data = &mechInstances[m].data[i*mech->dataSize];
+            int & nodeIndex = mechInstances[m].nodesIndices[i];
+            data[cur] += data[dcurdv] * local->rhs[nodeIndex];
         }
     }
     neurox_hpx_recursive_branch_async_wait;

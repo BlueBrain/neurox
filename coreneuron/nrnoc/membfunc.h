@@ -111,7 +111,18 @@ extern int point_register_mech(const char**, mod_alloc_t alloc, mod_f_t cur,
   mod_f_t jacob, mod_f_t stat, mod_f_t initialize, int nrnpointerindex,
   void*(*constructor)(), void(*destructor)(), int vectorized
   );
-extern void nrn_cap_jacob(struct NrnThread*, Memb_list*);
+
+//exposing capacitor functions from nrnoc/capac.c
+extern void nrn_capacity_current(struct NrnThread*, Memb_list*, int);
+extern void nrn_cap_jacob(struct NrnThread*, Memb_list*, int);
+extern void cap_alloc(double*, Datum*, int type);
+extern void cap_init(struct NrnThread*, Memb_list*, int);
+
+//exposing ion functions from nrnoc/eion.c
+extern void ion_alloc();
+extern void ion_cur(struct NrnThread*, Memb_list*, int);
+extern void ion_init(struct NrnThread*, Memb_list*, int);
+
 extern void nrn_writes_conc(int, int);
 extern void nrn_wrote_conc(int, double*, int, int, struct NrnThread*);
 extern void hoc_register_prop_size(int, int, int);

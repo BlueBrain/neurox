@@ -68,6 +68,7 @@ class Mechanism
         capacitanceJacob=16,
     };
 
+    ///Call the NetReceive functions on the mod file, for synapses handling
     void callNetReceiveFunction(
             const void * branch, const Spike * spike,
             const char isInitFunction, const double t, const double dt);
@@ -76,9 +77,11 @@ class Mechanism
     static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
 
 private:
-    void registerIonicCharges();  ///> register ionic charges (ion_reg() in eion.c)
+    void disableMechFunctions(); ///> sets to NULL all function pointers
+    void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
+    void registerCapacitance();   ///> register mechanism of type "capacitance"
     void registerBAFunctions();   ///> register Before-After functions
-    void registerMechFunctions(); ///> register mechanisms functions (mod_t_f type)
+    void registerModMechanism(); ///> register mechanisms functions (mod_t_f type)
     static int callModFunction_handler(const int nargs, const void *args[], const size_t[]);
 
 };

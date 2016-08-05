@@ -103,7 +103,7 @@ has taken effect
 	/* note, the first is CAP */
 	if (_nt->tml) {
 		assert(_nt->tml->index == CAP);
-		nrn_cap_jacob(_nt, _nt->tml->ml);
+        nrn_cap_jacob(_nt, _nt->tml->ml, _nt->tml->index);
 	}
 
 	/* now add the axial currents */
