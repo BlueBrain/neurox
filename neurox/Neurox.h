@@ -26,7 +26,7 @@ namespace Neurox
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
-    extern Neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms, by mechanism id (NULL for undefined undefined)
+    extern Neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
@@ -37,7 +37,7 @@ namespace Neurox
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
     hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
-    Neurox::Mechanism & getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    Neurox::Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
     static int main_handler( char **argv, size_t argc); ///> handler of main

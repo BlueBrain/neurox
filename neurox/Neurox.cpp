@@ -18,8 +18,8 @@ hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
 }
 
-Neurox::Mechanism & getMechanismFromType(int type) {
-    return *mechanisms[mechanismsMap[type]];
+Neurox::Mechanism * getMechanismFromType(int type) {
+    return mechanisms[mechanismsMap[type]];
 }
 
 hpx_action_t setNeurons = 0;

@@ -136,7 +136,7 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
      */
     Mechanism::ModFunction functionId = *(ModFunction*)args[0];
     int mechType = *(int*)args[1];
-    Mechanism & mech = getMechanismFromType(mechType);
+    Mechanism * mech = getMechanismFromType(mechType);
 
     Memb_list membList;
     NrnThread nrnThread;
@@ -153,49 +153,49 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
             case Mechanism::before_breakpoint:
             case Mechanism::after_solve:
             case Mechanism::before_step:
-                   if (mech.BAfunctions[(int) functionId])
-                       mech.BAfunctions[(int) functionId](&nrnThread, &membList, mechType);
+                   if (mech->BAfunctions[(int) functionId])
+                       mech->BAfunctions[(int) functionId](&nrnThread, &membList, mechType);
                 break;
             case Mechanism::ModFunction::alloc:
-                if (mech.membFunc.alloc)
-                    mech.membFunc.alloc(membList.data, membList.pdata, mechType);
+                if (mech->membFunc.alloc)
+                    mech->membFunc.alloc(membList.data, membList.pdata, mechType);
                 break;
             case Mechanism::ModFunction::capacitanceCurrent:
                 assert(mechType == CAP);
             case Mechanism::ModFunction::current:
-                if (mech.membFunc.current)
-                    mech.membFunc.current(&nrnThread, &membList, mechType);
+                if (mech->membFunc.current)
+                    mech->membFunc.current(&nrnThread, &membList, mechType);
                 break;
             case Mechanism::ModFunction::state:
-                if (mech.membFunc.state)
-                    mech.membFunc.state(&nrnThread, &membList, mechType);
+                if (mech->membFunc.state)
+                    mech->membFunc.state(&nrnThread, &membList, mechType);
                 break;
             case Mechanism::ModFunction::capacitanceJacob:
                 assert(mechType == CAP);
             case Mechanism::ModFunction::jacob:
-                if (mech.membFunc.jacob)
-                    mech.membFunc.jacob(&nrnThread, &membList, mechType);
+                if (mech->membFunc.jacob)
+                    mech->membFunc.jacob(&nrnThread, &membList, mechType);
                 break;
             case Mechanism::ModFunction::initialize:
-                if (mech.membFunc.initialize)
-                    mech.membFunc.initialize(&nrnThread, &membList, mechType);
+                if (mech->membFunc.initialize)
+                    mech->membFunc.initialize(&nrnThread, &membList, mechType);
                 break;
             case Mechanism::ModFunction::destructor:
-                if (mech.membFunc.destructor)
-                    mech.membFunc.destructor();
+                if (mech->membFunc.destructor)
+                    mech->membFunc.destructor();
                 break;
             case Mechanism::ModFunction::threadMemInit:
-                if (mech.membFunc.thread_mem_init_)
-                    mech.membFunc.thread_mem_init_(membList._thread);
+                if (mech->membFunc.thread_mem_init_)
+                    mech->membFunc.thread_mem_init_(membList._thread);
                 break;
             case Mechanism::ModFunction::threadTableCheck:
-                if (mech.membFunc.thread_table_check_)
-                    mech.membFunc.thread_table_check_
+                if (mech->membFunc.thread_table_check_)
+                    mech->membFunc.thread_table_check_
                         (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, mechType);
                 break;
             case Mechanism::ModFunction::threadCleanup:
-                if (mech.membFunc.thread_cleanup_)
-                    mech.membFunc.thread_cleanup_(membList._thread);
+                if (mech->membFunc.thread_cleanup_)
+                    mech->membFunc.thread_cleanup_(membList._thread);
                 break;
             default:
                 printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
@@ -204,11 +204,11 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
 
     //call this function in all mechanisms that depend on this one
     //(ie the children on the tree of mechanisms dependencies)
-    short int childrenCount = getMechanismFromType(mechType).childrenCount;
-    hpx_addr_t lco =  childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
+    short int childrenCount = mech->childrenCount;
+    hpx_addr_t lco = childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
     for (short int c=0; c<childrenCount; c++)
     {
-        int childMechType = getMechanismFromType(mechType).children[c];
+        int childMechType =  mech->children[c];
         int e = hpx_call(HPX_HERE, Mechanism::callModFunction, lco,
                          args[0], sizes[0], &childMechType, sizeof(childMechType));
         assert(e==HPX_SUCCESS);

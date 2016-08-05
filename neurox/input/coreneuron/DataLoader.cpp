@@ -271,9 +271,9 @@ void DataLoader::loadData(int argc, char ** argv)
             int dataOffset  = 0; //6*nt.end; //(a,b,d,v,rhs,area for NrnThread->_data)
             int type = tml->index;
             Memb_list * ml = tml->ml; //Mechanisms application to each compartment
-            Mechanism & mech = getMechanismFromType(type);
-            int dataSize  = mech.dataSize;
-            int pdataSize = mech.pdataSize;
+            Mechanism * mech = getMechanismFromType(type);
+            int dataSize  = mech->dataSize;
+            int pdataSize = mech->pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 //TODO: I think ml->data is vectorized!
