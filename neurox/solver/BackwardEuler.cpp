@@ -18,7 +18,7 @@ void BackwardEuler::solve()
             int stepsCountPerComm = dt_comm / dt;
 
             //wait for all synapses from all synapses from before
-            //TODO [...]
+            //deliver_net_events(NrnThread&);
 
             //perform communication steps of duration 'dt_comm' until reaching 'tstop'
             for (double t_comm=0; t_comm<inputParams->tstop; t_comm += dt_comm )
@@ -29,6 +29,33 @@ void BackwardEuler::solve()
             return HPX_SUCCESS;
         },
     0, neuronsCount, NULL);
+}
+
+hpx_action_t BackwardEuler::branchStep = 0;
+int BackwardEuler::branchStep_handler(const int  * stepsCount_ptr, const size_t size)
+{
+    /*
+    neurox_hpx_pin(Branch);
+    assert(local== DEBUG_BRANCH_DELETE);
+    neurox_hpx_recursive_branch_async_call(BackwardEuler::branchStep, stepsCount_ptr, size);
+
+    for (int s=0; s<*stepsCount_ptr; s++)
+    {
+        //1. multicore.c::nrn_thread_table_check()
+        Mechanism::ModFunction func;
+        func = Mechanism::ModFunction::threadTableCheck;
+        callModFunction_handler(&func, sizeof(func));
+
+        //2.1 cvodestb::deliver_net_events(nth);
+        //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
+        bool reachedThresold = local->isSoma() && local->v[0]>APthreshold;
+        hpx_addr_t spikesLco = reachedThresold ? local->fireActionPotential() : HPX_NULL;
+
+    }
+
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+    */
 }
 
 hpx_action_t BackwardEuler::step = 0;
@@ -45,7 +72,6 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
 
     //2.1 cvodestb::deliver_net_events(nth);
     //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
-    //TODO this voltage access should be done on a local memory access, see conversation with Luke
     bool reachedThresold = local->getSomaVoltage() >= local->APthreshold;
     hpx_addr_t spikesLco = reachedThresold ? local->fireActionPotential() : HPX_NULL;
 
@@ -103,4 +129,5 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
 void BackwardEuler::registerHpxActions()
 {
     neurox_hpx_register_action(1, step);
+    neurox_hpx_register_action(1, branchStep);
 }

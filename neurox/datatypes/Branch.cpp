@@ -335,14 +335,13 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     {
       //*parallel* execution of independent mechanisms
       int topDependenciesCount = 0;
-      assert(mechanisms[0]->type=CAP); //CAP will be ignored
-      for (int m=1; m<mechanismsCount; m++)
+      for (int m=0; m<mechanismsCount; m++)
         if (mechanisms[m]->isTopMechanism)
             topDependenciesCount++;
       assert(topDependenciesCount>0);
 
       hpx_t lco_mechs = hpx_lco_and_new(topDependenciesCount);
-      for (int m=1; m<mechanismsCount; m++)
+      for (int m=0; m<mechanismsCount; m++)
       {
         Mechanism * mech = mechanisms[m];
         if (mechanisms[m]->isTopMechanism)

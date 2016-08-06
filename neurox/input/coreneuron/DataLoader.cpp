@@ -34,11 +34,20 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
+    int m=-1;
+    for (int i=0; i<mechanismsCount; i++)
+        if (mechanisms[i]->type==mechType)
+        {
+            m=i;
+            break;
+        }
+
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
-    membList.data  = mechsInstances[mechType].data;
-    membList.pdata = mechsInstances[mechType].pdata;
-    membList.nodecount = mechsInstances[mechType].instancesCount;
-    membList.nodeindices = mechsInstances[mechType].nodesIndices;
+    membList.data  = mechsInstances[m].data; //BUG HERE
+    membList.pdata = mechsInstances[m].pdata;
+    membList.nodecount = mechsInstances[m].instancesCount;
+    membList._nodecount_padded = membList.nodecount;
+    membList.nodeindices = mechsInstances[m].nodesIndices;
     membList._thread = NULL; //TODO: ThreadDatum never used ?
     nrnThread._actual_d = branch->d;
     nrnThread._actual_rhs = branch->rhs;
@@ -167,7 +176,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //no dependencies graph for now, next mechanism is the next in load sequence
         int childrenCount = type == CAP || tml->next==NULL ? 0 : 1;
         int children[1] = { type == CAP || tml->next==NULL ? -1 : tml->next->index };
-        char isTopMechanism = tml == nrn_threads[0].tml->next ? 1 : 0; //exclude CAP
+        char isTopMechanism = tml == nrn_threads[0].tml ? 1 : 0; //exclude CAP
 
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
@@ -282,6 +291,7 @@ void DataLoader::loadData(int argc, char ** argv)
                 //TODO: I think ml->data is vectorized!
                 assert (ml->nodeindices[n] < compartments.size());
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
+                assert(compartment->id == ml->nodeindices[n]);
                 compartment->addMechanismInstance(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
@@ -413,6 +423,7 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
     vector<vector<double>> data(mechanismsCount); //data per mechanism type
     vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
     vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
+    vector<int> instanceMechTypes();
 
     char multiSplit=0;
     Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v, area, p,
