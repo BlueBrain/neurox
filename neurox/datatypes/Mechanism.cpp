@@ -168,15 +168,17 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     int mechType = *(int*)args[1];
     Mechanism * mech = getMechanismFromType(mechType);
 
-    Memb_list membList;
-    NrnThread nrnThread;
-
-    //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
-    //The state function does not write to compartment, only reads, so no mutex needed
-    assert(local->mechsInstances[CAP].instancesCount>0);
-    Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
-    switch(functionId)
+    assert(local->mechsInstances[mech->type].instancesCount>=0);
+    if (local->mechsInstances[mech->type].instancesCount > 0)
     {
+        Memb_list membList;
+        NrnThread nrnThread;
+
+        //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
+        //The state function does not write to compartment, only reads, so no mutex needed
+        Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
+        switch(functionId)
+        {
             case Mechanism::before_initialize:
             case Mechanism::after_initialize:
             case Mechanism::before_breakpoint:
@@ -229,8 +231,10 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
             default:
                 printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
                 exit(1);
+        }
     }
 
+    //recursive mechanisms graph call (not for "capacitance")
     if (functionId  != Mechanism::ModFunction::capacitanceJacob
      && functionId  != Mechanism::ModFunction::capacitanceCurrent)
     {

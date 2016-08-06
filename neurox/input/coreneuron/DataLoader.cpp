@@ -133,7 +133,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
     {
-        int neuronId =getNeuronIdFromNrnThreadId(i);
+        int neuronId = getNeuronIdFromNrnThreadId(i);
 
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{\n", i );
