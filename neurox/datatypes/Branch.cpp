@@ -37,8 +37,8 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
     neurox_hpx_pin(Branch);
     assert(nargs==4);
 
-    const int m = sizes[0]/sizeof(int);
-    assert (m==mechanismsCount);
+    const int recvMechanismsCount = sizes[0]/sizeof(int);
+    assert (recvMechanismsCount == mechanismsCount);
 
     const int * instancesCount = (const int*) args[0];
     const double * data =  (const double*) args[1];
@@ -47,27 +47,29 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
 
     int dataOffset=0;
     int pdataOffset=0;
-    int nodesIndicesOffset=0;
+    int instancesOffset=0;
 
-    local->mechsInstances = new MechanismInstance[m];
+    local->mechsInstances = new MechanismInstance[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
     {
         MechanismInstance & instance = local->mechsInstances[m];
         instance.instancesCount = instancesCount[m];
-        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
-        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
-        instance.data = new double[totalDataSize];
-        instance.pdata = new int[totalPdataSize];
-        instance.nodesIndices = new int[instance.instancesCount];
-        memcpy(instance.data, &data[dataOffset], sizeof(double)*totalDataSize);
-        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
-        memcpy(instance.nodesIndices, &nodesIndices[nodesIndicesOffset], sizeof(int)*instance.instancesCount);
-        dataOffset += totalDataSize;
-        pdataOffset += totalPdataSize;
-        nodesIndicesOffset += instance.instancesCount;
-    }
 
-    neurox_hpx_unpin;;
+        instance.nodesIndices = instance.instancesCount>0 ? new int[instance.instancesCount] : nullptr;
+        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.instancesCount);
+        instancesOffset += instance.instancesCount;
+
+        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
+        instance.data = totalDataSize>0 ?  new double[totalDataSize]: nullptr;
+        memcpy(instance.data, &data[dataOffset], sizeof(double)*totalDataSize);
+        dataOffset += totalDataSize;
+
+        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
+        instance.pdata = totalPdataSize>0 ? new int[totalPdataSize] : nullptr;
+        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
+        pdataOffset += totalPdataSize;
+    }
+    neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::initNetCons = 0;

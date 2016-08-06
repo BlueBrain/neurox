@@ -173,6 +173,7 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
 
     //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
     //The state function does not write to compartment, only reads, so no mutex needed
+    assert(local->mechsInstances[CAP].instancesCount>0);
     Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
     switch(functionId)
     {

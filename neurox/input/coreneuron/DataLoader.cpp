@@ -378,7 +378,7 @@ Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int
         }
         n++;
 
-        if (comp->branches.size()==0) //leaf
+        if (comp->branches.size() == 0) //leaf
             return comp;
 
         if (comp->branches.size() > 1) //bifurcation
@@ -397,8 +397,7 @@ Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int
         //otherwise, iterate (take the next compartment in the sequence)
         comp = comp->branches.front();
     }
-    assert(0);
-    return NULL; //should never enter here
+    throw new std::runtime_error("Error while reconstructing morphology (FLAG1)\n");
 }
 
 hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
@@ -416,8 +415,8 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
     Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v,
                                               area, p, instancesCount, data, pdata, nodesIndices,
                                               multiSplit);
-    vector<hpx_t> branches (comp->branches.size());
 
+    vector<hpx_t> branches (comp->branches.size());
 
     if (multiSplit) //next branches will be *hpx children* of this one
     {
