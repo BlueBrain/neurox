@@ -14,6 +14,9 @@ extern int * mechanismsMap = nullptr;
 NeuroX::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
+NeuroX::Branch * DEBUG_BRANCH_DELETE = nullptr;
+NeuroX::Neuron * DEBUG_NEURON_DELETE = nullptr;
+
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
 }

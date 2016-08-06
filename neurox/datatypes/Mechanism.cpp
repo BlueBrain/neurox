@@ -158,6 +158,7 @@ hpx_action_t Mechanism::callModFunction = 0;
 int Mechanism::callModFunction_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch); //we are in a Branch's memory space
+    assert(DEBUG_BRANCH_DELETE == local);
     assert(nargs==2);
 
     /** nargs=2 where:
@@ -168,14 +169,13 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     int mechType = *(int*)args[1];
     Mechanism * mech = getMechanismFromType(mechType);
 
-    assert(local->mechsInstances[mech->type].instancesCount>=0);
     if (local->mechsInstances[mech->type].instancesCount > 0)
     {
         Memb_list membList;
         NrnThread nrnThread;
 
         //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
-        //The state function does not write to compartment, only reads, so no mutex needed
+        //The state function does not write to compartment, only reads, so no mutex needed (TODO)
         Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
         switch(functionId)
         {
@@ -245,7 +245,7 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
       for (short int c=0; c<childrenCount; c++)
       {
         int childMechType =  mech->children[c];
-        int e = hpx_call(HPX_HERE, Mechanism::callModFunction, lco,
+        int e = hpx_call(target, Mechanism::callModFunction, lco,
                          args[0], sizes[0], &childMechType, sizeof(childMechType));
         assert(e==HPX_SUCCESS);
       }

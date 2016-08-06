@@ -21,14 +21,11 @@ void Compartment::addChild(Compartment * child)
 };
 
 
-void Compartment::addMechanismInstance(int mechType, int instance, double * data, int dataSize, Datum * pdata, int pdataSize)
+void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
     mechsTypes.push_back(mechType);
-    mechsInstances.push_back(instance);
-
     if (data!=nullptr)
        this->data.insert (this->data.end() , data , data  + dataSize );
-
     if (pdata!=nullptr)
        this->pdata.insert(this->pdata.end(), pdata, pdata + pdataSize);
 };

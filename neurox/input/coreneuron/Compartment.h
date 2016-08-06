@@ -24,14 +24,13 @@ class Compartment
 
     void addChild(Compartment* child);
 
-    void addMechanismInstance(int mechId, int instance, double * data, int dataSize, Datum * pdata, int pdataSize);
+    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
 
     int id;
     vector<Compartment*> branches;
     double a,b,d,v,rhs,area;
     int p;
     vector<int> mechsTypes;
-    vector<int> mechsInstances;
     vector<double> data;
     vector<Datum> pdata;
     vector<NetConX> synapsesIn;

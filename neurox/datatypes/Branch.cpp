@@ -35,8 +35,8 @@ int Branch::initMechanismsInstances_handler(const int nargs, const void *args[],
      */
 
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     assert(nargs==4);
-
     const int recvMechanismsCount = sizes[0]/sizeof(int);
     assert (recvMechanismsCount == mechanismsCount);
 
@@ -82,6 +82,7 @@ int Branch::initNetCons_handler(const int nargs, const void *args[], const size_
      */
 
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     assert(nargs==7);
 
     //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
@@ -120,6 +121,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
     neurox_hpx_pin(Branch);
     assert(nargs==9);
+
+    DEBUG_BRANCH_DELETE = local;
 
     local->isSoma = *(const char*) args[0];
     local->n = sizes[1]/sizeof(double);
@@ -166,6 +169,7 @@ hpx_action_t Branch::setV = 0;
 int Branch::setV_handler(const double * v, const size_t v_size)
 {
     neurox_hpx_pin(Branch);
+    assert(local== DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::setV, v, v_size);
     for (int n=0; n<local->n; n++)
         local->v[n]=*v;
@@ -177,6 +181,7 @@ hpx_action_t Branch::updateV = 0;
 int Branch::updateV_handler(const int * secondOrder, size_t secondOrder_size)
 {
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::updateV, &secondOrder, secondOrder_size);
     for (int i=0; i<local->n; i++)
         local->v[i] += (*secondOrder ? 2 : 1) * local->rhs[i];
@@ -188,6 +193,7 @@ hpx_action_t Branch::getSomaVoltage=0;
 int Branch::getSomaVoltage_handler()
 {
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_unpin_continue(local->v[0]);
 }
 
@@ -195,6 +201,7 @@ hpx_action_t Branch::setupMatrixInitValues = 0;
 int Branch::setupMatrixInitValues_handler()
 {
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::setupMatrixInitValues);
     for (int n=0; n<local->n; n++)
     {
@@ -245,6 +252,7 @@ hpx_action_t Branch::callModFunction = 0;
 int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
 {
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
 
     //only for capacitance mechanism
@@ -252,7 +260,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
      || *functionId_ptr == Mechanism::ModFunction::capacitanceJacob)
     {
         int mechType = CAP;
-        hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
+        hpx_call_sync(target, Mechanism::callModFunction, NULL, 0,
                       functionId_ptr, functionId_size,
                       &mechType, sizeof(mechType));
     }
@@ -273,7 +281,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
       {
         Mechanism * mech = mechanisms[m];
         if (mechanisms[m]->isTopMechanism)
-            hpx_call(HPX_HERE, Mechanism::callModFunction, lco_mechs,
+            hpx_call(target, Mechanism::callModFunction, lco_mechs,
                               functionId_ptr, functionId_size,
                               &(mech->type), sizeof(mech->type));
       }
@@ -294,6 +302,7 @@ hpx_action_t Branch::secondOrderCurrent = 0;
 int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
+    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
     MechanismInstance * mechInstances= local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)

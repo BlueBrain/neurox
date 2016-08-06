@@ -203,7 +203,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
     //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
-    int neuronsCount =  std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
     if(neuronsCount == nrn_nthread)
         printf("Warning: neurons count %d not equal to nrn_nthread %d\n", neuronsCount, nrn_nthread);
 
@@ -247,8 +247,8 @@ void DataLoader::loadData(int argc, char ** argv)
         //reconstructs parents tree
         for (int n=nt.end-1; n>0; n--) //exclude top (no parent)
         {
-            Compartment * parentCompartment = compartments[nt._v_parent_index[n]];
-            parentCompartment->addChild(compartments[n]);
+            Compartment * parentCompartment = compartments.at(nt._v_parent_index[n]);
+            parentCompartment->addChild(compartments.at(n));
         }
 
 #ifdef DEBUG
@@ -279,8 +279,8 @@ void DataLoader::loadData(int argc, char ** argv)
             {
                 //TODO: I think ml->data is vectorized!
                 assert (ml->nodeindices[n] < compartments.size());
-                Compartment * compartment = compartments[ml->nodeindices[n]];
-                compartment->addMechanismInstance(type, n, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
+                Compartment * compartment = compartments.at(ml->nodeindices[n]);
+                compartment->addMechanismInstance(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -288,7 +288,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
         map<int, vector<NetConX*> > netcons; //netcons per pre-synaptic neuron id
 
-        //get all incoming synapses from neurons in other MPI ranks
+        //get all incoming synapses from neurons in other MPI ranks (or NrnThread?)
         for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
              syn_it!=gid2in.end(); syn_it++)
         {
@@ -297,7 +297,7 @@ void DataLoader::loadData(int argc, char ** argv)
             addNetConsForThisNeuron(neuronId, preNeuronId, ips->nc_cnt_, ips->nc_index_, netcons);
         }
 
-        //get all incoming synapses from neurons in the same MPI rank
+        //get all incoming synapses from neurons in the same MPI rank (or NrnThread?)
         for (std::map<int, PreSyn*>::iterator syn_it = gid2out.begin();
              syn_it!=gid2out.end(); syn_it++)
         {
@@ -390,6 +390,7 @@ Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int
                 bottomComp = getBranchSectionData(comp->branches[c], n, d, b, a, rhs, v,
                                         area, p, instancesCount, data, pdata, nodesIndices,
                                         multiSplit);
+              return bottomComp;
             }
             return comp;
         }
@@ -412,17 +413,15 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
     vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
 
     char multiSplit=0;
-    Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v,
-                                              area, p, instancesCount, data, pdata, nodesIndices,
-                                              multiSplit);
-
+    Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v, area, p,
+                                              instancesCount, data, pdata, nodesIndices,multiSplit);
     vector<hpx_t> branches (comp->branches.size());
 
     if (multiSplit) //next branches will be *hpx children* of this one
     {
       //recursively create children branches
       for (int c=0; c<comp->branches.size(); c++)
-        branches[c]=createBranch((char) 0, comp->branches[c], netcons);
+        branches.push_back(createBranch((char) 0, comp->branches[c], netcons));
     }
 
     //Allocate HPX Branch

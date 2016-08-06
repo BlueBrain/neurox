@@ -32,6 +32,9 @@ namespace NeuroX
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
 
+    extern NeuroX::Branch * DEBUG_BRANCH_DELETE;
+    extern NeuroX::Neuron * DEBUG_NEURON_DELETE;
+
     extern hpx_action_t main;           ///> execution starting point (called via hpx_run)
     extern hpx_action_t setNeurons;     ///> Initialized neurons and neuronsAddr global vars
     extern hpx_action_t setInputParams; ///> Initializes InputParams
