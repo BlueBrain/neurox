@@ -46,6 +46,8 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._actual_area = branch->area;
     nrnThread._dt = dt;
     nrnThread._t = t;
+    nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
+    //TODO shall this be hardcoded on a branch info?
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
@@ -163,9 +165,9 @@ void DataLoader::loadData(int argc, char ** argv)
 
         //TODO: for graph: remove circular or dual connections, should be a regular tree not a graph
         //no dependencies graph for now, next mechanism is the next in load sequence
-        int childrenCount = tml->next!=NULL ? 1 : 0;
-        int children[1] = { tml->next ? (short) tml->next->index: (short) -1};
-        char isTopMechanism = tml == nrn_threads[0].tml ? 1 : 0;
+        int childrenCount = type == CAP || tml->next==NULL ? 0 : 1;
+        int children[1] = { type == CAP || tml->next==NULL ? -1 : tml->next->index };
+        char isTopMechanism = tml == nrn_threads[0].tml->next ? 1 : 0; //exclude CAP
 
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],

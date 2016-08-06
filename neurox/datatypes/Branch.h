@@ -56,13 +56,14 @@ class Branch
     /// returns all instances of mechanisms type 'type'
     inline MechanismInstance & getMechanismInstanceFromType(int type);
 
+    void setupTreeMatrixMinimal();
+
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initMechanismsInstances; ///> Initializes applications of mechanisms to this branch
-    static hpx_action_t setupMatrixInitValues; ///> set D and RHS of all compartments to 0
     static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
-    static hpx_action_t setV; ///> finitialize.c :: sets initial values of V
+    static hpx_action_t finitialize; ///> finitialize.c :: sets initial values of V
     static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
     static hpx_action_t callNetReceiveFunction; ///> calls NetReceive Functions
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
@@ -75,8 +76,7 @@ class Branch
 
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();
-    static int setV_handler(const double * v, const size_t);
-    static int setupMatrixInitValues_handler();
+    static int finitialize_handler(const double * v, const size_t);
     static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);

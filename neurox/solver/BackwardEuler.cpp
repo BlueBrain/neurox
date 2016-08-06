@@ -75,7 +75,7 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
 
     //fadvance_core.c : update()
     hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder, sizeof(inputParams->secondorder));
-    local->callModFunction(Mechanism::ModFunction::capacitanceCurrent);
+    local->callModFunction(Mechanism::ModFunction::jacob);
     //TODO: this is not a MOD file function, its in capac.c, has to be converted!
 
     local->t += .5*dt;

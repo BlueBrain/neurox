@@ -83,9 +83,9 @@ static void nrn_lhs(NrnThread* _nt) {
 	int i, i1, i2, i3;
 	NrnThreadMembList* tml;
 
-	i1 = 0;
-	i2 = i1 + _nt->ncell;
-	i3 = _nt->end;
+    i1 = 0;
+    i2 = i1 + _nt->ncell;
+    i3 = _nt->end;
 
 	/* note that CAP has no jacob */
 	for (tml = _nt->tml; tml; tml = tml->next) if (memb_func[tml->index].jacob) {

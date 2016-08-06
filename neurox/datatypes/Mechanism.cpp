@@ -93,9 +93,7 @@ void Mechanism::disableMechFunctions()
 
 void Mechanism::registerModMechanism()
 {
-    /*
     int type = this->type;
-    //register functions //TODO will not work in more than 1 compute node
     this->membFunc.alloc = memb_func[type].alloc;
     this->membFunc.setdata_ = memb_func[type].setdata_;
     this->membFunc.destructor = memb_func[type].destructor;
@@ -108,7 +106,6 @@ void Mechanism::registerModMechanism()
     this->membFunc.thread_size_ = memb_func[type].thread_size_;
     //look up tables are created and destroyed inside mod files, not accessible via coreneuron
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
-    */
 }
 
 //from coreneuron/nrnoc/capac.c
@@ -190,9 +187,13 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                 if (mech->membFunc.alloc)
                     mech->membFunc.alloc(membList.data, membList.pdata, mechType);
                 break;
-            case Mechanism::ModFunction::capacitanceCurrent:
+            case Mechanism::ModFunction::currentCapacitance:
                 assert(mechType == CAP);
+                assert(mech->membFunc.current != NULL);
+                mech->membFunc.current(&nrnThread, &membList, mechType);
+                break;
             case Mechanism::ModFunction::current:
+                assert(mechType != CAP);
                 if (mech->membFunc.current)
                     mech->membFunc.current(&nrnThread, &membList, mechType);
                 break;
@@ -200,9 +201,13 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                 if (mech->membFunc.state)
                     mech->membFunc.state(&nrnThread, &membList, mechType);
                 break;
-            case Mechanism::ModFunction::capacitanceJacob:
+            case Mechanism::ModFunction::jacobCapacitance:
                 assert(mechType == CAP);
+                assert(mech->membFunc.jacob != NULL);
+                mech->membFunc.jacob(&nrnThread, &membList, mechType);
+                break;
             case Mechanism::ModFunction::jacob:
+                assert(mechType != CAP);
                 if (mech->membFunc.jacob)
                     mech->membFunc.jacob(&nrnThread, &membList, mechType);
                 break;
@@ -234,8 +239,8 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     }
 
     //recursive mechanisms graph call (not for "capacitance")
-    if (functionId  != Mechanism::ModFunction::capacitanceJacob
-     && functionId  != Mechanism::ModFunction::capacitanceCurrent)
+    if (functionId  != Mechanism::ModFunction::jacobCapacitance
+     && functionId  != Mechanism::ModFunction::jacob)
     {
     //call this function in all mechanisms that depend on this one
     //(ie the children on the tree of mechanisms dependencies)

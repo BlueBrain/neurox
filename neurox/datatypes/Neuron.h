@@ -24,9 +24,6 @@ class Neuron
     double t; ///> current time
     double dt; ///> time step size
 
-    //from NrnThread
-    double cj; ///<1st or 2nd order solver ... (?)
-
     //outgoing synapses
     double APthreshold;  ///> Action Potential threshold
     std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (neuron or branch)

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.3, 2016-08-03T18:03:44. -->
+<!-- Written by QtCreator 4.0.3, 2016-08-06T15:20:47. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -72,7 +72,7 @@
     <valuelist type="QVariantList" key="CMake.Configuration">
      <value type="QString">ADDITIONAL_MECHPATH:PATH=/home/bmagalha/Workspace/neurodamus/lib/modlib</value>
      <value type="QString">ADDITIONAL_MECHS:FILEPATH=/home/bmagalha/Workspace/neurodamus/lib/modlib/coreneuron_modlist.txt</value>
-     <value type="QString">CMAKE_BUILD_TYPE:STRING=Debug</value>
+     <value type="QString">CMAKE_BUILD_TYPE:STRING=DEBUG</value>
      <value type="QString">CMAKE_CXX_COMPILER:STRING=mpicxx</value>
      <value type="QString">CMAKE_C_COMPILER:STRING=/usr/bin/mpicc</value>
      <value type="QString">QT_QMAKE_EXECUTABLE:STRING=/home/bmagalha/Qt/5.7/gcc_64/bin/qmake</value>

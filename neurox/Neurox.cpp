@@ -115,18 +115,8 @@ static int main_handler( char **argv, size_t argc)
         { return hpx_call_sync(getNeuronAddr(i), Neuron::finitialize, NULL, 0);},
         0, neuronsCount, NULL);
 
-    // call prcellstae for prcellgid
-    //opens the file that will store this cell's info
-    //if ( globalInfo->prcellgid >= 0 ) {
-    //    sprintf( prcellname, "t%g", t );
-    //    prcellstate( globalInfo->prcellgid, prcellname );
-    //}
-
-    // handle forwardskip
+    // TODO handle forwardskip ??
     // many steps with large dt so that cells start at their resting potential
-    //if ( input_params.forwardskip > 0.0 ) {
-    //    handle_forward_skip( input_params.forwardskip, input_params.prcellgid );
-    //}
 
     printf("BackwardEuler::solver...\n");
     Solver::BackwardEuler::solve(); //BBS_netpar_solve( inputParams.tstop );

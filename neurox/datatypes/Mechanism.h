@@ -64,8 +64,8 @@ class Mechanism
         threadTableCheck=13,
         setData=14,
         //capacitance functions start here
-        capacitanceCurrent=15, //not in mod files, it's in capac.c
-        capacitanceJacob=16,
+        currentCapacitance=15, //not in mod files, it's in capac.c
+        jacobCapacitance=16,
     };
 
     ///Call the NetReceive functions on the mod file, for synapses handling
