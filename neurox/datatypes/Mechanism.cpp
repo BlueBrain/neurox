@@ -157,26 +157,25 @@ Mechanism::~Mechanism(){
 hpx_action_t Mechanism::callModFunction = 0;
 int Mechanism::callModFunction_handler(const int nargs, const void *args[], const size_t sizes[])
 {
-    neurox_hpx_pin(Branch); //we are in a Branch's memory space
-    assert(DEBUG_BRANCH_DELETE == local);
-    assert(nargs==2);
-
-    /** nargs=2 where:
-     * args[0] = Id of the function to be called
-     * args[1] = Id of the mechanism to be called
+    assert(nargs==3);
+    /** nargs=3 where:
+     * args[0] = Memory Location of the branch
+     * args[1] = Id of the function to be called
+     * args[2] = Id of the mechanism to be called
      */
-    Mechanism::ModFunction functionId = *(ModFunction*)args[0];
-    int mechType = *(int*)args[1];
+    Branch * branch = *(Branch**) args[0];
+    Mechanism::ModFunction functionId = *(ModFunction*)args[1];
+    int mechType = *(int*)args[2];
     Mechanism * mech = getMechanismFromType(mechType);
 
-    if (local->mechsInstances[mech->type].instancesCount > 0)
+    if (branch->mechsInstances[mech->type].instancesCount > 0)
     {
         Memb_list membList;
         NrnThread nrnThread;
 
         //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
         //The state function does not write to compartment, only reads, so no mutex needed (TODO)
-        Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(local, membList, nrnThread, mechType);
+        Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(branch, membList, nrnThread, mechType);
         switch(functionId)
         {
             case Mechanism::before_initialize:
@@ -242,20 +241,19 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
     //(ie the children on the tree of mechanisms dependencies)
       short int childrenCount = mech->childrenCount;
       hpx_addr_t lco = childrenCount > 0 ? hpx_lco_and_new(childrenCount) : HPX_NULL;
+
       for (short int c=0; c<childrenCount; c++)
-      {
-        int childMechType =  mech->children[c];
-        int e = hpx_call(target, Mechanism::callModFunction, lco,
-                         args[0], sizes[0], &childMechType, sizeof(childMechType));
-        assert(e==HPX_SUCCESS);
-      }
+          hpx_call(HPX_HERE, Mechanism::callModFunction, lco,
+                   args[0], sizes[0],
+                   args[1], sizes[1],
+                   &(mech->children[c]), sizes[2]);
+
       if (childrenCount>0)
       {
         hpx_lco_wait(lco);
         hpx_lco_delete(lco, HPX_NULL);
       }
     }
-    neurox_hpx_unpin;
 }
 
 void Mechanism::callNetReceiveFunction(

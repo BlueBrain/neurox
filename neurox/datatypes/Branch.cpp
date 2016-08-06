@@ -260,7 +260,8 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
      || *functionId_ptr == Mechanism::ModFunction::capacitanceJacob)
     {
         int mechType = CAP;
-        hpx_call_sync(target, Mechanism::callModFunction, NULL, 0,
+        hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
+                      &local, sizeof(local),
                       functionId_ptr, functionId_size,
                       &mechType, sizeof(mechType));
     }
@@ -281,9 +282,10 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
       {
         Mechanism * mech = mechanisms[m];
         if (mechanisms[m]->isTopMechanism)
-            hpx_call(target, Mechanism::callModFunction, lco_mechs,
-                              functionId_ptr, functionId_size,
-                              &(mech->type), sizeof(mech->type));
+            hpx_call(HPX_HERE, Mechanism::callModFunction, lco_mechs,
+                     &local, sizeof(local),
+                     functionId_ptr, functionId_size,
+                     &(mech->type), sizeof(mech->type));
       }
       hpx_lco_wait(lco_mechs);
       hpx_lco_delete(lco_mechs, HPX_NULL);
