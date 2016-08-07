@@ -1,6 +1,7 @@
 #pragma once
 
-#define DEBUG
+#define DEBUG //Debug information at set-up time
+#define EXTREME_DEBUG //Debug information during simulation runtime
 
 //Core datatypes
 #include "neurox/Neurox_hpx.h"
@@ -19,6 +20,9 @@
 //CoreNeuron data loader
 #include "neurox/input/coreneuron/Compartment.h"
 #include "neurox/input/coreneuron/DataLoader.h"
+
+//Miscellaneous
+#include "neurox/misc/Statistics.h"
 
 ///NeuroX namespace: contains global information that is copied to all localities
 namespace NeuroX

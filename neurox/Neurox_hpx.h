@@ -12,16 +12,8 @@
 
 //typedefs
 typedef hpx_addr_t hpx_t;
-
-/* TODO
-#ifdef DOUBLE_PRECISION
-  typedef double floble;
-  typedef HPX_DOUBLE HPX_FLOBLE;
-#else
-  typedef float floble;
-  typedef HPX_FLOAT HPX_FLOBLE;
-#endif
-*/
+typedef double floble_t;
+typedef int index_t; //int or unsigned short
 
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0

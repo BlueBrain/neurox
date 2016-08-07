@@ -43,12 +43,18 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         }
 
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
-    membList.data  = mechsInstances[m].data; //BUG HERE
+    membList.data  = mechsInstances[m].data;
     membList.pdata = mechsInstances[m].pdata;
     membList.nodecount = mechsInstances[m].instancesCount;
     membList._nodecount_padded = membList.nodecount;
     membList.nodeindices = mechsInstances[m].nodesIndices;
     membList._thread = NULL; //TODO: ThreadDatum never used ?
+    nrnThread.end = branch->n;
+    nrnThread.ncell = 1;
+    nrnThread.weights = NULL; //TODO: FOR NOW, until it crashes
+    nrnThread.mapping = NULL; //TODO is it used?
+    nrnThread._actual_a = branch->a;
+    nrnThread._actual_b = branch->b;
     nrnThread._actual_d = branch->d;
     nrnThread._actual_rhs = branch->rhs;
     nrnThread._actual_v = branch->v;
@@ -56,7 +62,44 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
-    //TODO shall this be hardcoded on a branch info?
+    //TODO shall this cj field be hardcoded on a branch info?
+
+//We will compare Neurox data structures with CoreNeuron's
+#ifdef EXTREME_DEBUG
+    NrnThread & nt = nrn_threads[0];
+    assert(nt.end == branch->n);
+    for (int i=0; i<membList.nodecount; i++)
+    {
+        assert(nt._actual_a[i] == branch->a[i]);
+        assert(nt._actual_b[i] == branch->b[i]);
+        assert(nt._actual_d[i] == branch->d[i]);
+        assert(nt._actual_v[i] == branch->v[i]);
+        assert(nt._actual_rhs[i] == branch->rhs[i]);
+        assert(nt._actual_area[i] == branch->area[i]);
+    }
+    m=0;
+    for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
+    {
+        m++;
+        int type = tml->index;
+        Memb_list * ml = tml->ml; //Mechanisms application to each compartment
+        Branch::MechanismInstance & instance = branch->mechsInstances[m];
+        assert(ml->nodecount == instance.instancesCount);
+        assert(ml->_nodecount_padded == instance.instancesCount);
+        int dataSize = mechanisms[m]->dataSize;
+        int pdataSize = mechanisms[m]->pdataSize;
+        for (int n=0; n<ml->nodecount; n++) //for every mech instance
+        {
+            assert(ml->nodeindices[n]==instance.nodesIndices[n]);
+            for (int i=0; i<dataSize; i++)
+            {   assert(ml->data[i]==instance.data[i]); }
+
+            for (int i=0; i<pdataSize; i++)
+            {   assert(ml->pdata[i]==instance.pdata[i]); }
+        }
+    }
+    assert(m==mechanismsCount);
+#endif
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
@@ -172,11 +215,11 @@ void DataLoader::loadData(int argc, char ** argv)
         int type = tml->index;
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
 
-        //TODO: for graph: remove circular or dual connections, should be a regular tree not a graph
+        //TODO: for graph: remove circular or dual connections, (required mutex?)
         //no dependencies graph for now, next mechanism is the next in load sequence
-        int childrenCount = type == CAP || tml->next==NULL ? 0 : 1;
-        int children[1] = { type == CAP || tml->next==NULL ? -1 : tml->next->index };
-        char isTopMechanism = tml == nrn_threads[0].tml ? 1 : 0; //exclude CAP
+        int childrenCount = tml->next==NULL ? 0 : 1;
+        int children[1] = { tml->next==NULL ? -1 : tml->next->index };
+        char isTopMechanism = type == CAP ? 1 : 0; //exclude CAP
 
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],

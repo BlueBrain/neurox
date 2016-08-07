@@ -11,6 +11,7 @@ Branch::~Branch()
     delete [] d;
     delete [] a;
     delete [] v;
+    delete [] p;
     delete [] rhs;
     delete [] area;
     delete [] branches;

@@ -28,6 +28,7 @@ class Neuron
     double APthreshold;  ///> Action Potential threshold
     std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (neuron or branch)
 
+
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
     void callModFunction(Mechanism::ModFunction functionId); ///> Calls a MOD function on all mechanisms
     void callNetReceiveFunction(char isInitFunction); ///> Calls NetReceive function on all branches

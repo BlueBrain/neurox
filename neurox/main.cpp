@@ -15,6 +15,7 @@ int main(int argc, char** argv)
     NeuroX::Mechanism::registerHpxActions();
     NeuroX::Solver::BackwardEuler::registerHpxActions();
     NeuroX::Solver::HinesSolver::registerHpxActions();
+    NeuroX::Misc::Statistics::registerHpxActions();
 
     //Init HPX
     if (hpx_init(&argc, &argv) != 0)
