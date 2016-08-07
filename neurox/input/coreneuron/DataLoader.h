@@ -34,6 +34,7 @@ class DataLoader
     static void fromHpxToCoreneuronDataStructs(Branch * branch, Memb_list & membList,
                                                NrnThread & nrnThread, int mechType);
 
+    static void compareDataStructuresWithCoreNeuron(Branch * branch);
   private:
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
                                         int netconsOffset, map<int, std::vector<NetConX*> > & netcons);
@@ -44,12 +45,12 @@ class DataLoader
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
 
 private:
-    static Compartment* getBranchingMultispliX(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
+    static Compartment* getBranchingMultispliX(Compartment * topCompartment, vector<double> & d, vector<double> & b,
                                                vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
                                                vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
                                                vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices);
 
-    static void getBranchingFlat(vector<Compartment*> & compartments, int & n, vector<double> & d, vector<double> & b,
+    static void getBranchingFlat(vector<Compartment*> & compartments, vector<double> & d, vector<double> & b,
                                  vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
                                  vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
                                  vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices);

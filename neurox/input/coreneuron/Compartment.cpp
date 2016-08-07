@@ -21,11 +21,18 @@ void Compartment::addChild(Compartment * child)
 };
 
 
-void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize)
+void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize, int pdataGap)
 {
     mechsTypes.push_back(mechType);
     if (data!=nullptr)
        this->data.insert (this->data.end() , data , data  + dataSize );
     if (pdata!=nullptr)
-       this->pdata.insert(this->pdata.end(), pdata, pdata + pdataSize);
+    {
+        for (int i=0; i<pdataSize; i++)
+        {
+            assert(pdata[i]-pdataGap>=0); //if this fails, we'll have to move *data and *pdata to Branch (it's trying to reach compartments' voltage)
+            this->pdata.push_back(pdata[i]-pdataGap);
+        }
+
+    }
 };

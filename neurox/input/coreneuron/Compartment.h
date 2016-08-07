@@ -24,7 +24,7 @@ class Compartment
 
     void addChild(Compartment* child);
 
-    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
+    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize, int pdataGap=0);
 
     int id;
     vector<Compartment*> branches;

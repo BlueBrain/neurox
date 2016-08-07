@@ -30,6 +30,44 @@ int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
     nrn_threads[nrn_id].presyns[0].gid_;
 }
 
+void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
+{
+    NrnThread & nt = nrn_threads[0];
+    assert(nt.end == branch->n);
+    for (int i=0; i<branch->n; i++)
+    {
+        assert(nt._actual_a[i] == branch->a[i]);
+        assert(nt._actual_b[i] == branch->b[i]);
+        assert(nt._actual_d[i] == branch->d[i]);
+        assert(nt._actual_v[i] == branch->v[i]);
+        assert(nt._actual_rhs[i] == branch->rhs[i]);
+        assert(nt._actual_area[i] == branch->area[i]);
+    }
+    int mechCount=0;
+    for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
+    {
+        int type = tml->index;
+        int m = mechanismsMap[type];
+        Memb_list * ml = tml->ml; //Mechanisms application to each compartment
+        Branch::MechanismInstance & instance = branch->mechsInstances[m];
+        assert(ml->nodecount == instance.instancesCount);
+        //assert(ml->_nodecount_padded == instance.instancesCount);
+        int dataSize = mechanisms[m]->dataSize;
+        int pdataSize = mechanisms[m]->pdataSize;
+        for (int n=0; n<ml->nodecount; n++) //for every mech instance
+        {
+            assert(ml->nodeindices[n]==instance.nodesIndices[n]);
+            for (int i=0; i<dataSize; i++)
+            {   assert(ml->data[i]==instance.data[i]); }
+
+            for (int i=0; i<pdataSize; i++)
+            {   assert(ml->pdata[i]==instance.pdata[i]); }
+        }
+        mechCount++;
+    }
+    assert(mechCount==mechanismsCount);
+}
+
 void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
@@ -57,11 +95,12 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
     //TODO shall this cj field be hardcoded on a branch info?
 
-//We will compare Neurox data structures with CoreNeuron's
-#ifdef EXTREME_DEBUG
+#ifdef DEBUG
+    if (!branch->isSoma) return; //run only once
+    if (mechType != CAP) return; //runs only at the beginning og mechs graph
     NrnThread & nt = nrn_threads[0];
     assert(nt.end == branch->n);
-    for (int i=0; i<membList.nodecount; i++)
+    for (int i=0; i<branch->n; i++)
     {
         assert(nt._actual_a[i] == branch->a[i]);
         assert(nt._actual_b[i] == branch->b[i]);
@@ -69,16 +108,18 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         assert(nt._actual_v[i] == branch->v[i]);
         assert(nt._actual_rhs[i] == branch->rhs[i]);
         assert(nt._actual_area[i] == branch->area[i]);
+        if (branch->p)
+          assert(nt._v_parent_index[i] == branch->p[i]);
     }
-    m=0;
+    int mechCount=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
-        m++;
         int type = tml->index;
+        int m = mechanismsMap[type];
         Memb_list * ml = tml->ml; //Mechanisms application to each compartment
         Branch::MechanismInstance & instance = branch->mechsInstances[m];
         assert(ml->nodecount == instance.instancesCount);
-        assert(ml->_nodecount_padded == instance.instancesCount);
+        //assert(ml->_nodecount_padded == instance.instancesCount);
         int dataSize = mechanisms[m]->dataSize;
         int pdataSize = mechanisms[m]->pdataSize;
         for (int n=0; n<ml->nodecount; n++) //for every mech instance
@@ -87,11 +128,13 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
             for (int i=0; i<dataSize; i++)
             {   assert(ml->data[i]==instance.data[i]); }
 
-            for (int i=0; i<pdataSize; i++)
-            {   assert(ml->pdata[i]==instance.pdata[i]); }
+            //BRUNO
+            //for (int i=0; i<pdataSize; i++)
+            //{   assert(ml->pdata[i]==instance.pdata[i]); }
         }
+        mechCount++;
     }
-    assert(m==mechanismsCount);
+    assert(mechCount==mechanismsCount);
 #endif
 }
 
@@ -194,6 +237,18 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
           }
     for (i=0; i < nrn_nthread; ++i) {
         nrn_ba(nrn_threads + i, BEFORE_INITIAL);
+    }
+
+    /* the memblist list in NrnThread is already so ordered */
+    for (i=0; i < nrn_nthread; ++i) {
+        NrnThread* nt = nrn_threads + i;
+        NrnThreadMembList* tml;
+        for (tml = nt->tml; tml; tml = tml->next) {
+            mod_f_t s = memb_func[tml->index].initialize;
+            if (s) {
+                (*s)(nt, tml->ml, tml->index);
+            }
+        }
     }
 }
 
@@ -349,13 +404,15 @@ void DataLoader::loadData(int argc, char ** argv)
             Mechanism * mech = getMechanismFromType(type);
             int dataSize  = mech->dataSize;
             int pdataSize = mech->pdataSize;
+            //int pdataGap = nt.tml->ml->data - nt._data; //first double of first mechanism (exclude A B V D RHS AREA)
+            int pdataGap = 6*nt.end; //first double of first mechanism (exclude A B V D RHS AREA)
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 //TODO: I think ml->data is vectorized!
                 assert (ml->nodeindices[n] < compartments.size());
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
-                compartment->addMechanismInstance(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize);
+                compartment->addMechanismInstance(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize, pdataGap);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -417,12 +474,13 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
+Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, vector<double> & d, vector<double> & b,
                           vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
                           vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
                           vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
 {
     //iterate through all compartments on the branch
+    int n=0;
     Compartment *comp = NULL;
     for (comp = topCompartment;
          comp->branches.size()==1;
@@ -453,15 +511,17 @@ Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, i
             pdataOffset += mech->pdataSize;
             instancesCount[mechOffset]++;
         }
+        n++;
     }
     return comp;
 }
 
-void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, int & n, vector<double> & d, vector<double> & b,
+void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<double> & d, vector<double> & b,
                                   vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
                                   vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
                                   vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
 {
+    int n=0;
     for (auto comp : compartments)
     {
         d.push_back(comp->d);
@@ -475,6 +535,7 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, int & n, 
         //copy all mechanisms instances
         int dataOffset=0;
         int pdataOffset=0;
+        assert(n==comp->id);
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
@@ -489,12 +550,12 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, int & n, 
             pdataOffset += mech->pdataSize;
             instancesCount[mechOffset]++;
         }
+        n++;
     }
 }
 
 hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
-    int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
     vector<int> p; //parent nodes index
 
@@ -503,12 +564,12 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
     vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
     vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
 
-    char multiSplit=0;
+    char multiSpliX=0;
     vector<hpx_t> branches;
-    if (multiSplit)
+    if (multiSpliX)
     {
         //comp is the bottom compartment of the branch
-        Compartment * comp = getBranchingMultispliX(topCompartment, n, d, b, a, rhs, v, area, p,
+        Compartment * comp = getBranchingMultispliX(topCompartment, d, b, a, rhs, v, area, p,
                                       instancesCount, data, pdata, nodesIndices);
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
@@ -516,11 +577,11 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
     }
     else //Flat a la Coreneuron
     {
-        getBranchingFlat(compartments, n, d, b, a, rhs, v, area, p,
+        getBranchingFlat(compartments, d, b, a, rhs, v, area, p,
                          instancesCount, data, pdata, nodesIndices);
     }
 
-    if (multiSplit) //next branches will be *hpx children* of this one
+    if (multiSpliX) //next branches will be *hpx children* of this one
     {
 
     }
@@ -537,8 +598,8 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
                   v.data(), sizeof(double)*v.size(),
                   rhs.data(), sizeof(double)*rhs.size(),
                   area.data(), sizeof(double)*area.size(),
-                  multiSplit ? branches.data() : NULL, multiSplit ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSplit ? NULL : p.data(), multiSplit ? 0 : sizeof(int)*p.size());
+                  multiSpliX ? branches.data() : NULL, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size());
 
     //merge all mechanisms vectors into the first one
     for (int m=1; m<mechanismsCount; m++)

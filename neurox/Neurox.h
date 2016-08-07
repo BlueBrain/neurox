@@ -1,7 +1,6 @@
 #pragma once
 
 #define DEBUG //Debug information at set-up time
-#define EXTREME_DEBUG //Debug information during simulation runtime
 
 //Core datatypes
 #include "neurox/Neurox_hpx.h"
