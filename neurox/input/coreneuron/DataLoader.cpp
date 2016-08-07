@@ -34,14 +34,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         Branch * branch, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
-    int m=-1;
-    for (int i=0; i<mechanismsCount; i++)
-        if (mechanisms[i]->type==mechType)
-        {
-            m=i;
-            break;
-        }
-
+    int m=mechanismsMap[mechType];
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
     membList.data  = mechsInstances[m].data;
     membList.pdata = mechsInstances[m].pdata;
@@ -180,9 +173,36 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
     }
 }
 
+void DataLoader::coreNeuronFakeSteps() //can be deleted
+{
+    //nrn_finitialize
+    int i;
+    NrnThread* _nt;
+    dt2thread(-1.);
+    nrn_thread_table_check();
+    clear_event_queue();
+    nrn_spike_exchange_init();
+    nrn_play_init(); /* Vector.play */
+        ///Play events should be executed before initializing events
+    for (i=0; i < nrn_nthread; ++i) {
+        nrn_deliver_events(nrn_threads + i); /* The play events at t=0 */
+    }
+          for (_nt = nrn_threads; _nt < nrn_threads + nrn_nthread; ++_nt) {
+            for (i=0; i < _nt->end; ++i) {
+            (_nt->_actual_v[(i)]) = inputParams->voltage;
+            }
+          }
+    for (i=0; i < nrn_nthread; ++i) {
+        nrn_ba(nrn_threads + i, BEFORE_INITIAL);
+    }
+}
+
 void DataLoader::loadData(int argc, char ** argv)
 {
     coreNeuronInitialSetup(argc, argv);
+
+    //we will walk a bit with coreneuron
+    coreNeuronFakeSteps();
 
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
@@ -299,7 +319,7 @@ void DataLoader::loadData(int argc, char ** argv)
                                 nt._v_parent_index[n]));
 
         //reconstructs parents tree
-        for (int n=nt.end-1; n>0; n--) //exclude top (no parent)
+        for (int n=1; n<nt.end; n++) //exclude top (no parent)
         {
             Compartment * parentCompartment = compartments.at(nt._v_parent_index[n]);
             parentCompartment->addChild(compartments.at(n));
@@ -377,7 +397,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //recursively create morphological tree, neuron metadata, and synapses
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
-        hpx_t topBranch = createBranch((char) 1, compartments.at(0), netcons);
+        hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons);
         hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0,
                       &neuronId, sizeof(int),
                       &topBranch, sizeof(hpx_t),
@@ -397,14 +417,16 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
+Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, int & n, vector<double> & d, vector<double> & b,
                           vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
                           vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
-                          vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices, char multiSplit)
+                          vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
 {
     //iterate through all compartments on the branch
-    Compartment *comp = topCompartment;
-    while(1)
+    Compartment *comp = NULL;
+    for (comp = topCompartment;
+         comp->branches.size()==1;
+         comp = comp->branches.front())
     {
         d.push_back(comp->d);
         b.push_back(comp->b);
@@ -431,32 +453,46 @@ Compartment * DataLoader::getBranchSectionData(Compartment * topCompartment, int
             pdataOffset += mech->pdataSize;
             instancesCount[mechOffset]++;
         }
-        n++;
-
-        if (comp->branches.size() == 0) //leaf
-            return comp;
-
-        if (comp->branches.size() > 1) //bifurcation
-        {
-            if (!multiSplit)
-            {
-              Compartment * bottomComp = NULL;
-              for (int c=0; c<comp->branches.size(); c++)
-                bottomComp = getBranchSectionData(comp->branches[c], n, d, b, a, rhs, v,
-                                        area, p, instancesCount, data, pdata, nodesIndices,
-                                        multiSplit);
-              return bottomComp;
-            }
-            return comp;
-        }
-
-        //otherwise, iterate (take the next compartment in the sequence)
-        comp = comp->branches.front();
     }
-    throw new std::runtime_error("Error while reconstructing morphology (FLAG1)\n");
+    return comp;
 }
 
-hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, int & n, vector<double> & d, vector<double> & b,
+                                  vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
+                                  vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
+                                  vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
+{
+    for (auto comp : compartments)
+    {
+        d.push_back(comp->d);
+        b.push_back(comp->b);
+        a.push_back(comp->a);
+        v.push_back(comp->v);
+        rhs.push_back(comp->rhs);
+        area.push_back(comp->area);
+        p.push_back(comp->p);
+
+        //copy all mechanisms instances
+        int dataOffset=0;
+        int pdataOffset=0;
+        for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
+        {
+            int mechType = comp->mechsTypes[m];
+            int mechOffset = mechanismsMap[mechType];
+            assert(mechOffset>=0 && mechOffset<mechanismsCount);
+            Mechanism * mech = mechanisms[mechOffset];
+
+            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
+            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
+            nodesIndices[mechOffset].push_back(n);
+            dataOffset += mech->dataSize;
+            pdataOffset += mech->pdataSize;
+            instancesCount[mechOffset]++;
+        }
+    }
+}
+
+hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
     int n=0; //number of compartments
     vector<double> d, b, a, rhs, v, area; //compartments info
@@ -466,18 +502,27 @@ hpx_t DataLoader::createBranch(char isSoma, Compartment * topCompartment,  map<i
     vector<vector<double>> data(mechanismsCount); //data per mechanism type
     vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
     vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
-    vector<int> instanceMechTypes();
 
     char multiSplit=0;
-    Compartment * comp = getBranchSectionData(topCompartment, n, d, b, a, rhs, v, area, p,
-                                              instancesCount, data, pdata, nodesIndices,multiSplit);
-    vector<hpx_t> branches (comp->branches.size());
+    vector<hpx_t> branches;
+    if (multiSplit)
+    {
+        //comp is the bottom compartment of the branch
+        Compartment * comp = getBranchingMultispliX(topCompartment, n, d, b, a, rhs, v, area, p,
+                                      instancesCount, data, pdata, nodesIndices);
+        //recursively create children branches
+        for (int c=0; c<comp->branches.size(); c++)
+          branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
+    }
+    else //Flat a la Coreneuron
+    {
+        getBranchingFlat(compartments, n, d, b, a, rhs, v, area, p,
+                         instancesCount, data, pdata, nodesIndices);
+    }
 
     if (multiSplit) //next branches will be *hpx children* of this one
     {
-      //recursively create children branches
-      for (int c=0; c<comp->branches.size(); c++)
-        branches.push_back(createBranch((char) 0, comp->branches[c], netcons));
+
     }
 
     //Allocate HPX Branch
