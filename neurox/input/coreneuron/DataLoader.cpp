@@ -91,6 +91,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._actual_rhs = branch->rhs;
     nrnThread._actual_v = branch->v;
     nrnThread._actual_area = branch->area;
+    nrnThread._data = branch->data;
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;

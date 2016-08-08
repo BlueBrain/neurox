@@ -252,7 +252,6 @@ int Mechanism::callModFunction_handler(const int nargs, const void *args[], cons
                    args[0], sizes[0],
                    args[1], sizes[1],
                    &(mech->children[c]), sizes[2]);
-
       if (childrenCount>0)
       {
         hpx_lco_wait(lco);

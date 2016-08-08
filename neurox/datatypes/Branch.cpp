@@ -310,8 +310,20 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
                       functionId_ptr, functionId_size,
                       &mechType, sizeof(mechType));
     }
+    //for all others except capacitance
     else
     {
+        for (int m=0; m<mechanismsCount; m++)
+        {
+            if (m==CAP) continue;
+            int mechType = mechanisms[m]->type;
+            hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
+                      &local, sizeof(local),
+                      functionId_ptr, functionId_size,
+                      &mechType, sizeof(mechType));
+        }
+
+        /*
       //*parallel* execution of independent mechanisms
       int topDependenciesCount = 0;
       for (int m=0; m<mechanismsCount; m++)
@@ -324,13 +336,14 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
       {
         Mechanism * mech = mechanisms[m];
         if (mechanisms[m]->isTopMechanism)
-            hpx_call(HPX_HERE, Mechanism::callModFunction, lco_mechs,
+            hpx_call(target, Mechanism::callModFunction, lco_mechs,
                      &local, sizeof(local),
                      functionId_ptr, functionId_size,
                      &(mech->type), sizeof(mech->type));
       }
       hpx_lco_wait(lco_mechs);
       hpx_lco_delete(lco_mechs, HPX_NULL);
+    */
     }
 
     neurox_hpx_recursive_branch_async_wait;
