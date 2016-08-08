@@ -155,11 +155,13 @@ static int maxgid;
 #if !defined(NRN_SOA_PAD)
 // for layout 0, every range variable array must have a size which
 // is a multiple of NRN_SOA_PAD doubles
-#define NRN_SOA_PAD 4
+//#define NRN_SOA_PAD 4
+#define NRN_SOA_PAD 1 //PRAMOD
 #endif
 #if !defined(NRN_SOA_BYTE_ALIGN)
 // for layout 0, every range variable array must be aligned by at least 16 bytes (the size of the simd memory bus)
-#define NRN_SOA_BYTE_ALIGN (2*sizeof(double))
+#define NRN_SOA_BYTE_ALIGN (1*sizeof(double)) //PRAMOD
+//#define NRN_SOA_BYTE_ALIGN (2*sizeof(double))
 #endif
 
 static MUTDEC

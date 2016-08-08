@@ -43,6 +43,7 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         assert(nt._actual_rhs[i] == branch->rhs[i]);
         assert(nt._actual_area[i] == branch->area[i]);
     }
+
     int mechCount=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
@@ -111,6 +112,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         if (branch->p)
           assert(nt._v_parent_index[i] == branch->p[i]);
     }
+
+    //make sure that morphology data is correctly aligned in mem
+    for (int i=0; i<6*branch->n; i++)
+            {   assert(nt._data[i]==branch->data[i]); }
+
     int mechCount=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
@@ -128,9 +134,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
             for (int i=0; i<dataSize; i++)
             {   assert(ml->data[i]==instance.data[i]); }
 
-            //BRUNO
-            //for (int i=0; i<pdataSize; i++)
-            //{   assert(ml->pdata[i]==instance.pdata[i]); }
+            for (int i=0; i<pdataSize; i++)
+            {
+                assert(ml->pdata[i] == instance.pdata[i]);
+                assert(nt._data[ml->pdata[i]] == branch->data[instance.pdata[i]]);
+            }
         }
         mechCount++;
     }
@@ -246,7 +254,7 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
         for (tml = nt->tml; tml; tml = tml->next) {
             mod_f_t s = memb_func[tml->index].initialize;
             if (s) {
-                (*s)(nt, tml->ml, tml->index);
+                // TODO COMMENTED (*s)(nt, tml->ml, tml->index);
             }
         }
     }
@@ -404,15 +412,14 @@ void DataLoader::loadData(int argc, char ** argv)
             Mechanism * mech = getMechanismFromType(type);
             int dataSize  = mech->dataSize;
             int pdataSize = mech->pdataSize;
-            //int pdataGap = nt.tml->ml->data - nt._data; //first double of first mechanism (exclude A B V D RHS AREA)
-            int pdataGap = 6*nt.end; //first double of first mechanism (exclude A B V D RHS AREA)
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
-                //TODO: I think ml->data is vectorized!
                 assert (ml->nodeindices[n] < compartments.size());
+                double * data = &ml->data[dataOffset];
+                int * pdata = &ml->pdata[pdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
-                compartment->addMechanismInstance(type, &ml->data[dataOffset], dataSize, &ml->pdata[pdataOffset], pdataSize, pdataGap);
+                compartment->addMechanismInstance(type, data, dataSize, pdata, pdataSize);
                 dataOffset  += dataSize;
                 pdataOffset += pdataSize;
             }
@@ -516,23 +523,32 @@ Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, v
     return comp;
 }
 
-void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<double> & d, vector<double> & b,
-                                  vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
-                                  vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
-                                  vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
+void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<double> & data, vector<int> & pdata,
+                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices)
 {
+    for (auto comp : compartments)
+        data.push_back(comp->rhs);
+    for (auto comp : compartments)
+        data.push_back(comp->d);
+    for (auto comp : compartments)
+        data.push_back(comp->a);
+    for (auto comp : compartments)
+        data.push_back(comp->b);
+    for (auto comp : compartments)
+        data.push_back(comp->v);
+    for (auto comp : compartments)
+        data.push_back(comp->area);
+    for (auto comp: compartments)
+        p.push_back(comp->p);
+
+    vector<vector<double>> dataMechs (mechanismsCount);
+    vector<vector<int>> pdataMechs (mechanismsCount);
+    vector<vector<int>> nodesIndicesMechs (mechanismsCount);
+
+    //copy all mechanisms instances
     int n=0;
     for (auto comp : compartments)
     {
-        d.push_back(comp->d);
-        b.push_back(comp->b);
-        a.push_back(comp->a);
-        v.push_back(comp->v);
-        rhs.push_back(comp->rhs);
-        area.push_back(comp->area);
-        p.push_back(comp->p);
-
-        //copy all mechanisms instances
         int dataOffset=0;
         int pdataOffset=0;
         assert(n==comp->id);
@@ -543,80 +559,67 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<do
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
             Mechanism * mech = mechanisms[mechOffset];
 
-            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
-            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
-            nodesIndices[mechOffset].push_back(n);
+            dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
+            pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
+            nodesIndicesMechs[mechOffset].push_back(n);
             dataOffset += mech->dataSize;
             pdataOffset += mech->pdataSize;
             instancesCount[mechOffset]++;
         }
         n++;
     }
+
+    //merge all mechanisms vectors in the final one
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        data.insert(data.end(), dataMechs[m].begin(), dataMechs[m].end());
+        pdata.insert(pdata.end(), pdataMechs[m].begin(), pdataMechs[m].end());
+        nodesIndices.insert(nodesIndices.end(), nodesIndicesMechs[m].begin(), nodesIndicesMechs[m].end());
+        dataMechs[m].clear();
+        pdataMechs[m].clear();
+        nodesIndicesMechs[m].clear();
+    }
 }
 
 hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
-    vector<double> d, b, a, rhs, v, area; //compartments info
+    int n = compartments.size();
+    vector<double> data; //compartments info (RHS, D, A, B, V, AREA)*n
+    vector<int> pdata; //pointers to data
     vector<int> p; //parent nodes index
-
-    vector<int> instancesCount (mechanismsCount); //instances count per mechanism type (initialized to 0)
-    vector<vector<double>> data(mechanismsCount); //data per mechanism type
-    vector<vector<int>> pdata(mechanismsCount); //pdata per mechanism type
-    vector<vector<int>> nodesIndices(mechanismsCount); //nodes indices per mechanism type
+    vector<int> instancesCount (mechanismsCount);
+    vector<int> nodesIndices;
 
     char multiSpliX=0;
     vector<hpx_t> branches;
     if (multiSpliX)
     {
+        assert(0); //I've used bracnh::data since then
         //comp is the bottom compartment of the branch
-        Compartment * comp = getBranchingMultispliX(topCompartment, d, b, a, rhs, v, area, p,
-                                      instancesCount, data, pdata, nodesIndices);
+        //Compartment * comp = getBranchingMultispliX(topCompartment, d, b, a, rhs, v, area, p,
+        //                             instancesCount, data, pdata, nodesIndices);
         //recursively create children branches
-        for (int c=0; c<comp->branches.size(); c++)
-          branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
+        //for (int c=0; c<comp->branches.size(); c++)
+        //  branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
     }
     else //Flat a la Coreneuron
     {
-        getBranchingFlat(compartments, d, b, a, rhs, v, area, p,
-                         instancesCount, data, pdata, nodesIndices);
-    }
-
-    if (multiSpliX) //next branches will be *hpx children* of this one
-    {
-
+        getBranchingFlat(compartments, data, pdata, p, instancesCount, nodesIndices);
     }
 
     //Allocate HPX Branch
     hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
 
-    //initiate main branch information (n, a, b, d, v, rhs, area, branchesCount, branches)
+    //initiate main branch information (n, a, b, d, v, rhs, area, branching and mechanisms)
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
+                  &n, sizeof(int),
                   &isSoma, sizeof(char),
-                  a.data(), sizeof(double)*a.size(),
-                  b.data(), sizeof(double)*b.size(),
-                  d.data(), sizeof(double)*d.size(),
-                  v.data(), sizeof(double)*v.size(),
-                  rhs.data(), sizeof(double)*rhs.size(),
-                  area.data(), sizeof(double)*area.size(),
+                  data.data(), sizeof(double)*data.size(),
+                  pdata.data(), sizeof(int)*pdata.size(),
+                  instancesCount.data(), instancesCount.size()*sizeof(int),
+                  nodesIndices.data(), nodesIndices.size()*sizeof(int),
                   multiSpliX ? branches.data() : NULL, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
                   multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size());
-
-    //merge all mechanisms vectors into the first one
-    for (int m=1; m<mechanismsCount; m++)
-    {
-        data[0].insert(data[0].end(), data[m].begin(), data[m].end());
-        pdata[0].insert(pdata[0].end(), pdata[m].begin(), pdata[m].end());
-        nodesIndices[0].insert(nodesIndices[0].end(), nodesIndices[m].begin(), nodesIndices[m].end());
-        data[m].clear();
-        pdata[m].clear();
-        nodesIndices[m].clear();
-    }
-
-    hpx_call_sync(branchAddr, Branch::initMechanismsInstances, NULL, 0,
-                  instancesCount.data(), instancesCount.size()*sizeof(int),
-                  data[0].data(), data[0].size()*sizeof(double),
-                  pdata[0].data(), pdata[0].size()*sizeof(int),
-                  nodesIndices[0].data(), nodesIndices[0].size()*sizeof(int));
 
     //serialize all netcons and initialize them
     //... TODO get mech instance righ,t and neurons id (preNeuronId is not in the circuit)

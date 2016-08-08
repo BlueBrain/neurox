@@ -15,62 +15,14 @@ Branch::~Branch()
     delete [] rhs;
     delete [] area;
     delete [] branches;
+    delete [] data;
+
     for (int m=0; m<mechanismsCount; m++)
     {
-        delete [] mechsInstances[m].data;
-        delete [] mechsInstances[m].pdata;
         delete [] mechsInstances[m].nodesIndices;
+        delete [] mechsInstances[m].pdata;
     }
     delete [] mechsInstances;
-}
-
-hpx_action_t Branch::initMechanismsInstances = 0;
-int Branch::initMechanismsInstances_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    /**
-     * nargs = 4 where
-     * args[0] = arrays of number of instances per mechanism
-     * args[1] = array of data for all mechanisms
-     * args[2] = array of pdata for all mechanisms
-     * args[3] = array of compartment/node index where the mechanisms are applied to
-     */
-
-    neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
-    assert(nargs==4);
-    const int recvMechanismsCount = sizes[0]/sizeof(int);
-    assert (recvMechanismsCount == mechanismsCount);
-
-    const int * instancesCount = (const int*) args[0];
-    const double * data =  (const double*) args[1];
-    const int * pdata = (const int*) args[2];
-    const int * nodesIndices = (const int*) args[3];
-
-    int dataOffset=0;
-    int pdataOffset=0;
-    int instancesOffset=0;
-
-    local->mechsInstances = new MechanismInstance[mechanismsCount];
-    for (int m=0; m<mechanismsCount; m++)
-    {
-        MechanismInstance & instance = local->mechsInstances[m];
-        instance.instancesCount = instancesCount[m];
-
-        instance.nodesIndices = instance.instancesCount>0 ? new int[instance.instancesCount] : nullptr;
-        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.instancesCount);
-        instancesOffset += instance.instancesCount;
-
-        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
-        instance.data = totalDataSize>0 ?  new double[totalDataSize]: nullptr;
-        memcpy(instance.data, &data[dataOffset], sizeof(double)*totalDataSize);
-        dataOffset += totalDataSize;
-
-        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
-        instance.pdata = totalPdataSize>0 ? new int[totalPdataSize] : nullptr;
-        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
-        pdataOffset += totalPdataSize;
-    }
-    neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::initNetCons = 0;
@@ -107,45 +59,72 @@ hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs = 9 where
-     * args[0] = isSoma (1 or 0)
-     * args[1] = a, vector A per compartment
-     * args[2] = b, vector B per compartment
-     * args[3] = d, vector D per compartment
-     * args[4] = v, vector V per compartment
-     * args[5] = rhs, vector RHS per compartment
-     * args[6] = area, vector 'area' per compartment
-     * args[7] = branches, children branches (if any)
-     * args[8] = parent compartment indices (if any)
-     * NOTE: args[7] or args[8] or both must have size>0
+     * nargs = 8 where
+     * args[0] = number of compartments
+     * args[1] = isSoma (char, 1 or 0)
+     * args[2] = data vector (RHS, D, A, V, B, area, and mechs...)
+     * args[3] = pdata vector
+     * args[4] = arrays of number of instances per mechanism
+     * args[5] = array of compartment/node index where the mechanisms are applied to
+     * args[6] = branches, children branches (if any)
+     * args[7] = parent compartment indices (if any)
+     * NOTE: either args[7] or args[8] (or both) must have size>0
      */
 
     neurox_hpx_pin(Branch);
-    assert(nargs==9);
+    assert(nargs==8);
 
     DEBUG_BRANCH_DELETE = local;
 
-    local->isSoma = *(const char*) args[0];
-    local->n = sizes[1]/sizeof(double);
-    local->a = new double[local->n];
-    local->b = new double[local->n];
-    local->d = new double[local->n];
-    local->v = new double[local->n];
-    local->rhs = new double[local->n];
-    local->area = new double[local->n];
+    //reconstruct and and topology data;
+    local->n = *(const int*) args[0];
+    local->isSoma = *(const char*) args[1];
+    local->data = new double[sizes[2]/sizeof(double)];
+    memcpy(local->data, args[2], sizes[2]);
+    local->rhs = local->data + local->n*0;
+    local->d = local->data + local->n*1;
+    local->a = local->data + local->n*2;
+    local->b = local->data + local->n*3;
+    local->v = local->data + local->n*4;
+    local->area = local->data + local->n*5;
 
-    memcpy(local->a, args[1], sizes[1]);
-    memcpy(local->b, args[2], sizes[2]);
-    memcpy(local->d, args[3], sizes[3]);
-    memcpy(local->v, args[4], sizes[4]);
-    memcpy(local->rhs, args[5], sizes[5]);
-    memcpy(local->area, args[6], sizes[6]);
+    // reconstruct mechanisms
+    const int * pdata = (const int*) args[3];
+    const int * instancesCount = (const int*) args[4];
+    const int * nodesIndices = (const int*) args[5];
+    const int recvMechanismsCount = sizes[4]/sizeof(int);
+    assert (recvMechanismsCount == mechanismsCount);
 
-    if (sizes[7]>0)
+    int dataOffset=6*local->n;
+    int pdataOffset=0;
+    int instancesOffset=0;
+
+    local->mechsInstances = new MechanismInstance[mechanismsCount];
+    for (int m=0; m<mechanismsCount; m++)
     {
-        local->branchesCount = sizes[7]/sizeof(hpx_t);
+        MechanismInstance & instance = local->mechsInstances[m];
+        instance.instancesCount = instancesCount[m];
+
+        instance.nodesIndices = instance.instancesCount>0 ? new int[instance.instancesCount] : nullptr;
+        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.instancesCount);
+        instancesOffset += instance.instancesCount;
+
+        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
+        instance.data = local->data+dataOffset;
+        dataOffset += totalDataSize;
+
+        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
+        instance.pdata = totalPdataSize>0 ? new int[totalPdataSize] : nullptr;
+        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
+        pdataOffset += totalPdataSize;
+    }
+
+    //reconstructs parents or branching
+    if (sizes[6]>0)
+    {
+        local->branchesCount = sizes[6]/sizeof(hpx_t);
         local->branches = new hpx_t[local->branchesCount];
-        memcpy(local->branches, args[7], sizes[7]);
+        memcpy(local->branches, args[6], sizes[6]);
     }
     else
     {
@@ -153,16 +132,15 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         local->branches = nullptr;
     }
 
-    if (sizes[8]>0)
+    if (sizes[7]>0)
     {
         local->p = new int[local->n];
-        memcpy(local->p, args[8], sizes[8]);
+        memcpy(local->p, args[7], sizes[7]);
     }
     else
     {
         local->p = NULL;
     }
-
     neurox_hpx_unpin;;
 }
 
@@ -414,7 +392,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
     neurox_hpx_register_action(2, Branch::init);
-    neurox_hpx_register_action(2, Branch::initMechanismsInstances);
     neurox_hpx_register_action(2, Branch::initNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
     neurox_hpx_register_action(0, Branch::getSomaVoltage);

@@ -19,12 +19,12 @@ class Compartment
 {
   public:
     Compartment()=delete;
-    Compartment(int id, double a, double b, double d, double v, double rhs, double area, int p=-999);
+    Compartment(int id, double a, double b, double d, double v, double rhs, double area, int p);
     ~Compartment();
 
     void addChild(Compartment* child);
 
-    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize, int pdataGap=0);
+    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
 
     int id;
     vector<Compartment*> branches;

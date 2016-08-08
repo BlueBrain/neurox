@@ -50,10 +50,8 @@ private:
                                                vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
                                                vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices);
 
-    static void getBranchingFlat(vector<Compartment*> & compartments, vector<double> & d, vector<double> & b,
-                                 vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
-                                 vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
-                                 vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices);
+    static void getBranchingFlat(vector<Compartment*> & compartments, vector<double> & data, vector<int> & pdata,
+                                 vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices);
 };
 
 }; //Coreneuron

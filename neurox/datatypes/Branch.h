@@ -36,9 +36,9 @@ class Branch
     struct MechanismInstance
     {
         int instancesCount; ///> number of instances of particular mechanism
-        double * data;	    ///> and mechanisms data (double)
-        int * pdata;		///> pointer data (offsets) //TODO this could be unsigned short or int
-        int * nodesIndices; ///> index of node this instance will be applied to //TODO this could be unsigned short
+        double * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
+        int * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
+        int * nodesIndices; ///> array of nodes this instance will be applied to //TODO this could be unsigned short?
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
     //List of children branches
@@ -60,7 +60,6 @@ class Branch
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
-    static hpx_action_t initMechanismsInstances; ///> Initializes applications of mechanisms to this branch
     static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
     static hpx_action_t finitialize; ///> finitialize.c :: sets initial values of V
@@ -70,8 +69,11 @@ class Branch
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
     static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
 
-  private:
 
+    //TODO make private
+    double * data; ///> all pointer data for the branch (RHS, D, A, B, V, Area, and mechanisms)
+
+  private:
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
 
     static int updateV_handler(const int * secondOrder, const size_t);
@@ -81,7 +83,6 @@ class Branch
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int initMechanismsInstances_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int getSomaVoltage_handler();
 };

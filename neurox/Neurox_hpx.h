@@ -37,7 +37,7 @@ typedef int index_t; //int or unsigned short
 #define neurox_hpx_unpin_continue(Var) \
 { \
     hpx_gas_unpin(target); \
-    HPX_THREAD_CONTINUE(Var); \
+    return HPX_THREAD_CONTINUE(Var); \
 }
 
 ///hpx wrappers for async call a function to all children branches (phase 1 - launch threads)
