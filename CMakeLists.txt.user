@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.3, 2016-08-06T15:20:47. -->
+<!-- Written by QtCreator 4.0.3, 2016-08-09T13:52:23. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -73,9 +73,8 @@
      <value type="QString">ADDITIONAL_MECHPATH:PATH=/home/bmagalha/Workspace/neurodamus/lib/modlib</value>
      <value type="QString">ADDITIONAL_MECHS:FILEPATH=/home/bmagalha/Workspace/neurodamus/lib/modlib/coreneuron_modlist.txt</value>
      <value type="QString">CMAKE_BUILD_TYPE:STRING=DEBUG</value>
-     <value type="QString">CMAKE_CXX_COMPILER:STRING=mpicxx</value>
+     <value type="QString">CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/mpicxx</value>
      <value type="QString">CMAKE_C_COMPILER:STRING=/usr/bin/mpicc</value>
-     <value type="QString">QT_QMAKE_EXECUTABLE:STRING=/home/bmagalha/Qt/5.7/gcc_64/bin/qmake</value>
      <value type="QString">UNIT_TESTS:BOOL=OFF</value>
     </valuelist>
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/bmagalha/Workspace/neurox/build-qt</value>

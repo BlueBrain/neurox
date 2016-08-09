@@ -72,6 +72,7 @@ class Branch
 
     //TODO make private
     double * data; ///> all pointer data for the branch (RHS, D, A, B, V, Area, and mechanisms)
+    void ** vdata; ///> all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
 
   private:
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue

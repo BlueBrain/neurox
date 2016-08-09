@@ -18,14 +18,13 @@ class Statistics::SizeInfo
 
     double getTotal(){return morphologies+mechanisms+synapses+metadata+globalVars;}
 
-    friend SizeInfo operator+=(const SizeInfo& lhs, const SizeInfo& rhs) {
-      SizeInfo result = lhs;
-      result.mechanisms   += rhs.mechanisms;
-      result.metadata     += rhs.metadata;
-      result.morphologies += rhs.morphologies;
-      result.synapses     += rhs.synapses;
-      result.globalVars   += rhs.globalVars;
-      return result;
+    SizeInfo& operator+=(const SizeInfo& rhs) {
+      mechanisms   += rhs.mechanisms;
+      metadata     += rhs.metadata;
+      morphologies += rhs.morphologies;
+      synapses     += rhs.synapses;
+      globalVars   += rhs.globalVars;
+      return *this;
     }
 };
 

@@ -15,16 +15,22 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
                      const short int symLength, const char * sym,
                      const char isTopMechanism,
                      const short int childrenCount, const int * children):
-    type(type), dataSize(dataSize), pdataSize(pdataSize),
-    childrenCount(childrenCount),
-    pntMap(pntMap), isArtificial(isArtificial),
-    isTopMechanism(isTopMechanism),
-    symLength(symLength), isIon(isIon),
-    children(nullptr), sym(nullptr),
-    conci(-1), conco(-1), charge(-1)
+    type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(vdataSize),
+    childrenCount(childrenCount), pntMap(pntMap), isArtificial(isArtificial),
+    isTopMechanism(isTopMechanism), symLength(symLength), isIon(isIon),
+    children(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
 {
-
-
+    //TODO should not be hardcoded
+    if (pntMap>0)
+    {
+        switch (type)
+        {
+            case 7   : vdataSize=1; break;
+            case 137 : vdataSize=2; break;
+            case 139 : vdataSize=2; break;
+            default  : throw std::invalid_argument("Unknown vdataSize for mech type (FLAG2).");
+        }
+    }
     if (children != nullptr)
     {
         assert(childrenCount>0);

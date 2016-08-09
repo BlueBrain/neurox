@@ -95,13 +95,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
-    //nrnThread._vdata = (void**) branch->vdata;
-    //nrnThread._vdata = nrn_threads[0]._vdata; //TODO 0??
-    nrnThread._vdata = new void*[nrn_threads[0].n_pntproc];
-    for (int i=0; i<nrn_threads[0].n_pntproc; i++)
-        nrnThread._vdata[i] = (void**) &(nrn_threads[0].pntprocs[i]);
-    Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
     //TODO shall this cj field be hardcoded on a branch info?
+    //nrnThread._vdata = (void**) branch->vdata;
+    nrnThread._vdata = nrn_threads[0]._vdata; //TODO 0??
+    //Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
+
 
 #ifdef DEBUG
     if (!branch->isSoma) return; //run only once
@@ -125,7 +123,6 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
             {   assert(nt._data[i]==branch->data[i]); }
 
     int mechCount=0;
-    int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
@@ -440,22 +437,20 @@ void DataLoader::loadData(int argc, char ** argv)
 
                 if (mech->pntMap > 0) //TODO delete this section
                 {
-                    //i.e. vdata has one value per node, and then the point procs
-                    int offsetPdata = n + ml->nodecount;
+                    assert(type==7 || type==137 || type==139);
+                    assert(mech->pdataSize==2 || mech->pdataSize==3);
+
+                    //The Vdata offset in pdata vector is in position 1
+                    int offsetPdata = n*mech->pdataSize + 1;
                     int offsetVdata = ml->pdata[offsetPdata];
                     Point_process* pnt = &nt.pntprocs[pointProcOffset];
                     //testing to see if I know how mem is allocated and ordered
-                    assert(nt._vdata[offsetVdata] == pnt);
-
+                    assert(nt._vdata[offsetVdata++] == pnt);
                     //presyns i think are only used by nrniv/netcvode.cpp for net_event (not for our HPX use case)
                     //PS is always NULL? The other three fields are knows (tid, instance, i);
                     assert(pnt->_presyn == NULL);
-
-                    //TODO I will change the indices of the pdata map to point to a continuously aligned vdata
-                    ml->pdata[offsetPdata] = pointProcOffset;
                     pointProcOffset++;
                 }
-
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;

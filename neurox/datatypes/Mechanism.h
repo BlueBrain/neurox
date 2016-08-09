@@ -27,7 +27,7 @@ class Mechanism
               );
 
     int type;
-    short int dataSize, pdataSize, childrenCount;
+    short int dataSize, pdataSize, vdataSize, childrenCount;
     short int symLength; ///> length of the name of the mechanism;
     char pntMap, isArtificial;
     char isTopMechanism; ///> wether it can be executed directly or requires other to run prior
