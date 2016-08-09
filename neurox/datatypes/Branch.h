@@ -31,15 +31,15 @@ class Branch
     double * area;	///> current area per compartment
     int *p;         ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
-    //TODO variables n and p can be short int unless we merge several neurons (a la CoreNeuron)
-
     struct MechanismInstance
     {
         int instancesCount; ///> number of instances of particular mechanism
         double * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
         int * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
-        int * nodesIndices; ///> array of nodes this instance will be applied to //TODO this could be unsigned short?
+        int * nodesIndices; ///> array of nodes this instance will be applied to
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
+
+    //TODO variables n, p* and instance.count and indices can be short int unless we merge several neurons (a la CoreNeuron)
 
     //List of children branches
     int branchesCount;		///> number of branches (if any)

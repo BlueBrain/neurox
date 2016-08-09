@@ -23,7 +23,6 @@ class InputParams
     //Execution parameters (cn_input_parameters)
     int secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
     int prcellgid;      ///> gid of cell for prcellstate
-    int multiSplit; 	///> 0 or 1 for multisplit or not
     double t; 			///> current simulation time (msecs)
     double dt; 			///> time step ie delta-t (msecs)
     double rev_dt; 		///> reverse of delta t (1/msecs)

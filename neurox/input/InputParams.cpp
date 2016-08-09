@@ -17,8 +17,6 @@ InputParams::InputParams ():
     memset(patternStim,'0',2048);
     memset(inputPath,'0',2048);
     memset(outputPath,'0',2048);
-    multiSplit = 0; //HPX_LOCALITIES > brain->neuronsCount;
-    //TODO multisplit should be at NEURON level
 }
 
 InputParams::~InputParams(){}

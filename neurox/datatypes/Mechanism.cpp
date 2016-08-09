@@ -30,6 +30,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
             case 139 : vdataSize=2; break;
             default  : throw std::invalid_argument("Unknown vdataSize for mech type (FLAG2).");
         }
+        assert(vdataSize == pdataSize -1); //always?
     }
     if (children != nullptr)
     {
@@ -92,9 +93,11 @@ void Mechanism::disableMechFunctions()
     this->membFunc.thread_cleanup_ = NULL;
     this->membFunc.thread_table_check_ = NULL;
     this->membFunc.setdata_ = NULL;
-
+    this->nrn_bbcore_read = NULL;
     this->membFunc.thread_size_ = -1;
     this->membFunc.is_point = -1;
+    this->pnt_receive = NULL;
+    this->pnt_receive_init = NULL;
 }
 
 void Mechanism::registerModMechanism()
@@ -112,6 +115,7 @@ void Mechanism::registerModMechanism()
     this->membFunc.thread_size_ = memb_func[type].thread_size_;
     //look up tables are created and destroyed inside mod files, not accessible via coreneuron
     this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
+    this->nrn_bbcore_read = nrn_bbcore_read_[type];
 }
 
 //from coreneuron/nrnoc/capac.c

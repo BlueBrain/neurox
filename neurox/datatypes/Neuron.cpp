@@ -33,7 +33,6 @@ void Neuron::callNetReceiveFunction(char isInitFunction)
                   //&functionId, sizeof(functionId), &t, sizeof(t), &dt, sizeof(dt);
 }
 
-//TODO this functions could be all done at the branch level, not neuron!
 hpx_action_t Neuron::finitialize=0;
 int Neuron::finitialize_handler()
 {

@@ -32,6 +32,8 @@ int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 {
+#ifdef DEBUG
+    if (!branch->isSoma) return; //run only once
     NrnThread & nt = nrn_threads[0];
     assert(nt.end == branch->n);
     for (int i=0; i<branch->n; i++)
@@ -42,9 +44,16 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         assert(nt._actual_v[i] == branch->v[i]);
         assert(nt._actual_rhs[i] == branch->rhs[i]);
         assert(nt._actual_area[i] == branch->area[i]);
+        if (branch->p)
+        {  assert(nt._v_parent_index[i] == branch->p[i]); }
     }
 
+    //make sure that morphology data is correctly aligned in mem
+    for (int i=0; i<6*branch->n; i++)
+            {   assert(nt._data[i]==branch->data[i]); }
+
     int mechCount=0;
+    int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
@@ -62,11 +71,29 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
             {   assert(ml->data[i]==instance.data[i]); }
 
             for (int i=0; i<pdataSize; i++)
-            {   assert(ml->pdata[i]==instance.pdata[i]); }
+            {
+                assert(ml->pdata[i] == instance.pdata[i]);
+                assert(nt._data[ml->pdata[i]] == branch->data[instance.pdata[i]]);
+            }
+
+            /* We comment this because it runs for NULL presyn
+            if (mechanisms[m]->pntMap)
+            {
+                //compare point_processes (index 1)
+                Point_process * pp = (Point_process *) nt._vdata[vdataOffset+1];
+                Point_process * pp2 = (Point_process *) branch->vdata[vdataOffset+1];
+                assert(pp->_type == pp2->_type );
+                assert(pp->_i_instance == pp2->_i_instance );
+                assert(pp->_tid == pp2->_tid );
+                assert(pp->_presyn == pp2->_presyn );
+                vdataOffset+= mechanisms[m]->vdataSize;
+            }
+            */
         }
         mechCount++;
     }
     assert(mechCount==mechanismsCount);
+#endif
 }
 
 void DataLoader::fromHpxToCoreneuronDataStructs(
@@ -92,6 +119,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._actual_v = branch->v;
     nrnThread._actual_area = branch->area;
     nrnThread._data = branch->data;
+    //TODO is this worth is? to avoid race conditions, they use these shadow as intermediate values storing
+    //used only by ProbGABAAB_EMS
+    //TODO this memory need to be cleaned-up! Also why not be a vector in vdata instead of Nt?
+    nrnThread._shadow_rhs = mechType == 139 ? new double[mechsInstances[m].instancesCount]() : NULL;
+    nrnThread._shadow_d = mechType==139 ? new double[mechsInstances[m].instancesCount]() : NULL;
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
@@ -100,66 +132,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._vdata = nrn_threads[0]._vdata; //TODO 0??
     //Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
 
-
-#ifdef DEBUG
-    if (!branch->isSoma) return; //run only once
-    if (mechType != CAP) return; //runs only at the beginning og mechs graph
-    NrnThread & nt = nrn_threads[0];
-    assert(nt.end == branch->n);
-    for (int i=0; i<branch->n; i++)
-    {
-        assert(nt._actual_a[i] == branch->a[i]);
-        assert(nt._actual_b[i] == branch->b[i]);
-        assert(nt._actual_d[i] == branch->d[i]);
-        assert(nt._actual_v[i] == branch->v[i]);
-        assert(nt._actual_rhs[i] == branch->rhs[i]);
-        assert(nt._actual_area[i] == branch->area[i]);
-        if (branch->p)
-        {  assert(nt._v_parent_index[i] == branch->p[i]); }
-    }
-
-    //make sure that morphology data is correctly aligned in mem
-    for (int i=0; i<6*branch->n; i++)
-            {   assert(nt._data[i]==branch->data[i]); }
-
-    int mechCount=0;
-    for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
-    {
-        int type = tml->index;
-        int m = mechanismsMap[type];
-        Memb_list * ml = tml->ml; //Mechanisms application to each compartment
-        Branch::MechanismInstance & instance = branch->mechsInstances[m];
-        assert(ml->nodecount == instance.instancesCount);
-        //assert(ml->_nodecount_padded == instance.instancesCount);
-        int dataSize = mechanisms[m]->dataSize;
-        int pdataSize = mechanisms[m]->pdataSize;
-        for (int n=0; n<ml->nodecount; n++) //for every mech instance
-        {
-            assert(ml->nodeindices[n]==instance.nodesIndices[n]);
-            for (int i=0; i<dataSize; i++)
-            {   assert(ml->data[i]==instance.data[i]); }
-
-            for (int i=0; i<pdataSize; i++)
-            {
-                assert(ml->pdata[i] == instance.pdata[i]);
-                assert(nt._data[ml->pdata[i]] == branch->data[instance.pdata[i]]);
-            }
-/*
-            if (mechanisms[m]->pntMap)
-            {
-                Point_process * pp = (Point_process *) nt._vdata[vdataOffset];
-                Point_process * pp2 = branch->vdata[vdataOffset];
-                assert(pp->_type == pp2->_type );
-                assert(pp->_i_instance == pp2->_i_instance );
-                assert(pp->_tid == pp2->_tid );
-                assert(pp->_presyn == pp2->_presyn );
-                vdataOffset++;
-            }
-*/        }
-        mechCount++;
-    }
-    assert(mechCount==mechanismsCount);
-#endif
+    //compareDataStructuresWithCoreNeuron(branch);
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
@@ -435,7 +408,8 @@ void DataLoader::loadData(int argc, char ** argv)
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
 
-                if (mech->pntMap > 0) //TODO delete this section
+#ifdef DEBUG
+                if (mech->pntMap > 0) //debugging only
                 {
                     assert(type==7 || type==137 || type==139);
                     assert(mech->pdataSize==2 || mech->pdataSize==3);
@@ -451,6 +425,14 @@ void DataLoader::loadData(int argc, char ** argv)
                     assert(pnt->_presyn == NULL);
                     pointProcOffset++;
                 }
+                else
+                {
+                    //TODO to reverse engineer pdata we need to know if it's (a) offset to data,
+                    //(b) offset to vdata, or (c) an int value as a parameter
+                    //for (int i=0; i<mech->pdataSize; i++)
+                    //    assert(pdata[i]>=0 && pdata[i]<nt.end*6); //check if only points to data array
+                }
+#endif
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;
@@ -652,10 +634,6 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
                   nodesIndices.data(), nodesIndices.size()*sizeof(int),
                   multiSpliX ? branches.data() : NULL, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
                   multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size());
-
-    //serialize all netcons and initialize them
-    //... TODO get mech instance righ,t and neurons id (preNeuronId is not in the circuit)
-    //hpx_call_sync(branchAddr, Branch::initMechanismsInstances, NULL, 0);
 
     return branchAddr;
 }

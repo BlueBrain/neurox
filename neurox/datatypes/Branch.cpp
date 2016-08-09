@@ -68,7 +68,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[5] = array of compartment/node index where the mechanisms are applied to
      * args[6] = branches, children branches (if any)
      * args[7] = parent compartment indices (if any)
-     * NOTE: either args[7] or args[8] (or both) must have size>0
+     * NOTE: either args[6] or args[7] (or both) must have size>0
      */
 
     neurox_hpx_pin(Branch);
@@ -100,22 +100,76 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     int instancesOffset=0;
     local->mechsInstances = new MechanismInstance[mechanismsCount];
 
+    //allocate space for vdata
+    int vdataTotalSize=0;
+    for (int m=0; m<mechanismsCount; m++)
+        if (mechanisms[m]->pntMap>0)
+            vdataTotalSize += mechanisms[m]->vdataSize;
+    local->vdata = new void*[vdataTotalSize];
+
+    int vdataOffset=0;
     for (int m=0; m<mechanismsCount; m++)
     {
         MechanismInstance & instance = local->mechsInstances[m];
+        Mechanism * mech = mechanisms[m];
         instance.instancesCount = instancesCount[m];
 
         instance.nodesIndices = instance.instancesCount>0 ? new int[instance.instancesCount] : nullptr;
         memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.instancesCount);
         instancesOffset += instance.instancesCount;
 
-        int totalDataSize = mechanisms[m]->dataSize * instance.instancesCount;
+        int totalDataSize = mech->dataSize * instance.instancesCount;
         instance.data = local->data+dataOffset;
-        dataOffset += totalDataSize;
 
-        int totalPdataSize = mechanisms[m]->pdataSize * instance.instancesCount;
+        int totalPdataSize = mech->pdataSize * instance.instancesCount;
         instance.pdata = totalPdataSize>0 ? new int[totalPdataSize] : nullptr;
         memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
+
+        //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
+        //and assign the correct offset in pdata (offset of vdata is in pdata[1])
+        if (mech->pntMap>0)
+        {
+            assert((mech->vdataSize == 1 && mech->pdataSize == 2)   //IClamp
+                || (mech->vdataSize == 2 && mech->pdataSize == 3)); //ProbAMPA_EMS, ProbGABA_EMD
+
+            //initialize vdata
+            //for (int i=0; i<mech->vdataSize; i++)
+            //    local->vdata[vdataOffset+i] = NULL;
+
+            //point pdata to the correct offset, and allocate vdata
+            int * pointProcPdata = (int*) &pdata[pdataOffset];
+            for (int i=0; i<instance.instancesCount; i++)
+            {
+                int * dataProcOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+0];
+                printf("BEFORE %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
+                (void) *dataProcOffsetInPdata ;//TODO we will not change this for now
+                printf("AFTER  %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
+
+                int * pointProcOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+1];
+                printf("BEFORE %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
+                *pointProcOffsetInPdata = vdataOffset;
+                printf("AFTER  %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
+                //local->vdata[*pointProcOffsetInPdata] = NULL; //never used? new Point_process();
+
+                if (mech->vdataSize==2)
+                {
+                    int * vdataOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+2]; //if any
+                    printf("BEFORE %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
+                    *vdataOffsetInPdata = vdataOffset+1; //i.e. the one in vdata after the point proc
+                    printf("AFTER  %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
+                    //local->vdata[*pointProcOffsetInPdata] = (pointer to Random Gen from bbcore_reg);
+                    //TODO cant be called because darray is read from file!
+                    //(*nrn_bbcore_read_[type])(dArray, iArray, &dk, &ik, 0, aln_cntml, d, pd, ml->_thread, &nt, 0.0);
+
+                }
+                vdataOffset+=mech->vdataSize;
+
+                //We will call bbcore_red on the correct vdata offset
+                //local->vdata[vdataOffset];
+            }
+        }
+
+        dataOffset += totalDataSize;
         pdataOffset += totalPdataSize;
     }
 
@@ -315,7 +369,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     {
         for (int m=0; m<mechanismsCount; m++)
         {
-            if (m==CAP) continue;
+            if (mechanisms[m]->type==CAP) continue;
             int mechType = mechanisms[m]->type;
             hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
                       &local, sizeof(local),

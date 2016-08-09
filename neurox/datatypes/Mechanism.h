@@ -43,6 +43,7 @@ class Mechanism
     mod_f_t BAfunctions[BEFORE_AFTER_SIZE]; ///>mechanism functions (with mod_f_t type)
     pnt_receive_t pnt_receive;
     pnt_receive_t pnt_receive_init;
+    bbcore_read_t nrn_bbcore_read;
 
     enum ModFunction
     {
