@@ -938,6 +938,7 @@ void read_phase2(data_reader &F, int imult, NrnThread& nt) {
         pp->_type = type;
         pp->_i_instance = i;
         nt._vdata[ml->pdata[nrn_i_layout(i, cnt, 1, szdp, layout)]] = pp;
+        printf("type %d.%d: vdata[ml->pdata[%d]] = vdata[%d]\n", type, i, nrn_i_layout(i, cnt, 1, szdp, layout), ml->pdata[nrn_i_layout(i, cnt, 1, szdp, layout)]);
         pp->_presyn = NULL;
         pp->_tid = nt.id;
       }

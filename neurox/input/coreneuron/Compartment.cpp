@@ -20,7 +20,6 @@ void Compartment::addChild(Compartment * child)
     branches.push_back(child);
 };
 
-
 void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
     mechsTypes.push_back(mechType);

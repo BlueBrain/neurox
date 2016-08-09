@@ -95,6 +95,12 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
+    //nrnThread._vdata = (void**) branch->vdata;
+    //nrnThread._vdata = nrn_threads[0]._vdata; //TODO 0??
+    nrnThread._vdata = new void*[nrn_threads[0].n_pntproc];
+    for (int i=0; i<nrn_threads[0].n_pntproc; i++)
+        nrnThread._vdata[i] = (void**) &(nrn_threads[0].pntprocs[i]);
+    Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
     //TODO shall this cj field be hardcoded on a branch info?
 
 #ifdef DEBUG
@@ -111,7 +117,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
         assert(nt._actual_rhs[i] == branch->rhs[i]);
         assert(nt._actual_area[i] == branch->area[i]);
         if (branch->p)
-          assert(nt._v_parent_index[i] == branch->p[i]);
+        {  assert(nt._v_parent_index[i] == branch->p[i]); }
     }
 
     //make sure that morphology data is correctly aligned in mem
@@ -119,6 +125,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
             {   assert(nt._data[i]==branch->data[i]); }
 
     int mechCount=0;
+    int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
@@ -140,7 +147,18 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
                 assert(ml->pdata[i] == instance.pdata[i]);
                 assert(nt._data[ml->pdata[i]] == branch->data[instance.pdata[i]]);
             }
-        }
+/*
+            if (mechanisms[m]->pntMap)
+            {
+                Point_process * pp = (Point_process *) nt._vdata[vdataOffset];
+                Point_process * pp2 = branch->vdata[vdataOffset];
+                assert(pp->_type == pp2->_type );
+                assert(pp->_i_instance == pp2->_i_instance );
+                assert(pp->_tid == pp2->_tid );
+                assert(pp->_presyn == pp2->_presyn );
+                vdataOffset++;
+            }
+*/        }
         mechCount++;
     }
     assert(mechCount==mechanismsCount);
@@ -404,15 +422,14 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
         //reconstructs mechanisms for compartments
+        int pointProcOffset =0;
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
-            int dataOffset  = 0; //6*nt.end; //(a,b,d,v,rhs,area for NrnThread->_data)
+            int dataOffset  = 0;
             int type = tml->index;
             Memb_list * ml = tml->ml; //Mechanisms application to each compartment
             Mechanism * mech = getMechanismFromType(type);
-            int dataSize  = mech->dataSize;
-            int pdataSize = mech->pdataSize;
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 assert (ml->nodeindices[n] < compartments.size());
@@ -420,9 +437,28 @@ void DataLoader::loadData(int argc, char ** argv)
                 int * pdata = &ml->pdata[pdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
-                compartment->addMechanismInstance(type, data, dataSize, pdata, pdataSize);
-                dataOffset  += dataSize;
-                pdataOffset += pdataSize;
+
+                if (mech->pntMap > 0) //TODO delete this section
+                {
+                    //i.e. vdata has one value per node, and then the point procs
+                    int offsetPdata = n + ml->nodecount;
+                    int offsetVdata = ml->pdata[offsetPdata];
+                    Point_process* pnt = &nt.pntprocs[pointProcOffset];
+                    //testing to see if I know how mem is allocated and ordered
+                    assert(nt._vdata[offsetVdata] == pnt);
+
+                    //presyns i think are only used by nrniv/netcvode.cpp for net_event (not for our HPX use case)
+                    //PS is always NULL? The other three fields are knows (tid, instance, i);
+                    assert(pnt->_presyn == NULL);
+
+                    //TODO I will change the indices of the pdata map to point to a continuously aligned vdata
+                    ml->pdata[offsetPdata] = pointProcOffset;
+                    pointProcOffset++;
+                }
+
+                compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
+                dataOffset  += mech->dataSize;
+                pdataOffset += mech->pdataSize;
             }
         }
 
@@ -563,9 +599,9 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<do
             dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
             pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
             nodesIndicesMechs[mechOffset].push_back(n);
+            instancesCount[mechOffset]++;
             dataOffset += mech->dataSize;
             pdataOffset += mech->pdataSize;
-            instancesCount[mechOffset]++;
         }
         n++;
     }

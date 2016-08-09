@@ -98,8 +98,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     int dataOffset=6*local->n;
     int pdataOffset=0;
     int instancesOffset=0;
-
     local->mechsInstances = new MechanismInstance[mechanismsCount];
+
     for (int m=0; m<mechanismsCount; m++)
     {
         MechanismInstance & instance = local->mechsInstances[m];
