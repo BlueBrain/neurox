@@ -194,72 +194,6 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     neurox_hpx_unpin;;
 }
 
-void Branch::setupTreeMatrixMinimal()
-{
-    //////// setup_tree_minimal() --> nrn_rhs() //////
-
-    for (int i=0; i<n; i++)
-    {
-        rhs[i]=0;
-        d[i]=0;
-    }
-
-    Mechanism::ModFunction func;
-    func = Mechanism::ModFunction::before_breakpoint;
-    callModFunction_handler(&func, sizeof(func));
-    func = Mechanism::ModFunction::current;
-    callModFunction_handler(&func, sizeof(func));
-
-    /* now the internal axial currents.
-    The extracellular mechanism contribution is already done.
-        rhs += ai_j*(vi_j - vi)
-    */
-    if (p!=NULL)
-    {
-        double dv=0;
-        for (int i=1; i<n; i++)
-        {
-            dv = v[p[i]] - v[i];
-            rhs[i] -= b[i]*dv;
-            rhs[p[i]] += a[i]*dv;
-        }
-    }
-    else
-    {
-        assert(0); //BRUNO TODO: insert Hines here
-    }
-
-    //////// setup_tree_minimal() --> nrn_lhs() //////
-    // calculate left hand side of
-    //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
-    //cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
-    //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
-    //hand side after solving.
-    //This is a common operation for fixed step, cvode, and daspk methods
-
-    func = Mechanism::ModFunction::jacob;
-    callModFunction_handler(&func, sizeof(func));
-
-    /* now the cap current can be computed because any change to cm
-     * by another model has taken effect. */
-    func = Mechanism::ModFunction::jacobCapacitance;
-    callModFunction_handler(&func, sizeof(func));
-
-    /* now add the axial currents */
-    if (p!=NULL)
-    {
-      for (int i=1; i<n; i++)
-      {
-          d[i] -= b[i];
-          d[p[i]] -= a[i];
-      }
-    }
-    else
-    {
-        assert(0);
-    }
-}
-
 hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler(const double * v, const size_t v_size)
 {
@@ -273,16 +207,9 @@ int Branch::finitialize_handler(const double * v, const size_t v_size)
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
     // concentrations.
-    Mechanism::ModFunction func;
-    func = Mechanism::ModFunction::before_initialize;
-    callModFunction_handler(&func, sizeof(func));
-    func = Mechanism::ModFunction::initialize;
-    callModFunction_handler(&func, sizeof(func));
-    func = Mechanism::ModFunction::after_initialize;
-    callModFunction_handler(&func, sizeof(func));
-
-    local->setupTreeMatrixMinimal();
-
+    local->callModFunction2(Mechanism::ModFunction::before_initialize);
+    local->callModFunction2(Mechanism::ModFunction::initialize);
+    local->callModFunction2(Mechanism::ModFunction::after_initialize);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -341,6 +268,11 @@ int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], 
     }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
+}
+
+void Branch::callModFunction2(const Mechanism::ModFunction functionId)
+{
+    callModFunction_handler(&functionId, sizeof(functionId));
 }
 
 hpx_action_t Branch::callModFunction = 0;

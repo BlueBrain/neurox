@@ -53,8 +53,6 @@ class Branch
     ///queue of incoming spikes (to be delivered at the end of the step), sorted by delivery time
     std::priority_queue<Spike> spikesQueue;
 
-    void setupTreeMatrixMinimal();
-
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
@@ -66,19 +64,21 @@ class Branch
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
     static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
 
-
     //TODO make private
     double * data; ///> all pointer data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
 
+    void callModFunction2(const Mechanism::ModFunction functionId);
+
   private:
     hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
+    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
 
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();
     static int finitialize_handler(const double * v, const size_t);
     static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
+
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);

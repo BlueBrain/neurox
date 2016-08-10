@@ -108,8 +108,7 @@ static int main_handler( char **argv, size_t argc)
     //reads morphology data
     printf("Input::Coreneuron::DataLoader::loadData...\n");
     NeuroX::Input::Coreneuron::DataLoader::loadData(argc, argv);
-
-    Misc::Statistics::printSimulationSize(); //TODO Luke
+    Misc::Statistics::printSimulationSize();
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     printf("Neuron::finitialize...\n");

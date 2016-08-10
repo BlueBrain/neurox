@@ -56,7 +56,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     else if (this->isIon)  //ion: eion.c
         registerIon();
     else //general mechanism: mod file
-        registerModMechanism();
+        registerModFunctions(this->type);
 
     //registerBeforeAfterFunctions();
 
@@ -100,9 +100,8 @@ void Mechanism::disableMechFunctions()
     this->pnt_receive_init = NULL;
 }
 
-void Mechanism::registerModMechanism()
+void Mechanism::registerModFunctions(int type)
 {
-    int type = this->type;
     this->membFunc.alloc = memb_func[type].alloc;
     this->membFunc.setdata_ = memb_func[type].setdata_;
     this->membFunc.destructor = memb_func[type].destructor;

@@ -81,7 +81,7 @@ private:
     void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
     void registerCapacitance();   ///> register mechanism of type "capacitance"
     void registerBeforeAfterFunctions();   ///> register Before-After functions
-    void registerModMechanism(); ///> register mechanisms functions (mod_t_f type)
+    void registerModFunctions(int type); ///> register mechanisms functions (mod_t_f type)
 
 };
 

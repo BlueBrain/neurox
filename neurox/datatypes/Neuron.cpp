@@ -46,39 +46,17 @@ int Neuron::finitialize_handler()
     double v = inputParams->voltage;
     hpx_call_sync(local->soma, Branch::finitialize, NULL, 0, &v, sizeof(v));
 
-    //TODO done at branch level now (above) still have to copy hines
-    //local->setupTreeMatrixMinimal();
+    local->setupTreeMatrixMinimal();
 
     neurox_hpx_unpin;
 }
 
 void Neuron::setupTreeMatrixMinimal()
 {
-
-    //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_lhs (treeset_core.c)
-    // now the internal axial currents.
-    //The extracellular mechanism contribution is already done.
-    //	rhs += ai_j*(vi_j - vi)
-    double dummyVoltage=-1;
-    hpx_call_sync(soma, HinesSolver::setupMatrixRHS, NULL, 0,
-                  &dummyVoltage, sizeof(dummyVoltage));
-
-    // calculate left hand side of
-    //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
-    //cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
-    //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
-    //hand side after solving.
-    //This is a common operation for fixed step, cvode, and daspk methods
-    // note that CAP has no jacob
-    callModFunction(Mechanism::ModFunction::jacob);
-
-    //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
-    //now the cap current can be computed because any change to cm
-    //by another model has taken effect. note, the first is CAP
-    callModFunction(Mechanism::ModFunction::jacobCapacitance);
-
-    //now add the axial currents
+    hpx_call_sync(soma, HinesSolver::setupMatrixRHS, NULL, 0);
+    hpx_call_sync(soma, HinesSolver::gaussianFwdTriangulation, NULL, 0, NULL,0);
     hpx_call_sync(soma, HinesSolver::setupMatrixLHS, NULL, 0);
+    hpx_call_sync(soma, HinesSolver::gaussianFwdTriangulation, NULL, 0, NULL,0);
 }
 
 hpx_action_t Neuron::init = 0;
