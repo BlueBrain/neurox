@@ -28,6 +28,7 @@ class Compartment
 
     int id;
     vector<Compartment*> branches;
+    vector<void*> vdata; //TODO should go away at some point
     double a,b,d,v,rhs,area;
     int p;
     vector<int> mechsTypes;

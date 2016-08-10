@@ -39,18 +39,13 @@ class DataLoader
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
                                         int netconsOffset, map<int, std::vector<NetConX*> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static hpx_t createBranch(char isSoma, vector<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons);
+    static hpx_t createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons);
 
     static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
 
 private:
-    static Compartment* getBranchingMultispliX(Compartment * topCompartment, vector<double> & d, vector<double> & b,
-                                               vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
-                                               vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
-                                               vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices);
-
-    static void getBranchingFlat(vector<Compartment*> & compartments, vector<double> & data, vector<int> & pdata,
+    static void getBranchingData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices);
 };
 

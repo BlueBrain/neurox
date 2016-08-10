@@ -66,7 +66,7 @@ class Branch
 
     //TODO make private
     double * data; ///> all pointer data for the branch (RHS, D, A, B, V, Area, and mechanisms)
-    void ** vdata; ///> all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
+    void ** vdata; ///> all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA) //TODO shouldnt be at branche level, should be mech instance like pdata
 
     void callModFunction2(const Mechanism::ModFunction functionId);
 

@@ -63,11 +63,12 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[5] = array of compartment/node index where the mechanisms are applied to
      * args[6] = branches, children branches (if any)
      * args[7] = parent compartment indices (if any)
+     * args[8] = vdata //TODO to be removed, should be instanteated here
      * NOTE: either args[6] or args[7] (or both) must have size>0
      */
 
     neurox_hpx_pin(Branch);
-    assert(nargs==8);
+    assert(nargs==8 || nargs==9);
 
     DEBUG_BRANCH_DELETE = local;
 
@@ -76,6 +77,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     local->isSoma = *(const char*) args[1];
     local->data = new double[sizes[2]/sizeof(double)];
     memcpy(local->data, args[2], sizes[2]);
+    local->vdata = new void*[sizes[8]/sizeof(void*)];
+    memcpy(local->vdata, args[8], sizes[8]);
     local->rhs = local->data + local->n*0;
     local->d = local->data + local->n*1;
     local->a = local->data + local->n*2;
@@ -92,17 +95,10 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
     int dataOffset=6*local->n;
     int pdataOffset=0;
+    int vdataOffset=0;
     int instancesOffset=0;
     local->mechsInstances = new MechanismInstance[mechanismsCount];
 
-    //allocate space for vdata
-    int vdataTotalSize=0;
-    for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m]->pntMap>0)
-            vdataTotalSize += mechanisms[m]->vdataSize;
-    local->vdata = new void*[vdataTotalSize];
-
-    int vdataOffset=0;
     for (int m=0; m<mechanismsCount; m++)
     {
         MechanismInstance & instance = local->mechsInstances[m];
@@ -114,10 +110,12 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         instancesOffset += instance.instancesCount;
 
         int totalDataSize = mech->dataSize * instance.instancesCount;
-        instance.data = local->data+dataOffset;
+        instance.data = mech->dataSize ==0 ? nullptr : local->data+dataOffset;
+
+        int totalVdataSize = mech->vdataSize * instance.instancesCount;
 
         int totalPdataSize = mech->pdataSize * instance.instancesCount;
-        instance.pdata = totalPdataSize>0 ? new int[totalPdataSize] : nullptr;
+        instance.pdata = totalPdataSize==0 ? nullptr : new int[totalPdataSize];
         memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
 
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
@@ -128,8 +126,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                 || (mech->vdataSize == 2 && mech->pdataSize == 3)); //ProbAMPA_EMS, ProbGABA_EMD
 
             //initialize vdata
-            //for (int i=0; i<mech->vdataSize; i++)
-            //    local->vdata[vdataOffset+i] = NULL;
+            for (int i=0; i<mech->vdataSize; i++)
+                local->vdata[vdataOffset+i] = NULL;
 
             //point pdata to the correct offset, and allocate vdata
             int * pointProcPdata = (int*) &pdata[pdataOffset];
@@ -167,6 +165,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
         dataOffset += totalDataSize;
         pdataOffset += totalPdataSize;
+        vdataOffset += totalVdataSize;
     }
 
     //reconstructs parents or branching

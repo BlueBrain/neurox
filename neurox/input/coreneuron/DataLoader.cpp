@@ -130,8 +130,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
     //TODO shall this cj field be hardcoded on a branch info?
-    //nrnThread._vdata = (void**) branch->vdata;
-    nrnThread._vdata = nrn_threads[0]._vdata; //TODO 0??
+    nrnThread._vdata = branch->vdata;
     //Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
 
     //compareDataStructuresWithCoreNeuron(branch);
@@ -342,7 +341,6 @@ void DataLoader::loadData(int argc, char ** argv)
     assert(e == HPX_SUCCESS);
     assert(neuronsAddr != HPX_NULL);
 
-
 #ifdef DEBUG
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     std::set<int> availableNeuronsIds;
@@ -365,7 +363,7 @@ void DataLoader::loadData(int argc, char ** argv)
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
         //reconstructs matrix (solver) values
-        vector<Compartment*> compartments;
+        deque<Compartment*> compartments;
         for (int n=0; n<nt.end; n++)
             compartments.push_back(
                 new Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
@@ -394,7 +392,8 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
         //reconstructs mechanisms for compartments
-        int pointProcOffset =0;
+        int vdataOffset=0;
+        int pointProcOffset=0;
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -407,6 +406,7 @@ void DataLoader::loadData(int argc, char ** argv)
                 assert (ml->nodeindices[n] < compartments.size());
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
+                void ** vdata = &nt._vdata[vdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
 
@@ -417,27 +417,33 @@ void DataLoader::loadData(int argc, char ** argv)
                     assert(mech->pdataSize==2 || mech->pdataSize==3);
 
                     //The Vdata offset in pdata vector is in position 1
-                    int offsetPdata = n*mech->pdataSize + 1;
-                    int offsetVdata = ml->pdata[offsetPdata];
-                    Point_process* pnt = &nt.pntprocs[pointProcOffset];
+                    int offsetPdata = n*mech->pdataSize;
+                    int offsetPointProc = ml->pdata[offsetPdata+1];
+                    Point_process * pp = &nt.pntprocs[offsetPointProc];
                     //testing to see if I know how mem is allocated and ordered
-                    assert(nt._vdata[offsetVdata++] == pnt);
+                    assert(nt._vdata[offsetPointProc++] == &nt.pntprocs[pointProcOffset]);
                     //presyns i think are only used by nrniv/netcvode.cpp for net_event (not for our HPX use case)
                     //PS is always NULL? The other three fields are knows (tid, instance, i);
-                    assert(pnt->_presyn == NULL);
+                    assert(pp->_presyn == NULL);
+
+                    if (mech->pdataSize > 2)
+                    {
+                        int offsetRNG = ml->pdata[offsetPdata+2];
+                        void * RNG = nt._vdata[offsetRNG];
+                    }
+                    for (int v=0; v<mech->vdataSize; v++)
+                      compartment->vdata.push_back(vdata[v]);
                     pointProcOffset++;
                 }
                 else
                 {
-                    //TODO to reverse engineer pdata we need to know if it's (a) offset to data,
-                    //(b) offset to vdata, or (c) an int value as a parameter
-                    //for (int i=0; i<mech->pdataSize; i++)
-                    //    assert(pdata[i]>=0 && pdata[i]<nt.end*6); //check if only points to data array
+                    assert(mech->vdataSize==0);
                 }
 #endif
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;
+                vdataOffset += mech->vdataSize;
             }
         }
 
@@ -497,49 +503,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-Compartment * DataLoader::getBranchingMultispliX(Compartment * topCompartment, vector<double> & d, vector<double> & b,
-                          vector<double> & a, vector<double> & rhs, vector<double> & v, vector<double> & area,
-                          vector<int> & p, vector<int> & instancesCount, vector<vector<double>> & data,
-                          vector<vector<int>> & pdata, vector<vector<int>> & nodesIndices)
-{
-    //iterate through all compartments on the branch
-    int n=0;
-    Compartment *comp = NULL;
-    for (comp = topCompartment;
-         comp->branches.size()==1;
-         comp = comp->branches.front())
-    {
-        d.push_back(comp->d);
-        b.push_back(comp->b);
-        a.push_back(comp->a);
-        v.push_back(comp->v);
-        rhs.push_back(comp->rhs);
-        area.push_back(comp->area);
-        p.push_back(comp->p);
-
-        //copy all mechanisms instances
-        int dataOffset=0;
-        int pdataOffset=0;
-        for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
-        {
-            int mechType = comp->mechsTypes[m];
-            int mechOffset = mechanismsMap[mechType];
-            assert(mechOffset>=0 && mechOffset<mechanismsCount);
-            Mechanism * mech = mechanisms[mechOffset];
-
-            data[mechOffset].insert(data[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
-            pdata[mechOffset].insert(pdata[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
-            nodesIndices[mechOffset].push_back(n);
-            dataOffset += mech->dataSize;
-            pdataOffset += mech->pdataSize;
-            instancesCount[mechOffset]++;
-        }
-        n++;
-    }
-    return comp;
-}
-
-void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<double> & data, vector<int> & pdata,
+void DataLoader::getBranchingData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                                   vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices)
 {
     for (auto comp : compartments)
@@ -560,14 +524,15 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<do
     vector<vector<double>> dataMechs (mechanismsCount);
     vector<vector<int>> pdataMechs (mechanismsCount);
     vector<vector<int>> nodesIndicesMechs (mechanismsCount);
+    vector<vector<void*>> vdataMechs (mechanismsCount);
 
-    //copy all mechanisms instances
     int n=0;
+
     for (auto comp : compartments)
     {
-        int dataOffset=0;
-        int pdataOffset=0;
-        assert(n==comp->id);
+        int mechDataOffset=0;
+        int mechPdataOffset=0;
+        int mechVdataOffset=0;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
@@ -575,12 +540,14 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<do
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
             Mechanism * mech = mechanisms[mechOffset];
 
-            dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[dataOffset], &comp->data[dataOffset+mech->dataSize] );
-            pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[pdataOffset], &comp->pdata[pdataOffset+mech->pdataSize] );
+            dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[mechDataOffset], &comp->data[mechDataOffset+mech->dataSize] );
+            pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[mechPdataOffset], &comp->pdata[mechPdataOffset+mech->pdataSize] );
+            vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[mechVdataOffset], &comp->vdata[mechVdataOffset+mech->vdataSize] );
             nodesIndicesMechs[mechOffset].push_back(n);
             instancesCount[mechOffset]++;
-            dataOffset += mech->dataSize;
-            pdataOffset += mech->pdataSize;
+            mechDataOffset += mech->dataSize;
+            mechPdataOffset += mech->pdataSize;
+            mechVdataOffset += mech->vdataSize;
         }
         n++;
     }
@@ -590,14 +557,16 @@ void DataLoader::getBranchingFlat(vector<Compartment*> & compartments, vector<do
     {
         data.insert(data.end(), dataMechs[m].begin(), dataMechs[m].end());
         pdata.insert(pdata.end(), pdataMechs[m].begin(), pdataMechs[m].end());
+        vdata.insert(vdata.end(), vdataMechs[m].begin(), vdataMechs[m].end());
         nodesIndices.insert(nodesIndices.end(), nodesIndicesMechs[m].begin(), nodesIndicesMechs[m].end());
         dataMechs[m].clear();
         pdataMechs[m].clear();
+        vdataMechs[m].clear();
         nodesIndicesMechs[m].clear();
     }
 }
 
-hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
     int n = compartments.size();
     vector<double> data; //compartments info (RHS, D, A, B, V, AREA)*n
@@ -605,22 +574,32 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
     vector<int> p; //parent nodes index
     vector<int> instancesCount (mechanismsCount);
     vector<int> nodesIndices;
+    vector<hpx_t> branches;
+    vector<void*> vdata; //TODO should go away at some point,
 
     char multiSpliX=0;
-    vector<hpx_t> branches;
     if (multiSpliX)
     {
-        assert(0); //I've used bracnh::data since then
-        //comp is the bottom compartment of the branch
-        //Compartment * comp = getBranchingMultispliX(topCompartment, d, b, a, rhs, v, area, p,
-        //                             instancesCount, data, pdata, nodesIndices);
+        deque<Compartment*> subSection;
+        Compartment * comp = NULL;
+        for (comp = compartments.at(0);
+             comp->branches.size()==1;
+             comp = comp->branches.front())
+        {
+            subSection.push_back(comp);
+            compartments.pop_front();
+        }
+
+        //create sub-section of branch (comp is the bottom compartment of the branch)
+        getBranchingData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
+
         //recursively create children branches
-        //for (int c=0; c<comp->branches.size(); c++)
-        //  branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
+        for (int c=0; c<comp->branches.size(); c++)
+          branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
     }
     else //Flat a la Coreneuron
     {
-        getBranchingFlat(compartments, data, pdata, p, instancesCount, nodesIndices);
+        getBranchingData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
     }
 
     //Allocate HPX Branch
@@ -635,7 +614,8 @@ hpx_t DataLoader::createBranch(char isSoma, vector<Compartment*> & compartments,
                   instancesCount.data(), instancesCount.size()*sizeof(int),
                   nodesIndices.data(), nodesIndices.size()*sizeof(int),
                   multiSpliX ? branches.data() : NULL, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size());
+                  multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size(),
+                  vdata.data(), sizeof(void*)*vdata.size());
 
     return branchAddr;
 }

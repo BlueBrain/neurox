@@ -1,5 +1,6 @@
 #include "neurox/Neurox.h"
 #include <cstring>
+#include <map>
 
 #include "nrniv/nrniv_decl.h"
 #include "nrniv/nrn_stats.h"
