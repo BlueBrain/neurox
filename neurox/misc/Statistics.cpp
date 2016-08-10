@@ -33,8 +33,8 @@ void Statistics::printSimulationSize()
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
                           + sizeof(NeuroX::Input::InputParams) * HPX_LOCALITIES) /1024;
-    printf("Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
-           simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
+    //printf("Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
+    //       simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
 
     for (int i=0; i<neuronsCount; i++)
     {
@@ -43,7 +43,7 @@ void Statistics::printSimulationSize()
         fflush(stdout);
         simSize += neuronSize;
     }
-    printf("SIMULATION TOTAL SIZE: %.2f KB (morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB, globalVars %.2f KB)\n",
+    printf("Simulation: %.2f KB (morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB, globalVars %.2f KB)\n",
            simSize.getTotal(), simSize.morphologies, simSize.mechanisms, simSize.synapses, simSize.metadata, simSize.globalVars);
 }
 
@@ -54,11 +54,10 @@ int Statistics::printNeuronSize_handler()
     SizeInfo neuronSize;
     neuronSize.metadata = (double) sizeof(Neuron) / 1024;
     neuronSize.synapses = (double) (local->synapses.size()*sizeof(hpx_t)) /1024;
-    printf("- Neuron %lld: \n", local->id);
     SizeInfo somaSize;
     hpx_call_sync(local->soma, Statistics::printBranchSize, &somaSize, sizeof(somaSize));
     neuronSize += somaSize;
-    printf("  - TOTAL: %.0f KB (morphologies %.0f KB, mechanisms %.2\0f KB, synapses %.0f KB, metadata %.0f KB)\n",
+    printf("  - Neuron %lld: %.0f KB (morphologies %.0f KB, mechanisms %.2\0f KB, synapses %.0f KB, metadata %.0f KB)\n",
            local->id, neuronSize.getTotal(), neuronSize.morphologies, neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
     neurox_hpx_unpin_continue(neuronSize);
 }
@@ -85,8 +84,8 @@ int Statistics::printBranchSize_handler()
         if (mechanisms[m]->pdataSize>0)
             branchSize.mechanisms += (double) (sizeof(index_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].instancesCount)/1024;
     }
-    printf("  - Branch (%d compartments): total %.2f KB (morphology %.1f KB, mechanisms %.1f KB, metadata %.3f KB)\n",
-            local->n, branchSize.getTotal(), branchSize.morphologies, branchSize.mechanisms, branchSize.metadata);
+   // printf("  - Branch (%d compartments): total %.2f KB (morphology %.1f KB, mechanisms %.1f KB, metadata %.3f KB)\n",
+   //         local->n, branchSize.getTotal(), branchSize.morphologies, branchSize.mechanisms, branchSize.metadata);
 
     //call the print function in children branches, pass their size to parent branch
     for (int c=0; c<local->branchesCount; c++)

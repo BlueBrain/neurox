@@ -53,9 +53,6 @@ class Branch
     ///queue of incoming spikes (to be delivered at the end of the step), sorted by delivery time
     std::priority_queue<Spike> spikesQueue;
 
-    /// returns all instances of mechanisms type 'type'
-    inline MechanismInstance & getMechanismInstanceFromType(int type);
-
     void setupTreeMatrixMinimal();
 
     static void registerHpxActions(); ///> Register all HPX actions

@@ -12,7 +12,6 @@ int main(int argc, char** argv)
     NeuroX::registerHpxActions();
     NeuroX::Neuron::registerHpxActions();
     NeuroX::Branch::registerHpxActions();
-    NeuroX::Mechanism::registerHpxActions();
     NeuroX::Solver::BackwardEuler::registerHpxActions();
     NeuroX::Solver::HinesSolver::registerHpxActions();
     NeuroX::Misc::Statistics::registerHpxActions();

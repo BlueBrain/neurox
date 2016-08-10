@@ -50,11 +50,6 @@ int Branch::initNetCons_handler(const int nargs, const void *args[], const size_
     neurox_hpx_unpin;
 }
 
-Branch::MechanismInstance & Branch::getMechanismInstanceFromType(int type)
-{
-    return mechsInstances[mechanismsMap[type]];
-}
-
 hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
@@ -140,23 +135,24 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
             int * pointProcPdata = (int*) &pdata[pdataOffset];
             for (int i=0; i<instance.instancesCount; i++)
             {
-                int * dataProcOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+0];
-                printf("BEFORE %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
-                (void) *dataProcOffsetInPdata ;//TODO we will not change this for now
-                printf("AFTER  %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
+                int * dataOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+0];
+                //printf("BEFORE %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
+                (void) *dataOffsetInPdata ;//TODO we will not change this for now
+                //printf("AFTER  %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
 
                 int * pointProcOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+1];
-                printf("BEFORE %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
+                //printf("BEFORE %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
                 *pointProcOffsetInPdata = vdataOffset;
-                printf("AFTER  %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
+                //printf("AFTER  %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
                 //local->vdata[*pointProcOffsetInPdata] = NULL; //never used? new Point_process();
 
                 if (mech->vdataSize==2)
                 {
                     int * vdataOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+2]; //if any
-                    printf("BEFORE %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
+                    //printf("BEFORE %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
                     *vdataOffsetInPdata = vdataOffset+1; //i.e. the one in vdata after the point proc
-                    printf("AFTER  %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
+                    //printf("AFTER  %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
+
                     //local->vdata[*pointProcOffsetInPdata] = (pointer to Random Gen from bbcore_reg);
                     //TODO cant be called because darray is read from file!
                     //(*nrn_bbcore_read_[type])(dArray, iArray, &dk, &ik, 0, aln_cntml, d, pd, ml->_thread, &nt, 0.0);
@@ -358,23 +354,18 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     if (*functionId_ptr == Mechanism::ModFunction::currentCapacitance
      || *functionId_ptr == Mechanism::ModFunction::jacobCapacitance)
     {
-        int mechType = CAP;
-        hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
-                      &local, sizeof(local),
-                      functionId_ptr, functionId_size,
-                      &mechType, sizeof(mechType));
+        if (local->mechsInstances[CAP].instancesCount>0)
+          getMechanismFromType(CAP)->callModFunction(local, *functionId_ptr);
     }
     //for all others except capacitance
     else
     {
         for (int m=0; m<mechanismsCount; m++)
         {
-            if (mechanisms[m]->type==CAP) continue;
             int mechType = mechanisms[m]->type;
-            hpx_call_sync(HPX_HERE, Mechanism::callModFunction, NULL, 0,
-                      &local, sizeof(local),
-                      functionId_ptr, functionId_size,
-                      &mechType, sizeof(mechType));
+            if (mechType==CAP) continue;
+            if (local->mechsInstances[mechType].instancesCount==0) continue;
+            getMechanismFromType(mechType)->callModFunction(local, *functionId_ptr);
         }
 
         /*
@@ -399,7 +390,6 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
       hpx_lco_delete(lco_mechs, HPX_NULL);
     */
     }
-
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

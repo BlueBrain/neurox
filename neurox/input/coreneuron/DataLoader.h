@@ -31,7 +31,7 @@ class DataLoader
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
 
     ///converts local branch data to coreneuron compatible (to use on mechanisms calls)
-    static void fromHpxToCoreneuronDataStructs(Branch * branch, Memb_list & membList,
+    static void fromHpxToCoreneuronDataStructs(void * branch, Memb_list & membList,
                                                NrnThread & nrnThread, int mechType);
 
     static void compareDataStructuresWithCoreNeuron(Branch * branch);

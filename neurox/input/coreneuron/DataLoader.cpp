@@ -97,9 +97,10 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 }
 
 void DataLoader::fromHpxToCoreneuronDataStructs(
-        Branch * branch, Memb_list & membList,
+        void * branch_ptr, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
+    Branch * branch = (Branch*) branch_ptr;
     int m=mechanismsMap[mechType];
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
     membList.data  = mechsInstances[m].data;
@@ -120,10 +121,11 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._actual_area = branch->area;
     nrnThread._data = branch->data;
     //TODO is this worth is? to avoid race conditions, they use these shadow as intermediate values storing
-    //used only by ProbGABAAB_EMS
-    //TODO this memory need to be cleaned-up! Also why not be a vector in vdata instead of Nt?
-    nrnThread._shadow_rhs = mechType == 139 ? new double[mechsInstances[m].instancesCount]() : NULL;
-    nrnThread._shadow_d = mechType==139 ? new double[mechsInstances[m].instancesCount]() : NULL;
+    //Why not be a vector in vdata instead of Nt?
+    //(i think is because in vdata you have pointer per instance, not per mech type)
+    //does the RNG in vdata need to be one per instance or could be one per type?
+    nrnThread._shadow_rhs = (mechType == 137 || mechType==139) ? new double[mechsInstances[m].instancesCount]() : NULL;
+    nrnThread._shadow_d = (mechType==137 || mechType==139) ? new double[mechsInstances[m].instancesCount]() : NULL;
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;

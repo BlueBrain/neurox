@@ -74,8 +74,7 @@ class Mechanism
             const void * branch, const Spike * spike,
             const char isInitFunction, const double t, const double dt);
 
-    static void registerHpxActions();
-    static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
+    void callModFunction(void * branch, ModFunction functionId);
 
 private:
     void disableMechFunctions(); ///> sets to NULL all function pointers
@@ -83,7 +82,6 @@ private:
     void registerCapacitance();   ///> register mechanism of type "capacitance"
     void registerBeforeAfterFunctions();   ///> register Before-After functions
     void registerModMechanism(); ///> register mechanisms functions (mod_t_f type)
-    static int callModFunction_handler(const int nargs, const void *args[], const size_t[]);
 
 };
 
