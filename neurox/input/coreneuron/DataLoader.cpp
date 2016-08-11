@@ -393,7 +393,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
         //reconstructs mechanisms for compartments
         int vdataOffset=0;
-        int pointProcOffset=0;
+        int ntPointProcOffset=0;
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -409,31 +409,25 @@ void DataLoader::loadData(int argc, char ** argv)
                 void ** vdata = &nt._vdata[vdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
-
 #ifdef DEBUG
                 if (mech->pntMap > 0) //debugging only
                 {
-                    assert(type==7 || type==137 || type==139);
-                    assert(mech->pdataSize==2 || mech->pdataSize==3);
+                    assert((type==7 && mech->pdataSize==2)
+                        ||((type==137 || type==139) && mech->pdataSize==3));
 
-                    //The Vdata offset in pdata vector is in position 1
-                    int offsetPdata = n*mech->pdataSize;
-                    int offsetPointProc = ml->pdata[offsetPdata+1];
-                    Point_process * pp = &nt.pntprocs[offsetPointProc];
-                    //testing to see if I know how mem is allocated and ordered
-                    assert(nt._vdata[offsetPointProc++] == &nt.pntprocs[pointProcOffset]);
-                    //presyns i think are only used by nrniv/netcvode.cpp for net_event (not for our HPX use case)
-                    //PS is always NULL? The other three fields are knows (tid, instance, i);
-                    assert(pp->_presyn == NULL);
+                    //Offsets in pdata: 0: data, 1: point proc in nt._vdata, [2: rng in nt._vdata]
+                    Point_process * pp = &nt.pntprocs[ntPointProcOffset++];
+                    assert(nt._vdata[pdata[1]] == pp);
+                    assert(pp->_presyn == NULL); //PS is always NULL? Maybe circuit too small --> no synapses
+                    //presyns i think are only used by nrniv/netcvode.cpp mechfor net_event (not for our HPX use case)
 
                     if (mech->pdataSize > 2)
                     {
-                        int offsetRNG = ml->pdata[offsetPdata+2];
-                        void * RNG = nt._vdata[offsetRNG];
+                        assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
+                        void * RNG = nt._vdata[pdata[2]];
                     }
                     for (int v=0; v<mech->vdataSize; v++)
                       compartment->vdata.push_back(vdata[v]);
-                    pointProcOffset++;
                 }
                 else
                 {
@@ -503,7 +497,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-void DataLoader::getBranchingData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
+void DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                                   vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices)
 {
     for (auto comp : compartments)
@@ -577,7 +571,6 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     vector<hpx_t> branches;
     vector<void*> vdata; //TODO should go away at some point,
 
-    char multiSpliX=0;
     if (multiSpliX)
     {
         deque<Compartment*> subSection;
@@ -591,7 +584,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
         }
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        getBranchingData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
+        getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
@@ -599,7 +592,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     }
     else //Flat a la Coreneuron
     {
-        getBranchingData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
+        getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
     }
 
     //Allocate HPX Branch

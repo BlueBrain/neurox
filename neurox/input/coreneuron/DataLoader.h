@@ -45,7 +45,7 @@ class DataLoader
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
 
 private:
-    static void getBranchingData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
+    static void getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices);
 };
 

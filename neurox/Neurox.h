@@ -23,6 +23,8 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
+#define multiSpliX false
+
 ///NeuroX namespace: contains global information that is copied to all localities
 namespace NeuroX
 {
