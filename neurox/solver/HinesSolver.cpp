@@ -109,12 +109,11 @@ int HinesSolver::setupMatrixLHS_handler()
     //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
-    // note that CAP has no jacob
     local->callModFunction2(Mechanism::ModFunction::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
-    //by another model has taken effect. note, the first is CAP
+    //by another model has taken effect.
     local->callModFunction2(Mechanism::ModFunction::jacobCapacitance);
 
     neurox_hpx_recursive_branch_async_wait;

@@ -83,6 +83,14 @@ int Statistics::printBranchSize_handler()
             branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].instancesCount)/1024;
         if (mechanisms[m]->pdataSize>0)
             branchSize.mechanisms += (double) (sizeof(index_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].instancesCount)/1024;
+
+        if (mechanisms[m]->pntMap>0)
+        {
+            if (mechanisms[m]->type == IClamp)
+                branchSize.synapses += (double) (sizeof(void*)*2 + sizeof(Point_process)) /1024;
+            if (mechanisms[m]->type == ProbAMPANMDA_EMS || mechanisms[m]->type == ProbGABAAB_EMS)
+                branchSize.synapses += (double) (sizeof(void*)*3 + sizeof(Point_process) + sizeof(/*RNG_state*/uint32_t[4])) /1024;
+        }
     }
    // printf("  - Branch (%d compartments): total %.2f KB (morphology %.1f KB, mechanisms %.1f KB, metadata %.3f KB)\n",
    //         local->n, branchSize.getTotal(), branchSize.morphologies, branchSize.mechanisms, branchSize.metadata);

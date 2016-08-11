@@ -124,8 +124,8 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     //Why not be a vector in vdata instead of Nt?
     //(i think is because in vdata you have pointer per instance, not per mech type)
     //does the RNG in vdata need to be one per instance or could be one per type?
-    nrnThread._shadow_rhs = (mechType == 137 || mechType==139) ? new double[mechsInstances[m].instancesCount]() : NULL;
-    nrnThread._shadow_d = (mechType==137 || mechType==139) ? new double[mechsInstances[m].instancesCount]() : NULL;
+    nrnThread._shadow_rhs = (mechType == ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].instancesCount]() : NULL;
+    nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].instancesCount]() : NULL;
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
@@ -292,7 +292,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //no dependencies graph for now, next mechanism is the next in load sequence
         int childrenCount = tml->next==NULL ? 0 : 1;
         int children[1] = { tml->next==NULL ? -1 : tml->next->index };
-        char isTopMechanism = type == CAP ? 1 : 0; //exclude CAP
+        char isTopMechanism = type == capacitance ? 1 : 0; //exclude capacitance
 
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
@@ -412,8 +412,8 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
                 if (mech->pntMap > 0) //debugging only
                 {
-                    assert((type==7 && mech->pdataSize==2)
-                        ||((type==137 || type==139) && mech->pdataSize==3));
+                    assert((type==IClamp && mech->pdataSize==2)
+                        ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3));
 
                     //Offsets in pdata: 0: data, 1: point proc in nt._vdata, [2: rng in nt._vdata]
                     Point_process * pp = &nt.pntprocs[ntPointProcOffset++];
@@ -582,6 +582,8 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
             subSection.push_back(comp);
             compartments.pop_front();
         }
+        subSection.push_back(comp); //bottom of a bracnh (bifurcation or final leaf)
+        compartments.pop_front();
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);

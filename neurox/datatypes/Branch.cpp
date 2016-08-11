@@ -122,8 +122,9 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])
         if (mech->pntMap>0)
         {
-            assert((mech->vdataSize == 1 && mech->pdataSize == 2)   //IClamp
-                || (mech->vdataSize == 2 && mech->pdataSize == 3)); //ProbAMPA_EMS, ProbGABA_EMD
+            assert((mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2)
+                || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
+                    && mech->vdataSize == 2 && mech->pdataSize == 3));
 
             //initialize vdata
             for (int i=0; i<mech->vdataSize; i++)
@@ -285,8 +286,8 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     if (*functionId_ptr == Mechanism::ModFunction::currentCapacitance
      || *functionId_ptr == Mechanism::ModFunction::jacobCapacitance)
     {
-        if (local->mechsInstances[CAP].instancesCount>0)
-          getMechanismFromType(CAP)->callModFunction(local, *functionId_ptr);
+        if (local->mechsInstances[capacitance].instancesCount>0)
+          getMechanismFromType(capacitance)->callModFunction(local, *functionId_ptr);
     }
     //for all others except capacitance
     else
@@ -294,7 +295,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
         for (int m=0; m<mechanismsCount; m++)
         {
             int mechType = mechanisms[m]->type;
-            if (mechType==CAP) continue;
+            if (mechType==capacitance) continue;
             if (local->mechsInstances[mechType].instancesCount==0) continue;
             getMechanismFromType(mechType)->callModFunction(local, *functionId_ptr);
         }

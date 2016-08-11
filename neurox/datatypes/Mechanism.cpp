@@ -15,7 +15,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
                      const short int symLength, const char * sym,
                      const char isTopMechanism,
                      const short int childrenCount, const int * children):
-    type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(vdataSize),
+    type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     childrenCount(childrenCount), pntMap(pntMap), isArtificial(isArtificial),
     isTopMechanism(isTopMechanism), symLength(symLength), isIon(isIon),
     children(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
@@ -25,9 +25,9 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     {
         switch (type)
         {
-            case 7   : vdataSize=1; break;
-            case 137 : vdataSize=2; break;
-            case 139 : vdataSize=2; break;
+            case IClamp           : vdataSize=1; break;
+            case ProbAMPANMDA_EMS : vdataSize=2; break;
+            case ProbGABAAB_EMS   : vdataSize=2; break;
             default  : throw std::invalid_argument("Unknown vdataSize for mech type (FLAG2).");
         }
         assert(vdataSize == pdataSize -1); //always?
@@ -51,7 +51,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
         return;
 
     disableMechFunctions();
-    if (this->type == CAP) //capacitance: capac.c
+    if (this->type == capacitance) //capacitance: capac.c
         registerCapacitance();
     else if (this->isIon)  //ion: eion.c
         registerIon();
@@ -183,12 +183,12 @@ void Mechanism::callModFunction(void * branch, ModFunction functionId)
                     membFunc.alloc(membList.data, membList.pdata, type);
                 break;
             case Mechanism::ModFunction::currentCapacitance:
-                assert(type == CAP);
+                assert(type == capacitance);
                 assert(membFunc.current != NULL);
                 membFunc.current(&nrnThread, &membList, type);
                 break;
             case Mechanism::ModFunction::current:
-                assert(type != CAP);
+                assert(type != capacitance);
                 if (membFunc.current)
                     membFunc.current(&nrnThread, &membList, type);
                 break;
@@ -197,12 +197,12 @@ void Mechanism::callModFunction(void * branch, ModFunction functionId)
                     membFunc.state(&nrnThread, &membList, type);
                 break;
             case Mechanism::ModFunction::jacobCapacitance:
-                assert(type == CAP);
+                assert(type == capacitance);
                 assert(membFunc.jacob != NULL);
                 membFunc.jacob(&nrnThread, &membList, type);
                 break;
             case Mechanism::ModFunction::jacob:
-                assert(type != CAP);
+                assert(type != capacitance);
                 if (membFunc.jacob)
                     membFunc.jacob(&nrnThread, &membList, type);
                 break;

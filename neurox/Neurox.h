@@ -23,7 +23,12 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSpliX false
+#define multiSpliX true
+
+#define capacitance 3
+#define IClamp 7
+#define ProbAMPANMDA_EMS 137
+#define ProbGABAAB_EMS 139
 
 ///NeuroX namespace: contains global information that is copied to all localities
 namespace NeuroX
