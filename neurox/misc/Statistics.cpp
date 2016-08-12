@@ -75,14 +75,14 @@ int Statistics::printBranchSize_handler()
     branchSize.metadata += (double) sizeof(Branch::MechanismInstance)*mechanismsCount/1024;
     for (int m=0; m<mechanismsCount; m++)
     {
-        if (local->mechsInstances[m].instancesCount == 0)
+        if (local->mechsInstances[m].count == 0)
             continue;
 
-        branchSize.mechanisms += (double) (sizeof(index_t) * local->mechsInstances[m].instancesCount) /1024;
+        branchSize.mechanisms += (double) (sizeof(index_t) * local->mechsInstances[m].count) /1024;
         if (mechanisms[m]->dataSize>0)
-            branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].instancesCount)/1024;
+            branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].count)/1024;
         if (mechanisms[m]->pdataSize>0)
-            branchSize.mechanisms += (double) (sizeof(index_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].instancesCount)/1024;
+            branchSize.mechanisms += (double) (sizeof(index_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].count)/1024;
 
         if (mechanisms[m]->pntMap>0)
         {

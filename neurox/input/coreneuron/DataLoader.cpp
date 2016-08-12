@@ -60,7 +60,7 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         int m = mechanismsMap[type];
         Memb_list * ml = tml->ml; //Mechanisms application to each compartment
         Branch::MechanismInstance & instance = branch->mechsInstances[m];
-        assert(ml->nodecount == instance.instancesCount);
+        assert(ml->nodecount == instance.count);
         //assert(ml->_nodecount_padded == instance.instancesCount);
         int dataSize = mechanisms[m]->dataSize;
         int pdataSize = mechanisms[m]->pdataSize;
@@ -105,7 +105,7 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
     membList.data  = mechsInstances[m].data;
     membList.pdata = mechsInstances[m].pdata;
-    membList.nodecount = mechsInstances[m].instancesCount;
+    membList.nodecount = mechsInstances[m].count;
     membList._nodecount_padded = membList.nodecount;
     membList.nodeindices = mechsInstances[m].nodesIndices;
     membList._thread = NULL; //TODO: ThreadDatum never used ?
@@ -124,8 +124,8 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     //Why not be a vector in vdata instead of Nt?
     //(i think is because in vdata you have pointer per instance, not per mech type)
     //does the RNG in vdata need to be one per instance or could be one per type?
-    nrnThread._shadow_rhs = (mechType == ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].instancesCount]() : NULL;
-    nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].instancesCount]() : NULL;
+    nrnThread._shadow_rhs = (mechType == ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
+    nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
     nrnThread._dt = dt;
     nrnThread._t = t;
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
@@ -525,23 +525,23 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     int n=0;
     for (auto comp : compartments)
     {
-        int mechDataOffset=0;
-        int mechPdataOffset=0;
-        int mechVdataOffset=0;
+        int compDataOffset=0;
+        int compPdataOffset=0;
+        int compVdataOffset=0;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
             int mechOffset = mechanismsMap[mechType];
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
             Mechanism * mech = mechanisms[mechOffset];
-            dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[mechDataOffset], &comp->data[mechDataOffset+mech->dataSize] );
-            pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[mechPdataOffset], &comp->pdata[mechPdataOffset+mech->pdataSize] );
-            vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[mechVdataOffset], &comp->vdata[mechVdataOffset+mech->vdataSize] );
+            dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[compDataOffset], &comp->data[compDataOffset+mech->dataSize] );
+            pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[compPdataOffset], &comp->pdata[compPdataOffset+mech->pdataSize] );
+            vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+mech->vdataSize] );
             nodesIndicesMechs[mechOffset].push_back(n);
             instancesCount[mechOffset]++;
-            mechDataOffset += mech->dataSize;
-            mechPdataOffset += mech->pdataSize;
-            mechVdataOffset += mech->vdataSize;
+            compDataOffset += mech->dataSize;
+            compPdataOffset += mech->pdataSize;
+            compVdataOffset += mech->vdataSize;
         }
         n++;
     }

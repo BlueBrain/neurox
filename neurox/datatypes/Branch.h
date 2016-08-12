@@ -33,7 +33,7 @@ class Branch
 
     struct MechanismInstance
     {
-        int instancesCount; ///> number of instances of particular mechanism
+        int count;          ///> number of instances of particular mechanism
         double * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
         int * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
         int * nodesIndices; ///> array of nodes this instance will be applied to

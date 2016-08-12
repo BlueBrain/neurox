@@ -101,71 +101,59 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     {
         MechanismInstance & instance = local->mechsInstances[m];
         Mechanism * mech = mechanisms[m];
-        instance.instancesCount = instancesCount[m];
+        instance.count = instancesCount[m];
 
-        instance.nodesIndices = instance.instancesCount>0 ? new int[instance.instancesCount] : nullptr;
-        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.instancesCount);
-        instancesOffset += instance.instancesCount;
-
-        int totalDataSize = mech->dataSize * instance.instancesCount;
+        //data, pdata, and nodesIndices arrays
         instance.data = mech->dataSize ==0 ? nullptr : local->data+dataOffset;
-        dataOffset += totalDataSize;
-
-        int totalPdataSize = mech->pdataSize * instance.instancesCount;
-        instance.pdata = mech->pdataSize==0 ? nullptr : new int[totalPdataSize];
-        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
-        pdataOffset += totalPdataSize;
+        instance.pdata = mech->pdataSize==0 ? nullptr : new int[mech->pdataSize * instance.count];
+        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*(mech->pdataSize * instance.count));
+        instance.nodesIndices = instance.count>0 ? new int[instance.count] : nullptr;
+        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(int)*instance.count);
 
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])
-        int totalVdataSize = mech->vdataSize * instance.instancesCount;
-        if (mech->pntMap>0 && instance.instancesCount>0)
+        for (int i=0; i<instance.count; i++)
         {
-            assert((mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2)
-                || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
-                    && mech->vdataSize == 2 && mech->pdataSize == 3));
-
-            //initialize vdata
-            for (int i=0; i<mech->vdataSize; i++)
-                local->vdata[vdataOffset+i] = (void*) NULL;
-
             //point pdata to the correct offset, and allocate vdata
-            int * pointProcPdata = (int*) &pdata[pdataOffset];
-            for (int i=0; i<instance.instancesCount; i++)
+            assert(dataOffset  <= sizes[2]/sizeof(double));
+            assert(vdataOffset <= sizes[8]/sizeof(void*) );
+            double * instanceData  = (double*) &local->data[dataOffset ];
+            double * instanceData2 = (double*) &instance.data [i*mech->dataSize];
+            int *    instancePdata = (int   *) &instance.pdata[i*mech->pdataSize];
+            assert (instanceData = instanceData2); //Make sure data offsets are good so far
+            if (mech->pntMap>0)
             {
-                int * dataOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+0];
-                //printf("BEFORE %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
-                (void) *dataOffsetInPdata ;//TODO we will not change this for now
-                //printf("AFTER  %d.%d :: pdata[0]==%d\n", mech->type, i, *dataProcOffsetInPdata);
+                assert( (mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2)
+                    || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
+                        && mech->vdataSize == 2 && mech->pdataSize == 3));
 
-                int * pointProcOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+1];
-                //printf("BEFORE %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
-                *pointProcOffsetInPdata = vdataOffset;
-                //printf("AFTER  %d.%d :: pdata[1]==%d\n", mech->type, i, *pointProcOffsetInPdata);
-                //local->vdata[*pointProcOffsetInPdata] = NULL; //never used? new Point_process();
-
+                void** instanceVdata = (void**) &local->vdata[vdataOffset];
+                Point_process * pp = (Point_process *) instanceVdata[0];
+                (void) pp;
+                (void) instanceVdata;
                 if (mech->vdataSize==2)
                 {
-                    int * vdataOffsetInPdata = (int*) &pointProcPdata[i*mech->pdataSize+2]; //if any
-                    //printf("BEFORE %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
-                    *vdataOffsetInPdata = vdataOffset+1; //i.e. the one in vdata after the point proc
-                    //printf("AFTER  %d.%d :: pdata[2]==%d\n", mech->type, i, *vdataOffsetInPdata);
-
-                    //local->vdata[*pointProcOffsetInPdata] = (pointer to Random Gen from bbcore_reg);
-                    //TODO cant be called because darray is read from file!
-                    //(*nrn_bbcore_read_[type])(dArray, iArray, &dk, &ik, 0, aln_cntml, d, pd, ml->_thread, &nt, 0.0);
-
+                    int offsetPP  = instancePdata[1];
+                    assert(offsetPP  < sizes[8]/sizeof(void*));
+                    int offsetRNG = instancePdata[2];
+                    assert(offsetRNG < sizes[8]/sizeof(void*));
+                    void * rng = instanceVdata[1];
                 }
-                vdataOffset+=mech->vdataSize;
-
                 //We will call bbcore_red on the correct vdata offset
                 //local->vdata[vdataOffset];
             }
+            else
+            { assert (mech->vdataSize==0);}
+            dataOffset  += mech->dataSize;
+            pdataOffset += mech->pdataSize;
+            vdataOffset += mech->vdataSize;
+            instancesOffset++;
         }
     }
-    assert(dataOffset == sizes[2]/sizeof(double));
+    assert( dataOffset == sizes[2]/sizeof(double));
     assert(pdataOffset == sizes[3]/sizeof(int));
     assert(vdataOffset == sizes[8]/sizeof(void*));
+    assert(instancesOffset == sizes[5]/sizeof(int));
 
     //reconstructs parents or branching
     if (sizes[6]>0)
@@ -280,7 +268,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     if (*functionId_ptr == Mechanism::ModFunction::currentCapacitance
      || *functionId_ptr == Mechanism::ModFunction::jacobCapacitance)
     {
-        if (local->mechsInstances[capacitance].instancesCount>0)
+        if (local->mechsInstances[capacitance].count>0)
           getMechanismFromType(capacitance)->callModFunction(local, *functionId_ptr);
     }
     //for all others except capacitance
@@ -290,7 +278,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
         {
             int mechType = mechanisms[m]->type;
             if (mechType==capacitance) continue;
-            if (local->mechsInstances[m].instancesCount==0) continue;
+            if (local->mechsInstances[m].count==0) continue;
             getMechanismFromType(mechType)->callModFunction(local, *functionId_ptr);
         }
 
@@ -337,7 +325,7 @@ int Branch::secondOrderCurrent_handler()
         if (!mech->isIon) continue;
         assert(nparm==mech->dataSize); //see '#define nparm 5' in eion.c
 
-        for (int i=0; i<mechInstances[m].instancesCount; i++)
+        for (int i=0; i<mechInstances[m].count; i++)
         {
             double * data = &mechInstances[m].data[i*mech->dataSize];
             int & nodeIndex = mechInstances[m].nodesIndices[i];
