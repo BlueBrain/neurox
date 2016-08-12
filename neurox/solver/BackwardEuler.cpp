@@ -36,7 +36,6 @@ int BackwardEuler::branchStep_handler(const int  * stepsCount_ptr, const size_t 
 {
     /*
     neurox_hpx_pin(Branch);
-    assert(local== DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(BackwardEuler::branchStep, stepsCount_ptr, size);
 
     for (int s=0; s<*stepsCount_ptr; s++)

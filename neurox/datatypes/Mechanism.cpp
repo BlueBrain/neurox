@@ -208,7 +208,7 @@ void Mechanism::callModFunction(void * branch, ModFunction functionId)
                 break;
             case Mechanism::ModFunction::initialize:
                 if (membFunc.initialize)
-                    membFunc.initialize(&nrnThread, &membList, type);
+                    membFunc.initialize(&nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
                 break;
             case Mechanism::ModFunction::destructor:
                 if (membFunc.destructor)

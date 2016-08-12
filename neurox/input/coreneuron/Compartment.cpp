@@ -22,6 +22,7 @@ void Compartment::addChild(Compartment * child)
 
 void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize)
 {
+    assert(mechanismsMap[mechType]!=-1);
     mechsTypes.push_back(mechType);
     if (dataSize>0)
        this->data.insert (this->data.end() , data , data  + dataSize );

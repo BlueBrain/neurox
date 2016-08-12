@@ -497,9 +497,11 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-void DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
+int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                                   vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices)
 {
+    for (auto comp : compartments)
+        { assert (comp != NULL); }
     for (auto comp : compartments)
         data.push_back(comp->rhs);
     for (auto comp : compartments)
@@ -521,7 +523,6 @@ void DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double
     vector<vector<void*>> vdataMechs (mechanismsCount);
 
     int n=0;
-
     for (auto comp : compartments)
     {
         int mechDataOffset=0;
@@ -533,7 +534,6 @@ void DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double
             int mechOffset = mechanismsMap[mechType];
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
             Mechanism * mech = mechanisms[mechOffset];
-
             dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[mechDataOffset], &comp->data[mechDataOffset+mech->dataSize] );
             pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[mechPdataOffset], &comp->pdata[mechPdataOffset+mech->pdataSize] );
             vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[mechVdataOffset], &comp->vdata[mechVdataOffset+mech->vdataSize] );
@@ -558,11 +558,13 @@ void DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double
         vdataMechs[m].clear();
         nodesIndicesMechs[m].clear();
     }
+    return n;
 }
 
 hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
 {
-    int n = compartments.size();
+    assert(topCompartment!=NULL);
+    int n = -1; //number of compartments in branch
     vector<double> data; //compartments info (RHS, D, A, B, V, AREA)*n
     vector<int> pdata; //pointers to data
     vector<int> p; //parent nodes index
@@ -575,26 +577,25 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     {
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
-        for (comp = compartments.at(0);
+        for (comp = topCompartment;
              comp->branches.size()==1;
              comp = comp->branches.front())
         {
             subSection.push_back(comp);
-            compartments.pop_front();
         }
-        subSection.push_back(comp); //bottom of a bracnh (bifurcation or final leaf)
-        compartments.pop_front();
+        assert(comp!=NULL);
+        subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
+        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
-          branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
+            branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
     }
     else //Flat a la Coreneuron
     {
-        getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
+        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
     }
 
     //Allocate HPX Branch
@@ -604,13 +605,13 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(int),
                   &isSoma, sizeof(char),
-                  data.data(), sizeof(double)*data.size(),
-                  pdata.data(), sizeof(int)*pdata.size(),
+                  data.size()>0 ? data.data() : nullptr, sizeof(double)*data.size(),
+                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(int)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(int),
                   nodesIndices.data(), nodesIndices.size()*sizeof(int),
-                  multiSpliX ? branches.data() : NULL, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSpliX ? NULL : p.data(), multiSpliX ? 0 : sizeof(int)*p.size(),
-                  vdata.data(), sizeof(void*)*vdata.size());
+                  multiSpliX ? branches.data() : nullptr, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSpliX ? nullptr : p.data(), multiSpliX ? 0 : sizeof(int)*p.size(),
+                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size());
 
     return branchAddr;
 }

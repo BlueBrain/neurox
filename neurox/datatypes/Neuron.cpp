@@ -21,7 +21,6 @@ void Neuron::callModFunction(Mechanism::ModFunction functionId)
 {
     //TODO is it worth to make a local call instead of a call to hpx address?
     //same will all calls to soma hpx_t eg. callModFunction_handler
-    assert(this==DEBUG_NEURON_DELETE);
     if (functionId<BEFORE_AFTER_SIZE) return; //not used
     hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
 }
@@ -37,7 +36,6 @@ hpx_action_t Neuron::finitialize=0;
 int Neuron::finitialize_handler()
 {
     neurox_hpx_pin(Neuron);
-    assert(local==DEBUG_NEURON_DELETE);
     //set up by finitialize.c:nrn_finitialize() -> fadvance_core.c:dt2thread()
     //local->cj = inputParams->secondorder ? 2.0/inputParams->dt : 1.0/inputParams->dt;
     //done when calling mechanisms //TODO have a copy per branch to speed-up?
@@ -64,7 +62,9 @@ int Neuron::init_handler(const int nargs, const void *args[], const size_t[])
 {
     neurox_hpx_pin(Neuron);
     assert(nargs==3);
+#if multiSpliX == false
     DEBUG_NEURON_DELETE=local;
+#endif
     const int neuronId = *(const int*) args[0];
     const hpx_t topBranch = *(const hpx_t*) args[1];
     const double APthreshold = *(const double*) args[2];

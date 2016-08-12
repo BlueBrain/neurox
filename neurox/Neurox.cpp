@@ -15,8 +15,10 @@ extern int * mechanismsMap = nullptr;
 NeuroX::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
+#if multiSpliX == false
 NeuroX::Branch * DEBUG_BRANCH_DELETE = nullptr;
 NeuroX::Neuron * DEBUG_NEURON_DELETE = nullptr;
+#endif
 
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
@@ -88,8 +90,8 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     }
 
     //initializes map of mechanisms ids to offset
-    mechanismsMap = new int[maxMechType];
-    for (int i=0; i<maxMechType; i++)
+    mechanismsMap = new int[maxMechType+1];
+    for (int i=0; i<maxMechType+1; i++)
         mechanismsMap[i]=-1;
     for (int m=0; m<mechanismsCount; m++)
         mechanismsMap[mechanisms[m]->type]=m;

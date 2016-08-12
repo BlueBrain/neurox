@@ -33,9 +33,9 @@ class InputParams
     double voltage;     ///> initial voltage set on all neurons
     double forwardSkip;	///> forward skip time
 
-    char inputPath[2048];	///> path of input directory
-    char outputPath[2048];	///> path of output directory
-    char patternStim[2048];	///> patternStim file path
+    char inputPath[512];	///> path of input directory
+    char outputPath[512];	///> path of output directory
+    char patternStim[512];	///> patternStim file path
 
   private:
     /// Parses command line arguments and populates structure

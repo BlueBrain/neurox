@@ -14,9 +14,9 @@ InputParams::InputParams ():
   voltage(-65), forwardSkip(0),  prcellgid(-1)
 {
     //TODO: missing some inits
-    memset(patternStim,'0',2048);
-    memset(inputPath,'0',2048);
-    memset(outputPath,'0',2048);
+    memset(patternStim,'0',512);
+    memset(inputPath,'0',512);
+    memset(outputPath,'0',512);
 }
 
 InputParams::~InputParams(){}
@@ -60,9 +60,9 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         cmd.parse( argc, argv );
 
         //copy parameters
-        memcpy(this->inputPath, inputPath.getValue().c_str(), 2048);
-        memcpy(this->outputPath, outputPath.getValue().c_str(), 2048);
-        memcpy(this->patternStim, patternStim.getValue().c_str(), 2048);
+        sprintf(this->inputPath, "%s", inputPath.getValue().c_str());
+        sprintf(this->outputPath, "%s", outputPath.getValue().c_str());
+        sprintf(this->patternStim, "%s", patternStim.getValue().c_str());
         this->tstart = tstart.getValue();
         this->tstop = tstop.getValue();
         this->dt = dt.getValue();

@@ -33,11 +33,7 @@ int Branch::initNetCons_handler(const int nargs, const void *args[], const size_
      * args[0] = array of netcons
      * args[1] = array of args per netcon
      */
-
     neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
-    assert(nargs==7);
-
     //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
     hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
     for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
@@ -70,14 +66,16 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     neurox_hpx_pin(Branch);
     assert(nargs==8 || nargs==9);
 
+#if multiSpliX == false
     DEBUG_BRANCH_DELETE = local;
+#endif
 
     //reconstruct and and topology data;
     local->n = *(const int*) args[0];
     local->isSoma = *(const char*) args[1];
-    local->data = new double[sizes[2]/sizeof(double)];
+    local->data = sizes[2]==0 ? nullptr : new double[sizes[2]/sizeof(double)];
     memcpy(local->data, args[2], sizes[2]);
-    local->vdata = new void*[sizes[8]/sizeof(void*)];
+    local->vdata = sizes[8]==0 ? nullptr :  new void*[sizes[8]/sizeof(void*)];
     memcpy(local->vdata, args[8], sizes[8]);
     local->rhs = local->data + local->n*0;
     local->d = local->data + local->n*1;
@@ -111,16 +109,17 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
         int totalDataSize = mech->dataSize * instance.instancesCount;
         instance.data = mech->dataSize ==0 ? nullptr : local->data+dataOffset;
-
-        int totalVdataSize = mech->vdataSize * instance.instancesCount;
+        dataOffset += totalDataSize;
 
         int totalPdataSize = mech->pdataSize * instance.instancesCount;
-        instance.pdata = totalPdataSize==0 ? nullptr : new int[totalPdataSize];
+        instance.pdata = mech->pdataSize==0 ? nullptr : new int[totalPdataSize];
         memcpy(instance.pdata, &pdata[pdataOffset], sizeof(int)*totalPdataSize);
+        pdataOffset += totalPdataSize;
 
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])
-        if (mech->pntMap>0)
+        int totalVdataSize = mech->vdataSize * instance.instancesCount;
+        if (mech->pntMap>0 && instance.instancesCount>0)
         {
             assert((mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2)
                 || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
@@ -128,7 +127,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
             //initialize vdata
             for (int i=0; i<mech->vdataSize; i++)
-                local->vdata[vdataOffset+i] = NULL;
+                local->vdata[vdataOffset+i] = (void*) NULL;
 
             //point pdata to the correct offset, and allocate vdata
             int * pointProcPdata = (int*) &pdata[pdataOffset];
@@ -163,11 +162,10 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                 //local->vdata[vdataOffset];
             }
         }
-
-        dataOffset += totalDataSize;
-        pdataOffset += totalPdataSize;
-        vdataOffset += totalVdataSize;
     }
+    assert(dataOffset == sizes[2]/sizeof(double));
+    assert(pdataOffset == sizes[3]/sizeof(int));
+    assert(vdataOffset == sizes[8]/sizeof(void*));
 
     //reconstructs parents or branching
     if (sizes[6]>0)
@@ -198,7 +196,6 @@ hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler(const double * v, const size_t v_size)
 {
     neurox_hpx_pin(Branch);
-    assert(local== DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize, v, v_size);
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     for (int n=0; n<local->n; n++)
@@ -218,7 +215,6 @@ hpx_action_t Branch::updateV = 0;
 int Branch::updateV_handler(const int * secondOrder, size_t secondOrder_size)
 {
     neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::updateV, &secondOrder, secondOrder_size);
     for (int i=0; i<local->n; i++)
         local->v[i] += (*secondOrder ? 2 : 1) * local->rhs[i];
@@ -230,7 +226,6 @@ hpx_action_t Branch::getSomaVoltage=0;
 int Branch::getSomaVoltage_handler()
 {
     neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_unpin_continue(local->v[0]);
 }
 
@@ -279,7 +274,6 @@ hpx_action_t Branch::callModFunction = 0;
 int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
 {
     neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
 
     //only for capacitance mechanism
@@ -296,7 +290,7 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
         {
             int mechType = mechanisms[m]->type;
             if (mechType==capacitance) continue;
-            if (local->mechsInstances[mechType].instancesCount==0) continue;
+            if (local->mechsInstances[m].instancesCount==0) continue;
             getMechanismFromType(mechType)->callModFunction(local, *functionId_ptr);
         }
 
@@ -335,7 +329,6 @@ hpx_action_t Branch::secondOrderCurrent = 0;
 int Branch::secondOrderCurrent_handler()
 {
     neurox_hpx_pin(Branch);
-    assert(local==DEBUG_BRANCH_DELETE);
     neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
     MechanismInstance * mechInstances= local->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
