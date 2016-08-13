@@ -23,7 +23,7 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSpliX false
+#define multiSpliX true
 
 #define capacitance 3
 #define IClamp 7
@@ -41,11 +41,6 @@ namespace NeuroX
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
-
-#if multiSpliX == false
-    extern NeuroX::Branch * DEBUG_BRANCH_DELETE;
-    extern NeuroX::Neuron * DEBUG_NEURON_DELETE;
-#endif
 
     extern hpx_action_t main;           ///> execution starting point (called via hpx_run)
     extern hpx_action_t setNeurons;     ///> Initialized neurons and neuronsAddr global vars

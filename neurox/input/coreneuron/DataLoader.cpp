@@ -523,11 +523,14 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     vector<vector<void*>> vdataMechs (mechanismsCount);
 
     int n=0;
+    vector<int> pdataType; //type of pdata offset per pdata entry
+    map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
     for (auto comp : compartments)
     {
         int compDataOffset=0;
         int compPdataOffset=0;
         int compVdataOffset=0;
+        fromNeuronToBranchId[comp->id] = n;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
@@ -539,9 +542,12 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+mech->vdataSize] );
             nodesIndicesMechs[mechOffset].push_back(n);
             instancesCount[mechOffset]++;
-            compDataOffset += mech->dataSize;
+            compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
             compVdataOffset += mech->vdataSize;
+
+            for (int i=0; i<mech->pdataSize; i++)
+                pdataType.push_back(memb_func[mechType].dparam_semantics[i]);
         }
         n++;
     }
@@ -558,6 +564,52 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         vdataMechs[m].clear();
         nodesIndicesMechs[m].clear();
     }
+
+    //convert all offsets in pdata to the correct ones
+    //depend on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
+    assert(pdataType.size() == pdata.size());
+    int totalN=315; //neuron size
+    int vdataOffset=0;
+    for (int i=0; i<pdata.size(); i++)
+    {
+        int p = pdata.at(i);
+        int type = pdataType.at(i);
+        switch (type)
+        {
+        case -1:  //"area" (6th field)
+        {
+            assert(p>=totalN*5 && p<totalN<6);
+            int oldId = p-totalN*5;
+            int newId = fromNeuronToBranchId[oldId];
+            pdata[i] = n*5+newId;
+            break;
+        }
+        case -2: //"iontype"
+            assert(0); //not used
+            break;
+        case -3: //"cvodeieq"
+            assert(0); //not used
+            break;
+        case -4: //"netsend"
+            pdata[i] = vdataOffset++;
+            break;
+        case -5: //"pointer"
+            assert(0); //not used
+            break;
+        case -6: //"pntproc"
+            pdata[i] = vdataOffset++;
+            break;
+        case -7: //"bbcorepointer"
+            pdata[i] = vdataOffset++;
+            break;
+        default: //anything preffixed with #
+
+            //int iflag = memb_func[]
+            break;
+
+        }
+    }
+
     return n;
 }
 

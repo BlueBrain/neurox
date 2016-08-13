@@ -62,9 +62,6 @@ int Neuron::init_handler(const int nargs, const void *args[], const size_t[])
 {
     neurox_hpx_pin(Neuron);
     assert(nargs==3);
-#if multiSpliX == false
-    DEBUG_NEURON_DELETE=local;
-#endif
     const int neuronId = *(const int*) args[0];
     const hpx_t topBranch = *(const hpx_t*) args[1];
     const double APthreshold = *(const double*) args[2];

@@ -66,10 +66,6 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     neurox_hpx_pin(Branch);
     assert(nargs==8 || nargs==9);
 
-#if multiSpliX == false
-    DEBUG_BRANCH_DELETE = local;
-#endif
-
     //reconstruct and and topology data;
     local->n = *(const int*) args[0];
     local->isSoma = *(const char*) args[1];
