@@ -107,6 +107,7 @@ static int main_handler( char **argv, size_t argc)
     printf("Input::Coreneuron::DataLoader::loadData...\n");
     NeuroX::Input::Coreneuron::DataLoader::loadData(argc, argv);
     Misc::Statistics::printSimulationSize();
+    Misc::Statistics::printMechanismsDistribution();
 
     //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
     printf("Neuron::finitialize...\n");

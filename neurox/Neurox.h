@@ -23,7 +23,7 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSpliX true
+#define multiSpliX false
 
 #define capacitance 3
 #define IClamp 7

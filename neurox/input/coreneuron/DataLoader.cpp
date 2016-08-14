@@ -131,8 +131,6 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
     //TODO shall this cj field be hardcoded on a branch info?
     nrnThread._vdata = branch->vdata;
-    //Point_process ** pps = (Point_process **) nrn_threads[0]._vdata;
-
     //compareDataStructuresWithCoreNeuron(branch);
 }
 
@@ -394,6 +392,8 @@ void DataLoader::loadData(int argc, char ** argv)
         //reconstructs mechanisms for compartments
         int vdataOffset=0;
         int ntPointProcOffset=0;
+        int dataTOTAL=0;
+        int pdataTOTAL=0;
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -406,6 +406,9 @@ void DataLoader::loadData(int argc, char ** argv)
                 assert (ml->nodeindices[n] < compartments.size());
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
+                for (int i=0; i<mech->pdataSize; i++)
+                    printf("-- type %d.%d, node %d, dparam %d, pval %d (pdataOffset=%d, dataOffset=%d)\n",
+                           type, n, ml->nodeindices[n], memb_func[type].dparam_semantics[i], pdata[i], pdataTOTAL, dataTOTAL);
                 void ** vdata = &nt._vdata[vdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
@@ -435,6 +438,8 @@ void DataLoader::loadData(int argc, char ** argv)
                 }
 #endif
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
+                dataTOTAL  += mech->dataSize;
+                pdataTOTAL += mech->pdataSize;
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;
                 vdataOffset += mech->vdataSize;
@@ -545,16 +550,21 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
             compVdataOffset += mech->vdataSize;
-
-            for (int i=0; i<mech->pdataSize; i++)
-                pdataType.push_back(memb_func[mechType].dparam_semantics[i]);
         }
         n++;
     }
 
     //merge all mechanisms vectors in the final one
+    //store the offset of each mechanism data (for later)
+    vector<int>dataOffsetsPerMech (mechanismsCount);
     for (int m=0; m<mechanismsCount; m++)
     {
+        Mechanism * mech = mechanisms[m];
+        for (int n=0; n<instancesCount[m]; n++)
+          for (int d=0; d<mech->pdataSize; d++)
+            pdataType.push_back(memb_func[mech->type].dparam_semantics[d]);
+
+        dataOffsetsPerMech[m]=data.size();
         data.insert(data.end(), dataMechs[m].begin(), dataMechs[m].end());
         pdata.insert(pdata.end(), pdataMechs[m].begin(), pdataMechs[m].end());
         vdata.insert(vdata.end(), vdataMechs[m].begin(), vdataMechs[m].end());
@@ -568,14 +578,17 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     //convert all offsets in pdata to the correct ones
     //depend on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
     assert(pdataType.size() == pdata.size());
-    int totalN=315; //neuron size
+    int totalN=135; //neuron size
     int vdataOffset=0;
     for (int i=0; i<pdata.size(); i++)
     {
         int p = pdata.at(i);
-        int type = pdataType.at(i);
-        switch (type)
+        int ptype = pdataType.at(i);
+        switch (ptype)
         {
+        case 0: //not registered (its an *_ion type)
+            //do nothing, its a value (the 'iontype', see eion.c)
+            break;
         case -1:  //"area" (6th field)
         {
             assert(p>=totalN*5 && p<totalN<6);
@@ -585,28 +598,26 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             break;
         }
         case -2: //"iontype"
-            assert(0); //not used
-            break;
         case -3: //"cvodeieq"
-            assert(0); //not used
-            break;
-        case -4: //"netsend"
-            pdata[i] = vdataOffset++;
-            break;
         case -5: //"pointer"
             assert(0); //not used
             break;
+        case -4: //"netsend"
         case -6: //"pntproc"
-            pdata[i] = vdataOffset++;
-            break;
         case -7: //"bbcorepointer"
             pdata[i] = vdataOffset++;
             break;
-        default: //anything preffixed with #
-
-            //int iflag = memb_func[]
+        default:
+            if (ptype>=0 && ptype<1000) //name preffixed by '#'
+            {   //ptype is the ion (mechanism) type it depends on
+                int offset = dataOffsetsPerMech[mechanismsMap[ptype]];
+                pdata[i] = -1;
+            }
+            else if (ptype>=1000) //name not preffixed
+            {
+                pdata[i] = ptype-1000; //just a value (concentration)
+            }
             break;
-
         }
     }
 
