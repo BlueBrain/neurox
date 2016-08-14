@@ -392,8 +392,9 @@ void DataLoader::loadData(int argc, char ** argv)
         //reconstructs mechanisms for compartments
         int vdataOffset=0;
         int ntPointProcOffset=0;
-        int dataTOTAL=0;
+        int dataTOTAL=nt.end*6;
         int pdataTOTAL=0;
+        map<int, pair<int,int>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -404,6 +405,8 @@ void DataLoader::loadData(int argc, char ** argv)
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 assert (ml->nodeindices[n] < compartments.size());
+                if (mech->isIon)
+                    offsetToInstance[dataTOTAL] = std::make_pair(type, ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
                 for (int i=0; i<mech->pdataSize; i++)
@@ -482,7 +485,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //recursively create morphological tree, neuron metadata, and synapses
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
-        hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons);
+        hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
         hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0,
                       &neuronId, sizeof(int),
                       &topBranch, sizeof(hpx_t),
@@ -503,7 +506,7 @@ void DataLoader::loadData(int argc, char ** argv)
 }
 
 int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
-                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices)
+                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices, int totalN, map<int, pair<int,int>> & offsetToInstance)
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
@@ -529,6 +532,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
 
     int n=0;
     vector<int> pdataType; //type of pdata offset per pdata entry
+    map<pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
     map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
     for (auto comp : compartments)
     {
@@ -547,6 +551,9 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+mech->vdataSize] );
             nodesIndicesMechs[mechOffset].push_back(n);
             instancesCount[mechOffset]++;
+            assert(instanceToOffset.find( std::make_pair(mechType, comp->id) ) == instanceToOffset.end() );
+            if (mech->isIon)
+                instanceToOffset[ std::make_pair(mechType, comp->id) ] = data.size();
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
             compVdataOffset += mech->vdataSize;
@@ -556,7 +563,6 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
 
     //merge all mechanisms vectors in the final one
     //store the offset of each mechanism data (for later)
-    vector<int>dataOffsetsPerMech (mechanismsCount);
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
@@ -564,7 +570,6 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
           for (int d=0; d<mech->pdataSize; d++)
             pdataType.push_back(memb_func[mech->type].dparam_semantics[d]);
 
-        dataOffsetsPerMech[m]=data.size();
         data.insert(data.end(), dataMechs[m].begin(), dataMechs[m].end());
         pdata.insert(pdata.end(), pdataMechs[m].begin(), pdataMechs[m].end());
         vdata.insert(vdata.end(), vdataMechs[m].begin(), vdataMechs[m].end());
@@ -578,7 +583,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     //convert all offsets in pdata to the correct ones
     //depend on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
     assert(pdataType.size() == pdata.size());
-    int totalN=135; //neuron size
+    assert(instanceToOffset.size() == offsetToInstance.size()); //if there are more than one instace of the same ion mech on a node, this fails!
     int vdataOffset=0;
     for (int i=0; i<pdata.size(); i++)
     {
@@ -587,7 +592,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         switch (ptype)
         {
         case 0: //not registered (its an *_ion type)
-            //do nothing, its a value (the 'iontype', see eion.c)
+            //do nothing, its a flag (the 'iontype', see eion.c)
             break;
         case -1:  //"area" (6th field)
         {
@@ -608,15 +613,30 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             pdata[i] = vdataOffset++;
             break;
         default:
-            if (ptype>=0 && ptype<1000) //name preffixed by '#'
+            if (ptype>0 && ptype<1000) //name preffixed by '#'
             {   //ptype is the ion (mechanism) type it depends on
-                int offset = dataOffsetsPerMech[mechanismsMap[ptype]];
-                pdata[i] = -1;
+                //pdata[i] is an offset in pdata
+                std::pair<int, int> mechNodePair;
+                int oldOffset = -1;
+                for (auto val : offsetToInstance)
+                    if (val.first<=pdata[i])
+                    {
+                        oldOffset = val.first;
+                        mechNodePair=val.second;
+                    }
+                assert(oldOffset>=totalN*6); //fails if not found
+                assert(mechNodePair.first == ptype); //fails if expected type does not agree with the one in the data offset
+                assert(pdata[i]-oldOffset < getMechanismFromType(mechNodePair.first)->dataSize); //instance offset is correct
+                int newOffset = instanceToOffset.at(mechNodePair);
+                pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset in data for that instance
+                assert(pdata[i]>=n*6);
             }
             else if (ptype>=1000) //name not preffixed
             {
-                pdata[i] = ptype-1000; //just a value (concentration)
+                pdata[i] = ptype-1000; //just a value (concentration) summed with 1000
             }
+            else
+                throw std::runtime_error("Unknown pdata type %d (FLAG3)\n");
             break;
         }
     }
@@ -624,7 +644,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     return n;
 }
 
-hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons)
+hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
     int n = -1; //number of compartments in branch
@@ -650,15 +670,15 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
         subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices);
+        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons));
+            branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {
-        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices);
+        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
     }
 
     //Allocate HPX Branch
