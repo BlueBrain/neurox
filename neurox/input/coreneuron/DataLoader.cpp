@@ -248,6 +248,24 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
     }
 }
 
+#ifdef DEBUG
+void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
+{
+    assert(topCompartment!=NULL);
+    fprintf(fileCompartments, "subgraph cluster_%d {\n", topCompartment->id);
+    fprintf(fileCompartments, "style=filled; color=blue; fillcolor=floralwhite; node [style=filled, color=floralwhite];\n");
+    Compartment * comp=NULL;
+    for (comp = topCompartment; comp->branches.size()==1; comp = comp->branches.front())
+        //fprintf(fileCompartments, "%d [color=black; fillcolor=white];\n", comp->id);
+        fprintf(fileCompartments, "%d [color=gray; fillcolor=white];\n", comp->id);
+    //fprintf(fileCompartments, "%d [color=black; fillcolor=white]\n", comp->id);
+    fprintf(fileCompartments, "%d [color=gray; fillcolor=white];\n", comp->id);
+    fprintf(fileCompartments, "}\n");
+    for (int c=0; c<comp->branches.size(); c++)
+        printSubClustersToFile(fileCompartments, comp->branches[c]);
+}
+
+#endif
 void DataLoader::loadData(int argc, char ** argv)
 {
     coreNeuronInitialSetup(argc, argv);
@@ -330,8 +348,10 @@ void DataLoader::loadData(int argc, char ** argv)
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
     fprintf(fileMechs, "digraph G\n{\n");
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
-    fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "start");
-    fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "end");
+    //fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "start");
+    fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
+    //fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "end");
+    fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
     for (int m =0; m< mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
@@ -399,14 +419,11 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
-        for (auto c : compartments)
-        {
-            if (c->branches.size()>1)
-                fprintf(fileCompartments, "%d [style=filled, fillcolor=beige];\n",  c->id);
+        fprintf(fileCompartments, "graph G_%d\n{\n", neuronId );
+        printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
+        for (auto c : compartments) //draw edges
             for (auto k : c->branches)
-                fprintf(fileCompartments, "%d -- %d;\n", c->id, k->id);
-        }
+                fprintf(fileCompartments, "%d -- %d %s;\n", c->id, k->id, /*c->branches.size()>1 ? "[penwidth=2]" :*/ "");
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
 #endif

@@ -49,6 +49,10 @@ private:
     static int getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                              vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices,
                              int totalN, map<int, pair<int,int>> & offsetToInstance);
+
+#ifdef DEBUG
+    static void printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment);
+#endif
 };
 
 }; //Coreneuron
