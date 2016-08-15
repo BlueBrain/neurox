@@ -24,6 +24,7 @@
 #include "neurox/misc/Statistics.h"
 
 #define multiSpliX false
+#define PARALLEL_MECHS_DEPENDENCY true
 
 #define capacitance 3
 #define IClamp 7

@@ -284,21 +284,36 @@ void DataLoader::loadData(int argc, char ** argv)
     for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
+        vector<int> children;
+        short int dependenciesCount=0;
+#if PARALLEL_MECHS_DEPENDENCY==true
+        for (NrnThreadMembList* tml2 = nrn_threads[0].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
+        {
+            int otherType = tml2->index;
+            for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
+            {
+                int ptype = memb_func[otherType].dparam_semantics[d];
+                if (otherType == type && ptype>0 && ptype<1000)
+                    dependenciesCount++; //this mech depends on another one
+                if (otherType!= type && ptype==type)
+                    if (std::find(children.begin(), children.end(), otherType) == children.end())
+                        children.push_back(otherType); //other mech depends on this one
+            }
+        }
+#else
+        if (tml->next!= NULL) //not last one
+            children.push_back(tml->next->index);
+        dependenciesCount = type == capacitance ? 0 : 1; //capacitance is the first mech
+#endif
+
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
-
-        //TODO: for graph: remove circular or dual connections, (required mutex?)
-        //no dependencies graph for now, next mechanism is the next in load sequence
-        int childrenCount = tml->next==NULL ? 0 : 1;
-        int children[1] = { tml->next==NULL ? -1 : tml->next->index };
-        char isTopMechanism = type == capacitance ? 1 : 0; //exclude capacitance
-
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
                        symLength, NULL, //sym will be serialized below
-                       isTopMechanism, childrenCount, NULL));  //children will be serialized below
+                       dependenciesCount, children.size(), NULL));  //children will be serialized below
 
-        mechsChildren.insert(mechsChildren.end(), children, children + childrenCount);
+        mechsChildren.insert(mechsChildren.end(), children.begin(), children.end());
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
 
@@ -314,14 +329,21 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
     fprintf(fileMechs, "digraph G\n{\n");
+    fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
+    fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "start");
+    fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "end");
     for (int m =0; m< mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
-        if (mech->isTopMechanism)
-            fprintf(fileMechs, "%s -> %d;\n", "start", mech->type);
+        if (mech->depedenciesCount==0) //top mechanism
+            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
+
+        if (mech->childrenCount==0) //bottom mechanism
+            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->sym, mech->type, "end");
 
         for (int d=0; d<mech->childrenCount; d++)
-            fprintf(fileMechs, "%d -> %d;\n", mech->type, mech->children[d]);
+            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",  mech->sym, mech->type,
+                    getMechanismFromType(mech->children[d])->sym, getMechanismFromType(mech->children[d])->type);
     }
     fprintf(fileMechs, "}\n");
     fclose(fileMechs);

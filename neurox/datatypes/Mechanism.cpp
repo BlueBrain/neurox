@@ -13,11 +13,11 @@ using namespace NeuroX;
 Mechanism::Mechanism(const int type, const short int dataSize, const short int pdataSize,
                      const char isArtificial, const char pntMap, const char isIon,
                      const short int symLength, const char * sym,
-                     const char isTopMechanism,
+                     const short int dependenciesCount,
                      const short int childrenCount, const int * children):
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     childrenCount(childrenCount), pntMap(pntMap), isArtificial(isArtificial),
-    isTopMechanism(isTopMechanism), symLength(symLength), isIon(isIon),
+    depedenciesCount(dependenciesCount), symLength(symLength), isIon(isIon),
     children(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
 {
     //TODO should not be hardcoded

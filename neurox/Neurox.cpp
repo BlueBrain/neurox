@@ -77,7 +77,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
                     mech.type, mech.dataSize, mech.pdataSize,
                     mech.isArtificial, mech.pntMap, mech.isIon,
                     mech.symLength, sym,
-                    mech.isTopMechanism, mech.childrenCount, children);
+                    mech.depedenciesCount, mech.childrenCount, children);
         offsetChildren +=  mech.childrenCount;
         offsetSym += mech.symLength;
         if (mech.type > maxMechType)

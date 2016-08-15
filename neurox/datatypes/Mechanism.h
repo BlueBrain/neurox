@@ -22,15 +22,15 @@ class Mechanism
     Mechanism(const int type, const short int dataSize, const short int pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
               const short int symLengh = 0, const char * sym = nullptr,
-              const char isTopMechanism = 0,
+              const short int depedenciesCount = 0,
               const short int childrenCount = 0, const int * children = nullptr
               );
 
     int type;
     short int dataSize, pdataSize, vdataSize, childrenCount;
     short int symLength; ///> length of the name of the mechanism;
+    short int depedenciesCount; ///> wether it can be executed directly or requires other to run prior
     char pntMap, isArtificial;
-    char isTopMechanism; ///> wether it can be executed directly or requires other to run prior
     char isIon;
     int * children; ///> Id of dependencies mechanisms
 
