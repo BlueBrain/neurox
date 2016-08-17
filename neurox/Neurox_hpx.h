@@ -77,6 +77,10 @@ typedef int index_t; //int or unsigned short
 #define neurox_hpx_register_action_4(func) \
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED | HPX_COMPRESSED, \
     func, func##_handler, HPX_INT, HPX_POINTER, HPX_POINTER);
+#define neurox_hpx_register_action_5(func) \
+    HPX_REGISTER_ACTION(HPX_FUNCTION, 0, func, func##_handler);
+
+/**
 
 /**
  * shortcut for the declaration of hpx functions.
@@ -86,6 +90,7 @@ typedef int index_t; //int or unsigned short
  * 2 : more than one arguments
  * 3 : one argument (compressed)
  * 4 : more than one arguments (compressed)
+ * 5 : HPX_FUNCTION for reduce operation
  */
 #define neurox_hpx_register_action(funcType, func) \
     neurox_hpx_register_action_##funcType(func)

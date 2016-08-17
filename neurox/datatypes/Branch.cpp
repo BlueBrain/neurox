@@ -173,7 +173,33 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     {
         local->p = NULL;
     }
-    neurox_hpx_unpin;;
+
+    //initializes mechanisms graphs (capacitance is excluded from graph)
+    local->mechsGraphAllNodesLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
+    local->mechsGraphLCOs = new hpx_t[mechanismsCount];
+    local->mechsGraphLCOs[mechanismsMap[capacitance]] = HPX_NULL;
+    int terminalMechanismsCount=0;
+    for (int m=0; m<mechanismsCount; m++)
+    {
+        if (mechanisms[m]->type == capacitance) continue; //exclude capacitance
+        local->mechsGraphLCOs[m] = hpx_lco_reduce_new(max((short) 1,mechanisms[m]->dependenciesCount),
+                      sizeof(Mechanism::ModFunction), Mechanism::initModFunction, Mechanism::reduceModFunction);
+        if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
+            terminalMechanismsCount++;
+        hpx_call(target,  Branch::mechsGraphNodeFunction, local->mechsGraphAllNodesLCO, &mechanisms[m]->type, sizeof(int));
+    }
+    local->mechsGraphEndLCO = hpx_lco_and_new(terminalMechanismsCount);
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::clear=0;
+int Branch::clear_handler()
+{
+    neurox_hpx_pin(Branch);
+    //hpx_lco_wait(-local->mechsGraphLco);
+    hpx_lco_delete_sync(local->mechsGraphAllNodesLCO);
+    local->mechsGraphAllNodesLCO=HPX_NULL;
+    neurox_hpx_unpin;
 }
 
 hpx_action_t Branch::finitialize = 0;
@@ -264,43 +290,49 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
     if (*functionId_ptr == Mechanism::ModFunction::currentCapacitance
      || *functionId_ptr == Mechanism::ModFunction::jacobCapacitance)
     {
-        if (local->mechsInstances[capacitance].count>0)
-          getMechanismFromType(capacitance)->callModFunction(local, *functionId_ptr);
+        mechanisms[mechanismsMap[capacitance]]->callModFunction(local, *functionId_ptr);
     }
-    //for all others except capacitance
+    //for all others except capacitance (mechanisms graph)
     else
     {
-        for (int m=0; m<mechanismsCount; m++)
+        //launch execution on top nodes of the branch
+        for (int m=0; m<mechanismsCount;m++)
         {
-            int mechType = mechanisms[m]->type;
-            if (mechType==capacitance) continue;
-            if (local->mechsInstances[m].count==0) continue;
-            getMechanismFromType(mechType)->callModFunction(local, *functionId_ptr);
+            if (mechanisms[m]->type == capacitance) continue; //not capacitance
+            if (mechanisms[m]->dependenciesCount > 0) continue; //not top branch
+            hpx_lco_set(local->mechsGraphLCOs[m], functionId_size, functionId_ptr, HPX_NULL, HPX_NULL);
         }
-
-        /*
-      //*parallel* execution of independent mechanisms
-      int topDependenciesCount = 0;
-      for (int m=0; m<mechanismsCount; m++)
-        if (mechanisms[m]->isTopMechanism)
-            topDependenciesCount++;
-      assert(topDependenciesCount>0);
-
-      hpx_t lco_mechs = hpx_lco_and_new(topDependenciesCount);
-      for (int m=0; m<mechanismsCount; m++)
-      {
-        Mechanism * mech = mechanisms[m];
-        if (mechanisms[m]->isTopMechanism)
-            hpx_call(target, Mechanism::callModFunction, lco_mechs,
-                     &local, sizeof(local),
-                     functionId_ptr, functionId_size,
-                     &(mech->type), sizeof(mech->type));
-      }
-      hpx_lco_wait(lco_mechs);
-      hpx_lco_delete(lco_mechs, HPX_NULL);
-    */
+        //wait for the completion of the graph by waiting at the 'end node' lco
+        hpx_lco_wait_reset(local->mechsGraphEndLCO);
     }
     neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::mechsGraphNodeFunction = 0;
+int Branch::mechsGraphNodeFunction_handler(const int * mechType_ptr, const size_t)
+{
+    neurox_hpx_pin(Branch);
+    int type = *mechType_ptr;
+    assert(type!=capacitance); //capacitance should be outside mechanisms graph
+    assert(local->mechsGraphLCOs[mechanismsMap[type]] != HPX_NULL);
+    Mechanism * mech = getMechanismFromType(type);
+
+    Mechanism::ModFunction functionId;
+    while (local->mechsGraphAllNodesLCO != HPX_NULL)
+    {
+        //wait until all dependencies have completed, and get the argument (function id) from the hpx_lco_set
+        hpx_lco_get_reset(local->mechsGraphLCOs[mechanismsMap[type]], sizeof(Mechanism::ModFunction), &functionId);
+
+        mech->callModFunction(local, functionId);
+
+        if (mech->successorsCount==0) //bottom mechanism
+            hpx_lco_set(local->mechsGraphEndLCO, 0, NULL, HPX_NULL, HPX_NULL);
+        else
+            for (int c=0; c<mech->successorsCount; c++)
+              hpx_lco_set(local->mechsGraphLCOs[mechanismsMap[mech->successors[c]]],
+                sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
+    }
     neurox_hpx_unpin;
 }
 
@@ -356,9 +388,11 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(1, Branch::updateV);
     neurox_hpx_register_action(1, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::callModFunction);
+    neurox_hpx_register_action(1, Branch::mechsGraphNodeFunction);
     neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
     neurox_hpx_register_action(2, Branch::init);
     neurox_hpx_register_action(2, Branch::initNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
     neurox_hpx_register_action(0, Branch::getSomaVoltage);
+    neurox_hpx_register_action(0, Branch::clear);
 }

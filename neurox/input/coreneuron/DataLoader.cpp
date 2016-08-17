@@ -97,7 +97,7 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 }
 
 void DataLoader::fromHpxToCoreneuronDataStructs(
-        void * branch_ptr, Memb_list & membList,
+        const void * branch_ptr, Memb_list & membList,
         NrnThread & nrnThread, int mechType)
 {
     Branch * branch = (Branch*) branch_ptr;
@@ -297,14 +297,15 @@ void DataLoader::loadData(int argc, char ** argv)
      * args[2] = array of all mechanisms names (sym)
      */
     std::vector<Mechanism> mechsData;
-    std::vector<int> mechsChildren;
+    std::vector<int> mechsSuccessorsId;
     std::vector<char> mechsSym;
     for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
-        vector<int> children;
-        short int dependenciesCount=0;
+        vector<int> successorsIds;
+        int dependenciesCount;
 #if PARALLEL_MECHS_DEPENDENCY==true
+        std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
         for (NrnThreadMembList* tml2 = nrn_threads[0].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
         {
             int otherType = tml2->index;
@@ -312,37 +313,44 @@ void DataLoader::loadData(int argc, char ** argv)
             {
                 int ptype = memb_func[otherType].dparam_semantics[d];
                 if (otherType == type && ptype>0 && ptype<1000)
-                    dependenciesCount++; //this mech depends on another one
+                    dependenciesIds.insert(ptype); //this mech depends on another one
                 if (otherType!= type && ptype==type)
-                    if (std::find(children.begin(), children.end(), otherType) == children.end())
-                        children.push_back(otherType); //other mech depends on this one
+                    if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
+                        successorsIds.push_back(otherType); //other mech depends on this one
             }
         }
+        dependenciesCount = dependenciesIds.size();
 #else
-        if (tml->next!= NULL) //not last one
-            children.push_back(tml->next->index);
-        dependenciesCount = type == capacitance ? 0 : 1; //capacitance is the first mech
+        if ( tml->index == capacitance)  //not capacitance
+        {
+            dependenciesCount=0;
+        }
+        else
+        {   //all except second element (the one after capacitance) have 1 dependency
+            dependenciesCount = tml == nrn_threads[0].tml->next ? 0 : 1;
+            if (tml->next!= NULL) //all except last one have a successor
+                successorsIds.push_back(tml->next->index);
+        }
 #endif
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, NULL, //sym will be serialized below
-                       dependenciesCount, children.size(), NULL));  //children will be serialized below
+                       symLength, nullptr, //sym will be serialized below
+                       dependenciesCount, successorsIds.size(), nullptr)); //children will be serialized below
 
-        mechsChildren.insert(mechsChildren.end(), children.begin(), children.end());
+        mechsSuccessorsId.insert(mechsSuccessorsId.end(), successorsIds.begin(), successorsIds.end());
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
-    int e = hpx_bcast_rsync(NeuroX::setMechanisms,
-                            mechsData.data(), sizeof(Mechanism)*mechsData.size(),
-                            mechsChildren.data(), sizeof(int)* mechsChildren.size(),
-                            mechsSym.data(), sizeof(char)*mechsSym.size());
-    assert(e == HPX_SUCCESS);
+    hpx_bcast_rsync(NeuroX::setMechanisms,
+                    mechsData.data(), sizeof(Mechanism)*mechsData.size(),
+                    mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
+                    mechsSym.data(), sizeof(char)*mechsSym.size());
 
-    mechsData.clear(); mechsChildren.clear(); mechsSym.clear();
+    mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #ifdef DEBUG
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
@@ -352,18 +360,21 @@ void DataLoader::loadData(int argc, char ** argv)
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
     //fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "end");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
+    //fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige, peripheries=2];\n",
+    fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
+            getMechanismFromType(capacitance)->sym, capacitance);
     for (int m =0; m< mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
-        if (mech->depedenciesCount==0) //top mechanism
+        if (mech->dependenciesCount==0 && mech->type!=capacitance) //top mechanism
             fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
 
-        if (mech->childrenCount==0) //bottom mechanism
+        if (mech->successorsCount==0 && mech->type!= capacitance) //bottom mechanism
             fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->sym, mech->type, "end");
 
-        for (int d=0; d<mech->childrenCount; d++)
+        for (int d=0; d<mech->successorsCount; d++)
             fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",  mech->sym, mech->type,
-                    getMechanismFromType(mech->children[d])->sym, getMechanismFromType(mech->children[d])->type);
+                    getMechanismFromType(mech->successors[d])->sym, getMechanismFromType(mech->successors[d])->type);
     }
     fprintf(fileMechs, "}\n");
     fclose(fileMechs);
@@ -377,8 +388,7 @@ void DataLoader::loadData(int argc, char ** argv)
     //allocate HPX memory space for neurons
     printf("Broadcasting %d neurons...\n", neuronsCount);
     hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    e = hpx_bcast_rsync(NeuroX::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
-    assert(e == HPX_SUCCESS);
+    hpx_bcast_rsync(NeuroX::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
 
 #ifdef DEBUG

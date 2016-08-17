@@ -24,7 +24,7 @@
 #include "neurox/misc/Statistics.h"
 
 #define multiSpliX false
-#define PARALLEL_MECHS_DEPENDENCY true
+#define PARALLEL_MECHS_DEPENDENCY false
 
 #define capacitance 3
 #define IClamp 7
@@ -44,6 +44,7 @@ namespace NeuroX
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
 
     extern hpx_action_t main;           ///> execution starting point (called via hpx_run)
+    extern hpx_action_t clear;          ///> clears all memory utilised including neurons, branches and mechanisms information
     extern hpx_action_t setNeurons;     ///> Initialized neurons and neuronsAddr global vars
     extern hpx_action_t setInputParams; ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
@@ -52,8 +53,9 @@ namespace NeuroX
     NeuroX::Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
-    static int main_handler( char **argv, size_t argc); ///> handler of main
-    static int setNeurons_handler(const int nargs, const void *args[], const size_t []); ///>handler of setNeuronsAddr
-    static int setInputParams_handler(const Input::InputParams * data, const size_t); ///> handler for setInputParams
-    static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]); ///> handler for setMechanisms
+    static int main_handler(char **argv, size_t argc);
+    static int clear_handler();
+    static int setNeurons_handler(const int nargs, const void *args[], const size_t []);
+    static int setInputParams_handler(const Input::InputParams * data, const size_t);
+    static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
 } ;

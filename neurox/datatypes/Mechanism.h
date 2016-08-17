@@ -23,16 +23,16 @@ class Mechanism
               const char isArtificial, const char pntMap, const char isIon,
               const short int symLengh = 0, const char * sym = nullptr,
               const short int depedenciesCount = 0,
-              const short int childrenCount = 0, const int * children = nullptr
-              );
+              const short int successorsCount = 0, const int * successors = nullptr);
 
     int type;
-    short int dataSize, pdataSize, vdataSize, childrenCount;
+    short int dataSize, pdataSize, vdataSize;
+    short int successorsCount;   ///> number of mechanisms succedding this one on a parallel execution
+    short int dependenciesCount; ///> number of mechanisms it depends on
     short int symLength; ///> length of the name of the mechanism;
-    short int depedenciesCount; ///> wether it can be executed directly or requires other to run prior
-    char pntMap, isArtificial;
+    char pntMap, isArtificial	;
     char isIon;
-    int * children; ///> Id of dependencies mechanisms
+    int * successors; ///> mechanism id for successors mechanisms
 
     //For ionic mechanisms
     double conci, conco, charge; //from global_conci, global_conco, global_charge variables
@@ -74,7 +74,11 @@ class Mechanism
             const void * branch, const Spike * spike,
             const char isInitFunction, const double t, const double dt);
 
-    void callModFunction(void * branch, ModFunction functionId);
+    void callModFunction(const void * branch, const Mechanism::ModFunction functionId);
+
+    static void registerHpxActions(); ///> Register all HPX actions
+    static hpx_action_t initModFunction; ///> init function for hpx_reduce of mechanisms graphs
+    static hpx_action_t reduceModFunction; ///> reduce opreationf for hpx_creduce of mechanisms graphs
 
 private:
     void disableMechFunctions(); ///> sets to NULL all function pointers
@@ -83,6 +87,8 @@ private:
     void registerBeforeAfterFunctions();   ///> register Before-After functions
     void registerModFunctions(int type); ///> register mechanisms functions (mod_t_f type)
 
+    static void initModFunction_handler(ModFunction * function_ptr, const size_t);
+    static void reduceModFunction_handler(ModFunction * lhs, const ModFunction *rhs, const size_t);
 };
 
 };

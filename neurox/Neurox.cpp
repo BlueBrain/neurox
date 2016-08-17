@@ -56,7 +56,7 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     /**
      * nargs=3 where:
      * args[0] = array of all mechanisms info
-     * args[1] = array of all mechanisms dependencies (children in mechanisms tree)
+     * args[1] = array of all mechanisms successors (children in mechanisms tree)
      * args[2] = array of all mechanisms names (sym)
      */
 
@@ -65,20 +65,20 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     mechanismsCount = sizes[0]/sizeof(Mechanism);
     mechanisms = new Mechanism*[mechanismsCount];
 
-    int offsetChildren=0;
+    int offsetSuccessors=0;
     int offsetSym=0;
     int maxMechType=-1;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism & mech = ((Mechanism*) args[0])[m];
-        int * children = mech.childrenCount == 0 ? nullptr : &((int*) args[1])[offsetChildren];
+        int * successorsIds = mech.successorsCount == 0 ? nullptr : &((int*) args[1])[offsetSuccessors];
         char * sym = mech.symLength == 0 ? nullptr : &((char*) args[2])[offsetSym];
         mechanisms[m] = new Mechanism(
                     mech.type, mech.dataSize, mech.pdataSize,
                     mech.isArtificial, mech.pntMap, mech.isIon,
                     mech.symLength, sym,
-                    mech.depedenciesCount, mech.childrenCount, children);
-        offsetChildren +=  mech.childrenCount;
+                    mech.dependenciesCount, mech.successorsCount, successorsIds);
+        offsetSuccessors +=  mech.successorsCount;
         offsetSym += mech.symLength;
         if (mech.type > maxMechType)
             maxMechType = mech.type;
@@ -90,7 +90,6 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
         mechanismsMap[i]=-1;
     for (int m=0; m<mechanismsCount; m++)
         mechanismsMap[mechanisms[m]->type]=m;
-
     neurox_hpx_unpin;
 }
 
@@ -135,13 +134,19 @@ static int main_handler( char **argv, size_t argc)
     hpx_exit(HPX_SUCCESS);
 }
 
+hpx_action_t clear = 0;
+int clear_handler()
+{
+    delete [] mechanisms;
+}
+
 void registerHpxActions()
 {
     neurox_hpx_register_action(1,NeuroX::main);
+    neurox_hpx_register_action(0,NeuroX::clear);
     neurox_hpx_register_action(2,NeuroX::setNeurons);
     neurox_hpx_register_action(1,NeuroX::setInputParams);
     neurox_hpx_register_action(2,NeuroX::setMechanisms);
-
 }
 
 };

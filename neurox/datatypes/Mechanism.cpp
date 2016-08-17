@@ -14,13 +14,12 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
                      const char isArtificial, const char pntMap, const char isIon,
                      const short int symLength, const char * sym,
                      const short int dependenciesCount,
-                     const short int childrenCount, const int * children):
+                     const short int successorsCount, const int * successors):
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
-    childrenCount(childrenCount), pntMap(pntMap), isArtificial(isArtificial),
-    depedenciesCount(dependenciesCount), symLength(symLength), isIon(isIon),
-    children(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
+    successorsCount(successorsCount), dependenciesCount(dependenciesCount),
+    symLength(symLength), pntMap(pntMap), isArtificial(isArtificial), isIon(isIon),
+    successors(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
 {
-    //TODO should not be hardcoded
     if (pntMap>0)
     {
         switch (type)
@@ -32,11 +31,11 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
         }
         assert(vdataSize == pdataSize -1); //always?
     }
-    if (children != nullptr)
-    {
-        assert(childrenCount>0);
-        this->children = new int[childrenCount];
-        std::memcpy(this->children, children, childrenCount*sizeof(int));
+
+    if (successors != nullptr){
+        assert(successorsCount>0);
+        this->successors = new int[successorsCount];
+        std::memcpy(this->successors, successors, successorsCount*sizeof(int));
     }
 
     if (sym != nullptr)
@@ -47,7 +46,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
         this->sym[symLength] = '\0';
     }
 
-    if (sym==nullptr && children == nullptr) //not constructing, just serialized for transmission
+    if (sym==nullptr && successors == nullptr) //not constructing, just serialized for transmission
         return;
 
     disableMechFunctions();
@@ -62,13 +61,22 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
 
 #ifdef DEBUG
     printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
-           "      pntMap %d, isIon %d, symLength %d, sym %s, childrenCount %d\n"
+           "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
            "      conci %.2f, conco %.2f, charge %.2f\n",
            this->type, this->dataSize, this->pdataSize, this->isArtificial,
-           this->pntMap, this->isIon, this->symLength, this->sym, this->childrenCount,
+           this->pntMap, this->isIon, this->symLength, this->sym, this->successorsCount,
            this->conci, this->conco, this->charge);
 #endif
+
 };
+
+hpx_action_t Mechanism::initModFunction = 0;
+void Mechanism::initModFunction_handler(ModFunction * function_ptr, const size_t)
+{}
+
+hpx_action_t Mechanism::reduceModFunction = 0;
+void Mechanism::reduceModFunction_handler(ModFunction * lhs, const ModFunction *rhs, const size_t)
+{ *lhs = *rhs; }
 
 void Mechanism::registerBeforeAfterFunctions()
 {
@@ -157,82 +165,82 @@ void Mechanism::registerIon()
 
 Mechanism::~Mechanism(){
     delete [] sym;
-    delete [] children;
+    delete [] successors;
 };
 
-void Mechanism::callModFunction(void * branch, ModFunction functionId)
+void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunction functionId)
 {
-        Memb_list membList;
-        NrnThread nrnThread;
+    Memb_list membList;
+    NrnThread nrnThread;
 
-        //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
-        //The state function does not write to compartment, only reads, so no mutex needed (TODO)
-        Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(branch, membList, nrnThread, type);
-        switch(functionId)
-        {
-            case Mechanism::before_initialize:
-            case Mechanism::after_initialize:
-            case Mechanism::before_breakpoint:
-            case Mechanism::after_solve:
-            case Mechanism::before_step:
-                   if (BAfunctions[(int) functionId])
-                       BAfunctions[(int) functionId](&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::alloc:
-                if (membFunc.alloc)
-                    membFunc.alloc(membList.data, membList.pdata, type);
-                break;
-            case Mechanism::ModFunction::currentCapacitance:
-                assert(type == capacitance);
-                assert(membFunc.current != NULL);
+    //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
+    //The state function does not write to compartment, only reads, so no mutex needed (TODO)
+    Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(branch, membList, nrnThread, type);
+    switch(functionId)
+    {
+        case Mechanism::before_initialize:
+        case Mechanism::after_initialize:
+        case Mechanism::before_breakpoint:
+        case Mechanism::after_solve:
+        case Mechanism::before_step:
+               if (BAfunctions[(int) functionId])
+                   BAfunctions[(int) functionId](&nrnThread, &membList, type);
+            break;
+        case Mechanism::ModFunction::alloc:
+            if (membFunc.alloc)
+                membFunc.alloc(membList.data, membList.pdata, type);
+            break;
+        case Mechanism::ModFunction::currentCapacitance:
+            assert(type == capacitance);
+            assert(membFunc.current != NULL);
+            membFunc.current(&nrnThread, &membList, type);
+            break;
+        case Mechanism::ModFunction::current:
+            assert(type != capacitance);
+            if (membFunc.current)
                 membFunc.current(&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::current:
-                assert(type != capacitance);
-                if (membFunc.current)
-                    membFunc.current(&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::state:
-                if (membFunc.state)
-                    membFunc.state(&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::jacobCapacitance:
-                assert(type == capacitance);
-                assert(membFunc.jacob != NULL);
+            break;
+        case Mechanism::ModFunction::state:
+            if (membFunc.state)
+                membFunc.state(&nrnThread, &membList, type);
+            break;
+        case Mechanism::ModFunction::jacobCapacitance:
+            assert(type == capacitance);
+            assert(membFunc.jacob != NULL);
+            membFunc.jacob(&nrnThread, &membList, type);
+            break;
+        case Mechanism::ModFunction::jacob:
+            assert(type != capacitance);
+            if (membFunc.jacob)
                 membFunc.jacob(&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::jacob:
-                assert(type != capacitance);
-                if (membFunc.jacob)
-                    membFunc.jacob(&nrnThread, &membList, type);
-                break;
-            case Mechanism::ModFunction::initialize:
-                if (membFunc.initialize)
-                    membFunc.initialize(&nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
-                break;
-            case Mechanism::ModFunction::destructor:
-                if (membFunc.destructor)
-                    membFunc.destructor();
-                break;
-            case Mechanism::ModFunction::threadMemInit:
-                if (membFunc.thread_mem_init_)
-                    membFunc.thread_mem_init_(membList._thread);
-                break;
-            case Mechanism::ModFunction::threadTableCheck:
-                if (membFunc.thread_table_check_)
-                    membFunc.thread_table_check_
-                        (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, type);
-                break;
-            case Mechanism::ModFunction::threadCleanup:
-                if (membFunc.thread_cleanup_)
-                    membFunc.thread_cleanup_(membList._thread);
-                break;
-            default:
-                printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
-                exit(1);
-        }
-        delete [] nrnThread._shadow_d;
-        delete [] nrnThread._shadow_rhs;
+            break;
+        case Mechanism::ModFunction::initialize:
+            if (membFunc.initialize)
+                membFunc.initialize(&nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
+            break;
+        case Mechanism::ModFunction::destructor:
+            if (membFunc.destructor)
+                membFunc.destructor();
+            break;
+        case Mechanism::ModFunction::threadMemInit:
+            if (membFunc.thread_mem_init_)
+                membFunc.thread_mem_init_(membList._thread);
+            break;
+        case Mechanism::ModFunction::threadTableCheck:
+            if (membFunc.thread_table_check_)
+                membFunc.thread_table_check_
+                    (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, type);
+            break;
+        case Mechanism::ModFunction::threadCleanup:
+            if (membFunc.thread_cleanup_)
+                membFunc.thread_cleanup_(membList._thread);
+            break;
+        default:
+            printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
+            exit(1);
+    }
+    delete [] nrnThread._shadow_d;
+    delete [] nrnThread._shadow_rhs;
 }
 
 void Mechanism::callNetReceiveFunction(
@@ -260,4 +268,10 @@ void Mechanism::callNetReceiveFunction(
     {
         //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
     }
+}
+
+void Mechanism::registerHpxActions()
+{
+    neurox_hpx_register_action(5, Mechanism::initModFunction);
+    neurox_hpx_register_action(5, Mechanism::reduceModFunction);
 }
