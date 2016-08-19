@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 
+using namespace std;
+
 namespace  NeuroX {
 
 /**
@@ -19,6 +21,10 @@ class Branch
   public:
     Branch()=delete; ///> no constructor, build using hpx init function instead
     ~Branch();
+
+    //for conveniency we add t and dt to all branch localities
+    double t;       ///> current simulation time
+    double dt;      ///> time step
 
     //sparse matrix information:
     int n;		    ///> number of compartments
@@ -45,50 +51,50 @@ class Branch
     int branchesCount;		///> number of branches (if any)
     hpx_t *branches;		///> hpx address of the branches branches
 
-    /** map of incoming netcons per pre-synaptic id
-     *  (Equivalent to a PreSyn for local transmission and InputPreSyn
-     *  for network transmission in Coreneuron (netcon.h)) */
-    std::map<int, std::vector<NetConX> > netcons;
+    map<int, deque<NetConX> > netcons; ///> map of incoming netcons per pre-synaptic id
 
-    ///queue of incoming spikes (to be delivered at the end of the step), sorted by delivery time
-    std::priority_queue<Spike> spikesQueue;
+    priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
-    static hpx_action_t finitialize; ///> finitialize.c :: sets initial values of V
     static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
-    static hpx_action_t callNetReceiveFunction; ///> calls NetReceive Functions
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
     static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
     static hpx_action_t mechsGraphNodeFunction; ///> represents the action of the nodes in the mechanisms graph
+    static hpx_action_t fixedPlayContinuous; ///> nrn_fixed_play_continuous
+    static hpx_action_t deliverEvents;   ///> delivers all events for the next time step (nrn_deliver_events)
 
-    //TODO make private
-    double * data; ///> all pointer data for the branch (RHS, D, A, B, V, Area, and mechanisms)
-    void ** vdata; ///> all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA) //TODO shouldnt be at branche level, should be mech instance like pdata
+    double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
+    void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
+    VecPlayContinuouX ** vecplay; ///> all pointer data to VecPlayContinuous instances
+    int vecplayCount; //number of vecplay
+
     void callModFunction2(const Mechanism::ModFunction functionId);
+    void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
+
 
     hpx_t * mechsGraphLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
     hpx_t mechsGraphEndLCO; ///> represents the bottom of the graph
     hpx_t mechsGraphAllNodesLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
 
-  private:
-    hpx_t spikesQueueMutex;   ///> mutex to protect the memory access to spikesQueue
-    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
+    static int deliverEvents_handler(const double *t, const size_t);
 
+  private:
+    hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to spikesQueue
+    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();
-    static int finitialize_handler(const double * v, const size_t);
-    static int callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int mechsGraphNodeFunction_handler(const int * mechType_ptr, const size_t);
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int getSomaVoltage_handler();
     static int clear_handler();
+    static int fixedPlayContinuous_handler();
 };
 
 }; //namespace

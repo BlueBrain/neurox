@@ -102,23 +102,17 @@ static int main_handler( char **argv, size_t argc)
     int e = hpx_bcast_rsync(NeuroX::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
 
+    // many steps with large dt so that cells start at their resting potential
+    assert(NeuroX::inputParams->forwardSkip == 0); //not supported yet
+
     //reads morphology data
     printf("Input::Coreneuron::DataLoader::loadData...\n");
     NeuroX::Input::Coreneuron::DataLoader::loadData(argc, argv);
     Misc::Statistics::printSimulationSize();
     Misc::Statistics::printMechanismsDistribution();
 
-    //call finitialize.c (nrn_finitialize( 1, inputParams.voltage )
-    printf("Neuron::finitialize...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-        { return hpx_call_sync(getNeuronAddr(i), Neuron::finitialize, NULL, 0);},
-        0, neuronsCount, NULL);
-
-    // TODO handle forwardskip ??
-    // many steps with large dt so that cells start at their resting potential
-
-    printf("BackwardEuler::solver...\n");
-    Solver::BackwardEuler::solve(); //BBS_netpar_solve( inputParams.tstop );
+    printf("BackwardEuler::run...\n");
+    Solver::BackwardEuler::run(); //BBS_netpar_solve( inputParams.tstop );
     assert(e == HPX_SUCCESS);
 
     // prcellstate after end of solver

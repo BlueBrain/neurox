@@ -8,28 +8,69 @@ using namespace NeuroX::Solver;
 
 BackwardEuler::~BackwardEuler() {}
 
-void BackwardEuler::solve()
+void BackwardEuler::run()
 {
-    //for all neurons
-    hpx_par_for_sync( [&] (int i, void*) -> int
-        {
-            double dt = inputParams->dt;
-            double dt_comm = 0.1; //TODO get the collective minimum value
-            int stepsCountPerComm = dt_comm / dt;
-
-            //wait for all synapses from all synapses from before
-            //deliver_net_events(NrnThread&);
-
-            //perform communication steps of duration 'dt_comm' until reaching 'tstop'
-            for (double t_comm=0; t_comm<inputParams->tstop; t_comm += dt_comm )
-                //for every comm step, perform 'stepsCountPerComm' computation steps
-                hpx_call_sync( getNeuronAddr(i), BackwardEuler::step, NULL, 0,
-                              &stepsCountPerComm, sizeof(stepsCountPerComm));
-
-            return HPX_SUCCESS;
-        },
-    0, neuronsCount, NULL);
+  hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
+  {
+     //finitialize.c (nrn_finitialize( 1, inputParams.voltage )
+     printf("Neuron::initialize...\n");
+     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initialize, NULL, 0);
+     printf("Neuron::solve...\n");
+     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::solve, NULL, 0);
+     return HPX_SUCCESS;
+  },
+  0, neuronsCount, NULL);
 }
+
+hpx_action_t BackwardEuler::initializeBranch = 0;
+int BackwardEuler::initializeBranch_handler(const double * v, const size_t v_size)
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(BackwardEuler::initializeBranch, v, v_size);
+    //nrn_spike_exchange_init() inserts NetParEvent on queue;
+    //Not applicable for our use case
+    //nrn_play_init() initiates the VectorPlayContinuous
+    local->initEventsQueue();
+    local->deliverEvents_handler(&local->t, sizeof(local->t));
+
+    //set up by finitialize.c:nrn_finitialize(): if (setv)
+    for (int n=0; n<local->n; n++)
+        local->v[n]=*v;
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
+hpx_action_t BackwardEuler::initialize=0;
+int BackwardEuler::initialize_handler()
+{
+    neurox_hpx_pin(Neuron);
+
+    //set up by finitialize.c:nrn_finitialize(): if (setv)
+    double v = inputParams->voltage;
+    hpx_call_sync(local->soma, BackwardEuler::initializeBranch, NULL, 0, &v, sizeof(v));
+
+    // the INITIAL blocks are ordered so that mechanisms that write
+    // concentrations are after ions and before mechanisms that read
+    // concentrations.
+    local->callModFunction(Mechanism::ModFunction::before_initialize);
+    local->callModFunction(Mechanism::ModFunction::initialize);
+    local->callModFunction(Mechanism::ModFunction::after_initialize);
+
+    //set up by finitialize.c:nrn_finitialize() -> fadvance_core.c:dt2thread()
+    //local->cj = inputParams->secondorder ? 2.0/inputParams->dt : 1.0/inputParams->dt;
+    //done when calling mechanisms //TODO have a copy per branch to speed-up?
+
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
+    local->setupTreeMatrixMinimal();
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
+
+    //part of nrn_fixed_step_group_minimal
+    //1. multicore.c::nrn_thread_table_check()
+    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
+
+    neurox_hpx_unpin;
+}
+
 
 hpx_action_t BackwardEuler::branchStep = 0;
 int BackwardEuler::branchStep_handler(const int  * stepsCount_ptr, const size_t size)
@@ -57,35 +98,27 @@ int BackwardEuler::branchStep_handler(const int  * stepsCount_ptr, const size_t 
     */
 }
 
-hpx_action_t BackwardEuler::step = 0;
-int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
+hpx_action_t BackwardEuler::solve = 0;
+int BackwardEuler::solve_handler()
 {
   neurox_hpx_pin(Neuron); //We are in a Neuron
 
-  for (int s=0; s<*stepsCount_ptr; s++)
+  double dt = inputParams->dt;
+  double dt_comm = 0.1; //TODO get the collective minimum value
+  int stepsCountPerComm = dt_comm / dt;
+
+  //this is void nrn_fixed_step_group_minimal(int n) in fadvance_core.c
+  for (local->t=0; local->t<inputParams->tstop; local->t+=dt)
   {
-    //1. multicore.c::nrn_thread_table_check()
-    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
-
     //2. multicore.c::nrn_fixed_step_thread()
-
     //2.1 cvodestb::deliver_net_events(nth);
     //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
     bool reachedThresold = local->getSomaVoltage() >= local->APthreshold;
-    hpx_addr_t spikesLco = reachedThresold ? local->fireActionPotential() : HPX_NULL;
-
-    //3. netcvode.cpp::NetCon::deliver()
-    //calls NET_RECEIVE in mod files to receive synapses
-    //netcvode.cpp::NetCvode::deliver_net_events()
-    //            ->NetCvode::deliver_events()
-    //            ->NetCvode::deliver_event()
-    //            ->NetCon::deliver()
-    //            ->net_receive() on mod files
-    local->callNetReceiveFunction(0); //TODO replace 0/1 by Function::NetReceive and Function::NetReceiveInit
-
+    if (reachedThresold) local->fireActionPotential();
     local->t += .5*dt;
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0, &local->t, sizeof(local->t));
+    hpx_call_sync(local->soma, Branch::fixedPlayContinuous, NULL, 0);
 
-    //TODO: fixed_play_continuous; for PlayRecord (whole logic missing)
     local->setupTreeMatrixMinimal();
 
     //eion.c : second_order_cur()
@@ -95,13 +128,11 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
     //fadvance_core.c : update()
     hpx_call_sync(local->soma, Branch::updateV, NULL, 0, inputParams->secondorder, sizeof(inputParams->secondorder));
     local->callModFunction(Mechanism::ModFunction::jacob);
-    //TODO: this is not a MOD file function, its in capac.c, has to be converted!
-
     local->t += .5*dt;
-
-    //	fixed_play_continuous(nth); TODO
-    local->callModFunction(Mechanism::ModFunction::state);
+    hpx_call_sync(local->soma, Branch::fixedPlayContinuous, NULL, 0);
+    local->callModFunction(Mechanism::ModFunction::state); //nonvint
     local->callModFunction(Mechanism::ModFunction::after_solve);
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
 
     //if we are at the output time instant output to file
     if (fmod(local->t, inputParams->dt_io) == 0)
@@ -109,18 +140,20 @@ int BackwardEuler::step_handler(const int  * stepsCount_ptr, const size_t)
         //output
     }
 
-    //wait for all post-synaptic neurons to receive (not process) synapses
-    if (spikesLco != HPX_NULL)
-    {
-        hpx_lco_wait(spikesLco);
-        hpx_lco_delete(spikesLco, HPX_NULL);
-    }
+    //make sure all synapses from N steps before were delivered
+    //(thus other neurons wait for this neuron one before stepping)
+    local->waitForSynapsesDelivery(stepsCountPerComm);
+
+    //make sure I'm not more than N steps ahead of that connect to me!
+    //TODO
   }
   neurox_hpx_unpin;
 }
 
 void BackwardEuler::registerHpxActions()
 {
-    neurox_hpx_register_action(1, step);
-    neurox_hpx_register_action(1, branchStep);
+    neurox_hpx_register_action(0, BackwardEuler::solve);
+    neurox_hpx_register_action(1, BackwardEuler::branchStep);
+    neurox_hpx_register_action(1, BackwardEuler::initialize);
+    neurox_hpx_register_action(1, BackwardEuler::initializeBranch)
 }

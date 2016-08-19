@@ -27,25 +27,23 @@ class Neuron
     //outgoing synapses
     double APthreshold;  ///> Action Potential threshold
     std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (neuron or branch)
-
+    std::deque<hpx_t> synapsesLCO; ///> LCO for every AP sent
 
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
     void callModFunction(Mechanism::ModFunction functionId); ///> Calls a MOD function on all mechanisms
-    void callNetReceiveFunction(char isInitFunction); ///> Calls NetReceive function on all branches
     double getSomaVoltage(); ///> gets Soma voltage
-    hpx_t fireActionPotential(); ///> fires AP, returns LCO for sent synapses
+    void fireActionPotential(); ///> fires AP, returns LCO for sent synapses
+    void waitForSynapsesDelivery(int commStepSize); ///> waits for delivery of synapses
 
     static void registerHpxActions(); ///> Register all HPX actions
-    static hpx_action_t finitialize;  ///> finitialize.c
     static hpx_action_t init;         ///> Initializes Neuron
     static hpx_action_t addSynapseTarget;  ///> Inserts outgoing synapses (targets) in this Neuron
 
   private:
-    hpx_t synapsesMutex;   ///> mutex to protect the memory access to synapses vector
+    hpx_t synapsesMutex;   ///> mutex to protect variable 'synapses'
 
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]); ///> HPX constructor
     static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
-    static int finitialize_handler(); ///> initialize.c
 };
 
 }

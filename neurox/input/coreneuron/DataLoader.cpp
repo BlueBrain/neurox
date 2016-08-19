@@ -27,7 +27,8 @@ using namespace NeuroX::Input::Coreneuron;
 
 int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
-    nrn_threads[nrn_id].presyns[0].gid_;
+    return netcon_srcgid[nrn_id][0];
+    //return nrn_threads[nrn_id].presyns[0].gid_;
 }
 
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
@@ -128,8 +129,8 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
     nrnThread._dt = dt;
     nrnThread._t = t;
+    //TODO this field is only used inside the capacitance mod function in capac.c
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
-    //TODO shall this cj field be hardcoded on a branch info?
     nrnThread._vdata = branch->vdata;
     //compareDataStructuresWithCoreNeuron(branch);
 }
@@ -206,9 +207,10 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
-      NeuroX::NetConX * netcon = new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
-                             nc->weight_, pnt_receive_size[mechType], nc->active_);
-      netcons[preNeuronId].push_back(netcon);
+
+      netcons[preNeuronId].push_back(
+          new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
+                      nc->weight_, pnt_receive_size[mechType], nc->active_));
     }
 }
 
@@ -264,8 +266,8 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
     for (int c=0; c<comp->branches.size(); c++)
         printSubClustersToFile(fileCompartments, comp->branches[c]);
 }
-
 #endif
+
 void DataLoader::loadData(int argc, char ** argv)
 {
     coreNeuronInitialSetup(argc, argv);
@@ -273,22 +275,28 @@ void DataLoader::loadData(int argc, char ** argv)
     //we will walk a bit with coreneuron
     coreNeuronFakeSteps();
 
+    std::set<int> availableNeuronsIds;
+    for (int i=0; i<nrn_nthread; i++) {
+        assert(nrn_threads[i].ncell == 1); //requires one neuron per NrnThread (if fails, add "CellGroupSize 1" to BlueConfig)
+        availableNeuronsIds.insert(getNeuronIdFromNrnThreadId(i));
+    }
+
 #ifdef DEBUG
     for (int i=0; i<nrn_nthread; i++)
     {
         int neuronId = getNeuronIdFromNrnThreadId(i);
-
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G%d\n{\n", i );
+        fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
 
         //for all nodes in this NrnThread
         NrnThread * nt = &nrn_threads[i];
-        for (int i=nt->ncell; i<nt->end; i++)
-            fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[i], i);
+        for (int n=nt->ncell; n<nt->end; n++)
+            fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[n], n);
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
-    }
 #endif
+    }
+
 
     /** Reconstructs unique data related to each mechanism*
      * nargs=3 where:
@@ -334,6 +342,9 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
+        if (strcmp(memb_func[type].sym, "PatternStim") && inputParams->patternStim[0]=='0')
+                continue; //only load PatternStim if path initialized
+
         mechsData.push_back(
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
@@ -342,6 +353,12 @@ void DataLoader::loadData(int argc, char ** argv)
 
         mechsSuccessorsId.insert(mechsSuccessorsId.end(), successorsIds.begin(), successorsIds.end());
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
+    }
+
+    if (inputParams->patternStim[0]!='0') //"initialized"
+    {
+        assert(0); //not an error: should be initialized already by coreneuron (and above)
+        //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
@@ -356,11 +373,8 @@ void DataLoader::loadData(int argc, char ** argv)
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
     fprintf(fileMechs, "digraph G\n{\n");
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
-    //fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
-    //fprintf(fileMechs, "%s [style=filled, fillcolor=beige, peripheries=2];\n", "end");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
-    //fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige, peripheries=2];\n",
     fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
             getMechanismFromType(capacitance)->sym, capacitance);
     for (int m =0; m< mechanismsCount; m++)
@@ -380,10 +394,7 @@ void DataLoader::loadData(int argc, char ** argv)
     fclose(fileMechs);
 #endif
 
-    //requires one neuron per NRN_THREAD: in Blue config we must add: "CellGroupSize 1"
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-    if(neuronsCount == nrn_nthread)
-        printf("Warning: neurons count %d not equal to nrn_nthread %d\n", neuronsCount, nrn_nthread);
 
     //allocate HPX memory space for neurons
     printf("Broadcasting %d neurons...\n", neuronsCount);
@@ -393,9 +404,6 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    std::set<int> availableNeuronsIds;
-    for (int i=0; i<nrn_nthread; i++)
-        availableNeuronsIds.insert(getNeuronIdFromNrnThreadId(i));
     fprintf(fileNetcons, "digraph G\n{\n");
 #endif
 
@@ -409,7 +417,6 @@ void DataLoader::loadData(int argc, char ** argv)
             continue;
         }
 
-        assert(nt.ncell==1); //only 1 cell per NrnThreadId;
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
         //reconstructs matrix (solver) values
@@ -464,12 +471,15 @@ void DataLoader::loadData(int argc, char ** argv)
                 void ** vdata = &nt._vdata[vdataOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
-#ifdef DEBUG
+
                 if (mech->pntMap > 0) //debugging only
                 {
                     assert((type==IClamp && mech->pdataSize==2)
                         ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3));
 
+                    for (int v=0; v<mech->vdataSize; v++)
+                        compartment->vdata.push_back(vdata[v]);
+#ifdef DEBUG
                     //Offsets in pdata: 0: data, 1: point proc in nt._vdata, [2: rng in nt._vdata]
                     Point_process * pp = &nt.pntprocs[ntPointProcOffset++];
                     assert(nt._vdata[pdata[1]] == pp);
@@ -481,14 +491,12 @@ void DataLoader::loadData(int argc, char ** argv)
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
                         void * RNG = nt._vdata[pdata[2]];
                     }
-                    for (int v=0; v<mech->vdataSize; v++)
-                      compartment->vdata.push_back(vdata[v]);
+#endif
                 }
                 else
                 {
                     assert(mech->vdataSize==0);
                 }
-#endif
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataTOTAL  += mech->dataSize;
                 pdataTOTAL += mech->pdataSize;
@@ -527,8 +535,7 @@ void DataLoader::loadData(int argc, char ** argv)
             else
                 fprintf(fileNetcons, "%d -> %d [label=\"%d\"];\n", nc.first, neuronId, nc.second.size());
         }
-        if (netConsFromOthers>0)
-                fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
+        fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
 #endif
 
         //recursively create morphological tree, neuron metadata, and synapses

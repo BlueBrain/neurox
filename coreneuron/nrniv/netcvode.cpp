@@ -583,6 +583,7 @@ void NetCvode::deliver_net_events(NrnThread* nt) { // for default method
     // but I do not want to affect the case of not using a bin queue.
 
     if (nrn_use_bin_queue_) {
+        assert(0);
         while ((q = p[tid].tqe_->dequeue_bin()) != 0) {
             DiscreteEvent* db = (DiscreteEvent*)q->data_;
 

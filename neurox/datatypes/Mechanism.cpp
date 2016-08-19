@@ -244,30 +244,35 @@ void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunctio
 }
 
 void Mechanism::callNetReceiveFunction(
-        const void * branch, const Spike * spike,
-        const char isInitFunction, const double t, const double dt)
+        const void * branch, const NetConX * netcon,
+        const double t, const char callNetReceive)
 {
     Memb_list membList;
     NrnThread nrnThread;
     Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs
-            ((Branch*) branch, membList, nrnThread, type);
+            ((Branch*) branch, membList, nrnThread, netcon->mechType);
 
     Point_process pp;
-    pp._i_instance = spike->netcon->mechInstance;
+    pp._i_instance = netcon->mechInstance;
     pp._presyn = NULL;
     pp._tid = -1;
-    pp._type = spike->netcon->mechType;
-    nrnThread._t = spike->deliveryTime;
+
+    pp._type = netcon->mechType;
+    nrnThread._t = t + netcon->delay; //delivery time
     //see netcvode.cpp:433 (NetCon::deliver)
     //We have to pass NrnThread, MembList, and deliveryTime instead
-    if (isInitFunction)
-    {
-        //mechanisms[spike.netcon->mechType].pnt_receive_init(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+    if (callNetReceive)
+    {   //Not possible to pass all arguments, will fail!
+        //getMechanismFromType(netcon->mechType)->pnt_receive_init
+                //(&nrnThread, &membList, &pp, netcon->args, 0);
     }
     else
     {
-        //mechanisms[spike.netcon->mechType].pnt_receive(&nrnThread, &membList, &pp, spike.netcon->args, 0);
+        //getMechanismFromType(netcon->mechType)->pnt_receive
+               // (&nrnThread, &membList, &pp, netcon->args, 0);
     }
+    delete [] nrnThread._shadow_d;
+    delete [] nrnThread._shadow_rhs;
 }
 
 void Mechanism::registerHpxActions()

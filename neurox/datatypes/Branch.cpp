@@ -202,21 +202,39 @@ int Branch::clear_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::finitialize = 0;
-int Branch::finitialize_handler(const double * v, const size_t v_size)
+void Branch::initEventsQueue()
+{
+    hpx_lco_sema_p(this->eventsQueueMutex);
+    for (int v=0; v<this->vecplayCount; v++)
+        eventsQueue.push(make_pair(0.0, (Event*) this->vecplay[v]));
+    hpx_lco_sema_v_sync(this->eventsQueueMutex);
+}
+
+hpx_action_t Branch::fixedPlayContinuous = 0;
+int Branch::fixedPlayContinuous_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::finitialize, v, v_size);
-    //set up by finitialize.c:nrn_finitialize(): if (setv)
-    for (int n=0; n<local->n; n++)
-        local->v[n]=*v;
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
+    for (int v=0; v<local->vecplayCount; v++)
+        local->vecplay[v]->continuous(local->t);
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
 
-    // the INITIAL blocks are ordered so that mechanisms that write
-    // concentrations are after ions and before mechanisms that read
-    // concentrations.
-    local->callModFunction2(Mechanism::ModFunction::before_initialize);
-    local->callModFunction2(Mechanism::ModFunction::initialize);
-    local->callModFunction2(Mechanism::ModFunction::after_initialize);
+hpx_action_t Branch::deliverEvents = 0;
+int Branch::deliverEvents_handler(const double *t, const size_t size)
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::deliverEvents, t, size);
+    hpx_lco_sema_p(local->eventsQueueMutex);
+    while (!local->eventsQueue.empty() &&
+           local->eventsQueue.top().first <= *t)
+    {
+        Event * e = local->eventsQueue.top().second;
+        local->eventsQueue.top().second->deliver(*t, local);
+        local->eventsQueue.pop();
+    }
+    hpx_lco_sema_v_sync(local->eventsQueueMutex);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -237,42 +255,6 @@ int Branch::getSomaVoltage_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_unpin_continue(local->v[0]);
-}
-
-hpx_action_t Branch::callNetReceiveFunction = 0;
-int Branch::callNetReceiveFunction_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    neurox_hpx_pin(Branch);
-
-    assert(nargs==3);
-    neurox_hpx_recursive_branch_sync(Branch::callNetReceiveFunction,
-        args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
-
-    /** nargs=3 where:
-     * args[0] = function flag: NetReceiveInit (1) or NetReceive(0)
-     * args[1] = actual time
-     * args[2] = timestep size
-     */
-
-    const char isInitFunction = *(const char*) args[0];
-    const double t = *(const double *) args[1];
-    const double dt = *(const double *) args[2];
-
-    //*sequential* delivery of received spikes
-    while (!local->spikesQueue.empty() &&
-           local->spikesQueue.top().deliveryTime < t+dt)
-    {
-        Spike spike = local->spikesQueue.top();
-        if (spike.netcon->active)
-        {
-             int mechType = spike.netcon->mechType;
-             getMechanismFromType(mechType)->callNetReceiveFunction
-                     (local, &spike, isInitFunction, t, dt);
-        }
-        local->spikesQueue.pop();
-    }
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
 }
 
 void Branch::callModFunction2(const Mechanism::ModFunction functionId)
@@ -373,26 +355,23 @@ int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_
     const double * deliveryTime = (const double*) args[1];
 
     //netcvode::PreSyn::send()
-    for (auto nc = local->netcons.at(*preNeuronId).begin();
-         nc!=local->netcons.at(*preNeuronId).end(); nc++)
-    {
-      hpx_lco_sema_p(local->spikesQueueMutex);
-      local->spikesQueue.push( Spike(*deliveryTime, &(*nc)) );
-      hpx_lco_sema_v_sync(local->spikesQueueMutex);
-    }
+    hpx_lco_sema_p(local->eventsQueueMutex);
+    for (auto nc : local->netcons.at(*preNeuronId))
+        local->eventsQueue.push( make_pair(*deliveryTime, (Event*) &nc) );
+    hpx_lco_sema_v_sync(local->eventsQueueMutex);
     neurox_hpx_unpin;
 }
 
 void Branch::registerHpxActions()
 {
+    neurox_hpx_register_action(1, Branch::deliverEvents);
     neurox_hpx_register_action(1, Branch::updateV);
-    neurox_hpx_register_action(1, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(1, Branch::mechsGraphNodeFunction);
-    neurox_hpx_register_action(2, Branch::callNetReceiveFunction);
     neurox_hpx_register_action(2, Branch::init);
     neurox_hpx_register_action(2, Branch::initNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
     neurox_hpx_register_action(0, Branch::getSomaVoltage);
     neurox_hpx_register_action(0, Branch::clear);
+    neurox_hpx_register_action(0, Branch::fixedPlayContinuous);
 }

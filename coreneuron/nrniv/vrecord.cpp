@@ -91,6 +91,8 @@ void VecPlayContinuous::play_init() {
 	last_index_ = 0;
 	discon_index_ = 0;
 	if (discon_indices_) {
+        assert(0); /*TODO: Bruno added this to make sure it's
+                     initialized at NULL and kept that way!*/
         if (discon_indices_->size() > 0) {
             ubound_index_ = (int)(*discon_indices_)[discon_index_++];
 //printf("play_init %d %g\n", ubound_index_, t_->elem(ubound_index_));
@@ -164,6 +166,7 @@ void VecPlayContinuous::search(double tt) {
 }
 
 void VecPlayContinuous::pr() {
+    assert(0); //TODO added by Bruno to make sure it's not hit
 	printf("VecPlayContinuous ");
 //	printf("%s.x[%d]\n", hoc_object_name(y_->obj_), last_index_);
 }

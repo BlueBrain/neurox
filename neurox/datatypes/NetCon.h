@@ -10,17 +10,19 @@ namespace NeuroX
  * Equivalent to Coreneuron's NetCon in netcon.h
  * Includes the synaptic information at the post-synaptic neuron
  */
-class NetConX
+class NetConX : Event
 {
   public:
-    NetConX();
-    NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, char active);
+    NetConX() = delete;
+    NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
     ~NetConX();
+
+    void deliver(double t, void* branch); //event method (inherited)
 
     int mechType;   ///> mechanism type associated with this synapse
     short int argsCount;  ///> size of variable args
-    char active;          ///> decides whether NetCon is active (or not)
-    double delay;            ///> synaptic (soma-bouton distance + transmitters release delay)
+    bool active;          ///> decides whether NetCon is active (or not)
+    double delay;         ///> synaptic (soma-bouton distance + transmitters release delay)
     double * args;        ///> net_receive arguments (equivalent to weights in Coreneuron's NetCon)
     int mechInstance;     ///> mechanism instance, from the mechanism type
 

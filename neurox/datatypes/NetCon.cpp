@@ -3,9 +3,7 @@
 
 using namespace NeuroX;
 
-NetConX::NetConX(){};
-
-NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, char active)
+NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active)
     :mechType(mechType), argsCount(argsCount), mechInstance(mechInstance), delay(delay), active(active), args(nullptr)
 {
     if (argsCount>0)
@@ -13,6 +11,12 @@ NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, sh
         this->args=new double[argsCount];
         memcpy(this->args, args, sizeof(double)*argsCount);
     }
+}
+
+void NetConX::deliver(double t, void* branch)
+{
+    if (!this->active) return
+    getMechanismFromType(mechType)->callNetReceiveFunction(branch, this, t, 0);
 }
 
 NetConX::~NetConX()

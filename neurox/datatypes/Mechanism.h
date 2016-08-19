@@ -71,8 +71,8 @@ class Mechanism
 
     ///Call the NetReceive functions on the mod file, for synapses handling
     void callNetReceiveFunction(
-            const void * branch, const Spike * spike,
-            const char isInitFunction, const double t, const double dt);
+            const void * branch, const NetConX * netcon,
+            const double t, const char callNetReceive = 0);
 
     void callModFunction(const void * branch, const Mechanism::ModFunction functionId);
 

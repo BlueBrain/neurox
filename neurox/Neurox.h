@@ -5,9 +5,9 @@
 //Core datatypes
 #include "neurox/Neurox_hpx.h"
 #include "neurox/input/InputParams.h"
-#include "neurox/datatypes/Capacitance.h" //TODO: compiled but not used
+#include "neurox/datatypes/Event.h"
+#include "neurox/datatypes/VecPlayContinuous.h"
 #include "neurox/datatypes/NetCon.h"
-#include "neurox/datatypes/Spike.h"
 #include "neurox/datatypes/Mechanism.h"
 #include "neurox/datatypes/Branch.h"
 #include "neurox/datatypes/Neuron.h"

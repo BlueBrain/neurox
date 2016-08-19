@@ -35,7 +35,7 @@ class InputParams
 
     char inputPath[512];	///> path of input directory
     char outputPath[512];	///> path of output directory
-    char patternStim[512];	///> patternStim file path
+    char patternStim[512];	///> patternStim file path (the filename of an output_spikes.h format raster file.)
 
   private:
     /// Parses command line arguments and populates structure
