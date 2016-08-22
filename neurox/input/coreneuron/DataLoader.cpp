@@ -481,30 +481,32 @@ void DataLoader::loadData(int argc, char ** argv)
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
 
-                if (mech->pntMap > 0) //debugging only
+                //vdata
+                if (mech->pntMap > 0)
                 {
                     assert((type==IClamp && mech->pdataSize==2)
                         ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3));
 
+                    //Offsets in pdata: 0: data (area), 1: point proc in nt._vdata, [2: rng in nt._vdata]
                     for (int v=0; v<mech->vdataSize; v++)
                         compartment->vdata.push_back(vdata[v]);
 #ifdef DEBUG
-                    //Offsets in pdata: 0: data, 1: point proc in nt._vdata, [2: rng in nt._vdata]
                     Point_process * pp = &nt.pntprocs[ntPointProcOffset++];
                     assert(nt._vdata[pdata[1]] == pp);
                     assert(pp->_presyn == NULL); //PS is always NULL? Maybe circuit too small --> no synapses
                     //presyns i think are only used by nrniv/netcvode.cpp mechfor net_event (not for our HPX use case)
-
+                    //see netstim mod files (vdata[ppvar[1*STRIDE]] is used by artcell_net_send() ).
                     if (mech->pdataSize > 2)
                     {
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
                         void * RNG = nt._vdata[pdata[2]];
+                        (void) RNG;
                     }
-#endif
                 }
                 else
                 {
                     assert(mech->vdataSize==0);
+#endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataTOTAL  += mech->dataSize;
@@ -646,7 +648,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
 
     int n=0;
     vector<int> pdataType; //type of pdata offset per pdata entry
-    map<pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
+    map< pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
     map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
     for (auto comp : compartments)
     {
@@ -695,7 +697,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     }
 
     //convert all offsets in pdata to the correct ones
-    //depend on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
+    //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
     assert(pdataType.size() == pdata.size());
     assert(instanceToOffset.size() == offsetToInstance.size()); //if there are more than one instace of the same ion mech on a node, this fails!
     int vdataOffset=0;
@@ -754,7 +756,6 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             break;
         }
     }
-
     return n;
 }
 

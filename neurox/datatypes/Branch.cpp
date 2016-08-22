@@ -129,8 +129,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                 if (mech->vdataSize==2)
                 {
                     int offsetPP  = instancePdata[1];
-                    assert(offsetPP  < sizes[11]/sizeof(void*));
                     int offsetRNG = instancePdata[2];
+                    assert(offsetPP  < sizes[11]/sizeof(void*));
                     assert(offsetRNG < sizes[11]/sizeof(void*));
                     void * rng = instanceVdata[1];
                 }
