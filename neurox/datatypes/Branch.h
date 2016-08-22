@@ -51,6 +51,16 @@ class Branch
         int * nodesIndices; ///> array of nodes this instance will be applied to
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
+    struct MechanismsExecutionGraph
+    {
+        hpx_t * mechsLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
+        hpx_t endLCO; ///> represents the bottom of the graph
+        hpx_t graphLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
+
+        static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
+        static int nodeFunction_handler(const int * mechType_ptr, const size_t);
+    } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
+
     map<int, deque<NetConX> > netcons; ///> map of incoming netcons per pre-synaptic id
 
     priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
@@ -65,7 +75,7 @@ class Branch
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
     static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
-    static hpx_action_t mechsGraphNodeFunction; ///> represents the action of the nodes in the mechanisms graph
+
     static hpx_action_t fixedPlayContinuous; ///> nrn_fixed_play_continuous
     static hpx_action_t deliverEvents;   ///> delivers all events for the next time step (nrn_deliver_events)
 
@@ -77,9 +87,6 @@ class Branch
     void callModFunction2(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
 
-    hpx_t * mechsGraphLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
-    hpx_t mechsGraphEndLCO; ///> represents the bottom of the graph
-    hpx_t mechsGraphAllNodesLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
 
     static int deliverEvents_handler(const double *t, const size_t);
 
@@ -87,7 +94,6 @@ class Branch
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();
-    static int mechsGraphNodeFunction_handler(const int * mechType_ptr, const size_t);
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
