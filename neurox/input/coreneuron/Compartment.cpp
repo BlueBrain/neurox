@@ -29,3 +29,11 @@ void Compartment::addMechanismInstance(int mechType, double * data, int dataSize
     if (pdataSize>0)
        this->pdata.insert (this->pdata.end() , pdata , pdata  + pdataSize );
 };
+
+void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
+{
+    assert(ppi.size>0);
+    this->vecPlayInfo.push_back(ppi);
+    this->vecPlayTdata.insert(this->vecPlayTdata.begin(), t, t+ppi.size);
+    this->vecPlayYdata.insert(this->vecPlayYdata.begin(), y, y+ppi.size);
+}

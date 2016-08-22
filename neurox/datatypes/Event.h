@@ -9,6 +9,7 @@
 #define PreSynType 4
 #define NetParEventType 7
 #define InputPreSynType 20
+#define VecPlayContinuousType -4 //TODO is 4 but is already taken?
 
 namespace NeuroX
 {

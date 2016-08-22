@@ -4,7 +4,8 @@
 
 using namespace NeuroX;
 
-VecPlayContinuouX::VecPlayContinuouX(double *pd, double *t, double *y, size_t size)
+VecPlayContinuouX::VecPlayContinuouX(double * const pd, const double *t,
+                                     const double *y, const size_t size)
     :size(size), uBoundIndex(0), lastIndex(0), pd(pd)
 {
     assert(size>0);

@@ -69,7 +69,7 @@ class Branch
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
-    static hpx_action_t initNetCons; ///> Initializes Network Connections (NetCons) for this branch
+    static hpx_action_t broadcastNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
     static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
@@ -87,7 +87,6 @@ class Branch
     void callModFunction2(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
 
-
     static int deliverEvents_handler(const double *t, const size_t);
 
   private:
@@ -96,7 +95,7 @@ class Branch
     static int secondOrderCurrent_handler();
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int initNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int broadcastNetCons_handler();
     static int getSomaVoltage_handler();
     static int clear_handler();
     static int fixedPlayContinuous_handler();

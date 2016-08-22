@@ -25,24 +25,20 @@ Branch::~Branch()
     delete [] mechsInstances;
 }
 
-hpx_action_t Branch::initNetCons = 0;
-int Branch::initNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
+hpx_action_t Branch::broadcastNetCons = 0;
+int Branch::broadcastNetCons_handler()
 {
-    /**
-     * nargs = 2 where
-     * args[0] = array of netcons
-     * args[1] = array of args per netcon
-     */
     neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
     //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
     hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
     for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
     {
-        int preNeuronId = getNeuronAddr(nc->first); //false, he may not be in the network
-        int e = hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
-        assert(e==HPX_SUCCESS);
+        hpx_t preNeuronId = getNeuronAddr(nc->first);
+        hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
     }
-
+    hpx_lco_wait(lco);
+    neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
@@ -59,20 +55,23 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[5] = array of compartment/node index where the mechanisms are applied to
      * args[6] = branches, children branches (if any)
      * args[7] = parent compartment indices (if any)
-     * args[8] = vdata //TODO to be removed, should be instanteated here
+     * args[8] = vecplay T-data
+     * args[9] = vecplay Y-data
+     * args[10] = vecplay Info
+     * args[11] = vdata //TODO to be removed, should be instanteated here
      * NOTE: either args[6] or args[7] (or both) must have size>0
      */
 
     neurox_hpx_pin(Branch);
-    assert(nargs==8 || nargs==9);
+    assert(nargs==11 || nargs==12);
 
     //reconstruct and and topology data;
     local->n = *(const int*) args[0];
     local->isSoma = *(const char*) args[1];
     local->data = sizes[2]==0 ? nullptr : new double[sizes[2]/sizeof(double)];
     memcpy(local->data, args[2], sizes[2]);
-    local->vdata = sizes[8]==0 ? nullptr :  new void*[sizes[8]/sizeof(void*)];
-    memcpy(local->vdata, args[8], sizes[8]);
+    local->vdata = sizes[11]==0 ? nullptr :  new void*[sizes[11]/sizeof(void*)];
+    memcpy(local->vdata, args[11], sizes[11]);
     local->rhs = local->data + local->n*0;
     local->d = local->data + local->n*1;
     local->a = local->data + local->n*2;
@@ -112,7 +111,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         {
             //point pdata to the correct offset, and allocate vdata
             assert(dataOffset  <= sizes[2]/sizeof(double));
-            assert(vdataOffset <= sizes[8]/sizeof(void*) );
+            assert(vdataOffset <= sizes[11]/sizeof(void*) );
             double * instanceData  = (double*) &local->data[dataOffset ];
             double * instanceData2 = (double*) &instance.data [i*mech->dataSize];
             int *    instancePdata = (int   *) &instance.pdata[i*mech->pdataSize];
@@ -130,9 +129,9 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                 if (mech->vdataSize==2)
                 {
                     int offsetPP  = instancePdata[1];
-                    assert(offsetPP  < sizes[8]/sizeof(void*));
+                    assert(offsetPP  < sizes[11]/sizeof(void*));
                     int offsetRNG = instancePdata[2];
-                    assert(offsetRNG < sizes[8]/sizeof(void*));
+                    assert(offsetRNG < sizes[11]/sizeof(void*));
                     void * rng = instanceVdata[1];
                 }
                 //We will call bbcore_red on the correct vdata offset
@@ -148,7 +147,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
     assert( dataOffset == sizes[2]/sizeof(double));
     assert(pdataOffset == sizes[3]/sizeof(int));
-    assert(vdataOffset == sizes[8]/sizeof(void*));
+    assert(vdataOffset == sizes[11]/sizeof(void*));
     assert(instancesOffset == sizes[5]/sizeof(int));
 
     //reconstructs parents or branching
@@ -195,6 +194,26 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 #else
     local->mechsGraph = NULL;
 #endif
+
+    //reconstructs vecplay
+    //* args[8] = vecplay T-data
+    //* args[9] = vecplay Y-data
+    //* args[10] = vecplay Info
+    local->vecplayCount = sizes[10]/sizeof(Input::Coreneuron::PointProcInfo);
+    local->vecplay = new VecPlayContinuouX*[local->vecplayCount];
+    const double * vecplayTdata = (const double *) args[8];
+    const double * vecplayYdata = (const double *) args[9];
+    const Input::Coreneuron::PointProcInfo * ppis = (const Input::Coreneuron::PointProcInfo*) args[10];
+
+    int vOffset=0;
+    for (int v=0; v<local->vecplayCount; v++)
+    {
+        int m = mechanismsMap[ppis[v].mechType];
+        double *instancesData = local->mechsInstances[m].data;
+        double *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
+        local->vecplay[v] = new VecPlayContinuouX(pd, &vecplayTdata[vOffset], &vecplayYdata[vOffset], ppis[v].size);
+        vOffset += ppis[v].size;
+    }
     neurox_hpx_unpin;
 }
 
@@ -202,9 +221,11 @@ hpx_action_t Branch::clear=0;
 int Branch::clear_handler()
 {
     neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
     //hpx_lco_wait(-local->mechsGraphLco);
     hpx_lco_delete_sync(local->mechsGraph->graphLCO);
     local->mechsGraph->graphLCO=HPX_NULL;
+    neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
@@ -386,7 +407,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(1, Branch::updateV);
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(2, Branch::init);
-    neurox_hpx_register_action(2, Branch::initNetCons);
+    neurox_hpx_register_action(0, Branch::broadcastNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
     neurox_hpx_register_action(0, Branch::getSomaVoltage);
     neurox_hpx_register_action(0, Branch::clear);

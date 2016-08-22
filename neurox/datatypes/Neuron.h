@@ -38,12 +38,14 @@ class Neuron
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init;         ///> Initializes Neuron
     static hpx_action_t addSynapseTarget;  ///> Inserts outgoing synapses (targets) in this Neuron
+    static hpx_action_t broadcastNetCons;  ///> all branches broadcast to their pre-neuron ID their hpx addresses
 
   private:
     hpx_t synapsesMutex;   ///> mutex to protect variable 'synapses'
 
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]); ///> HPX constructor
     static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
+    static int broadcastNetCons_handler();
 };
 
 }

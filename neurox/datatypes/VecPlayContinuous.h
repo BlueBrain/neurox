@@ -15,19 +15,20 @@ class VecPlayContinuouX : Event
 {
   public:
     VecPlayContinuouX() = delete;
-    VecPlayContinuouX(double *pd, double *t, double *y, size_t size);
+    VecPlayContinuouX(double * const pd, const double *t, const double *y, const size_t size);
     ~VecPlayContinuouX();
 
     void deliver(double t, Branch* branch) override;
     void continuous(double tt);
     double getFirstInstant();
+    int type() override { return VecPlayContinuousType; }
 
     double *pd; ///>index to last value pointed by function continuous()
 
   private:
-    double * y; //array of values
-    double * t; //array of times instantes
-    int size;
+    double * y; ///> array of values
+    double * t; ///> array of times instantes
+    int size; ///> size of t and y arrays
     int uBoundIndex;
     int lastIndex;
 };

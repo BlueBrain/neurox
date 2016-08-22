@@ -85,8 +85,17 @@ void Neuron::waitForSynapsesDelivery(int commStepSize)
     }
 }
 
+hpx_action_t Neuron::broadcastNetCons = 0;
+int Neuron::broadcastNetCons_handler()
+{
+    neurox_hpx_pin(Neuron);
+    hpx_call_sync(local->soma, Branch::broadcastNetCons, NULL, 0);
+    neurox_hpx_unpin;
+}
+
 void Neuron::registerHpxActions()
 {
     neurox_hpx_register_action(2, Neuron::init);
+    neurox_hpx_register_action(0, Neuron::broadcastNetCons);
     neurox_hpx_register_action(1, Neuron::addSynapseTarget);
 }

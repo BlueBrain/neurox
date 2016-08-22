@@ -16,6 +16,7 @@
 #include "coreneuron/nrniv/nrn_setup.h"
 #include "coreneuron/utils/memory_utils.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
+#include "coreneuron/nrniv/vrecitem.h"
 
 #include "neurox/Neurox.h"
 #include "neurox/datatypes/Mechanism.h"
@@ -196,7 +197,7 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
-void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map<int, vector<NetConX*> > & netcons)
+void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, vector< vector<NetConX*> > & netcons)
 {
     for (int s = 0; s<netconsCount; s++)
     {
@@ -208,7 +209,13 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
 
       int mechType = nc->target_->_type;
 
-      netcons[preNeuronId].push_back(
+      int neuronOffset=-1;
+      for (int n=0; n<nrn_nthread; n++)
+          if (getNeuronIdFromNrnThreadId(n)==preNeuronId)
+              neuronOffset = n;
+      assert(neuronOffset!=-1 && neuronOffset<netconsCount);
+
+      netcons.at(neuronOffset).push_back(
           new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
                       nc->weight_, pnt_receive_size[mechType], nc->active_));
     }
@@ -419,7 +426,8 @@ void DataLoader::loadData(int argc, char ** argv)
 
         int neuronId =getNeuronIdFromNrnThreadId(i);
 
-        //reconstructs matrix (solver) values
+        //======= 1 - reconstructs matrix (solver) values =======
+
         deque<Compartment*> compartments;
         for (int n=0; n<nt.end; n++)
             compartments.push_back(
@@ -445,7 +453,8 @@ void DataLoader::loadData(int argc, char ** argv)
         fclose(fileCompartments);
 #endif
 
-        //reconstructs mechanisms for compartments
+        //======= 2 - reconstructs mechanisms instances ========
+
         int vdataOffset=0;
         int ntPointProcOffset=0;
         int dataTOTAL=nt.end*6;
@@ -506,7 +515,9 @@ void DataLoader::loadData(int argc, char ** argv)
             }
         }
 
-        map<int, vector<NetConX*> > netcons; //netcons per pre-synaptic neuron id
+        //======= 3 - reconstruct NetCons =====================
+
+        vector< vector<NetConX*> > netcons (neuronsCount); //netcons per pre-synaptic neuron offset (not id)
 
         //get all incoming synapses from neurons in other MPI ranks (or NrnThread?)
         for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
@@ -528,17 +539,53 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
         int netConsFromOthers=0;
-        for (auto nc : netcons)
+        for (int n=0; n<netcons.size(); n++)
         {
-            if (availableNeuronsIds.find(nc.first) == availableNeuronsIds.end())
+            int gid = getNeuronIdFromNrnThreadId(n);
+            if (availableNeuronsIds.find(gid) == availableNeuronsIds.end())
                 netConsFromOthers++;
             else
-                fprintf(fileNetcons, "%d -> %d [label=\"%d\"];\n", nc.first, neuronId, nc.second.size());
+                fprintf(fileNetcons, "%d -> %d [label=\"%d\"];\n", gid , neuronId, netcons[n].size());
         }
         fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
 #endif
 
-        //recursively create morphological tree, neuron metadata, and synapses
+        //======= 4 - reconstruct VecPlayContinuous events =======
+        for (int v=0; v<nt.n_vecplay; v++)
+        {
+            VecPlayContinuous *vec = (VecPlayContinuous*) nt._vecplay[v];
+            //discover node, mechanism and data offset id that *pd points to
+            double *pd = vec->pd_;
+            PointProcInfo ppi;
+            ppi.nodeId=-1;
+            for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
+            {
+                int type = tml->index;
+                Mechanism * mech = getMechanismFromType(type);
+                Memb_list * ml = tml->ml;
+                int dataOffset=0;
+                for (int n=0; n<ml->nodecount; n++)
+                {
+                   // if is this mechanism and this instance
+                   if (&ml->data[dataOffset] >= pd && &ml->data[dataOffset+mech->dataSize] < pd)
+                   {
+                       ppi.nodeId = ml->nodeindices[n];
+                       ppi.mechType = type;
+                       ppi.mechInstance = n;
+                       ppi.instanceDataOffset = pd - &ml->data[dataOffset];
+                       ppi.size = vec->t_->size();
+                       continue;
+                   }
+                   dataOffset += mech->dataSize;
+                }
+                if (ppi.nodeId!=-1) continue;
+            }
+            assert(ppi.nodeId != -1);
+            compartments.at(ppi.nodeId)->addVecPlay(vec->t_->data(), vec->y_->data(), ppi);
+        }
+
+        //======= 5 - recursively create branches tree ===========
+
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
         hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
@@ -546,19 +593,30 @@ void DataLoader::loadData(int argc, char ** argv)
                       &neuronId, sizeof(int),
                       &topBranch, sizeof(hpx_t),
                       &APthreshold, sizeof(double));
-
         for (auto c : compartments)
             delete c;
-
-        for (auto nc_it : netcons)
-            for (auto nc : nc_it.second)
-                delete nc;
     }
+
+    //al neurons have been created, now they'll populate Netcons
+    hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
+    { return hpx_call_sync(getNeuronAddr(i), Neuron::broadcastNetCons, NULL, 0); },
+    0, neuronsCount, NULL);
 
 #ifdef DEBUG
     fprintf(fileNetcons, "}\n");
     fclose(fileNetcons);
 #endif
+}
+
+int DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
+                                     vector<double> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo)
+{
+    for (auto comp : compartments)
+    {
+        vecPlayTdata.insert(vecPlayTdata.end(), comp->vecPlayTdata.begin(), comp->vecPlayTdata.end());
+        vecPlayYdata.insert(vecPlayYdata.end(), comp->vecPlayYdata.begin(), comp->vecPlayYdata.end());
+        vecPlayInfo.insert(vecPlayInfo.end(), comp->vecPlayInfo.begin(), comp->vecPlayInfo.end());
+    }
 }
 
 int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
@@ -700,7 +758,8 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     return n;
 }
 
-hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,  map<int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
+hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,
+                               vector< vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
     int n = -1; //number of compartments in branch
@@ -711,6 +770,11 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     vector<int> nodesIndices;
     vector<hpx_t> branches;
     vector<void*> vdata; //TODO should go away at some point,
+
+    //Vector Play instances
+    vector<double> vecPlayT;
+    vector<double> vecPlayY;
+    vector<PointProcInfo> vecPlayInfo;
 
     if (multiSpliX)
     {
@@ -727,6 +791,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
+        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
@@ -735,6 +800,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     else //Flat a la Coreneuron
     {
         n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
+        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
     }
 
     //Allocate HPX Branch
@@ -750,7 +816,11 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
                   nodesIndices.data(), nodesIndices.size()*sizeof(int),
                   multiSpliX ? branches.data() : nullptr, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
                   multiSpliX ? nullptr : p.data(), multiSpliX ? 0 : sizeof(int)*p.size(),
-                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size());
+                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(double)*vecPlayT.size(),
+                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(double)*vecPlayY.size(),
+                  vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(double)*vecPlayInfo.size(),
+                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()
+                  );
 
     return branchAddr;
 }

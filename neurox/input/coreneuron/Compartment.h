@@ -15,6 +15,15 @@ namespace Input
 namespace Coreneuron
 {
 
+struct PointProcInfo
+{
+    int nodeId;
+    int mechType;
+    int mechInstance;
+    int instanceDataOffset;
+    int size;
+};
+
 class Compartment
 {
   public:
@@ -26,6 +35,8 @@ class Compartment
 
     void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
 
+    void addVecPlay(double * t, double *y, PointProcInfo & ppi);
+
     int id;
     vector<Compartment*> branches;
     vector<void*> vdata; //TODO should go away at some point
@@ -35,6 +46,10 @@ class Compartment
     vector<double> data;
     vector<Datum> pdata;
     vector<NetConX> synapsesIn;
+
+    vector<PointProcInfo> vecPlayInfo;
+    vector<double> vecPlayTdata;
+    vector<double> vecPlayYdata;
   private:
 };
 
