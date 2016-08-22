@@ -17,7 +17,7 @@ class NetConX : Event
     NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
     ~NetConX();
 
-    void deliver(double t, void* branch); //event method (inherited)
+    void deliver(double t, Branch* branch) override; //event method (inherited)
 
     int mechType;   ///> mechanism type associated with this synapse
     short int argsCount;  ///> size of variable args

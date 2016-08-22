@@ -13,7 +13,7 @@ NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, sh
     }
 }
 
-void NetConX::deliver(double t, void* branch)
+void NetConX::deliver(double t, Branch* branch)
 {
     if (!this->active) return
     getMechanismFromType(mechType)->callNetReceiveFunction(branch, this, t, 0);

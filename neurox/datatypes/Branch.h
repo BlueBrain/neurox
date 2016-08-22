@@ -18,6 +18,8 @@ namespace  NeuroX {
  */
 class Branch
 {
+  //TODO variables n, p* and instance.count and indices can be short int unless we merge several neurons (a la CoreNeuron)
+
   public:
     Branch()=delete; ///> no constructor, build using hpx init function instead
     ~Branch();
@@ -37,6 +39,10 @@ class Branch
     double * area;	///> current area per compartment
     int *p;         ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
+    //List of children branches
+    int branchesCount;		///> number of branches (if any)
+    hpx_t *branches;		///> hpx address of the branches branches
+
     struct MechanismInstance
     {
         int count;          ///> number of instances of particular mechanism
@@ -45,15 +51,10 @@ class Branch
         int * nodesIndices; ///> array of nodes this instance will be applied to
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
-    //TODO variables n, p* and instance.count and indices can be short int unless we merge several neurons (a la CoreNeuron)
-
-    //List of children branches
-    int branchesCount;		///> number of branches (if any)
-    hpx_t *branches;		///> hpx address of the branches branches
-
     map<int, deque<NetConX> > netcons; ///> map of incoming netcons per pre-synaptic id
 
     priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
+    hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to spikesQueue
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
@@ -70,12 +71,11 @@ class Branch
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
-    VecPlayContinuouX ** vecplay; ///> all pointer data to VecPlayContinuous instances
+    VecPlayContinuouX ** vecplay; ///> described continuous events
     int vecplayCount; //number of vecplay
 
     void callModFunction2(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
-
 
     hpx_t * mechsGraphLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
     hpx_t mechsGraphEndLCO; ///> represents the bottom of the graph
@@ -84,7 +84,6 @@ class Branch
     static int deliverEvents_handler(const double *t, const size_t);
 
   private:
-    hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to spikesQueue
     static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();

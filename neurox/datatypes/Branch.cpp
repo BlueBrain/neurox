@@ -206,7 +206,8 @@ void Branch::initEventsQueue()
 {
     hpx_lco_sema_p(this->eventsQueueMutex);
     for (int v=0; v<this->vecplayCount; v++)
-        eventsQueue.push(make_pair(0.0, (Event*) this->vecplay[v]));
+        eventsQueue.push(make_pair(this->vecplay[v]->getFirstInstant(),
+                                   (Event*) this->vecplay[v]));
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
