@@ -13,7 +13,7 @@ namespace NeuroX
 class NetConX : Event
 {
   public:
-    NetConX() = delete;
+    NetConX();
     NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
     ~NetConX();
 

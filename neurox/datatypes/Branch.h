@@ -61,10 +61,10 @@ class Branch
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
-    map<int, vector<NetConX> > netcons; ///> map of incoming netcons per pre-synaptic id
+    map<int, vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
     priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
-    hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to spikesQueue
+    hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch

@@ -35,15 +35,16 @@ int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const 
     const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
     const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
 
-    //inform pre-synaptic neurons that we connect
+    //create index of unique pre-neurons ids
     std::set<int> netconsPreNeuronIds;
     for (auto nc : local->netcons)
         netconsPreNeuronIds.insert(nc.first);
 
+    //inform pre-synaptic neurons (once) that we connect
     for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
         //if I'm connected to it (ie is not artificial)
         if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
-            //tell the neuon to add the synapse to this branch
+            //tell the neuron to add the synapse to this branch
             hpx_call_sync(neuronsAddr[i], Neuron::addSynapseTarget, &target, sizeof(target)) ;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -77,6 +78,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
     local->t = inputParams->t;
     local->dt = inputParams->dt;
+    local->eventsQueueMutex = hpx_lco_sema_new(1);
 
     //reconstruct and and topology data;
     local->n = *(const int*) args[0];
@@ -229,20 +231,24 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
 
     //reconstructs netcons
+    //* args[11] = netcons information
+    //* args[12] = netcons preneuron ids
+    //* args[13] = netcons args (size of each netcon args array in netcons info)
     int netconsCount = sizes[11]/sizeof(NetConX);
-    const NetConX *netcons      = (const NetConX*) args[11];
-    const int     *netConsPreId = (const int *)    args[12];
-    const double  *netConsArgs  = (const double *) args[13];
+    NetConX *netcons    = (NetConX*) args[11];
+    int *netConsPreId   = (int *)    args[12];
+    double *netConsArgs = (double*)  args[13];
 
     int argsOffset=0;
     for (int nc=0; nc<netconsCount; nc++)
     {
-        vector<NetConX> & vecNetCons = local->netcons[netConsPreId[nc]];
-        vecNetCons.push_back(netcons[nc]);
-        NetConX & lastNC = vecNetCons.back();
-        lastNC.args = new double[vecNetCons.back().argsCount];
-        memcpy(lastNC.args, &netConsArgs[argsOffset], sizeof(double)+lastNC.argsCount);
-        argsOffset += lastNC.argsCount;
+        local->netcons = map<int, vector<NetConX*> > (); //initialize map
+        local->netcons[netConsPreId[nc]] = vector<NetConX*> (); //initialize vector
+        vector<NetConX*> & vecNetCons = local->netcons[netConsPreId[nc]];
+        vecNetCons.push_back(new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
+                                         &netConsArgs[argsOffset], netcons[nc].argsCount, netcons[nc].active));
+        //(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
+        argsOffset += netcons[nc].argsCount;
     }
 
     neurox_hpx_unpin;
@@ -281,16 +287,17 @@ int Branch::fixedPlayContinuous_handler()
 }
 
 hpx_action_t Branch::deliverEvents = 0;
-int Branch::deliverEvents_handler(const double *t, const size_t size)
+int Branch::deliverEvents_handler(const double *t_ptr, const size_t size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::deliverEvents, t, size);
+    double t = t_ptr ? *t_ptr : local->t;
+    neurox_hpx_recursive_branch_async_call(Branch::deliverEvents, t_ptr, size);
     hpx_lco_sema_p(local->eventsQueueMutex);
     while (!local->eventsQueue.empty() &&
-           local->eventsQueue.top().first <= *t)
+           local->eventsQueue.top().first <= t)
     {
         Event * e = local->eventsQueue.top().second;
-        local->eventsQueue.top().second->deliver(*t, local);
+        e->deliver(t, local);
         local->eventsQueue.pop();
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
@@ -348,10 +355,12 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
           //wait for the completion of the graph by waiting at the 'end node' lco
           hpx_lco_wait_reset(local->mechsGraph->endLCO);
         }
-        else
+        else //serial
         {
             for (int m=0; m<mechanismsCount; m++)
-                if (mechanisms[m]->type == capacitance)
+                if ( mechanisms[m]->type == capacitance
+                   && (*functionId_ptr == Mechanism::ModFunction::current
+                      || *functionId_ptr == Mechanism::ModFunction::jacob))
                     continue;
                 else
                     mechanisms[m]->callModFunction(local, *functionId_ptr);
@@ -375,7 +384,8 @@ int Branch::MechanismsExecutionGraph::nodeFunction_handler(const int * mechType_
     {
         //wait until all dependencies have completed, and get the argument (function id) from the hpx_lco_set
         hpx_lco_get_reset(local->mechsGraph->mechsLCOs[mechanismsMap[type]], sizeof(Mechanism::ModFunction), &functionId);
-
+        assert(functionId!=Mechanism::ModFunction::jacobCapacitance);
+        assert(functionId!=Mechanism::ModFunction::currentCapacitance);
         mech->callModFunction(local, functionId);
 
         if (mech->successorsCount==0) //bottom mechanism

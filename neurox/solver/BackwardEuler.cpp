@@ -14,7 +14,7 @@ void BackwardEuler::run()
   {
      //finitialize.c (nrn_finitialize( 1, inputParams.voltage )
      printf("Neuron::initialize...\n");
-     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initialize, NULL, 0);
+     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initializeNeuron, NULL, 0);
      printf("Neuron::solve...\n");
      return hpx_call_sync(getNeuronAddr(i), BackwardEuler::solve, NULL, 0);
      return HPX_SUCCESS;
@@ -31,7 +31,7 @@ int BackwardEuler::initializeBranch_handler(const double * v, const size_t v_siz
     //Not applicable for our use case
     //nrn_play_init() initiates the VectorPlayContinuous
     local->initEventsQueue();
-    local->deliverEvents_handler(&local->t, sizeof(local->t));
+    local->deliverEvents_handler(NULL, 0);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     for (int n=0; n<local->n; n++)
@@ -40,8 +40,8 @@ int BackwardEuler::initializeBranch_handler(const double * v, const size_t v_siz
     neurox_hpx_unpin;
 }
 
-hpx_action_t BackwardEuler::initialize=0;
-int BackwardEuler::initialize_handler()
+hpx_action_t BackwardEuler::initializeNeuron=0;
+int BackwardEuler::initializeNeuron_handler()
 {
     neurox_hpx_pin(Neuron);
 
@@ -60,9 +60,9 @@ int BackwardEuler::initialize_handler()
     //local->cj = inputParams->secondorder ? 2.0/inputParams->dt : 1.0/inputParams->dt;
     //done when calling mechanisms //TODO have a copy per branch to speed-up?
 
-    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0, NULL,0);
     local->setupTreeMatrixMinimal();
-    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0, NULL, 0);
 
     //part of nrn_fixed_step_group_minimal
     //1. multicore.c::nrn_thread_table_check()
@@ -154,6 +154,6 @@ void BackwardEuler::registerHpxActions()
 {
     neurox_hpx_register_action(0, BackwardEuler::solve);
     neurox_hpx_register_action(1, BackwardEuler::branchStep);
-    neurox_hpx_register_action(1, BackwardEuler::initialize);
+    neurox_hpx_register_action(0, BackwardEuler::initializeNeuron);
     neurox_hpx_register_action(1, BackwardEuler::initializeBranch)
 }

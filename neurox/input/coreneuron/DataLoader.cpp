@@ -277,10 +277,12 @@ void DataLoader::loadData(int argc, char ** argv)
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
 
     std::set<int> allNeuronsIdsSet;
-    for (int i=0; i<nrn_nthread-1; i++) {
-        assert(nrn_threads[i].ncell == 1); //requires one neuron per NrnThread (if fails, add "CellGroupSize 1" to BlueConfig)
+    for (int i=0; i<neuronsCount; i++)
+    {
+        assert(nrn_threads[i].ncell == 1);
         allNeuronsIdsSet.insert(getNeuronIdFromNrnThreadId(i));
     }
+
 
 #ifdef DEBUG
     for (int i=0; i<neuronsCount; i++)
@@ -372,7 +374,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
-    fprintf(fileMechs, "digraph G\n{\n");
+    fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", PNG_BACKGROUND_COLOR);
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
@@ -406,8 +408,8 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileNetcons, "digraph G\n{\n");
-    fprintf(fileNetcons, "others [style=filled, fillcolor=beige];\n");
+    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", PNG_BACKGROUND_COLOR);
+    fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
 #endif
 
     //reconstructs neurons
@@ -434,7 +436,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G_%d\n{\n", neuronId );
+        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;\n", neuronId, PNG_BACKGROUND_COLOR );
         printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
         for (auto c : compartments) //draw edges
             for (auto k : c->branches)
@@ -542,10 +544,13 @@ void DataLoader::loadData(int argc, char ** argv)
                 double minDelay=99999;
                 for (auto ncv : nc.second) //get minimum delay between neurons
                     minDelay = std::min(minDelay, ncv->delay);
-                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2f ms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
+                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
             }
         }
-        fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
+        fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
+        //fprintf(fileNetcons, "X%d [style=invis];\n", neuronId, neuronId, netConsFromOthers);
+        //fprintf(fileNetcons, "X%d -> %d [label=\"%d\"];\n", neuronId, neuronId, netConsFromOthers);
+
 #endif
 
         //======= 4 - reconstruct VecPlayContinuous events =======
@@ -628,15 +633,31 @@ void DataLoader::getNetConsBranchData(
         vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreId,
         vector<double> & branchNetConsArgs)
 {
+    //get size and allocate it
+    int ncCount=0, argsCount=0;
     for (auto nc : netcons)
-    {
         for (auto nc2 : nc.second)
         {
-           branchNetCons.push_back(*nc2);
-           branchNetConsPreId.push_back(nc.first);
-           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->args, nc2->args + nc2->argsCount);
+            ncCount++;
+            argsCount += nc2->argsCount;
         }
-    }
+
+    branchNetCons = vector<NetConX> (ncCount);
+    branchNetConsPreId = vector<int> (ncCount);
+    branchNetConsArgs = vector<double> (ncCount);
+
+    int i=0;
+    for (auto nc : netcons)
+        for (auto nc2 : nc.second)
+        {
+           assert(nc2!=NULL);
+           assert(nc2->args != NULL);
+           memcpy(&branchNetCons.at(i), nc2, sizeof(NetConX)); //push_back will call destructor!
+           memcpy(&branchNetConsPreId.at(i), &nc.first, sizeof(int));
+           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->args, nc2->args + nc2->argsCount);
+           branchNetCons[i].args=NULL; //needed or will be pointing to original netcons data and will call destructor
+           i++;
+        }
 }
 
 void DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
@@ -826,8 +847,9 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
-        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
-        getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
+        //TODO broken until we manage to translate mechId+instance in neuron to branch!
+        //getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
+        //getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)

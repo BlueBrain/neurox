@@ -3,6 +3,8 @@
 
 using namespace NeuroX;
 
+NetConX::NetConX(){}
+
 NetConX::NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active)
     :mechType(mechType), argsCount(argsCount), mechInstance(mechInstance), delay(delay), active(active), args(nullptr)
 {

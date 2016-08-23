@@ -19,7 +19,7 @@ class BackwardEuler
 
     static void registerHpxActions(); ///> Registers all HPX actions
     static void run(); ///> netpar.cpp:BBS_netpar_solve()
-    static hpx_action_t initialize;  ///> finitialize.c
+    static hpx_action_t initializeNeuron;  ///> finitialize.c
     static hpx_action_t initializeBranch;  ///> finitialize.c
     static hpx_action_t solve; ///> performs one Backward Euler step in all neurons
     static hpx_action_t branchStep; ///> performs one Backward Euler step on the top branch
@@ -27,7 +27,7 @@ class BackwardEuler
   private:
     static int solve_handler();
     static int branchStep_handler(const int * stepsCount_ptr, const size_t);
-    static int initialize_handler(); ///> initialize.c
+    static int initializeNeuron_handler(); ///> initialize.c
     static int initializeBranch_handler(const double * v, const size_t v_size);
 } ;
 
