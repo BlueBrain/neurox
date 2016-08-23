@@ -1,5 +1,6 @@
 #include "neurox/Neurox.h"
-#include "string.h"
+#include <cstring>
+#include <algorithm>
 
 using namespace NeuroX;
 using namespace NeuroX::Solver;
@@ -55,8 +56,13 @@ int Neuron::addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t)
 {
     neurox_hpx_pin(Neuron);
     hpx_lco_sema_p(local->synapsesMutex);
-    local->synapses.push_back(*synapseTarget);
-    local->synapses.shrink_to_fit();
+    if (std::find(local->synapses.begin(), local->synapses.end(), *synapseTarget) == local->synapses.end())
+    {
+        local->synapses.push_back(*synapseTarget);
+        local->synapses.shrink_to_fit();
+    }
+    else
+    { assert(0);} //should be filtered by the branch
     hpx_lco_sema_v_sync(local->synapsesMutex);
     neurox_hpx_unpin;
 }
@@ -67,7 +73,6 @@ void Neuron::fireActionPotential()
     hpx_t spikesLco = hpx_lco_and_new(synapses.size());
     for (int s=0; s<synapses.size(); s++)
     {
-        //TODO shall we gather these by locality to save communication?
         double tt = this->t +  1e-10;
         hpx_call(synapses[s], Branch::queueSpikes, spikesLco,
                  &id, sizeof(id), &tt, sizeof(tt) );
@@ -86,16 +91,18 @@ void Neuron::waitForSynapsesDelivery(int commStepSize)
 }
 
 hpx_action_t Neuron::broadcastNetCons = 0;
-int Neuron::broadcastNetCons_handler()
+int Neuron::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Neuron);
-    hpx_call_sync(local->soma, Branch::broadcastNetCons, NULL, 0);
+    assert(nargs==2);
+    hpx_call_sync(local->soma, Branch::broadcastNetCons, NULL, 0,
+                  (void*) args[0], sizes[0], (void*) args[1], sizes[1]);
     neurox_hpx_unpin;
 }
 
 void Neuron::registerHpxActions()
 {
     neurox_hpx_register_action(2, Neuron::init);
-    neurox_hpx_register_action(0, Neuron::broadcastNetCons);
+    neurox_hpx_register_action(2, Neuron::broadcastNetCons);
     neurox_hpx_register_action(1, Neuron::addSynapseTarget);
 }

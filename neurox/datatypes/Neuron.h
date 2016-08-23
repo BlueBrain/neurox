@@ -26,7 +26,7 @@ class Neuron
 
     //outgoing synapses
     double APthreshold;  ///> Action Potential threshold
-    std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (neuron or branch)
+    std::vector<hpx_t> synapses;   ///> hpx address of post-synaptic recipient of synapse (as a hpx address of a branch)
     std::deque<hpx_t> synapsesLCO; ///> LCO for every AP sent
 
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
@@ -45,7 +45,7 @@ class Neuron
 
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]); ///> HPX constructor
     static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
-    static int broadcastNetCons_handler();
+    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
 };
 
 }

@@ -14,9 +14,9 @@ InputParams::InputParams ():
   voltage(-65), forwardSkip(0),  prcellgid(-1)
 {
     //TODO: missing some inits
-    memset(patternStim,'0',512);
-    memset(inputPath,'0',512);
-    memset(outputPath,'0',512);
+    memset(patternStim,'\0',512);
+    memset(inputPath,'\0',512);
+    memset(outputPath,'\0',512);
 }
 
 InputParams::~InputParams(){}

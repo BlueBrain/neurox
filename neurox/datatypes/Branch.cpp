@@ -2,6 +2,7 @@
 #include <cstring>
 #include <algorithm>
 #include <numeric>
+#include <set>
 
 using namespace NeuroX;
 
@@ -26,18 +27,24 @@ Branch::~Branch()
 }
 
 hpx_action_t Branch::broadcastNetCons = 0;
-int Branch::broadcastNetCons_handler()
+int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
-    //inform pre-synaptic neurons that we connect (my hpx address is stored in variable "target")
-    hpx_addr_t lco =  local->netcons.size() ?  local->netcons.size() : HPX_NULL;
-    for (auto nc = local->netcons.begin(); nc != local->netcons.end(); nc++)
-    {
-        hpx_t preNeuronId = getNeuronAddr(nc->first);
-        hpx_call(preNeuronId, Neuron::addSynapseTarget, lco, &target, sizeof(target)) ;
-    }
-    hpx_lco_wait(lco);
+    neurox_hpx_recursive_branch_async_call(Branch::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
+    assert(nargs==2);
+    const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
+    const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
+
+    //inform pre-synaptic neurons that we connect
+    std::set<int> netconsPreNeuronIds;
+    for (auto nc : local->netcons)
+        netconsPreNeuronIds.insert(nc.first);
+
+    for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
+        //if I'm connected to it (ie is not artificial)
+        if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
+            //tell the neuon to add the synapse to this branch
+            hpx_call_sync(neuronsAddr[i], Neuron::addSynapseTarget, &target, sizeof(target)) ;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -61,9 +68,11 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[11] = vdata //TODO to be removed, should be instanteated here
      * NOTE: either args[6] or args[7] (or both) must have size>0
      */
-
     neurox_hpx_pin(Branch);
     assert(nargs==11 || nargs==12);
+
+    local->t = inputParams->t;
+    local->dt = inputParams->dt;
 
     //reconstruct and and topology data;
     local->n = *(const int*) args[0];
@@ -407,7 +416,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(1, Branch::updateV);
     neurox_hpx_register_action(1, Branch::callModFunction);
     neurox_hpx_register_action(2, Branch::init);
-    neurox_hpx_register_action(0, Branch::broadcastNetCons);
+    neurox_hpx_register_action(2, Branch::broadcastNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);
     neurox_hpx_register_action(0, Branch::getSomaVoltage);
     neurox_hpx_register_action(0, Branch::clear);

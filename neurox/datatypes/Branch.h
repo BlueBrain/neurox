@@ -95,7 +95,7 @@ class Branch
     static int secondOrderCurrent_handler();
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int broadcastNetCons_handler();
+    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int getSomaVoltage_handler();
     static int clear_handler();
     static int fixedPlayContinuous_handler();

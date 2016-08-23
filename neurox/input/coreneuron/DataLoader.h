@@ -37,10 +37,10 @@ class DataLoader
     static void compareDataStructuresWithCoreNeuron(Branch * branch);
   private:
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
-                                        int netconsOffset, vector< vector<NetConX*> > & netcons);
+                                        int netconsOffset, map< int, vector<NetConX*> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
     static hpx_t createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,
-                              vector< vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance);
+                              map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance);
 
     static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);

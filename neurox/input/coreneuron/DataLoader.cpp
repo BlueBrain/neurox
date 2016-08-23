@@ -28,8 +28,7 @@ using namespace NeuroX::Input::Coreneuron;
 
 int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
-    return netcon_srcgid[nrn_id][0];
-    //return nrn_threads[nrn_id].presyns[0].gid_;
+    return nrn_threads[nrn_id].presyns[0].gid_;
 }
 
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
@@ -197,7 +196,7 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
-void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, vector< vector<NetConX*> > & netcons)
+void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map< int, vector<NetConX*> > & netcons)
 {
     for (int s = 0; s<netconsCount; s++)
     {
@@ -208,14 +207,7 @@ void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netc
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
-
-      int neuronOffset=-1;
-      for (int n=0; n<nrn_nthread; n++)
-          if (getNeuronIdFromNrnThreadId(n)==preNeuronId)
-              neuronOffset = n;
-      assert(neuronOffset!=-1 && neuronOffset<netconsCount);
-
-      netcons.at(neuronOffset).push_back(
+      netcons[preNeuronId].push_back(
           new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
                       nc->weight_, pnt_receive_size[mechType], nc->active_));
     }
@@ -282,14 +274,16 @@ void DataLoader::loadData(int argc, char ** argv)
     //we will walk a bit with coreneuron
     coreNeuronFakeSteps();
 
-    std::set<int> availableNeuronsIds;
-    for (int i=0; i<nrn_nthread; i++) {
+    int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+
+    std::set<int> allNeuronsIdsSet;
+    for (int i=0; i<nrn_nthread-1; i++) {
         assert(nrn_threads[i].ncell == 1); //requires one neuron per NrnThread (if fails, add "CellGroupSize 1" to BlueConfig)
-        availableNeuronsIds.insert(getNeuronIdFromNrnThreadId(i));
+        allNeuronsIdsSet.insert(getNeuronIdFromNrnThreadId(i));
     }
 
 #ifdef DEBUG
-    for (int i=0; i<nrn_nthread; i++)
+    for (int i=0; i<neuronsCount; i++)
     {
         int neuronId = getNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
@@ -349,7 +343,7 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
-        if (strcmp(memb_func[type].sym, "PatternStim") && inputParams->patternStim[0]=='0')
+        if (strcmp(memb_func[type].sym, "PatternStim")==0 && inputParams->patternStim[0]=='\0')
                 continue; //only load PatternStim if path initialized
 
         mechsData.push_back(
@@ -362,7 +356,7 @@ void DataLoader::loadData(int argc, char ** argv)
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
 
-    if (inputParams->patternStim[0]!='0') //"initialized"
+    if (inputParams->patternStim[0]!='\0') //"initialized"
     {
         assert(0); //not an error: should be initialized already by coreneuron (and above)
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
@@ -401,8 +395,6 @@ void DataLoader::loadData(int argc, char ** argv)
     fclose(fileMechs);
 #endif
 
-    int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
-
     //allocate HPX memory space for neurons
     printf("Broadcasting %d neurons...\n", neuronsCount);
     hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
@@ -412,19 +404,14 @@ void DataLoader::loadData(int argc, char ** argv)
 #ifdef DEBUG
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     fprintf(fileNetcons, "digraph G\n{\n");
+    fprintf(fileNetcons, "others [style=filled, fillcolor=beige];\n");
 #endif
 
     //reconstructs neurons
-    for (int i=0; i<nrn_nthread; i++)
+    for (int i=0; i<neuronsCount; i++)
     {
         NrnThread & nt = nrn_threads[i];
-        if (nt.ncell!=1)
-        {
-            printf("Warning: ignoring NrnThread %d because it has %d neurons instead of 1\n", i, nt.ncell);
-            continue;
-        }
-
-        int neuronId =getNeuronIdFromNrnThreadId(i);
+        int neuronId = getNeuronIdFromNrnThreadId(i);
 
         //======= 1 - reconstructs matrix (solver) values =======
 
@@ -519,13 +506,14 @@ void DataLoader::loadData(int argc, char ** argv)
 
         //======= 3 - reconstruct NetCons =====================
 
-        vector< vector<NetConX*> > netcons (neuronsCount); //netcons per pre-synaptic neuron offset (not id)
+        map< int, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron offset (not id)
 
         //get all incoming synapses from neurons in other MPI ranks (or NrnThread?)
         for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
              syn_it!=gid2in.end(); syn_it++)
         {
             int preNeuronId = syn_it->first;
+            //we can also get it from netcon_srcgid[nrn_thread_it][netcon_it]
             InputPreSyn * ips = syn_it->second;
             addNetConsForThisNeuron(neuronId, preNeuronId, ips->nc_cnt_, ips->nc_index_, netcons);
         }
@@ -541,13 +529,18 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #ifdef DEBUG
         int netConsFromOthers=0;
-        for (int n=0; n<netcons.size(); n++)
+        for (auto nc : netcons)
         {
-            int gid = getNeuronIdFromNrnThreadId(n);
-            if (availableNeuronsIds.find(gid) == availableNeuronsIds.end())
+            int gid = nc.first;
+            if (allNeuronsIdsSet.find(gid) == allNeuronsIdsSet.end())
                 netConsFromOthers++;
             else
-                fprintf(fileNetcons, "%d -> %d [label=\"%d\"];\n", gid , neuronId, netcons[n].size());
+            {
+                double minDelay=99999;
+                for (auto ncv : nc.second) //get minimum delay between neurons
+                    minDelay = std::min(minDelay, ncv->delay);
+                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2f ms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
+            }
         }
         fprintf(fileNetcons, "%s -> %d [label=\"%d\"];\n", "others", neuronId, netConsFromOthers);
 #endif
@@ -569,7 +562,7 @@ void DataLoader::loadData(int argc, char ** argv)
                 for (int n=0; n<ml->nodecount; n++)
                 {
                    // if is this mechanism and this instance
-                   if (&ml->data[dataOffset] >= pd && &ml->data[dataOffset+mech->dataSize] < pd)
+                   if (&ml->data[dataOffset] <= pd && pd < &ml->data[dataOffset+mech->dataSize])
                    {
                        ppi.nodeId = ml->nodeindices[n];
                        ppi.mechType = type;
@@ -591,18 +584,35 @@ void DataLoader::loadData(int argc, char ** argv)
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
         hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
-        hpx_call_sync(getNeuronAddr(neuronId), Neuron::init, NULL, 0,
+        hpx_call_sync(getNeuronAddr(i), Neuron::init, NULL, 0,
                       &neuronId, sizeof(int),
                       &topBranch, sizeof(hpx_t),
                       &APthreshold, sizeof(double));
+
         for (auto c : compartments)
             delete c;
+        for (auto nc: netcons)
+            for (auto nvc : nc.second)
+                delete nvc;
     }
 
-    //al neurons have been created, now they'll populate Netcons
-    hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
-    { return hpx_call_sync(getNeuronAddr(i), Neuron::broadcastNetCons, NULL, 0); },
-    0, neuronsCount, NULL);
+    //al neurons have been created, every branch will inform pre-syn ids that they are connected
+    assert(allNeuronsIdsSet.size() == neuronsCount);
+    std::vector<int>   allNeuronsIdsVec  (neuronsCount);
+    std::vector<hpx_t> allNeuronsAddrVec (neuronsCount);
+    for (int i=0; i<neuronsCount; i++)
+    {
+        allNeuronsIdsVec[i]  = getNeuronIdFromNrnThreadId(i);
+        allNeuronsAddrVec[i] = getNeuronAddr(i);
+    }
+
+    hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
+    for (int i=0; i<neuronsCount; i++)
+        hpx_call(getNeuronAddr(i), Neuron::broadcastNetCons, lco_neurons,
+                 allNeuronsIdsVec.data(), allNeuronsIdsVec.size()*sizeof(int),
+                 allNeuronsAddrVec.data(), allNeuronsAddrVec.size()*sizeof(hpx_t));
+    hpx_lco_wait(lco_neurons);
+    hpx_lco_delete(lco_neurons, NULL);
 
 #ifdef DEBUG
     fprintf(fileNetcons, "}\n");
@@ -760,7 +770,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
 }
 
 hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               vector< vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
+                               map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
     int n = -1; //number of compartments in branch
