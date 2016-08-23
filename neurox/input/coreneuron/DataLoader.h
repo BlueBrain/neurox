@@ -50,8 +50,12 @@ private:
                              vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices,
                              int totalN, map<int, pair<int,int>> & offsetToInstance);
 
-    static int getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
+    static void getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
                                     vector<double> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo);
+
+    static void getNetConsBranchData(deque<Compartment*> & compartments, map<int, vector<NetConX*> > & netcons,
+                                     vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreNeuronId,
+                                     vector<double> & branchNetConsArgs);
 
 #ifdef DEBUG
     static void printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment);

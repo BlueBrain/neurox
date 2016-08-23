@@ -381,6 +381,9 @@ void DataLoader::loadData(int argc, char ** argv)
     for (int m =0; m< mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
+        if (mech->pntMap > 0) //if is point process make it dotted
+            fprintf(fileMechs, "\"%s (%d)\" [style=dotted];\n", mech->sym, mech->type);
+
         if (mech->dependenciesCount==0 && mech->type!=capacitance) //top mechanism
             fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
 
@@ -496,8 +499,8 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
-                dataTOTAL  += mech->dataSize;
-                pdataTOTAL += mech->pdataSize;
+                dataTOTAL   += mech->dataSize;
+                pdataTOTAL  += mech->pdataSize;
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;
                 vdataOffset += mech->vdataSize;
@@ -620,7 +623,23 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 }
 
-int DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
+void DataLoader::getNetConsBranchData(
+        deque<Compartment*> & compartments, map<int, vector<NetConX*> > & netcons,
+        vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreId,
+        vector<double> & branchNetConsArgs)
+{
+    for (auto nc : netcons)
+    {
+        for (auto nc2 : nc.second)
+        {
+           branchNetCons.push_back(*nc2);
+           branchNetConsPreId.push_back(nc.first);
+           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->args, nc2->args + nc2->argsCount);
+        }
+    }
+}
+
+void DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
                                      vector<double> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo)
 {
     for (auto comp : compartments)
@@ -659,13 +678,13 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     int n=0;
     vector<int> pdataType; //type of pdata offset per pdata entry
     map< pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
-    map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
+    map<int,int> compIdFromNeuronToBranch; //map of branch id per compartment id
     for (auto comp : compartments)
     {
         int compDataOffset=0;
         int compPdataOffset=0;
         int compVdataOffset=0;
-        fromNeuronToBranchId[comp->id] = n;
+        compIdFromNeuronToBranch[comp->id] = n;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
@@ -724,7 +743,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         {
             assert(p>=totalN*5 && p<totalN<6);
             int oldId = p-totalN*5;
-            int newId = fromNeuronToBranchId[oldId];
+            int newId = compIdFromNeuronToBranch[oldId];
             pdata[i] = n*5+newId;
             break;
         }
@@ -787,6 +806,11 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     vector<double> vecPlayY;
     vector<PointProcInfo> vecPlayInfo;
 
+    //branch NetCons
+    vector<NetConX> branchNetCons;
+    vector<int> branchNetConsPreId;
+    vector<double> branchNetConsArgs;
+
     if (multiSpliX)
     {
         deque<Compartment*> subSection;
@@ -803,6 +827,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
         getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
+        getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
@@ -812,6 +837,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     {
         n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
         getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
+        getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
     }
 
     //Allocate HPX Branch
@@ -830,6 +856,9 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(double)*vecPlayT.size(),
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(double)*vecPlayY.size(),
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(double)*vecPlayInfo.size(),
+                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetCon)*branchNetCons.size(),
+                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(int)*branchNetConsPreId.size(),
+                  branchNetConsArgs.size() > 0 ? branchNetConsArgs.data() : nullptr, sizeof(double)*branchNetConsArgs.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()
                   );
 

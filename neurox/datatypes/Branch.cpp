@@ -65,11 +65,15 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
      * args[8] = vecplay T-data
      * args[9] = vecplay Y-data
      * args[10] = vecplay Info
-     * args[11] = vdata //TODO to be removed, should be instanteated here
+     * args[11] = netcons information
+     * args[12] = netcons preneuron ids
+     * args[13] = netcons args (size of each netcon args array in netcons info)
+     * args[14] = vdata //TODO to be removed, should be instanteated here
      * NOTE: either args[6] or args[7] (or both) must have size>0
      */
+
     neurox_hpx_pin(Branch);
-    assert(nargs==11 || nargs==12);
+    assert(nargs==14 || nargs==15);
 
     local->t = inputParams->t;
     local->dt = inputParams->dt;
@@ -79,8 +83,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     local->isSoma = *(const char*) args[1];
     local->data = sizes[2]==0 ? nullptr : new double[sizes[2]/sizeof(double)];
     memcpy(local->data, args[2], sizes[2]);
-    local->vdata = sizes[11]==0 ? nullptr :  new void*[sizes[11]/sizeof(void*)];
-    memcpy(local->vdata, args[11], sizes[11]);
+    local->vdata = sizes[14]==0 ? nullptr :  new void*[sizes[14]/sizeof(void*)];
+    memcpy(local->vdata, args[14], sizes[14]);
     local->rhs = local->data + local->n*0;
     local->d = local->data + local->n*1;
     local->a = local->data + local->n*2;
@@ -120,7 +124,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         {
             //point pdata to the correct offset, and allocate vdata
             assert(dataOffset  <= sizes[2]/sizeof(double));
-            assert(vdataOffset <= sizes[11]/sizeof(void*) );
+            assert(vdataOffset <= sizes[14]/sizeof(void*) );
             double * instanceData  = (double*) &local->data[dataOffset ];
             double * instanceData2 = (double*) &instance.data [i*mech->dataSize];
             int *    instancePdata = (int   *) &instance.pdata[i*mech->pdataSize];
@@ -139,8 +143,8 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                 {
                     int offsetPP  = instancePdata[1];
                     int offsetRNG = instancePdata[2];
-                    assert(offsetPP  < sizes[11]/sizeof(void*));
-                    assert(offsetRNG < sizes[11]/sizeof(void*));
+                    assert(offsetPP  < sizes[14]/sizeof(void*));
+                    assert(offsetRNG < sizes[14]/sizeof(void*));
                     void * rng = instanceVdata[1];
                 }
                 //We will call bbcore_red on the correct vdata offset
@@ -156,7 +160,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
     assert( dataOffset == sizes[2]/sizeof(double));
     assert(pdataOffset == sizes[3]/sizeof(int));
-    assert(vdataOffset == sizes[11]/sizeof(void*));
+    assert(vdataOffset == sizes[14]/sizeof(void*));
     assert(instancesOffset == sizes[5]/sizeof(int));
 
     //reconstructs parents or branching
@@ -223,6 +227,24 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         local->vecplay[v] = new VecPlayContinuouX(pd, &vecplayTdata[vOffset], &vecplayYdata[vOffset], ppis[v].size);
         vOffset += ppis[v].size;
     }
+
+    //reconstructs netcons
+    int netconsCount = sizes[11]/sizeof(NetConX);
+    const NetConX *netcons      = (const NetConX*) args[11];
+    const int     *netConsPreId = (const int *)    args[12];
+    const double  *netConsArgs  = (const double *) args[13];
+
+    int argsOffset=0;
+    for (int nc=0; nc<netconsCount; nc++)
+    {
+        vector<NetConX> & vecNetCons = local->netcons[netConsPreId[nc]];
+        vecNetCons.push_back(netcons[nc]);
+        NetConX & lastNC = vecNetCons.back();
+        lastNC.args = new double[vecNetCons.back().argsCount];
+        memcpy(lastNC.args, &netConsArgs[argsOffset], sizeof(double)+lastNC.argsCount);
+        argsOffset += lastNC.argsCount;
+    }
+
     neurox_hpx_unpin;
 }
 

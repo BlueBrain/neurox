@@ -43,7 +43,6 @@ class Compartment
     vector<int> mechsTypes;
     vector<double> data;
     vector<Datum> pdata;
-    vector<NetConX> synapsesIn;
 
     //vecplay data
     vector<PointProcInfo> vecPlayInfo;
