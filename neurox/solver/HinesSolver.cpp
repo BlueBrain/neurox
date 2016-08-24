@@ -1,10 +1,10 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 #include <algorithm>
 #include <numeric>
 
-using namespace NeuroX;
-using namespace NeuroX::Solver;
+using namespace neurox;
+using namespace neurox::Solver;
 
 hpx_action_t HinesSolver::setupMatrixRHS = 0;
 int HinesSolver::setupMatrixRHS_handler()

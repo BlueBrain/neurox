@@ -1,6 +1,6 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 
 #include <map>
 #include <vector>
@@ -8,7 +8,7 @@
 
 using namespace std;
 
-namespace NeuroX
+namespace neurox
 {
 
 namespace Input

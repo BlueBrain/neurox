@@ -1,6 +1,6 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 
 #define DiscreteEventType 0
 #define TstopEventType 1
@@ -11,7 +11,7 @@
 #define InputPreSynType 20
 #define VecPlayContinuousType -4 //TODO is 4 but is already taken?
 
-namespace NeuroX
+namespace neurox
 {
 
 class Branch;

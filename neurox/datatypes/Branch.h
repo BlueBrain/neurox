@@ -1,13 +1,13 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <queue>
 #include <map>
 #include <vector>
 
 using namespace std;
 
-namespace  NeuroX {
+namespace  neurox {
 
 /**
  * @brief The Branch class

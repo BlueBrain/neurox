@@ -1,13 +1,13 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 
 #include <memory>
 #include <vector>
 
 using namespace std;
-using namespace NeuroX;
-using namespace NeuroX::Input::Coreneuron;
+using namespace neurox;
+using namespace neurox::Input::Coreneuron;
 
 Compartment::~Compartment(){};
 

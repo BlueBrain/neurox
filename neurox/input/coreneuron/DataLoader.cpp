@@ -18,13 +18,13 @@
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 #include "coreneuron/nrniv/vrecitem.h"
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include "neurox/datatypes/Mechanism.h"
 #include "neurox/datatypes/Branch.h"
 
 using namespace std;
-using namespace NeuroX::Input;
-using namespace NeuroX::Input::Coreneuron;
+using namespace neurox::Input;
+using namespace neurox::Input::Coreneuron;
 
 int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
@@ -315,7 +315,7 @@ void DataLoader::loadData(int argc, char ** argv)
         int type = tml->index;
         vector<int> successorsIds;
         int dependenciesCount;
-#if PARALLEL_MECHS_DEPENDENCY==true
+#if MECHANISMS_PARALLEL_GRAPH==true
         std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
         for (NrnThreadMembList* tml2 = nrn_threads[0].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
         {
@@ -365,7 +365,7 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
     printf("Broadcasting %d mechanisms...\n", mechsData.size());
-    hpx_bcast_rsync(NeuroX::setMechanisms,
+    hpx_bcast_rsync(neurox::setMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
                     mechsSym.data(), sizeof(char)*mechsSym.size());
@@ -403,7 +403,7 @@ void DataLoader::loadData(int argc, char ** argv)
     //allocate HPX memory space for neurons
     printf("Broadcasting %d neurons...\n", neuronsCount);
     hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
-    hpx_bcast_rsync(NeuroX::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
+    hpx_bcast_rsync(neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
 
 #ifdef OUTPUT_NETCONS_DOT_FILE

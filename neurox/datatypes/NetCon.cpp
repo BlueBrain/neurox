@@ -1,7 +1,7 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 
-using namespace NeuroX;
+using namespace neurox;
 
 NetConX::NetConX(){}
 

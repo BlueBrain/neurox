@@ -1,4 +1,4 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 
 #include "coreneuron/nrnoc/membfunc.h" //mod_f_t
@@ -8,7 +8,7 @@
 #include "coreneuron/nrniv/netcon.h"
 
 using namespace std;
-using namespace NeuroX;
+using namespace neurox;
 
 Mechanism::Mechanism(const int type, const short int dataSize, const short int pdataSize,
                      const char isArtificial, const char pntMap, const char isIon,

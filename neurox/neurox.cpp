@@ -1,25 +1,25 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 #include <map>
 
 #include "nrniv/nrniv_decl.h"
 #include "nrniv/nrn_stats.h"
 
-namespace NeuroX
+namespace neurox
 {
 
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 int mechanismsCount=-1;
 extern int * mechanismsMap = nullptr;
-NeuroX::Mechanism ** mechanisms = nullptr;
+neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
 }
 
-NeuroX::Mechanism * getMechanismFromType(int type) {
+neurox::Mechanism * getMechanismFromType(int type) {
     return mechanisms[mechanismsMap[type]];
 }
 
@@ -43,10 +43,10 @@ int setInputParams_handler(const Input::InputParams * data, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     if (inputParams!=nullptr)
-        delete [] NeuroX::inputParams;
+        delete [] neurox::inputParams;
 
-    inputParams = new NeuroX::Input::InputParams();
-    memcpy(NeuroX::inputParams, data, sizeof(NeuroX::Input::InputParams));
+    inputParams = new neurox::Input::InputParams();
+    memcpy(neurox::inputParams, data, sizeof(neurox::Input::InputParams));
     neurox_hpx_unpin;
 }
 
@@ -99,15 +99,15 @@ static int main_handler( char **argv, size_t argc)
     //populate InputParams from command line, and broadcasts to all compute nodes
     printf("Input::InputParams...\n");
     Input::InputParams inputParams(argc, argv);
-    int e = hpx_bcast_rsync(NeuroX::setInputParams, &inputParams, sizeof (Input::InputParams));
+    int e = hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
 
     // many steps with large dt so that cells start at their resting potential
-    assert(NeuroX::inputParams->forwardSkip == 0); //not supported yet
+    assert(neurox::inputParams->forwardSkip == 0); //not supported yet
 
     //reads morphology data
     printf("Input::Coreneuron::DataLoader::loadData...\n");
-    NeuroX::Input::Coreneuron::DataLoader::loadData(argc, argv);
+    neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
     Misc::Statistics::printSimulationSize();
     Misc::Statistics::printMechanismsDistribution();
 
@@ -136,11 +136,11 @@ int clear_handler()
 
 void registerHpxActions()
 {
-    neurox_hpx_register_action(1,NeuroX::main);
-    neurox_hpx_register_action(0,NeuroX::clear);
-    neurox_hpx_register_action(2,NeuroX::setNeurons);
-    neurox_hpx_register_action(1,NeuroX::setInputParams);
-    neurox_hpx_register_action(2,NeuroX::setMechanisms);
+    neurox_hpx_register_action(1,neurox::main);
+    neurox_hpx_register_action(0,neurox::clear);
+    neurox_hpx_register_action(2,neurox::setNeurons);
+    neurox_hpx_register_action(1,neurox::setInputParams);
+    neurox_hpx_register_action(2,neurox::setMechanisms);
 }
 
 };

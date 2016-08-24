@@ -1,8 +1,8 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <algorithm>
 #include <cstring>
 
-using namespace NeuroX;
+using namespace neurox;
 
 VecPlayContinuouX::VecPlayContinuouX(double * const pd, const double *t,
                                      const double *y, const size_t size)

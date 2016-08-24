@@ -1,7 +1,7 @@
 #pragma once
 
 //Core datatypes
-#include "neurox/Neurox_hpx.h"
+#include "neurox/neurox_hpx.h"
 #include "neurox/input/InputParams.h"
 #include "neurox/datatypes/Event.h"
 #include "neurox/datatypes/VecPlayContinuous.h"
@@ -22,13 +22,13 @@
 #include "neurox/misc/Statistics.h"
 
 #define multiSplix true
-#define PARALLEL_MECHS_DEPENDENCY true
+#define MECHANISMS_PARALLEL_GRAPH true
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
 #define OUTPUT_NETCONS_DOT_FILE true
 #define OUTPUT_MECHANISMS_DOT_FILE true
 #define OUTPUT_COMPARTMENTS_DOT_FILE true
 #define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
-#define DEBUG //Debug information at set-up time
+#define DEBUG
 
 #define capacitance 3
 #define IClamp 7
@@ -36,13 +36,13 @@
 #define ProbGABAAB_EMS 139
 
 ///NeuroX namespace: contains global information that is copied to all localities
-namespace NeuroX
+namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
-    extern NeuroX::Mechanism ** mechanisms; ///> array to all existing mechanisms
+    extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
     extern Input::InputParams * inputParams; ///> Parameters parsed from command line
@@ -54,7 +54,7 @@ namespace NeuroX
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
     hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
-    NeuroX::Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    neurox::Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
     static int main_handler(char **argv, size_t argc);

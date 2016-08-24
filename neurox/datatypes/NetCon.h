@@ -1,8 +1,8 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 
-namespace NeuroX
+namespace neurox
 {
 
 /**

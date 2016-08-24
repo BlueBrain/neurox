@@ -1,9 +1,9 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include "string.h"
 #include <numeric>
 
-using namespace NeuroX;
-using namespace NeuroX::Misc;
+using namespace neurox;
+using namespace neurox::Misc;
 
 class Statistics::SizeInfo
 {
@@ -40,7 +40,7 @@ void Statistics::printSimulationSize()
 {
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
-                          + sizeof(NeuroX::Input::InputParams) * HPX_LOCALITIES) /1024;
+                          + sizeof(neurox::Input::InputParams) * HPX_LOCALITIES) /1024;
     //printf("Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
     //       simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
 

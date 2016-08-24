@@ -1,10 +1,10 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 #include <algorithm>
 #include <numeric>
 #include <set>
 
-using namespace NeuroX;
+using namespace neurox;
 
 Branch::~Branch()
 {
@@ -54,7 +54,7 @@ hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs = 8 where
+     * nargs = 14 or 15 where
      * args[0] = number of compartments
      * args[1] = isSoma (char, 1 or 0)
      * args[2] = data vector (RHS, D, A, V, B, area, and mechs...)
@@ -189,7 +189,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
 
     //initializes mechanisms graphs (capacitance is excluded from graph)
-#if PARALLEL_MECHS_DEPENDENCY==true
+#if MECHANISMS_PARALLEL_GRAPH==true
     local->mechsGraph = new MechanismsExecutionGraph;
     local->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
     local->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
@@ -348,8 +348,8 @@ int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_pt
           //launch execution on top nodes of the branch
           for (int m=0; m<mechanismsCount;m++)
           {
-            if (mechanisms[m]->type == capacitance) continue; //not capacitance
-            if (mechanisms[m]->dependenciesCount > 0) continue; //not top branch
+            if (mechanisms[m]->type == capacitance)   continue; //not on capacitance
+            if (mechanisms[m]->dependenciesCount > 0) continue; //not on top branches
             hpx_lco_set(local->mechsGraph->mechsLCOs[m], functionId_size, functionId_ptr, HPX_NULL, HPX_NULL);
           }
           //wait for the completion of the graph by waiting at the 'end node' lco

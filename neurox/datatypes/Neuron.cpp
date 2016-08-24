@@ -1,9 +1,9 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <cstring>
 #include <algorithm>
 
-using namespace NeuroX;
-using namespace NeuroX::Solver;
+using namespace neurox;
+using namespace neurox::Solver;
 
 Neuron::~Neuron() {
     hpx_lco_delete_sync(synapsesMutex);

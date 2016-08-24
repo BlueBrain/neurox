@@ -1,9 +1,9 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <vector>
 
-namespace NeuroX
+namespace neurox
 {
 
 /**

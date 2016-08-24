@@ -1,10 +1,10 @@
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <numeric>
 #include <algorithm>
 #include <math.h>
 
-using namespace NeuroX;
-using namespace NeuroX::Solver;
+using namespace neurox;
+using namespace neurox::Solver;
 
 BackwardEuler::~BackwardEuler() {}
 

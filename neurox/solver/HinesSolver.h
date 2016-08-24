@@ -1,11 +1,11 @@
 #pragma once
 
-#include "neurox/Neurox.h"
+#include "neurox/neurox.h"
 #include <queue>
 #include <map>
 #include <vector>
 
-namespace  NeuroX {
+namespace  neurox {
 
 
 namespace Solver {
