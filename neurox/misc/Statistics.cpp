@@ -8,10 +8,11 @@ using namespace neurox::Misc;
 class Statistics::SizeInfo
 {
   public:
-    SizeInfo():morphologies(0), mechanisms(0), synapses(0), metadata(0),
+    SizeInfo():neuronId(-1), morphologies(0), mechanisms(0), synapses(0), metadata(0),
         globalVars(0), compartmentsCount(0), branchesCount(0), mechsInstancesCount(0){};
     ~SizeInfo(){};
 
+    int neuronId;
     double morphologies;
     double mechanisms;
     double synapses;
@@ -36,27 +37,36 @@ class Statistics::SizeInfo
     }
 };
 
-void Statistics::printSimulationSize()
+void Statistics::printSimulationSize(bool writeToFile)
 {
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
                           + sizeof(neurox::Input::InputParams) * HPX_LOCALITIES) /1024;
-    //printf("Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
-    //       simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
+
+    FILE *outstream = stdout;
+    if (writeToFile)
+        outstream = fopen(string("simulation-memory-consumption.txt").c_str(), "wt");
+
+    fprintf(outstream, "Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
+           simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
 
     for (int i=0; i<neuronsCount; i++)
     {
         SizeInfo neuronSize;
         hpx_call_sync(getNeuronAddr(i), Statistics::getNeuronSize, &neuronSize, sizeof(neuronSize));
-        printf("  - Neuron %d: %llu compartments, %llu branches, %llu mech instances, %.0f KB (morphologies %.0f KB, mechanisms %.2\0f KB, synapses %.0f KB, metadata %.0f KB)\n",
-               i, neuronSize.compartmentsCount, neuronSize.branchesCount, neuronSize.mechsInstancesCount,
-               neuronSize.getTotalSize(), neuronSize.morphologies, neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
-        fflush(stdout);
+        fprintf(outstream, "%d: gid %d, %llu compartments, %llu branches, %llu mech instances, %.0f KB:\n",
+                i, neuronSize.neuronId, neuronSize.compartmentsCount, neuronSize.branchesCount, neuronSize.mechsInstancesCount, neuronSize.getTotalSize());
+        fprintf(outstream, "    morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB\n",
+                neuronSize.morphologies, neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
         simSize += neuronSize;
     }
-    printf("Simulation: %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.2f KB (morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB, globalVars %.2f KB)\n",
-           neuronsCount, simSize.branchesCount, simSize.compartmentsCount, simSize.mechsInstancesCount,
-           simSize.getTotalSize(), simSize.morphologies, simSize.mechanisms, simSize.synapses, simSize.metadata, simSize.globalVars);
+    fprintf(outstream, "TOTAL: %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.0f KB:\n",
+           neuronsCount, simSize.branchesCount, simSize.compartmentsCount, simSize.mechsInstancesCount, simSize.getTotalSize());
+    fprintf(outstream, "       morphologies %.0f KB, mechanisms %.0f KB, synapses %.0f KB, metadata %.0f KB, globalVars %.0f KB\n",
+           simSize.morphologies, simSize.mechanisms, simSize.synapses, simSize.metadata, simSize.globalVars);
+
+    if (writeToFile)
+        fclose(outstream);
 }
 
 hpx_action_t Statistics::getNeuronSize=0;
@@ -64,6 +74,7 @@ int Statistics::getNeuronSize_handler()
 {
     neurox_hpx_pin(Neuron);
     SizeInfo neuronSize;
+    neuronSize.neuronId = local->id;
     neuronSize.metadata = (double) sizeof(Neuron) / 1024;
     neuronSize.synapses = (double) (local->synapses.size()*sizeof(hpx_t)) /1024;
     SizeInfo somaSize;
@@ -119,7 +130,7 @@ int Statistics::getBranchSize_handler()
     neurox_hpx_unpin_continue(branchSize);
 }
 
-void Statistics::printMechanismsDistribution()
+void Statistics::printMechanismsDistribution(bool writeToFile)
 {
     vector<unsigned> sumMechsCountPerType(mechanismsCount);
     unsigned long long totalMechsInstances=0;
@@ -134,10 +145,19 @@ void Statistics::printMechanismsDistribution()
             totalMechsInstances += mechsCountPerType[m];
         }
     }
-    printf("Simulation Mechanisms (total %lld instances):\n", totalMechsInstances);
+
+    FILE *outstream = stdout;
+    if (writeToFile)
+        outstream = fopen(string("mechs-distribution.txt").c_str(), "wt");
+
+    fprintf(outstream, "Total mechs instances: %lld\n", totalMechsInstances);
     for (int m=0; m<mechanismsCount; m++)
-        printf("  - %02d: %d instances of %s (%d), avg per neuron %.1f\n",
-               m, sumMechsCountPerType[m], mechanisms[m]->sym, mechanisms[m]->type, sumMechsCountPerType[m], (double) sumMechsCountPerType[m]/neuronsCount);
+        fprintf(outstream, "- type %03d: %d instances of %s (%d), avg per neuron %.1f\n",
+             mechanisms[m]->type, sumMechsCountPerType[m], mechanisms[m]->sym, mechanisms[m]->type,
+             sumMechsCountPerType[m], (double) sumMechsCountPerType[m]/neuronsCount);
+
+    if (writeToFile)
+        fclose(outstream);
 }
 
 hpx_action_t Statistics::getNeuronMechanismsDistribution=0;

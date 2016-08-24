@@ -310,15 +310,26 @@ void DataLoader::loadData(int argc, char ** argv)
     std::vector<Mechanism> mechsData;
     std::vector<int> mechsSuccessorsId;
     std::vector<char> mechsSym;
-    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next) //For every mechanism
+
+    //Different nrn_threads[i] have diff mechanisms sets; we will get the list of unique mechs types
+    map<int, NrnThreadMembList*> uniqueMechs;
+    for (int i=0; i<neuronsCount; i++)
+        for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
+            if (uniqueMechs.find(tml->index)==uniqueMechs.end())
+                uniqueMechs[tml->index] = tml;
+
+    for (auto mech_it : uniqueMechs)
     {
+        NrnThreadMembList *tml = mech_it.second;
         int type = tml->index;
+        assert(type==mech_it.first);
         vector<int> successorsIds;
         int dependenciesCount;
 #if MECHANISMS_PARALLEL_GRAPH==true
         std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
-        for (NrnThreadMembList* tml2 = nrn_threads[0].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
-        {
+        for (int i=0; i<neuronsCount; i++)
+          for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
+          {
             int otherType = tml2->index;
             for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
             {
@@ -329,18 +340,25 @@ void DataLoader::loadData(int argc, char ** argv)
                     if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
                         successorsIds.push_back(otherType); //other mech depends on this one
             }
-        }
+          }
         dependenciesCount = dependenciesIds.size();
 #else
-        if ( tml->index == capacitance)  //not capacitance
+        if ( tml->index == capacitance)  //capacitance is not part of graph
         {
             dependenciesCount=0;
         }
         else
-        {   //all except second element (the one after capacitance) have 1 dependency
-            dependenciesCount = tml == nrn_threads[0].tml->next ? 0 : 1;
-            if (tml->next!= NULL) //all except last one have a successor
-                successorsIds.push_back(tml->next->index);
+        {
+            //all except second element (the one after capacitance) have 1 dependency
+            auto secondMech = uniqueMechs.begin(); //get first elem of map
+            std::advance(secondMech, 1); //advance 1 position
+            dependenciesCount = type==secondMech->first ? 0 : 1;
+            //all except last one have a successor
+            //auto successorMech = mech_it;
+            auto successorMech = uniqueMechs.find(mech_it.first);
+            std::advance(successorMech, 1); //the mech immediately after in the map
+            if (successorMech != uniqueMechs.end())
+                successorsIds.push_back(successorMech->first);
         }
 #endif
 
@@ -408,7 +426,8 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #if OUTPUT_NETCONS_DOT_FILE==true
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+    //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
 #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
     fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
 #endif
@@ -612,7 +631,7 @@ void DataLoader::loadData(int argc, char ** argv)
         allNeuronsAddrVec[i] = getNeuronAddr(i);
     }
 
-    printf("Neuron::broadcastNetCons...\n", neuronsCount);
+    printf("neurox::Neuron::broadcastNetCons...\n", neuronsCount);
     hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
     for (int i=0; i<neuronsCount; i++)
         hpx_call(getNeuronAddr(i), Neuron::broadcastNetCons, lco_neurons,

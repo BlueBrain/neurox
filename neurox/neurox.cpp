@@ -98,7 +98,7 @@ hpx_action_t main = 0;
 static int main_handler( char **argv, size_t argc)
 {
     //populate InputParams from command line, and broadcasts to all compute nodes
-    printf("Input::InputParams...\n");
+    printf("neurox::Input::InputParams...\n");
     Input::InputParams inputParams(argc, argv);
     int e = hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
     assert(e == HPX_SUCCESS);
@@ -107,16 +107,15 @@ static int main_handler( char **argv, size_t argc)
     assert(neurox::inputParams->forwardSkip == 0); //not supported yet
 
     //reads morphology data
-    printf("Input::Coreneuron::DataLoader::loadData...\n");
+    printf("neurox::Input::Coreneuron::DataLoader::loadData...\n");
     neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
-    printf("Misc::Statistics::printSimulationSize...\n", neuronsCount);
+    printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
     Misc::Statistics::printSimulationSize();
-    printf("Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
+    printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
     Misc::Statistics::printMechanismsDistribution();
 
-    printf("BackwardEuler::run...\n");
+    printf("neurox::BackwardEuler::run...\n");
     Solver::BackwardEuler::run(); //BBS_netpar_solve( inputParams.tstop );
-    assert(e == HPX_SUCCESS);
 
     // prcellstate after end of solver
     //if ( globalInfo->prcellgid >= 0 ) {
@@ -127,7 +126,7 @@ static int main_handler( char **argv, size_t argc)
     // write spike information to input_params.outpath
     //output_spikes( inputParams.outputPath );
 
-    printf("HPX_SUCCESS\n");
+    printf("neurox::HPX_SUCCESS\n");
     hpx_exit(HPX_SUCCESS);
 }
 

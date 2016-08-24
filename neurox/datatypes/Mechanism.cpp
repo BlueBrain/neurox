@@ -63,10 +63,10 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     if (HPX_LOCALITY_ID ==0)
         printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
-           "      conci %.2f, conco %.2f, charge %.2f\n",
+           "      dependenciesCount %d, conci %.2f, conco %.2f, charge %.2f\n",
            this->type, this->dataSize, this->pdataSize, this->isArtificial,
            this->pntMap, this->isIon, this->symLength, this->sym, this->successorsCount,
-           this->conci, this->conco, this->charge);
+           this->dependenciesCount, this->conci, this->conco, this->charge);
 #endif
 
 };
