@@ -113,9 +113,8 @@ static int main_handler( char **argv, size_t argc)
     Misc::Statistics::printSimulationSize();
     printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
     Misc::Statistics::printMechanismsDistribution();
-
     printf("neurox::BackwardEuler::run...\n");
-    Solver::BackwardEuler::run(); //BBS_netpar_solve( inputParams.tstop );
+    Solver::BackwardEuler::run();
 
     // prcellstate after end of solver
     //if ( globalInfo->prcellgid >= 0 ) {

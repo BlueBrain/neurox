@@ -48,6 +48,9 @@ int Neuron::init_handler(const int nargs, const void *args[], const size_t[])
     local->id = neuronId;
     local->APthreshold = APthreshold;
     local->synapsesMutex = hpx_lco_sema_new(1);
+
+    local->synapsesLCO = std::deque<hpx_t> ();
+    local->synapses = std::vector<hpx_t> ();
     neurox_hpx_unpin;
 }
 
@@ -70,14 +73,19 @@ int Neuron::addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t)
 void Neuron::fireActionPotential()
 {
     //netcvode.cpp::PreSyn::send()
-    hpx_t spikesLco = hpx_lco_and_new(synapses.size());
-    for (int s=0; s<synapses.size(); s++)
+    if (synapses.size()>0)
     {
+      hpx_t spikesLco = hpx_lco_and_new(synapses.size());
+      for (int s=0; s<synapses.size(); s++)
+      {
         double tt = this->t +  1e-10;
         hpx_call(synapses[s], Branch::queueSpikes, spikesLco,
                  &id, sizeof(id), &tt, sizeof(tt) );
+      }
+      this->synapsesLCO.push_front(spikesLco);
     }
-    this->synapsesLCO.push_front(spikesLco);
+    else
+      this->synapsesLCO.push_front(HPX_NULL);
 }
 
 void Neuron::waitForSynapsesDelivery(int commStepSize)

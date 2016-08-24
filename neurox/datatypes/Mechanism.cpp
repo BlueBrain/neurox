@@ -59,7 +59,7 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
 
     //registerBeforeAfterFunctions();
 
-#ifdef DEBUG
+#ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
         printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
@@ -246,7 +246,7 @@ void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunctio
 
 void Mechanism::callNetReceiveFunction(
         const void * branch, const NetConX * netcon,
-        const double t, const char callNetReceive)
+        const double t, const char callNetReceiveInit)
 {
     Memb_list membList;
     NrnThread nrnThread;
@@ -262,7 +262,7 @@ void Mechanism::callNetReceiveFunction(
     nrnThread._t = t + netcon->delay; //delivery time
     //see netcvode.cpp:433 (NetCon::deliver)
     //We have to pass NrnThread, MembList, and deliveryTime instead
-    if (callNetReceive)
+    if (callNetReceiveInit)
     {   //Not possible to pass all arguments, will fail!
         //getMechanismFromType(netcon->mechType)->pnt_receive_init
                 //(&nrnThread, &membList, &pp, netcon->args, 0);

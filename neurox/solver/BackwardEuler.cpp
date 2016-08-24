@@ -10,16 +10,21 @@ BackwardEuler::~BackwardEuler() {}
 
 void BackwardEuler::run()
 {
+  //finitialize.c (nrn_finitialize( 1, inputParams.voltage )
+  printf("neurox::BackwardEuler::initialize...\n");
   hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
-  {
-     //finitialize.c (nrn_finitialize( 1, inputParams.voltage )
-     if (HPX_LOCALITY_ID ==0 && i==0 ) printf("Neuron::initialize...\n");
-     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initializeNeuron, NULL, 0);
-     if (HPX_LOCALITY_ID ==0 && i==0) printf("Neuron::solve...\n");
-     return hpx_call_sync(getNeuronAddr(i), BackwardEuler::solve, NULL, 0);
-     return HPX_SUCCESS;
-  },
-  0, neuronsCount, NULL);
+  {  return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initializeNeuron, NULL, 0);
+  }, 0, neuronsCount, NULL);
+
+  srand(time(NULL));
+  hpx_time_t start = hpx_time_now();
+
+  ////BBS_netpar_solve( inputParams.tstop );
+  printf("neurox::BackwardEuler::solve...\n");
+  hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
+  {  return hpx_call_sync(getNeuronAddr(i), BackwardEuler::solve, NULL, 0);
+  }, 0, neuronsCount, NULL);
+  printf("neurox::BackwardEuler::solve (time: %g ms)\n", hpx_time_elapsed_ms(start));
 }
 
 hpx_action_t BackwardEuler::initializeBranch = 0;
@@ -132,7 +137,7 @@ int BackwardEuler::solve_handler()
     hpx_call_sync(local->soma, Branch::fixedPlayContinuous, NULL, 0);
     local->callModFunction(Mechanism::ModFunction::state); //nonvint
     local->callModFunction(Mechanism::ModFunction::after_solve);
-    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0);
+    hpx_call_sync(local->soma, Branch::deliverEvents, NULL, 0, NULL, 0);
 
     //if we are at the output time instant output to file
     if (fmod(local->t, inputParams->dt_io) == 0)
@@ -142,7 +147,7 @@ int BackwardEuler::solve_handler()
 
     //make sure all synapses from N steps before were delivered
     //(thus other neurons wait for this neuron one before stepping)
-    local->waitForSynapsesDelivery(stepsCountPerComm);
+    //local->waitForSynapsesDelivery(stepsCountPerComm);
 
     //make sure I'm not more than N steps ahead of that connect to me!
     //TODO

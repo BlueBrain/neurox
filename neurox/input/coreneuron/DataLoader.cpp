@@ -33,7 +33,7 @@ int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
     if (!branch->isSoma) return; //run only once
     NrnThread & nt = nrn_threads[0];
     assert(nt.end == branch->n);
@@ -498,7 +498,7 @@ void DataLoader::loadData(int argc, char ** argv)
                     //Offsets in pdata: 0: data (area), 1: point proc in nt._vdata, [2: rng in nt._vdata]
                     for (int v=0; v<mech->vdataSize; v++)
                         compartment->vdata.push_back(vdata[v]);
-#ifdef DEBUG
+#ifndef NDEBUG
                     Point_process * pp = &nt.pntprocs[pointProcTotalOffset++];
                     assert(nt._vdata[pdata[1]] == pp);
                     assert(pp->_presyn == NULL); //PS is always NULL? Maybe circuit too small --> no synapses

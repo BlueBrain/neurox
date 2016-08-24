@@ -279,7 +279,7 @@ hpx_action_t Branch::fixedPlayContinuous = 0;
 int Branch::fixedPlayContinuous_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
+    neurox_hpx_recursive_branch_async_call(Branch::fixedPlayContinuous);
     for (int v=0; v<local->vecplayCount; v++)
         local->vecplay[v]->continuous(local->t);
     neurox_hpx_recursive_branch_async_wait;
@@ -290,8 +290,8 @@ hpx_action_t Branch::deliverEvents = 0;
 int Branch::deliverEvents_handler(const double *t_ptr, const size_t size)
 {
     neurox_hpx_pin(Branch);
-    double t = t_ptr ? *t_ptr : local->t;
     neurox_hpx_recursive_branch_async_call(Branch::deliverEvents, t_ptr, size);
+    double t = t_ptr ? *t_ptr : local->t;
     hpx_lco_sema_p(local->eventsQueueMutex);
     while (!local->eventsQueue.empty() &&
            local->eventsQueue.top().first <= t)
@@ -437,7 +437,7 @@ int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_
     //netcvode::PreSyn::send()
     hpx_lco_sema_p(local->eventsQueueMutex);
     for (auto nc : local->netcons.at(*preNeuronId))
-        local->eventsQueue.push( make_pair(*deliveryTime, (Event*) &nc) );
+        local->eventsQueue.push( make_pair(*deliveryTime, (Event*) nc) );
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
     neurox_hpx_unpin;
 }
