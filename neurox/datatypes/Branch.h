@@ -71,7 +71,7 @@ class Branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t broadcastNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t updateV; ///> fadvance_core.c : update()
-    static hpx_action_t callModFunction; ///> calls MOD functions, and BAMembList (nrn_ba)
+    static hpx_action_t callModFunctionRecursive; ///> calls MOD functions, and BAMembList (nrn_ba)
     static hpx_action_t queueSpikes; ///> add incoming synapse to queue
     static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
     static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
@@ -84,13 +84,13 @@ class Branch
     VecPlayContinuouX ** vecplay; ///> described continuous events
     int vecplayCount; //number of vecplay
 
-    void callModFunction2(const Mechanism::ModFunction functionId);
+    void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
 
     static int deliverEvents_handler(const double *t, const size_t);
 
   private:
-    static int callModFunction_handler(const Mechanism::ModFunction * functionId, const size_t);
+    static int callModFunctionRecursive_handler(const Mechanism::ModFunction * functionId, const size_t);
     static int updateV_handler(const int * secondOrder, const size_t);
     static int secondOrderCurrent_handler();
     static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);

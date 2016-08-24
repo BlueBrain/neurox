@@ -185,7 +185,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
     else
     {
-        local->p = NULL;
+        local->p = nullptr;
     }
 
     //initializes mechanisms graphs (capacitance is excluded from graph)
@@ -258,7 +258,7 @@ hpx_action_t Branch::clear=0;
 int Branch::clear_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunction);
+    neurox_hpx_recursive_branch_async_call(Branch::clear);
     //hpx_lco_wait(-local->mechsGraphLco);
     hpx_lco_delete_sync(local->mechsGraph->graphLCO);
     local->mechsGraph->graphLCO=HPX_NULL;
@@ -323,49 +323,48 @@ int Branch::getSomaVoltage_handler()
     neurox_hpx_unpin_continue(local->v[0]);
 }
 
-void Branch::callModFunction2(const Mechanism::ModFunction functionId)
+void Branch::callModFunction(const Mechanism::ModFunction functionId)
 {
-    callModFunction_handler(&functionId, sizeof(functionId));
-}
-
-hpx_action_t Branch::callModFunction = 0;
-int Branch::callModFunction_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunction, functionId_ptr, functionId_size);
-
     //only for capacitance mechanism
-    if (*functionId_ptr == Mechanism::ModFunction::currentCapacitance
-     || *functionId_ptr == Mechanism::ModFunction::jacobCapacitance)
+    if (functionId == Mechanism::ModFunction::currentCapacitance
+     || functionId == Mechanism::ModFunction::jacobCapacitance)
     {
-        mechanisms[mechanismsMap[capacitance]]->callModFunction(local, *functionId_ptr);
+        mechanisms[mechanismsMap[capacitance]]->callModFunction(this, functionId);
     }
     //for all others except capacitance (mechanisms graph)
     else
     {
-        if (local->mechsGraph!=NULL) //parallel
+        if (this->mechsGraph!=NULL) //parallel
         {
           //launch execution on top nodes of the branch
           for (int m=0; m<mechanismsCount;m++)
           {
-            if (mechanisms[m]->type == capacitance)   continue; //not on capacitance
-            if (mechanisms[m]->dependenciesCount > 0) continue; //not on top branches
-            hpx_lco_set(local->mechsGraph->mechsLCOs[m], functionId_size, functionId_ptr, HPX_NULL, HPX_NULL);
+            if (mechanisms[m]->type == capacitance)   continue; //not capacitance
+            if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branche
+            hpx_lco_set(this->mechsGraph->mechsLCOs[m], sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
           }
           //wait for the completion of the graph by waiting at the 'end node' lco
-          hpx_lco_wait_reset(local->mechsGraph->endLCO);
+          hpx_lco_wait_reset(this->mechsGraph->endLCO);
         }
         else //serial
         {
             for (int m=0; m<mechanismsCount; m++)
                 if ( mechanisms[m]->type == capacitance
-                   && (*functionId_ptr == Mechanism::ModFunction::current
-                      || *functionId_ptr == Mechanism::ModFunction::jacob))
+                   && (  functionId == Mechanism::ModFunction::current
+                      || functionId == Mechanism::ModFunction::jacob))
                     continue;
                 else
-                    mechanisms[m]->callModFunction(local, *functionId_ptr);
+                    mechanisms[m]->callModFunction(this, functionId);
         }
     }
+}
+
+hpx_action_t Branch::callModFunctionRecursive = 0;
+int Branch::callModFunctionRecursive_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::callModFunctionRecursive, functionId_ptr, functionId_size);
+    local->callModFunction(*functionId_ptr);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -389,10 +388,10 @@ int Branch::MechanismsExecutionGraph::nodeFunction_handler(const int * mechType_
         mech->callModFunction(local, functionId);
 
         if (mech->successorsCount==0) //bottom mechanism
-            hpx_lco_set(local->mechsGraph->endLCO, 0, NULL, HPX_NULL, HPX_NULL);
+          hpx_lco_set(local->mechsGraph->endLCO, 0, NULL, HPX_NULL, HPX_NULL);
         else
-            for (int c=0; c<mech->successorsCount; c++)
-              hpx_lco_set(local->mechsGraph->mechsLCOs[mechanismsMap[mech->successors[c]]],
+          for (int c=0; c<mech->successorsCount; c++)
+             hpx_lco_set(local->mechsGraph->mechsLCOs[mechanismsMap[mech->successors[c]]],
                 sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
     }
     neurox_hpx_unpin;
@@ -446,7 +445,7 @@ void Branch::registerHpxActions()
 {
     neurox_hpx_register_action(1, Branch::deliverEvents);
     neurox_hpx_register_action(1, Branch::updateV);
-    neurox_hpx_register_action(1, Branch::callModFunction);
+    neurox_hpx_register_action(1, Branch::callModFunctionRecursive);
     neurox_hpx_register_action(2, Branch::init);
     neurox_hpx_register_action(2, Branch::broadcastNetCons);
     neurox_hpx_register_action(2, Branch::queueSpikes);

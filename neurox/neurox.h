@@ -28,7 +28,7 @@
 #define OUTPUT_NETCONS_DOT_FILE true
 #define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS false
 #define OUTPUT_MECHANISMS_DOT_FILE true
-#define OUTPUT_COMPARTMENTS_DOT_FILE false
+#define OUTPUT_COMPARTMENTS_DOT_FILE true
 #define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
 
 //#define NDEBUG //(if active, disables assertions and debug output)

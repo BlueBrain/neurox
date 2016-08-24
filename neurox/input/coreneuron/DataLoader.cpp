@@ -289,7 +289,7 @@ void DataLoader::loadData(int argc, char ** argv)
     {
         int neuronId = getNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G%d\n{\n", neuronId );
+        fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
         //for all nodes in this NrnThread
         NrnThread * nt = &nrn_threads[i];
@@ -456,8 +456,8 @@ void DataLoader::loadData(int argc, char ** argv)
         }
 
 #if OUTPUT_COMPARTMENTS_DOT_FILE==true
-        FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
+        FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+".dot").c_str(), "wt");
+        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;  node [shape=cylinder];\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
         printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
         for (auto c : compartments) //draw edges
             for (auto k : c->branches)

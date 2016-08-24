@@ -22,7 +22,7 @@ void Neuron::callModFunction(Mechanism::ModFunction functionId)
     //TODO is it worth to make a local call instead of a call to hpx address?
     //same will all calls to soma hpx_t eg. callModFunction_handler
     if (functionId<BEFORE_AFTER_SIZE) return; //not used
-    hpx_call_sync(soma, Branch::callModFunction, NULL, 0, &functionId, sizeof(functionId));
+    hpx_call_sync(soma, Branch::callModFunctionRecursive, NULL, 0, &functionId, sizeof(functionId));
 }
 
 void Neuron::setupTreeMatrixMinimal()

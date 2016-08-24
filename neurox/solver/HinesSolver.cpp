@@ -16,8 +16,8 @@ int HinesSolver::setupMatrixRHS_handler()
         local->rhs[i]=0;
         local->d[i]=0;
     }
-    local->callModFunction2(Mechanism::ModFunction::before_breakpoint);
-    local->callModFunction2(Mechanism::ModFunction::current);
+    local->callModFunction(Mechanism::ModFunction::before_breakpoint);
+    local->callModFunction(Mechanism::ModFunction::current);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -109,12 +109,12 @@ int HinesSolver::setupMatrixLHS_handler()
     //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
     //hand side after solving.
     //This is a common operation for fixed step, cvode, and daspk methods
-    local->callModFunction2(Mechanism::ModFunction::jacob);
+    local->callModFunction(Mechanism::ModFunction::jacob);
 
     //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
     //now the cap current can be computed because any change to cm
     //by another model has taken effect.
-    local->callModFunction2(Mechanism::ModFunction::jacobCapacitance);
+    local->callModFunction(Mechanism::ModFunction::jacobCapacitance);
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
