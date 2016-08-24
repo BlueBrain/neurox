@@ -249,9 +249,9 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
     }
 }
 
-#ifdef DEBUG
 void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
 {
+#ifdef OUTPUT_COMPARTMENTS_DOT_FILE
     assert(topCompartment!=NULL);
     fprintf(fileCompartments, "subgraph cluster_%d {\n", topCompartment->id);
     fprintf(fileCompartments, "style=filled; color=blue; fillcolor=floralwhite; node [style=filled, color=floralwhite];\n");
@@ -264,8 +264,8 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
     fprintf(fileCompartments, "}\n");
     for (int c=0; c<comp->branches.size(); c++)
         printSubClustersToFile(fileCompartments, comp->branches[c]);
-}
 #endif
+}
 
 void DataLoader::loadData(int argc, char ** argv)
 {
@@ -284,7 +284,7 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
 
-#ifdef DEBUG
+#ifdef OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE
     for (int i=0; i<neuronsCount; i++)
     {
         int neuronId = getNeuronIdFromNrnThreadId(i);
@@ -297,8 +297,8 @@ void DataLoader::loadData(int argc, char ** argv)
             fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[n], n);
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
-#endif
     }
+#endif
 
 
     /** Reconstructs unique data related to each mechanism*
@@ -372,9 +372,9 @@ void DataLoader::loadData(int argc, char ** argv)
 
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
-#ifdef DEBUG
+#ifdef OUTPUT_MECHANISMS_DOT_FILE
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
-    fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", PNG_BACKGROUND_COLOR);
+    fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
@@ -406,9 +406,9 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_bcast_rsync(NeuroX::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
 
-#ifdef DEBUG
+#ifdef OUTPUT_NETCONS_DOT_FILE
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", PNG_BACKGROUND_COLOR);
+    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
     fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
 #endif
 
@@ -434,9 +434,9 @@ void DataLoader::loadData(int argc, char ** argv)
             parentCompartment->addChild(compartments.at(n));
         }
 
-#ifdef DEBUG
+#ifdef OUTPUT_COMPARTMENTS_DOT_FILE
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;\n", neuronId, PNG_BACKGROUND_COLOR );
+        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
         printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
         for (auto c : compartments) //draw edges
             for (auto k : c->branches)
@@ -447,10 +447,9 @@ void DataLoader::loadData(int argc, char ** argv)
 
         //======= 2 - reconstructs mechanisms instances ========
 
-        int vdataOffset=0;
-        int ntPointProcOffset=0;
-        int dataTOTAL=nt.end*6;
-        int pdataTOTAL=0;
+        int vdataTotalOffset=0;
+        int dataTotalOffset=nt.end*6;
+        int pointProcTotalOffset=0;
         map<int, pair<int,int>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
@@ -463,13 +462,10 @@ void DataLoader::loadData(int argc, char ** argv)
             {
                 assert (ml->nodeindices[n] < compartments.size());
                 if (mech->isIon)
-                    offsetToInstance[dataTOTAL] = std::make_pair(type, ml->nodeindices[n]);
+                    offsetToInstance[dataTotalOffset] = std::make_pair(type, ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
-                for (int i=0; i<mech->pdataSize; i++)
-                    printf("-- type %d.%d, node %d, dparam %d, pval %d (pdataOffset=%d, dataOffset=%d)\n",
-                           type, n, ml->nodeindices[n], memb_func[type].dparam_semantics[i], pdata[i], pdataTOTAL, dataTOTAL);
-                void ** vdata = &nt._vdata[vdataOffset];
+                void ** vdata = &nt._vdata[vdataTotalOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
 
@@ -483,7 +479,7 @@ void DataLoader::loadData(int argc, char ** argv)
                     for (int v=0; v<mech->vdataSize; v++)
                         compartment->vdata.push_back(vdata[v]);
 #ifdef DEBUG
-                    Point_process * pp = &nt.pntprocs[ntPointProcOffset++];
+                    Point_process * pp = &nt.pntprocs[pointProcTotalOffset++];
                     assert(nt._vdata[pdata[1]] == pp);
                     assert(pp->_presyn == NULL); //PS is always NULL? Maybe circuit too small --> no synapses
                     //presyns i think are only used by nrniv/netcvode.cpp mechfor net_event (not for our HPX use case)
@@ -501,11 +497,10 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
-                dataTOTAL   += mech->dataSize;
-                pdataTOTAL  += mech->pdataSize;
+                dataTotalOffset   += mech->dataSize;
                 dataOffset  += mech->dataSize;
                 pdataOffset += mech->pdataSize;
-                vdataOffset += mech->vdataSize;
+                vdataTotalOffset += mech->vdataSize;
             }
         }
 
@@ -532,7 +527,7 @@ void DataLoader::loadData(int argc, char ** argv)
             addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
         }
 
-#ifdef DEBUG
+#ifdef OUTPUT_NETCONS_DOT_FILE
         int netConsFromOthers=0;
         for (auto nc : netcons)
         {
@@ -550,7 +545,6 @@ void DataLoader::loadData(int argc, char ** argv)
         fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
         //fprintf(fileNetcons, "X%d [style=invis];\n", neuronId, neuronId, netConsFromOthers);
         //fprintf(fileNetcons, "X%d -> %d [label=\"%d\"];\n", neuronId, neuronId, netConsFromOthers);
-
 #endif
 
         //======= 4 - reconstruct VecPlayContinuous events =======
@@ -622,7 +616,7 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_lco_wait(lco_neurons);
     hpx_lco_delete(lco_neurons, NULL);
 
-#ifdef DEBUG
+#ifdef OUTPUT_NETCONS_DOT_FILE
     fprintf(fileNetcons, "}\n");
     fclose(fileNetcons);
 #endif
@@ -699,13 +693,13 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     int n=0;
     vector<int> pdataType; //type of pdata offset per pdata entry
     map< pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
-    map<int,int> compIdFromNeuronToBranch; //map of branch id per compartment id
+    map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
     for (auto comp : compartments)
     {
         int compDataOffset=0;
         int compPdataOffset=0;
         int compVdataOffset=0;
-        compIdFromNeuronToBranch[comp->id] = n;
+        fromNeuronToBranchId[comp->id] = n;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int mechType = comp->mechsTypes[m];
@@ -715,11 +709,8 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
             dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[compDataOffset], &comp->data[compDataOffset+mech->dataSize] );
             pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[compPdataOffset], &comp->pdata[compPdataOffset+mech->pdataSize] );
             vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+mech->vdataSize] );
-            nodesIndicesMechs[mechOffset].push_back(n);
+            nodesIndicesMechs[mechOffset].push_back(comp->id);
             instancesCount[mechOffset]++;
-            assert(instanceToOffset.find( std::make_pair(mechType, comp->id) ) == instanceToOffset.end() );
-            if (mech->isIon)
-                instanceToOffset[ std::make_pair(mechType, comp->id) ] = data.size();
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
             compVdataOffset += mech->vdataSize;
@@ -736,21 +727,39 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
           for (int d=0; d<mech->pdataSize; d++)
             pdataType.push_back(memb_func[mech->type].dparam_semantics[d]);
 
-        data.insert(data.end(), dataMechs[m].begin(), dataMechs[m].end());
-        pdata.insert(pdata.end(), pdataMechs[m].begin(), pdataMechs[m].end());
-        vdata.insert(vdata.end(), vdataMechs[m].begin(), vdataMechs[m].end());
-        nodesIndices.insert(nodesIndices.end(), nodesIndicesMechs[m].begin(), nodesIndicesMechs[m].end());
+        int dataOffset=0;
+        int pdataOffset=0;
+        int vdataOffset=0;
+        for (int i=0; i<nodesIndicesMechs[m].size(); i++) //for all instances
+        {
+            assert(instanceToOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == instanceToOffset.end() );
+            if (mech->isIon)
+                instanceToOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
+
+            data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
+            pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
+            vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset], &vdataMechs[m][vdataOffset+mech->vdataSize]);
+            nodesIndices.push_back(fromNeuronToBranchId[ nodesIndicesMechs[m][i] ]);
+
+            dataOffset  += mech->dataSize;
+            pdataOffset += mech->pdataSize;
+            vdataOffset += mech->vdataSize;
+        }
         dataMechs[m].clear();
         pdataMechs[m].clear();
         vdataMechs[m].clear();
         nodesIndicesMechs[m].clear();
     }
 
+#if multiSplix==false
+    //if there are more than one instace of the same ion mech on a node, this fails!
+    assert(instanceToOffset.size() == offsetToInstance.size());
+#endif
+
     //convert all offsets in pdata to the correct ones
     //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
-    assert(pdataType.size() == pdata.size());
-    assert(instanceToOffset.size() == offsetToInstance.size()); //if there are more than one instace of the same ion mech on a node, this fails!
     int vdataOffset=0;
+    assert(pdataType.size() == pdata.size());
     for (int i=0; i<pdata.size(); i++)
     {
         int p = pdata.at(i);
@@ -764,7 +773,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         {
             assert(p>=totalN*5 && p<totalN<6);
             int oldId = p-totalN*5;
-            int newId = compIdFromNeuronToBranch[oldId];
+            int newId = fromNeuronToBranchId[oldId];
             pdata[i] = n*5+newId;
             break;
         }
@@ -790,11 +799,14 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
                         oldOffset = val.first;
                         mechNodePair=val.second;
                     }
-                assert(oldOffset>=totalN*6); //fails if not found
+                    else break; //already found
+                assert(oldOffset!=-1); //make sure was found
+                assert(oldOffset>=totalN*6); //also fails if not found
                 assert(mechNodePair.first == ptype); //fails if expected type does not agree with the one in the data offset
                 assert(pdata[i]-oldOffset < getMechanismFromType(mechNodePair.first)->dataSize); //instance offset is correct
                 int newOffset = instanceToOffset.at(mechNodePair);
-                pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset in data for that instance
+                assert(newOffset>=n*6);
+                pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset on the data vector for that instance
                 assert(pdata[i]>=n*6);
             }
             else if (ptype>=1000) //name not preffixed
@@ -832,7 +844,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
     vector<int> branchNetConsPreId;
     vector<double> branchNetConsArgs;
 
-    if (multiSpliX)
+    if (multiSplix)
     {
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
@@ -873,8 +885,8 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(int)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(int),
                   nodesIndices.data(), nodesIndices.size()*sizeof(int),
-                  multiSpliX ? branches.data() : nullptr, multiSpliX ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSpliX ? nullptr : p.data(), multiSpliX ? 0 : sizeof(int)*p.size(),
+                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(int)*p.size(),
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(double)*vecPlayT.size(),
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(double)*vecPlayY.size(),
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(double)*vecPlayInfo.size(),

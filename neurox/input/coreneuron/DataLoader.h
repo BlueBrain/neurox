@@ -57,9 +57,7 @@ private:
                                      vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreNeuronId,
                                      vector<double> & branchNetConsArgs);
 
-#ifdef DEBUG
     static void printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment);
-#endif
 };
 
 }; //Coreneuron

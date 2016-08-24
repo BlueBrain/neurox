@@ -240,9 +240,9 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     double *netConsArgs = (double*)  args[13];
 
     int argsOffset=0;
+    local->netcons = map<int, vector<NetConX*> > (); //initialize map
     for (int nc=0; nc<netconsCount; nc++)
     {
-        local->netcons = map<int, vector<NetConX*> > (); //initialize map
         local->netcons[netConsPreId[nc]] = vector<NetConX*> (); //initialize vector
         vector<NetConX*> & vecNetCons = local->netcons[netConsPreId[nc]];
         vecNetCons.push_back(new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,

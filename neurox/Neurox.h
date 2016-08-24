@@ -1,7 +1,5 @@
 #pragma once
 
-#define DEBUG //Debug information at set-up time
-
 //Core datatypes
 #include "neurox/Neurox_hpx.h"
 #include "neurox/input/InputParams.h"
@@ -23,9 +21,14 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSpliX false
-#define PARALLEL_MECHS_DEPENDENCY false //true
-#define PNG_BACKGROUND_COLOR "white" //"transparent"
+#define multiSplix true
+#define PARALLEL_MECHS_DEPENDENCY true
+#define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
+#define OUTPUT_NETCONS_DOT_FILE true
+#define OUTPUT_MECHANISMS_DOT_FILE true
+#define OUTPUT_COMPARTMENTS_DOT_FILE true
+#define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
+#define DEBUG //Debug information at set-up time
 
 #define capacitance 3
 #define IClamp 7
