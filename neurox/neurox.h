@@ -21,12 +21,13 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSplix true
-#define MECHANISMS_PARALLEL_GRAPH true
+#define multiSplix false
+#define MECHANISMS_PARALLEL_GRAPH false
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
 #define OUTPUT_NETCONS_DOT_FILE true
+#define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS false
 #define OUTPUT_MECHANISMS_DOT_FILE true
-#define OUTPUT_COMPARTMENTS_DOT_FILE true
+#define OUTPUT_COMPARTMENTS_DOT_FILE false
 #define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
 #define DEBUG
 
@@ -35,7 +36,7 @@
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
 
-///NeuroX namespace: contains global information that is copied to all localities
+///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
@@ -54,7 +55,7 @@ namespace neurox
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
     hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
-    neurox::Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
     static int main_handler(char **argv, size_t argc);

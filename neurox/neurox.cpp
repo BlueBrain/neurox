@@ -19,7 +19,8 @@ hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
 }
 
-neurox::Mechanism * getMechanismFromType(int type) {
+Mechanism * getMechanismFromType(int type) {
+    assert(mechanismsMap[type]!=-1);
     return mechanisms[mechanismsMap[type]];
 }
 
@@ -108,7 +109,9 @@ static int main_handler( char **argv, size_t argc)
     //reads morphology data
     printf("Input::Coreneuron::DataLoader::loadData...\n");
     neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
+    printf("Misc::Statistics::printSimulationSize...\n", neuronsCount);
     Misc::Statistics::printSimulationSize();
+    printf("Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
     Misc::Statistics::printMechanismsDistribution();
 
     printf("BackwardEuler::run...\n");

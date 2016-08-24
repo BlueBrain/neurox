@@ -45,7 +45,7 @@ int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const 
         //if I'm connected to it (ie is not artificial)
         if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
             //tell the neuron to add the synapse to this branch
-            hpx_call_sync(neuronsAddr[i], Neuron::addSynapseTarget, &target, sizeof(target)) ;
+            hpx_call_sync(neuronsAddr[i], Neuron::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

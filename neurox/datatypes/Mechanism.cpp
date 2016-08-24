@@ -60,7 +60,8 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
     //registerBeforeAfterFunctions();
 
 #ifdef DEBUG
-    printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
+    if (HPX_LOCALITY_ID ==0)
+        printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
            "      conci %.2f, conco %.2f, charge %.2f\n",
            this->type, this->dataSize, this->pdataSize, this->isArtificial,

@@ -13,9 +13,9 @@ void BackwardEuler::run()
   hpx_par_for_sync( [&] (int i, void*) -> int //for all neurons
   {
      //finitialize.c (nrn_finitialize( 1, inputParams.voltage )
-     printf("Neuron::initialize...\n");
+     if (HPX_LOCALITY_ID ==0 && i==0 ) printf("Neuron::initialize...\n");
      return hpx_call_sync(getNeuronAddr(i), BackwardEuler::initializeNeuron, NULL, 0);
-     printf("Neuron::solve...\n");
+     if (HPX_LOCALITY_ID ==0 && i==0) printf("Neuron::solve...\n");
      return hpx_call_sync(getNeuronAddr(i), BackwardEuler::solve, NULL, 0);
      return HPX_SUCCESS;
   },

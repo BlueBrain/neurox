@@ -251,7 +251,7 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
 
 void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
 {
-#ifdef OUTPUT_COMPARTMENTS_DOT_FILE
+#if OUTPUT_COMPARTMENTS_DOT_FILE==true
     assert(topCompartment!=NULL);
     fprintf(fileCompartments, "subgraph cluster_%d {\n", topCompartment->id);
     fprintf(fileCompartments, "style=filled; color=blue; fillcolor=floralwhite; node [style=filled, color=floralwhite];\n");
@@ -284,7 +284,7 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
 
-#ifdef OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE
+#if OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE==true
     for (int i=0; i<neuronsCount; i++)
     {
         int neuronId = getNeuronIdFromNrnThreadId(i);
@@ -364,7 +364,7 @@ void DataLoader::loadData(int argc, char ** argv)
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
-    printf("Broadcasting %d mechanisms...\n", mechsData.size());
+    printf("neurox::setMechanisms...\n", mechsData.size());
     hpx_bcast_rsync(neurox::setMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
@@ -372,7 +372,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
-#ifdef OUTPUT_MECHANISMS_DOT_FILE
+#if OUTPUT_MECHANISMS_DOT_FILE==true
     FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
     fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
@@ -401,15 +401,17 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
     //allocate HPX memory space for neurons
-    printf("Broadcasting %d neurons...\n", neuronsCount);
+    printf("neurox::setNeurons...\n", neuronsCount);
     hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
     hpx_bcast_rsync(neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
 
-#ifdef OUTPUT_NETCONS_DOT_FILE
+#if OUTPUT_NETCONS_DOT_FILE==true
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+#if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
     fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
+#endif
 #endif
 
     //reconstructs neurons
@@ -434,7 +436,7 @@ void DataLoader::loadData(int argc, char ** argv)
             parentCompartment->addChild(compartments.at(n));
         }
 
-#ifdef OUTPUT_COMPARTMENTS_DOT_FILE
+#if OUTPUT_COMPARTMENTS_DOT_FILE==true
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_HPX.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
         printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
@@ -462,15 +464,14 @@ void DataLoader::loadData(int argc, char ** argv)
             {
                 assert (ml->nodeindices[n] < compartments.size());
                 if (mech->isIon)
-                    offsetToInstance[dataTotalOffset] = std::make_pair(type, ml->nodeindices[n]);
+                    offsetToInstance[dataTotalOffset] = make_pair(type, ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
                 void ** vdata = &nt._vdata[vdataTotalOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
 
-                //vdata
-                if (mech->pntMap > 0)
+                if (mech->pntMap > 0) //vdata
                 {
                     assert((type==IClamp && mech->pdataSize==2)
                         ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3));
@@ -527,7 +528,7 @@ void DataLoader::loadData(int argc, char ** argv)
             addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
         }
 
-#ifdef OUTPUT_NETCONS_DOT_FILE
+#if OUTPUT_NETCONS_DOT_FILE==true
         int netConsFromOthers=0;
         for (auto nc : netcons)
         {
@@ -542,9 +543,12 @@ void DataLoader::loadData(int argc, char ** argv)
                 fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
             }
         }
+#if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
         fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
         //fprintf(fileNetcons, "X%d [style=invis];\n", neuronId, neuronId, netConsFromOthers);
         //fprintf(fileNetcons, "X%d -> %d [label=\"%d\"];\n", neuronId, neuronId, netConsFromOthers);
+#endif
+
 #endif
 
         //======= 4 - reconstruct VecPlayContinuous events =======
@@ -608,6 +612,7 @@ void DataLoader::loadData(int argc, char ** argv)
         allNeuronsAddrVec[i] = getNeuronAddr(i);
     }
 
+    printf("Neuron::broadcastNetCons...\n", neuronsCount);
     hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
     for (int i=0; i<neuronsCount; i++)
         hpx_call(getNeuronAddr(i), Neuron::broadcastNetCons, lco_neurons,
@@ -616,7 +621,7 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_lco_wait(lco_neurons);
     hpx_lco_delete(lco_neurons, NULL);
 
-#ifdef OUTPUT_NETCONS_DOT_FILE
+#if OUTPUT_NETCONS_DOT_FILE==true
     fprintf(fileNetcons, "}\n");
     fclose(fileNetcons);
 #endif

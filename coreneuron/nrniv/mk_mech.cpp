@@ -41,7 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 static char banner[] =
 "Duke, Yale, and the BlueBrain Project -- Copyright 1984-2015";
 
-int nrn_nobanner_;
+int nrn_nobanner_ =1;
 
 int nrn_need_byteswap;
 // following copied (except for nrn_need_byteswap line) from NEURON ivocvect.cpp
