@@ -325,7 +325,7 @@ void DataLoader::loadData(int argc, char ** argv)
         assert(type==mech_it.first);
         vector<int> successorsIds;
         int dependenciesCount;
-#if MECHANISMS_PARALLEL_GRAPH==true
+#if PARALLEL_MECHANISMS_GRAPH==true
         std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
         for (int i=0; i<neuronsCount; i++)
           for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
@@ -426,8 +426,8 @@ void DataLoader::loadData(int argc, char ** argv)
 
 #if OUTPUT_NETCONS_DOT_FILE==true
     FILE *fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+    //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
 #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
     fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
 #endif

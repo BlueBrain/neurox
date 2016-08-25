@@ -95,13 +95,11 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 }
 
 hpx_action_t main = 0;
-static int main_handler( char **argv, size_t argc)
+static int main_handler(char **argv, size_t argc)
 {
-    //populate InputParams from command line, and broadcasts to all compute nodes
-    printf("neurox::Input::InputParams...\n");
+    //parse command line arguments and broadcasts it to other localities
     Input::InputParams inputParams(argc, argv);
-    int e = hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
-    assert(e == HPX_SUCCESS);
+    hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
 
     // many steps with large dt so that cells start at their resting potential
     assert(neurox::inputParams->forwardSkip == 0); //not supported yet

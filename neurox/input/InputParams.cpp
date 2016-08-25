@@ -1,11 +1,10 @@
-﻿#include "neurox/neurox.h"
+﻿#include "neurox/input/InputParams.h"
 #include "tclap/CmdLine.h"
 #include "stdio.h"
 #include "string.h"
 
 #include "coreneuron/nrnoc/membdef.h"
 
-using namespace neurox;
 using namespace neurox::Input;
 
 InputParams::InputParams ():
@@ -29,10 +28,9 @@ InputParams::InputParams (int argc, char** argv):
 
 void InputParams::parseCommandLine(int argc, char ** argv)
 {
-    //read command line arguments (via tclap)
     try {
         //message printed (help text, text delimiter, version)
-        TCLAP::CmdLine cmd("neurox Simulator", ' ', "0.1");
+        TCLAP::CmdLine cmd("neurox simulator", ' ', "0.1");
 
         //add all parameters
         TCLAP::ValueArg<double> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"double");

@@ -7,7 +7,7 @@ void modl_reg() {} ///No additional mechs, dont register any external
 #endif
 
 int main(int argc, char** argv)
-{ 
+{
     //register HPX methods
     neurox::registerHpxActions();
     neurox::Neuron::registerHpxActions();
@@ -23,7 +23,7 @@ int main(int argc, char** argv)
         printf("HPX failed to initialize!\n");
         return 1;
     }
-    printf("\nHPX started. Localities: %d, Threads/locality: %d\n", HPX_LOCALITIES, HPX_THREADS);
+    printf("neurox started (localities: %d, threads/locality: %d.)\n", HPX_LOCALITIES, HPX_THREADS);
 
     //Run main
     int e = hpx_run(&neurox::main, argv, argc);

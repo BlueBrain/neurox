@@ -5,9 +5,8 @@ FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 set(neurox_all_c_files ${neurox_all_c_files})
-add_library(neurox ${COMPILE_LIBRARY_TYPE}
-    ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files}
-    )
+
+add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 
 target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
 

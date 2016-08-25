@@ -1,10 +1,7 @@
 #pragma once
 
-#include "neurox/neurox.h"
-
 namespace neurox
 {
-
 namespace Input
 {
 /**
@@ -37,6 +34,8 @@ class InputParams
     char outputPath[512];	///> path of output directory
     char patternStim[512];	///> patternStim file path (the filename of an output_spikes.h format raster file.)
 
+    int argc;           ///> original command line argc
+    char ** argv;       ///> original command line argv
   private:
     /// Parses command line arguments and populates structure
     void parseCommandLine(int argc, char ** argv);
