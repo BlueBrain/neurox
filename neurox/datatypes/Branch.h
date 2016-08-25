@@ -8,6 +8,7 @@
 using namespace std;
 
 namespace  neurox {
+class Neuron;
 
 /**
  * @brief The Branch class
@@ -27,6 +28,9 @@ class Branch
     //for conveniency we add t and dt to all branch localities
     double t;       ///> current simulation time
     double dt;      ///> time step
+    char secondOrder;
+
+    Neuron * soma;  ///> if top branch, it's populated, otherwise is NULL
 
     //sparse matrix information:
     int n;		    ///> number of compartments
@@ -51,7 +55,7 @@ class Branch
         int * nodesIndices; ///> array of nodes this instance will be applied to
     } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
-    struct MechanismsExecutionGraph
+    struct MechanismsGraphLCO
     {
         hpx_t * mechsLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
         hpx_t endLCO; ///> represents the bottom of the graph
@@ -61,6 +65,18 @@ class Branch
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
+    struct NeuronTreeLCO
+    {
+        hpx_t parentLCO;
+        hpx_t branchLCO;
+        hpx_t * childrenLCOs;
+
+        static hpx_action_t branchFunction;
+        static hpx_action_t init;
+        static int branchFunction_handler();
+        static int init_handler(const hpx_t * parentLCO_ptr, size_t);
+    } * neuronTree;
+
     map<int, vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
     priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
@@ -68,16 +84,11 @@ class Branch
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
+    static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t broadcastNetCons; ///> Initializes Network Connections (NetCons) for this branch
-    static hpx_action_t updateV; ///> fadvance_core.c : update()
-    static hpx_action_t callModFunctionRecursive; ///> calls MOD functions, and BAMembList (nrn_ba)
-    static hpx_action_t queueSpikes; ///> add incoming synapse to queue
-    static hpx_action_t secondOrderCurrent; ///> Second Order Current : eion.c:second_order_cur()
-    static hpx_action_t getSomaVoltage; ///>returns the voltage on the first compartment of this branch (soma if top branch)
-
-    static hpx_action_t fixedPlayContinuous; ///> nrn_fixed_play_continuous
-    static hpx_action_t deliverEvents;   ///> delivers all events for the next time step (nrn_deliver_events)
+    static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
+    static hpx_action_t addSynapseTarget;  ///> Inserts outgoing synapses (targets) in this Neuron
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
@@ -86,19 +97,20 @@ class Branch
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
-
-    static int deliverEvents_handler(const double *t, const size_t);
+    void deliverEvents(double t);
+    void fixedPlayContinuous();
+    void setupTreeMatrixMinimal();
+    void secondOrderCurrent();
+    void initialize();
+    void backwardEulerStep();
 
   private:
-    static int callModFunctionRecursive_handler(const Mechanism::ModFunction * functionId, const size_t);
-    static int updateV_handler(const int * secondOrder, const size_t);
-    static int secondOrderCurrent_handler();
-    static int queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int getSomaVoltage_handler();
+    static int initSoma_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int clear_handler();
-    static int fixedPlayContinuous_handler();
+    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
 };
 
 }; //namespace

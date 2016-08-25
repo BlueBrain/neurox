@@ -26,30 +26,6 @@ Branch::~Branch()
     delete [] mechsInstances;
 }
 
-hpx_action_t Branch::broadcastNetCons = 0;
-int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
-    assert(nargs==2);
-    const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
-    const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
-
-    //create index of unique pre-neurons ids
-    std::set<int> netconsPreNeuronIds;
-    for (auto nc : local->netcons)
-        netconsPreNeuronIds.insert(nc.first);
-
-    //inform pre-synaptic neurons (once) that we connect
-    for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
-        //if I'm connected to it (ie is not artificial)
-        if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
-            //tell the neuron to add the synapse to this branch
-            hpx_call_sync(neuronsAddr[i], Neuron::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
 hpx_action_t Branch::init = 0;
 int Branch::init_handler(const int nargs, const void *args[], const size_t sizes[])
 {
@@ -76,6 +52,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     neurox_hpx_pin(Branch);
     assert(nargs==14 || nargs==15);
 
+    local->soma = nullptr; //initialized via initSoma hpx call
     local->t = inputParams->t;
     local->dt = inputParams->dt;
     local->eventsQueueMutex = hpx_lco_sema_new(1);
@@ -190,7 +167,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 
     //initializes mechanisms graphs (capacitance is excluded from graph)
 #if multiMex==true
-    local->mechsGraph = new MechanismsExecutionGraph;
+    local->mechsGraph = new MechanismsGraphLCO;
     local->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
     local->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
     local->mechsGraph->mechsLCOs[mechanismsMap[capacitance]] = HPX_NULL;
@@ -202,7 +179,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
                       sizeof(Mechanism::ModFunction), Mechanism::initModFunction, Mechanism::reduceModFunction);
         if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
             terminalMechanismsCount++;
-        hpx_call(target,  Branch::MechanismsExecutionGraph::nodeFunction,
+        hpx_call(target,  Branch::MechanismsGraphLCO::nodeFunction,
                  local->mechsGraph->graphLCO, &mechanisms[m]->type, sizeof(int));
     }
     local->mechsGraph->endLCO = hpx_lco_and_new(terminalMechanismsCount);
@@ -254,6 +231,41 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     neurox_hpx_unpin;
 }
 
+hpx_action_t Branch::initSoma = 0;
+int Branch::initSoma_handler(const int nargs, const void *args[], const size_t[])
+{
+    neurox_hpx_pin(Branch);
+    assert(nargs==2);
+    const int    neuronId    = *(const int*)    args[0];
+    const double APthreshold = *(const double*) args[1];
+    local->soma=new Neuron(neuronId, APthreshold);
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::broadcastNetCons = 0;
+int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
+    assert(nargs==2);
+    const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
+    const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
+
+    //create index of unique pre-neurons ids
+    std::set<int> netconsPreNeuronIds;
+    for (auto nc : local->netcons)
+        netconsPreNeuronIds.insert(nc.first);
+
+    //inform pre-synaptic neurons (once) that we connect
+    for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
+        //if I'm connected to it (ie is not artificial)
+        if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
+            //tell the neuron to add the synapse to this branch
+            hpx_call_sync(neuronsAddr[i], Branch::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
 hpx_action_t Branch::clear=0;
 int Branch::clear_handler()
 {
@@ -275,56 +287,10 @@ void Branch::initEventsQueue()
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
-hpx_action_t Branch::fixedPlayContinuous = 0;
-int Branch::fixedPlayContinuous_handler()
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::fixedPlayContinuous);
-    for (int v=0; v<local->vecplayCount; v++)
-        local->vecplay[v]->continuous(local->t);
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::deliverEvents = 0;
-int Branch::deliverEvents_handler(const double *t_ptr, const size_t size)
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::deliverEvents, t_ptr, size);
-    double t = t_ptr ? *t_ptr : local->t;
-    hpx_lco_sema_p(local->eventsQueueMutex);
-    while (!local->eventsQueue.empty() &&
-           local->eventsQueue.top().first <= t)
-    {
-        Event * e = local->eventsQueue.top().second;
-        e->deliver(t, local);
-        local->eventsQueue.pop();
-    }
-    hpx_lco_sema_v_sync(local->eventsQueueMutex);
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::updateV = 0;
-int Branch::updateV_handler(const int * secondOrder, size_t secondOrder_size)
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::updateV, &secondOrder, secondOrder_size);
-    for (int i=0; i<local->n; i++)
-        local->v[i] += (*secondOrder ? 2 : 1) * local->rhs[i];
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::getSomaVoltage=0;
-int Branch::getSomaVoltage_handler()
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_unpin_continue(local->v[0]);
-}
-
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
 {
+    if (functionId<BEFORE_AFTER_SIZE) return; //N/A
+
     //only for capacitance mechanism
     if (functionId == Mechanism::ModFunction::currentCapacitance
      || functionId == Mechanism::ModFunction::jacobCapacitance)
@@ -359,18 +325,8 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
     }
 }
 
-hpx_action_t Branch::callModFunctionRecursive = 0;
-int Branch::callModFunctionRecursive_handler(const Mechanism::ModFunction * functionId_ptr, const size_t functionId_size)
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::callModFunctionRecursive, functionId_ptr, functionId_size);
-    local->callModFunction(*functionId_ptr);
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::MechanismsExecutionGraph::nodeFunction = 0;
-int Branch::MechanismsExecutionGraph::nodeFunction_handler(const int * mechType_ptr, const size_t)
+hpx_action_t Branch::MechanismsGraphLCO::nodeFunction = 0;
+int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr, const size_t)
 {
     neurox_hpx_pin(Branch);
     int type = *mechType_ptr;
@@ -402,12 +358,9 @@ int Branch::MechanismsExecutionGraph::nodeFunction_handler(const int * mechType_
 #define cur	3
 #define dcurdv 4
 
-hpx_action_t Branch::secondOrderCurrent = 0;
-int Branch::secondOrderCurrent_handler()
+void Branch::secondOrderCurrent()
 {
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::secondOrderCurrent);
-    MechanismInstance * mechInstances= local->mechsInstances;
+    MechanismInstance * mechInstances= this->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
@@ -418,15 +371,13 @@ int Branch::secondOrderCurrent_handler()
         {
             double * data = &mechInstances[m].data[i*mech->dataSize];
             int & nodeIndex = mechInstances[m].nodesIndices[i];
-            data[cur] += data[dcurdv] * local->rhs[nodeIndex];
+            data[cur] += data[dcurdv] * this->rhs[nodeIndex];
         }
     }
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::queueSpikes = 0;
-int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_t sizes[])
+hpx_action_t Branch::addSpikeEvent = 0;
+int Branch::addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
     assert(nargs==2);
@@ -441,16 +392,206 @@ int Branch::queueSpikes_handler(const int nargs, const void *args[], const size_
     neurox_hpx_unpin;
 }
 
+hpx_action_t Branch::NeuronTreeLCO::init = 0;
+int Branch::NeuronTreeLCO::init_handler(const hpx_t * parentLCO_ptr, size_t)
+{
+    neurox_hpx_pin(Branch);
+    local->neuronTree = new Branch::NeuronTreeLCO;
+    local->neuronTree->parentLCO = *parentLCO_ptr;
+    local->neuronTree->branchLCO = hpx_lco_and_new(1);
+    local->neuronTree->childrenLCOs = local->branchesCount ? new hpx_t[local->branchesCount] : nullptr;
+
+    //send my LCO to children, and receive theirs
+    hpx_t * futures = local->branchesCount ? new hpx_t[local->branchesCount]  : nullptr;
+    void ** addrs   = local->branchesCount ? new void*[local->branchesCount]  : nullptr;
+    size_t* sizes   = local->branchesCount ? new size_t[local->branchesCount] : nullptr;
+    for (int c = 0; c < local->branchesCount; c++)
+    {
+        futures[c] = hpx_lco_future_new(sizeof (hpx_t));
+        addrs[c]   = &(local->neuronTree->childrenLCOs[c]);
+        sizes[c]   = sizeof(hpx_t);
+        hpx_call(local->branches[c], Branch::NeuronTreeLCO::init, futures[c],
+                 &local->neuronTree->branchLCO, sizeof(hpx_t) );
+    }
+    if (local->branchesCount > 0)
+    {
+        hpx_lco_get_all(local->branchesCount, futures, sizes, addrs, NULL);
+        hpx_lco_delete_all(local->branchesCount, futures, NULL);
+    }
+    delete [] futures;
+    delete [] addrs;
+    delete [] sizes;
+
+    neurox_hpx_unpin_continue(local->neuronTree->branchLCO); //send my LCO to parent
+}
+
+void Branch::initialize()
+{
+    //set up by finitialize.c:nrn_finitialize(): if (setv)
+    assert(inputParams->secondorder < sizeof(char));
+    this->secondOrder = inputParams->secondorder;
+    initEventsQueue();
+    deliverEvents(this->t);
+
+    //set up by finitialize.c:nrn_finitialize(): if (setv)
+    for (int n=0; n<this->n; n++)
+        this->v[n]=inputParams->voltage;
+
+    // the INITIAL blocks are ordered so that mechanisms that write
+    // concentrations are after ions and before mechanisms that read
+    // concentrations.
+    callModFunction(Mechanism::ModFunction::before_initialize);
+    callModFunction(Mechanism::ModFunction::initialize);
+    callModFunction(Mechanism::ModFunction::after_initialize);
+
+    //set up by finitialize.c:nrn_finitialize() -> fadvance_core.c:dt2thread()
+    //local->cj = inputParams->secondorder ? 2.0/inputParams->dt : 1.0/inputParams->dt;
+    //done when calling mechanisms //TODO have a copy per branch to speed-up?
+    deliverEvents(t);
+    setupTreeMatrixMinimal();
+    deliverEvents(t);
+
+    //part of nrn_fixed_step_group_minimal
+    //1. multicore.c::nrn_thread_table_check()
+    callModFunction(Mechanism::ModFunction::threadTableCheck);
+}
+
+void Branch::backwardEulerStep()
+{
+    //2. multicore.c::nrn_fixed_step_thread()
+    //2.1 cvodestb::deliver_net_events(nth);
+    //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
+    bool reachedThresold = soma && v[0] >= soma->APthreshold;
+    if (reachedThresold) soma->fireActionPotential(t);
+    t += .5*dt;
+    deliverEvents(t);
+    fixedPlayContinuous();
+    setupTreeMatrixMinimal();
+
+    //eion.c : second_order_cur()
+    if (this->secondOrder == 2)
+        secondOrderCurrent();
+
+    //fadvance_core.c : update() / Branch::updateV
+    for (int i=0; i<n; i++)
+        v[i] += (inputParams->secondorder ? 2 : 1) * rhs[i];
+
+    callModFunction(Mechanism::ModFunction::jacob);
+    t += .5*dt;
+    fixedPlayContinuous();
+    callModFunction(Mechanism::ModFunction::state);
+    callModFunction(Mechanism::ModFunction::after_solve);
+    deliverEvents(t);
+
+    //if we are at the output time instant output to file
+    if (fmod(t, inputParams->dt_io) == 0)
+    {
+        //output
+    }
+    //make sure all synapses from N steps before were delivered
+    //(thus other neurons wait for this neuron one before stepping)
+    //>waitForSynapsesDelivery(stepsCountPerComm);
+}
+
+hpx_action_t Branch::NeuronTreeLCO::branchFunction = 0;
+int Branch::NeuronTreeLCO::branchFunction_handler()
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::NeuronTreeLCO::branchFunction);
+    local->t = inputParams->tstart;
+    local->initialize();
+    while (local->t <= inputParams->tstop)
+        local->backwardEulerStep();
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
+void Branch::setupTreeMatrixMinimal()
+{
+    for (int i=0; i<this->n; i++)
+    {
+        this->rhs[i]=0;
+        this->d[i]=0;
+    }
+    this->callModFunction(Mechanism::ModFunction::before_breakpoint);
+    this->callModFunction(Mechanism::ModFunction::current);
+
+    /* now the internal axial currents.
+      The extracellular mechanism contribution is already done.
+      rhs += ai_j*(vi_j - vi)*/
+    if (this->p!=NULL)
+    {
+      double dv=0;
+      for (int i=1; i<n; i++)
+      {
+          dv = v[p[i]] - v[i];  //reads from parent
+          rhs[i] -= b[i]*dv;
+          rhs[p[i]] += a[i]*dv; //writes to parent
+      }
+    }
+    else { assert(0); };
+
+    // calculate left hand side of
+    //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
+    //cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
+    //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
+    //hand side after solving.
+    //This is a common operation for fixed step, cvode, and daspk methods
+    this->callModFunction(Mechanism::ModFunction::jacob);
+
+    //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
+    //now the cap current can be computed because any change to cm
+    //by another model has taken effect.
+    this->callModFunction(Mechanism::ModFunction::jacobCapacitance);
+
+    if (p!=NULL)
+    {
+        for (int i=1; i<n; i++)
+        {
+            d[i] -= b[i];
+            d[p[i]] -= a[i];
+        }
+    }
+    else {assert(0); };
+}
+
+void Branch::deliverEvents(double t)
+{
+    hpx_lco_sema_p(this->eventsQueueMutex);
+    while (!this->eventsQueue.empty() &&
+           this->eventsQueue.top().first <= t)
+    {
+        Event * e = this->eventsQueue.top().second;
+        e->deliver(t, this);
+        this->eventsQueue.pop();
+    }
+    hpx_lco_sema_v_sync(this->eventsQueueMutex);
+}
+
+void Branch::fixedPlayContinuous()
+{
+    for (int v=0; v<this->vecplayCount; v++)
+        this->vecplay[v]->continuous(this->t);
+}
+
+hpx_action_t Branch::addSynapseTarget = 0;
+int Branch::addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t)
+{
+    neurox_hpx_pin(Branch);
+    assert(local->soma);
+    local->soma->addSynapseTarget(*synapseTarget);
+    neurox_hpx_unpin;
+}
+
 void Branch::registerHpxActions()
 {
-    neurox_hpx_register_action(1, Branch::deliverEvents);
-    neurox_hpx_register_action(1, Branch::updateV);
-    neurox_hpx_register_action(1, Branch::callModFunctionRecursive);
     neurox_hpx_register_action(2, Branch::init);
-    neurox_hpx_register_action(2, Branch::broadcastNetCons);
-    neurox_hpx_register_action(2, Branch::queueSpikes);
-    neurox_hpx_register_action(0, Branch::getSomaVoltage);
+    neurox_hpx_register_action(2, Branch::initSoma);
     neurox_hpx_register_action(0, Branch::clear);
-    neurox_hpx_register_action(0, Branch::fixedPlayContinuous);
-    neurox_hpx_register_action(1, Branch::MechanismsExecutionGraph::nodeFunction);
+    neurox_hpx_register_action(2, Branch::broadcastNetCons);
+    neurox_hpx_register_action(2, Branch::addSpikeEvent);
+    neurox_hpx_register_action(1, Branch::addSynapseTarget);
+    neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
+    neurox_hpx_register_action(1, Branch::NeuronTreeLCO::init);
+    neurox_hpx_register_action(0, Branch::NeuronTreeLCO::branchFunction);
 }

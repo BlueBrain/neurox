@@ -10,10 +10,8 @@ int main(int argc, char** argv)
 {
     //register HPX methods
     neurox::registerHpxActions();
-    neurox::Neuron::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
-    neurox::Solver::BackwardEuler::registerHpxActions();
     neurox::Solver::HinesSolver::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
 

@@ -72,23 +72,15 @@ void Statistics::printSimulationSize(bool writeToFile)
 hpx_action_t Statistics::getNeuronSize=0;
 int Statistics::getNeuronSize_handler()
 {
-    neurox_hpx_pin(Neuron);
-    SizeInfo neuronSize;
-    neuronSize.neuronId = local->id;
-    neuronSize.metadata = (double) sizeof(Neuron) / 1024;
-    neuronSize.synapses = (double) (local->synapses.size()*sizeof(hpx_t)) /1024;
-    SizeInfo somaSize;
-    hpx_call_sync(local->soma, Statistics::getBranchSize, &somaSize, sizeof(somaSize));
-    neuronSize += somaSize;
-    neurox_hpx_unpin_continue(neuronSize);
-}
-
-hpx_action_t Statistics::getBranchSize=0;
-int Statistics::getBranchSize_handler()
-{
     neurox_hpx_pin(Branch);
     assert(local->n>0);
     SizeInfo branchSize;
+    if (local->soma)
+    {
+        branchSize.neuronId += local->soma->id;
+        branchSize.metadata += (double) sizeof(Neuron) / 1024;
+        branchSize.synapses += (double) (local->soma->getNetConsCount()*sizeof(hpx_t)) /1024;
+    }
     branchSize.branchesCount++;
     branchSize.compartmentsCount+=local->n;
     branchSize.morphologies += (double) (local->n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
@@ -124,7 +116,7 @@ int Statistics::getBranchSize_handler()
     for (int c=0; c<local->branchesCount; c++)
     {
         SizeInfo subBranchSize;
-        hpx_call_sync(local->branches[c], Statistics::getBranchSize, &subBranchSize, sizeof(subBranchSize));
+        hpx_call_sync(local->branches[c], Statistics::getNeuronSize, &subBranchSize, sizeof(subBranchSize));
         branchSize+=subBranchSize;
     }
     neurox_hpx_unpin_continue(branchSize);
@@ -163,16 +155,6 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
 hpx_action_t Statistics::getNeuronMechanismsDistribution=0;
 int Statistics::getNeuronMechanismsDistribution_handler()
 {
-    neurox_hpx_pin(Neuron);
-    unsigned mechsCountPerType[mechanismsCount];
-    hpx_call_sync(local->soma, Statistics::getBranchMechanismsDistribution,
-                  mechsCountPerType, sizeof(mechsCountPerType));
-    neurox_hpx_unpin_continue(mechsCountPerType);
-}
-
-hpx_action_t Statistics::getBranchMechanismsDistribution=0;
-int Statistics::getBranchMechanismsDistribution_handler()
-{
     neurox_hpx_pin(Branch);
     unsigned mechsCountPerType[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
@@ -182,7 +164,7 @@ int Statistics::getBranchMechanismsDistribution_handler()
     for (int c=0; c<local->branchesCount; c++)
     {
         vector<unsigned> mechsCountPerTypeChild (mechanismsCount);
-        hpx_call_sync(local->branches[c], Statistics::getBranchMechanismsDistribution,
+        hpx_call_sync(local->branches[c], Statistics::getNeuronMechanismsDistribution,
                   mechsCountPerTypeChild.data(), sizeof(mechsCountPerType));
         for (int m=0; m<mechanismsCount; m++)
             mechsCountPerType[m] += mechsCountPerTypeChild[m];
@@ -193,7 +175,5 @@ int Statistics::getBranchMechanismsDistribution_handler()
 void Statistics::registerHpxActions()
 {
     neurox_hpx_register_action(0, Statistics::getNeuronSize);
-    neurox_hpx_register_action(0, Statistics::getBranchSize);
     neurox_hpx_register_action(0, Statistics::getNeuronMechanismsDistribution);
-    neurox_hpx_register_action(0, Statistics::getBranchMechanismsDistribution);
 }

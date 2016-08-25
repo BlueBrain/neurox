@@ -15,16 +15,12 @@ class Statistics
     static void registerHpxActions(); ///> Register all HPX actions
     static void printSimulationSize(bool writeToFile = true); ///> returns total simulation size
     static void printMechanismsDistribution(bool writeToFile = true); ///> print the statistics about mechanisms distribution per type
-    static hpx_action_t getNeuronSize; ///> returns neuron size, including branches, in KB
-    static hpx_action_t getBranchSize; ///> returns branch size, including branches, in KB
+    static hpx_action_t getNeuronSize; ///> returns branch size, including branches, in KB
     static hpx_action_t getNeuronMechanismsDistribution; ///> returns mechanisms count per type
-    static hpx_action_t getBranchMechanismsDistribution; ///> returns mechanisms count per type
 
   private:
     static int getNeuronSize_handler();
-    static int getBranchSize_handler();
     static int getNeuronMechanismsDistribution_handler();
-    static int getBranchMechanismsDistribution_handler();
     class SizeInfo;
 };
 }

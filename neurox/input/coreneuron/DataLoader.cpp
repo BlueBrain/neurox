@@ -609,11 +609,8 @@ void DataLoader::loadData(int argc, char ** argv)
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
         //double APthreshold = gid2out.at(neuronId)->threshold_;
         hpx_t topBranch = createBranch((char) 1, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
-        hpx_call_sync(getNeuronAddr(i), Neuron::init, NULL, 0,
-                      &neuronId, sizeof(int),
-                      &topBranch, sizeof(hpx_t),
-                      &APthreshold, sizeof(double));
-
+        hpx_call_sync(getNeuronAddr(i), Branch::initSoma, NULL, 0,
+                      &neuronId, sizeof(int), &APthreshold, sizeof(double));
         for (auto c : compartments)
             delete c;
         for (auto nc: netcons)
@@ -634,7 +631,7 @@ void DataLoader::loadData(int argc, char ** argv)
     printf("neurox::Neuron::broadcastNetCons...\n", neuronsCount);
     hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
     for (int i=0; i<neuronsCount; i++)
-        hpx_call(getNeuronAddr(i), Neuron::broadcastNetCons, lco_neurons,
+        hpx_call(getNeuronAddr(i), Branch::broadcastNetCons, lco_neurons,
                  allNeuronsIdsVec.data(), allNeuronsIdsVec.size()*sizeof(int),
                  allNeuronsAddrVec.data(), allNeuronsAddrVec.size()*sizeof(hpx_t));
     hpx_lco_wait(lco_neurons);

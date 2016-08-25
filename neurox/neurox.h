@@ -11,7 +11,6 @@
 #include "neurox/datatypes/Neuron.h"
 
 //Fixed-step Backward-Euler solver
-#include "neurox/solver/BackwardEuler.h"
 #include "neurox/solver/HinesSolver.h"
 
 //CoreNeuron data loader
@@ -21,8 +20,8 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSplix false
-#define multiMex   false
+#define multiSplix true
+#define multiMex   true
 
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
 #define OUTPUT_NETCONS_DOT_FILE false
@@ -43,6 +42,7 @@ namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
+    extern hpx_t branchesAddr; 	///> hpx address of the first position of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
@@ -56,6 +56,7 @@ namespace neurox
     extern hpx_action_t setInputParams; ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
+    hpx_t getBranchAddr(int i); ///> get HPX address of i-th neuron
     hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
