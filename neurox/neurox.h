@@ -21,8 +21,8 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSplix true
-#define PARALLEL_MECHANISMS_GRAPH   true
+#define multiSplix false
+#define multiMex   false
 
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
 #define OUTPUT_NETCONS_DOT_FILE false

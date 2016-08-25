@@ -189,7 +189,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     }
 
     //initializes mechanisms graphs (capacitance is excluded from graph)
-#if PARALLEL_MECHANISMS_GRAPH==true
+#if multiMex==true
     local->mechsGraph = new MechanismsExecutionGraph;
     local->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
     local->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];

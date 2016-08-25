@@ -325,7 +325,7 @@ void DataLoader::loadData(int argc, char ** argv)
         assert(type==mech_it.first);
         vector<int> successorsIds;
         int dependenciesCount;
-#if PARALLEL_MECHANISMS_GRAPH==true
+#if multiMex==true
         std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
         for (int i=0; i<neuronsCount; i++)
           for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
