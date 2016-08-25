@@ -42,16 +42,16 @@ typedef int index_t; //int or unsigned short
 
 ///hpx wrappers for async call a function to all children branches (phase 1 - launch threads)
 #define neurox_hpx_recursive_branch_async_call(Func, ...) \
-    hpx_addr_t lco_branches = local->branchesCount ? hpx_lco_and_new(local->branchesCount) : HPX_NULL; \
-    for (int c=0; c<local->branchesCount; c++) \
+    hpx_addr_t lco_branches = local->neuronTree->branchesCount ? hpx_lco_and_new(local->neuronTree->branchesCount) : HPX_NULL; \
+    for (int c=0; c<local->neuronTree->branchesCount; c++) \
     { \
-        int e = _hpx_call(local->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
+        int e = _hpx_call(local->neuronTree->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__) ; \
         assert(e==HPX_SUCCESS); \
     }
 
 ///hpx wrappers for async call a function to all children branches (phase 2 - wait for threads)
 #define neurox_hpx_recursive_branch_async_wait \
-    if (local->branchesCount>0) \
+    if (local->neuronTree->branchesCount>0) \
     { \
         hpx_lco_wait(lco_branches); \
         hpx_lco_delete(lco_branches, HPX_NULL); \

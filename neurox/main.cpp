@@ -14,6 +14,7 @@ int main(int argc, char** argv)
     neurox::Mechanism::registerHpxActions();
     neurox::Solver::HinesSolver::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
+    neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 
     //Init HPX
     if (hpx_init(&argc, &argv) != 0)

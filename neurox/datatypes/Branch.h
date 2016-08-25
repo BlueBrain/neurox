@@ -19,8 +19,6 @@ class Neuron;
  */
 class Branch
 {
-  //TODO variables n, p* and instance.count and indices can be short int unless we merge several neurons (a la CoreNeuron)
-
   public:
     Branch()=delete; ///> no constructor, build using hpx init function instead
     ~Branch();
@@ -43,10 +41,6 @@ class Branch
     double * area;	///> current area per compartment
     int *p;         ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
-    //List of children branches
-    int branchesCount;		///> number of branches (if any)
-    hpx_t *branches;		///> hpx address of the branches branches
-
     struct MechanismInstance
     {
         int count;          ///> number of instances of particular mechanism
@@ -67,9 +61,13 @@ class Branch
 
     struct NeuronTreeLCO
     {
+        //List of children branches
+        int branchesCount;		///> number of branches (if any)
+        hpx_t *branches;		///> hpx address of the branches branches
+
         hpx_t parentLCO;
-        hpx_t branchLCO;
-        hpx_t * childrenLCOs;
+        hpx_t thisBranchLCO;
+        hpx_t * branchesLCOs;
 
         static hpx_action_t branchFunction;
         static hpx_action_t init;
@@ -86,9 +84,7 @@ class Branch
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
-    static hpx_action_t broadcastNetCons; ///> Initializes Network Connections (NetCons) for this branch
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
-    static hpx_action_t addSynapseTarget;  ///> Inserts outgoing synapses (targets) in this Neuron
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
@@ -109,8 +105,6 @@ class Branch
     static int initSoma_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int clear_handler();
-    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int addSynapseTarget_handler (const hpx_t * synapseTarget, const size_t size); ///>adds an outgoing Synapses
 };
 
 }; //namespace

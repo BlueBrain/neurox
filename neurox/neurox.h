@@ -24,11 +24,11 @@
 #define multiMex   true
 
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
-#define OUTPUT_NETCONS_DOT_FILE false
-#define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS false
+#define OUTPUT_NETCONS_DOT_FILE true
+#define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS true
 #define OUTPUT_MECHANISMS_DOT_FILE true
-#define OUTPUT_COMPARTMENTS_DOT_FILE false
-#define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
+#define OUTPUT_COMPARTMENTS_DOT_FILE true
+#define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE true
 
 //#define NDEBUG //(if active, disables assertions and debug output)
 
@@ -42,7 +42,6 @@ namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
     extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
-    extern hpx_t branchesAddr; 	///> hpx address of the first position of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
@@ -56,7 +55,6 @@ namespace neurox
     extern hpx_action_t setInputParams; ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	///> Initializes Mechanisms
 
-    hpx_t getBranchAddr(int i); ///> get HPX address of i-th neuron
     hpx_t getNeuronAddr(int i); ///> get HPX address of i-th neuron
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions

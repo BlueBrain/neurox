@@ -15,7 +15,8 @@ Branch::~Branch()
     delete [] p;
     delete [] rhs;
     delete [] area;
-    delete [] branches;
+    delete [] neuronTree->branches;
+    delete [] neuronTree->branchesLCOs;
     delete [] data;
 
     for (int m=0; m<mechanismsCount; m++)
@@ -145,14 +146,14 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     //reconstructs parents or branching
     if (sizes[6]>0)
     {
-        local->branchesCount = sizes[6]/sizeof(hpx_t);
-        local->branches = new hpx_t[local->branchesCount];
-        memcpy(local->branches, args[6], sizes[6]);
+        local->neuronTree->branchesCount = sizes[6]/sizeof(hpx_t);
+        local->neuronTree->branches = new hpx_t[local->neuronTree->branchesCount];
+        memcpy(local->neuronTree->branches, args[6], sizes[6]);
     }
     else
     {
-        local->branchesCount = 0;
-        local->branches = nullptr;
+        local->neuronTree->branchesCount = 0;
+        local->neuronTree->branches = nullptr;
     }
 
     if (sizes[7]>0)
@@ -239,30 +240,6 @@ int Branch::initSoma_handler(const int nargs, const void *args[], const size_t[]
     const int    neuronId    = *(const int*)    args[0];
     const double APthreshold = *(const double*) args[1];
     local->soma=new Neuron(neuronId, APthreshold);
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::broadcastNetCons = 0;
-int Branch::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
-    assert(nargs==2);
-    const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
-    const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
-
-    //create index of unique pre-neurons ids
-    std::set<int> netconsPreNeuronIds;
-    for (auto nc : local->netcons)
-        netconsPreNeuronIds.insert(nc.first);
-
-    //inform pre-synaptic neurons (once) that we connect
-    for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
-        //if I'm connected to it (ie is not artificial)
-        if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
-            //tell the neuron to add the synapse to this branch
-            hpx_call_sync(neuronsAddr[i], Branch::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
-    neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
@@ -396,33 +373,35 @@ hpx_action_t Branch::NeuronTreeLCO::init = 0;
 int Branch::NeuronTreeLCO::init_handler(const hpx_t * parentLCO_ptr, size_t)
 {
     neurox_hpx_pin(Branch);
+    int branchesCount = local->neuronTree->branchesCount;
+
     local->neuronTree = new Branch::NeuronTreeLCO;
     local->neuronTree->parentLCO = *parentLCO_ptr;
-    local->neuronTree->branchLCO = hpx_lco_and_new(1);
-    local->neuronTree->childrenLCOs = local->branchesCount ? new hpx_t[local->branchesCount] : nullptr;
+    local->neuronTree->thisBranchLCO = hpx_lco_and_new(1);
+    local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount] : nullptr;
 
     //send my LCO to children, and receive theirs
-    hpx_t * futures = local->branchesCount ? new hpx_t[local->branchesCount]  : nullptr;
-    void ** addrs   = local->branchesCount ? new void*[local->branchesCount]  : nullptr;
-    size_t* sizes   = local->branchesCount ? new size_t[local->branchesCount] : nullptr;
-    for (int c = 0; c < local->branchesCount; c++)
+    hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
+    void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
+    size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
+    for (int c = 0; c < branchesCount; c++)
     {
         futures[c] = hpx_lco_future_new(sizeof (hpx_t));
-        addrs[c]   = &(local->neuronTree->childrenLCOs[c]);
+        addrs[c]   = &(local->neuronTree->branchesLCOs[c]);
         sizes[c]   = sizeof(hpx_t);
-        hpx_call(local->branches[c], Branch::NeuronTreeLCO::init, futures[c],
-                 &local->neuronTree->branchLCO, sizeof(hpx_t) );
+        hpx_call(local->neuronTree->branches[c], Branch::NeuronTreeLCO::init, futures[c],
+                 &local->neuronTree->thisBranchLCO, sizeof(hpx_t) );
     }
-    if (local->branchesCount > 0)
+    if (branchesCount > 0)
     {
-        hpx_lco_get_all(local->branchesCount, futures, sizes, addrs, NULL);
-        hpx_lco_delete_all(local->branchesCount, futures, NULL);
+        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
+        hpx_lco_delete_all(branchesCount, futures, NULL);
     }
     delete [] futures;
     delete [] addrs;
     delete [] sizes;
 
-    neurox_hpx_unpin_continue(local->neuronTree->branchLCO); //send my LCO to parent
+    neurox_hpx_unpin_continue(local->neuronTree->thisBranchLCO); //send my LCO to parent
 }
 
 void Branch::initialize()
@@ -574,23 +553,12 @@ void Branch::fixedPlayContinuous()
         this->vecplay[v]->continuous(this->t);
 }
 
-hpx_action_t Branch::addSynapseTarget = 0;
-int Branch::addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t)
-{
-    neurox_hpx_pin(Branch);
-    assert(local->soma);
-    local->soma->addSynapseTarget(*synapseTarget);
-    neurox_hpx_unpin;
-}
-
 void Branch::registerHpxActions()
 {
     neurox_hpx_register_action(2, Branch::init);
     neurox_hpx_register_action(2, Branch::initSoma);
     neurox_hpx_register_action(0, Branch::clear);
-    neurox_hpx_register_action(2, Branch::broadcastNetCons);
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
-    neurox_hpx_register_action(1, Branch::addSynapseTarget);
     neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
     neurox_hpx_register_action(1, Branch::NeuronTreeLCO::init);
     neurox_hpx_register_action(0, Branch::NeuronTreeLCO::branchFunction);

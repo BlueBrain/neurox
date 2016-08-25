@@ -33,7 +33,7 @@ int HinesSolver::gaussianFwdTriangulation_handler(const double * vFromParent_ptr
   const double *v   = local->v;
   double *rhs = local->rhs;
   const int *p = local->p;
-  const int branchesCount = local->branchesCount;
+  const int branchesCount = local->neuronTree->branchesCount;
 
   /* now the internal axial currents.
     The extracellular mechanism contribution is already done.
@@ -73,7 +73,7 @@ int HinesSolver::gaussianFwdTriangulation_handler(const double * vFromParent_ptr
         futures[c] = hpx_lco_future_new(sizeof (double));
         addrs[c]   = &childrenValues[c];
         sizes[c]   = sizeof(double);
-        hpx_call(local->branches[c], HinesSolver::gaussianFwdTriangulation, futures[c], &valueForParent, sizeof(valueForParent));
+        hpx_call(local->neuronTree->branches[c], HinesSolver::gaussianFwdTriangulation, futures[c], &valueForParent, sizeof(valueForParent));
     }
 
     if (branchesCount > 0) //required or fails
@@ -131,7 +131,7 @@ int HinesSolver::gaussianBackSubstitution_handler()
     const double *v = local->v;
     const int *p = local->p;
     const int n = local->n;
-    const int branchesCount = local->branchesCount;
+    const int branchesCount = local->neuronTree->branchesCount;
     double *d   = local->d;
 
     if (p!=NULL)
@@ -164,7 +164,7 @@ int HinesSolver::gaussianBackSubstitution_handler()
           futures[c] = hpx_lco_future_new(sizeof (double));
           addrs[c]   = &childrenValues[c];
           sizes[c]   = sizeof(double);
-          hpx_call(local->branches[c], HinesSolver::gaussianBackSubstitution, futures[c]);
+          hpx_call(local->neuronTree->branches[c], HinesSolver::gaussianBackSubstitution, futures[c]);
       }
 
       if (branchesCount > 0) //required or fails

@@ -35,6 +35,9 @@ class DataLoader
                                                NrnThread & nrnThread, int mechType);
 
     static void compareDataStructuresWithCoreNeuron(Branch * branch);
+
+    static void registerHpxActions();
+
   private:
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
                                         int netconsOffset, map< int, vector<NetConX*> > & netcons);
@@ -45,7 +48,6 @@ class DataLoader
     static int getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
 
-private:
     static int getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
                              vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices,
                              int totalN, map<int, pair<int,int>> & offsetToInstance);
@@ -58,6 +60,14 @@ private:
                                      vector<double> & branchNetConsArgs);
 
     static void printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment);
+
+    static hpx_action_t createNeuron;
+    static hpx_action_t broadcastNetCons;
+    static hpx_action_t addSynapseTarget;
+
+    static int createNeuron_handler(const int * i, const size_t);
+    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t);
 };
 
 }; //Coreneuron

@@ -10,16 +10,11 @@ namespace neurox
 
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
-hpx_t branchesAddr = HPX_NULL;
 
 int mechanismsCount=-1;
 extern int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
-
-hpx_t getBranchAddr(int i) {
-    return hpx_addr_add(branchesAddr, sizeof(Branch)*i, sizeof(Branch));
-}
 
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
@@ -123,7 +118,7 @@ static int main_handler(char **argv, size_t argc)
     hpx_time_t start = hpx_time_now();
     printf("neurox::BackwardEuler::solve...\n");
     for (int i=0; i<neuronsCount;i++)
-        hpx_call(getBranchAddr(i), Branch::NeuronTreeLCO::branchFunction, mainLCO);
+        hpx_call(getNeuronAddr(i), Branch::NeuronTreeLCO::branchFunction, mainLCO);
     hpx_lco_wait(mainLCO);
     printf("neurox::HPX_SUCCESS  (time: %g ms)\n",  hpx_time_elapsed_ms(start));
     hpx_exit(HPX_SUCCESS);

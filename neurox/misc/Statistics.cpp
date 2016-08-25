@@ -85,7 +85,7 @@ int Statistics::getNeuronSize_handler()
     branchSize.compartmentsCount+=local->n;
     branchSize.morphologies += (double) (local->n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
     branchSize.morphologies += local->p ? (double) (local->n* sizeof(index_t))/1024 : 0;
-    branchSize.morphologies += local->branches ? (double) (local->branchesCount*sizeof(hpx_t))/1024 : 0;
+    branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
     branchSize.metadata += (double) sizeof(Branch::MechanismInstance)*mechanismsCount/1024;
 
@@ -113,10 +113,10 @@ int Statistics::getNeuronSize_handler()
    //         local->n, branchSize.getTotal(), branchSize.morphologies, branchSize.mechanisms, branchSize.metadata);
 
     //call the print function in children branches, pass their size to parent branch
-    for (int c=0; c<local->branchesCount; c++)
+    for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
         SizeInfo subBranchSize;
-        hpx_call_sync(local->branches[c], Statistics::getNeuronSize, &subBranchSize, sizeof(subBranchSize));
+        hpx_call_sync(local->neuronTree->branches[c], Statistics::getNeuronSize, &subBranchSize, sizeof(subBranchSize));
         branchSize+=subBranchSize;
     }
     neurox_hpx_unpin_continue(branchSize);
@@ -161,10 +161,10 @@ int Statistics::getNeuronMechanismsDistribution_handler()
         mechsCountPerType[m] = local->mechsInstances[m].count;
 
     //call the print function in children branches, pass their size to parent branch
-    for (int c=0; c<local->branchesCount; c++)
+    for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
         vector<unsigned> mechsCountPerTypeChild (mechanismsCount);
-        hpx_call_sync(local->branches[c], Statistics::getNeuronMechanismsDistribution,
+        hpx_call_sync(local->neuronTree->branches[c], Statistics::getNeuronMechanismsDistribution,
                   mechsCountPerTypeChild.data(), sizeof(mechsCountPerType));
         for (int m=0; m<mechanismsCount; m++)
             mechsCountPerType[m] += mechsCountPerTypeChild[m];
