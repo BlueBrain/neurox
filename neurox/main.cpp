@@ -17,7 +17,7 @@ int main(int argc, char** argv)
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 
     //Init HPX
-    if (!hpx_init(&argc, &argv))
+    if (hpx_init(&argc, &argv) != 0)
     {
         printf("HPX failed to initialize!\n");
         return 1;

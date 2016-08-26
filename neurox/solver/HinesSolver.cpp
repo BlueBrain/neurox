@@ -58,7 +58,7 @@ int HinesSolver::gaussianFwdTriangulation_handler(const double * vFromParent_ptr
     double * childrenValues = branchesCount ? new double[branchesCount] : nullptr;
 
     double valueForParent=-1;
-    for (int i = local->isSoma ? 1 : 0 ; i <n; i++)
+    for (int i = local->soma ? 1 : 0 ; i <n; i++)
     {   //reads V from parent:
         double dv = (i==0 ? *vFromParent_ptr : v[i-1]) - v[i];
         rhs[i] -= b[i] *dv;
@@ -91,7 +91,7 @@ int HinesSolver::gaussianFwdTriangulation_handler(const double * vFromParent_ptr
     delete [] sizes;
     delete [] childrenValues;
 
-    if (!local->isSoma) //send parent its value
+    if (!local->soma) //send parent its value
         neurox_hpx_unpin_continue(valueForParent);
   }
   neurox_hpx_unpin;
@@ -150,7 +150,7 @@ int HinesSolver::gaussianBackSubstitution_handler()
       double * childrenValues = branchesCount ? new double[branchesCount] : nullptr;
 
       double valueForParent=-1;
-      for (int i = local->isSoma ? 1 : 0 ; i <n; i++)
+      for (int i = local->soma ? 1 : 0 ; i <n; i++)
       {
           d[i] -= b[i];
           if (i>1)

@@ -4,8 +4,7 @@
 #include <queue>
 #include <map>
 #include <vector>
-
-using namespace std;
+#include <set>
 
 namespace  neurox {
 class Neuron;
@@ -32,7 +31,6 @@ class Branch
 
     //sparse matrix information:
     int n;		    ///> number of compartments
-    char isSoma;    ///> is this branch the top branch of the morphology tree (ie constains soma?)
     double * a;		///> top diagonal of Linear Algebra sparse tridiagonal matrix
     double * b;		///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
     double * d;		///> main diagonal of Linear Algebra spart tridiagonal matrix
@@ -69,11 +67,12 @@ class Branch
         hpx_t parentLCO;
         hpx_t thisBranchLCO;
         hpx_t * branchesLCOs;
-    } * neuronTree;
+    } * neuronTree; ///> represents the tree structure
+    //TODO can be null if no MultiSplix
 
-    map<int, vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
+    std::map<int, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
-    priority_queue< pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
+    std::priority_queue< std::pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
     static void registerHpxActions(); ///> Register all HPX actions

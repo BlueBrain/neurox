@@ -37,7 +37,7 @@ int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 {
 #ifndef NDEBUG
-    if (!branch->isSoma) return; //run only once
+    if (!branch->soma) return; //run only once
     NrnThread & nt = nrn_threads[0];
     assert(nt.end == branch->n);
     for (int i=0; i<branch->n; i++)
@@ -273,9 +273,10 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
 hpx_action_t DataLoader::createNeuron = 0;
 int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 {
-    neurox_hpx_pin(Branch);
-    int i=*i_ptr;
-    //reconstructs neurons
+        neurox_hpx_pin(Branch);
+        int i=*i_ptr;
+
+        //reconstructs neurons
         NrnThread & nt = nrn_threads[i];
         int neuronId = getNeuronIdFromNrnThreadId(i);
 
@@ -403,7 +404,8 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
             }
         }
 #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
-        fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
+        if (netConsFromOthers>0)
+            fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
 #endif
 
 #endif
@@ -608,14 +610,9 @@ void DataLoader::loadData(int argc, char ** argv)
 
     //allocate HPX memory space for neurons
     printf("neurox::setNeurons...\n");
-    hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Neuron), NEUROX_HPX_MEM_ALIGNMENT);
+    hpx_t neuronsAddr = hpx_gas_calloc_cyclic(neuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     hpx_bcast_rsync(neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
-
-    printf("neurox::createNeurons...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i));
-    }, 0, neuronsCount, NULL);
 
 #if OUTPUT_NETCONS_DOT_FILE==true
     assert(HPX_LOCALITIES == 1);
@@ -626,6 +623,11 @@ void DataLoader::loadData(int argc, char ** argv)
     fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
 #endif
 #endif
+
+    printf("neurox::createNeurons...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i));
+    }, 0, neuronsCount, NULL);
 
     //all neurons have been created, every branch will inform pre-syn ids that they are connected
     assert(allNeuronsIdsSet.size() == neuronsCount);

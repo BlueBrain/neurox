@@ -199,7 +199,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     //* args[9] = vecplay Y-data
     //* args[10] = vecplay Info
     local->vecplayCount = sizes[10]/sizeof(Input::Coreneuron::PointProcInfo);
-    local->vecplay = new VecPlayContinuouX*[local->vecplayCount];
+    local->vecplay = local->vecplayCount == 0 ? nullptr : new VecPlayContinuouX*[local->vecplayCount];
     const double * vecplayTdata = (const double *) args[8];
     const double * vecplayYdata = (const double *) args[9];
     const Input::Coreneuron::PointProcInfo * ppis = (const Input::Coreneuron::PointProcInfo*) args[10];
@@ -227,13 +227,15 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     local->netcons = map<int, vector<NetConX*> > (); //initialize map
     for (int nc=0; nc<netconsCount; nc++)
     {
-        local->netcons[netConsPreId[nc]] = vector<NetConX*> (); //initialize vector
-        vector<NetConX*> & vecNetCons = local->netcons[netConsPreId[nc]];
+        local->netcons[ netConsPreId[nc] ] = vector<NetConX*> (); //initialize vector
+        vector<NetConX*> & vecNetCons = local->netcons[ netConsPreId[nc] ];
         vecNetCons.push_back(new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
                                          &netConsArgs[argsOffset], netcons[nc].argsCount, netcons[nc].active));
         //(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
         argsOffset += netcons[nc].argsCount;
     }
+
+    local->eventsQueue = priority_queue< pair<double,Event*> > ();
     neurox_hpx_unpin;
 }
 
@@ -378,6 +380,7 @@ hpx_action_t Branch::initNeuronTreeLCO = 0;
 int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
 {
     neurox_hpx_pin(Branch);
+    assert(local->neuronTree);
     int branchesCount = local->neuronTree->branchesCount;
     local->neuronTree->parentLCO = parentLCO_ptr ? *parentLCO_ptr : HPX_NULL;
 #if multiSplix == false
