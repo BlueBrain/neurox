@@ -109,9 +109,6 @@ int Statistics::getNeuronSize_handler()
                 branchSize.synapses += (double) (sizeof(void*)*3 + sizeof(Point_process) + sizeof(/*RNG_state*/uint32_t[4])) /1024;
         }
     }
-   // printf("  - Branch (%d compartments): total %.2f KB (morphology %.1f KB, mechanisms %.1f KB, metadata %.3f KB)\n",
-   //         local->n, branchSize.getTotal(), branchSize.morphologies, branchSize.mechanisms, branchSize.metadata);
-
     //call the print function in children branches, pass their size to parent branch
     for (int c=0; c<local->neuronTree->branchesCount; c++)
     {

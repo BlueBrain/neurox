@@ -12,22 +12,18 @@ int main(int argc, char** argv)
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
-    neurox::Solver::HinesSolver::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
+    neurox::Solver::HinesSolver::registerHpxActions();
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 
     //Init HPX
-    if (hpx_init(&argc, &argv) != 0)
+    if (!hpx_init(&argc, &argv))
     {
         printf("HPX failed to initialize!\n");
         return 1;
     }
-    printf("neurox started (localities: %d, threads/locality: %d.)\n", HPX_LOCALITIES, HPX_THREADS);
 
-    //Run main
     int e = hpx_run(&neurox::main, argv, argc);
-
-    //clean up
     hpx_finalize();
     return e;
 }

@@ -100,6 +100,7 @@ static int main_handler(char **argv, size_t argc)
 {
     //parse command line arguments and broadcasts it to other localities
     Input::InputParams inputParams(argc, argv);
+    printf("neurox started (localities: %d, threads/locality: %d)\n", HPX_LOCALITIES, HPX_THREADS);
     hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
 
     // many steps with large dt so that cells start at their resting potential
@@ -112,13 +113,19 @@ static int main_handler(char **argv, size_t argc)
     Misc::Statistics::printSimulationSize();
     printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
     Misc::Statistics::printMechanismsDistribution();
-
-    printf("neurox::BackwardEuler::run...\n");
+    printf("neurox::BackwardEuler::initNeuronTreeLCO...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+     {  return hpx_call_sync(getNeuronAddr(i), Branch::initNeuronTreeLCO, NULL, 0);
+     }, 0, neuronsCount, NULL);
+    printf("neurox::BackwardEuler::finitialize...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+     {  return hpx_call_sync(getNeuronAddr(i), Branch::finitialize, NULL, 0);
+     }, 0, neuronsCount, NULL);
+    printf("neurox::BackwardEuler::solve...\n");
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t start = hpx_time_now();
-    printf("neurox::BackwardEuler::solve...\n");
     for (int i=0; i<neuronsCount;i++)
-        hpx_call(getNeuronAddr(i), Branch::NeuronTreeLCO::branchFunction, mainLCO);
+        hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO);
     hpx_lco_wait(mainLCO);
     printf("neurox::HPX_SUCCESS  (time: %g ms)\n",  hpx_time_elapsed_ms(start));
     hpx_exit(HPX_SUCCESS);
@@ -138,5 +145,4 @@ void registerHpxActions()
     neurox_hpx_register_action(1,neurox::setInputParams);
     neurox_hpx_register_action(2,neurox::setMechanisms);
 }
-
 };

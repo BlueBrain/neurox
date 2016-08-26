@@ -58,6 +58,7 @@ class Branch
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
+    void initMechanismsGraph(hpx_t target); ///> creates mechanisms instance graph based on global var 'mechanisms'
 
     struct NeuronTreeLCO
     {
@@ -68,11 +69,6 @@ class Branch
         hpx_t parentLCO;
         hpx_t thisBranchLCO;
         hpx_t * branchesLCOs;
-
-        static hpx_action_t branchFunction;
-        static hpx_action_t init;
-        static int branchFunction_handler();
-        static int init_handler(const hpx_t * parentLCO_ptr, size_t);
     } * neuronTree;
 
     map<int, vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
@@ -83,8 +79,11 @@ class Branch
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
+    static hpx_action_t initNeuronTreeLCO; ///> Initializes neuronTree
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
+    static hpx_action_t finitialize;
+    static hpx_action_t backwardEuler;
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
@@ -103,8 +102,12 @@ class Branch
   private:
     static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int initSoma_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t);
     static int clear_handler();
+    static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int backwardEuler_handler();
+    static int finitialize_handler();
+
 };
 
 }; //namespace

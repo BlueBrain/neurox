@@ -57,11 +57,6 @@ typedef int index_t; //int or unsigned short
         hpx_lco_delete(lco_branches, HPX_NULL); \
     }
 
-///hpx wrappers for sync call of a function to all children branches
-#define neurox_hpx_recursive_branch_sync(Func, ...) \
-    neurox_hpx_recursive_branch_async_call (Func, __VA_ARGS__ ) \
-    neurox_hpx_recursive_branch_async_wait
-
 //auxiliars for neurox_hpx_register_action
 #define neurox_hpx_register_action_0(func) \
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler);

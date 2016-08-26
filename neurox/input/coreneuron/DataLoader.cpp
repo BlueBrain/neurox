@@ -445,7 +445,7 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         //======= 5 - recursively create branches tree ===========
 
         double APthreshold = nrn_threads[i].presyns[0].threshold_;
-        createBranch((char) 1, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
+        createBranch(target, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(int), &APthreshold, sizeof(double));
         for (auto c : compartments)
@@ -851,7 +851,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     return n;
 }
 
-hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,
+hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
                                map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
@@ -895,7 +895,7 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
 
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch((char) 0, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
+            branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {
@@ -904,13 +904,13 @@ hpx_t DataLoader::createBranch(char isSoma, deque<Compartment*> & compartments, 
         getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
     }
 
-    //Allocate HPX Branch
-    hpx_t branchAddr = hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+    //Allocate HPX Branch (top has already been created on main neurons array)
+    hpx_t branchAddr = target==HPX_NULL ? hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT) : target;
 
     //initiate main branch information (n, a, b, d, v, rhs, area, branching and mechanisms)
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(int),
-                  &isSoma, sizeof(char),
+                  HPX_NULL, 0, //NOT USED
                   data.size()>0 ? data.data() : nullptr, sizeof(double)*data.size(),
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(int)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(int),

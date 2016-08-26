@@ -42,7 +42,7 @@ class DataLoader
     static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
                                         int netconsOffset, map< int, vector<NetConX*> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static hpx_t createBranch(char isSoma, deque<Compartment*> & compartments, Compartment * topCompartment,
+    static hpx_t createBranch(hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
                               map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance);
 
     static int getNeuronIdFromNrnThreadId(int nrn_id);
