@@ -15,9 +15,13 @@ Branch::~Branch()
     delete [] p;
     delete [] rhs;
     delete [] area;
-    delete [] neuronTree->branches;
-    delete [] neuronTree->branchesLCOs;
     delete [] data;
+
+    if (neuronTree)
+    {
+      delete [] neuronTree->branches;
+      delete [] neuronTree->branchesLCOs;
+    }
 
     for (int m=0; m<mechanismsCount; m++)
     {
@@ -171,6 +175,9 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
     assert(instancesOffset == sizes[5]/sizeof(int));
 
     //reconstructs parents or branching
+#if multiSplix==false
+    local->neuronTree = nullptr;
+#else
     local->neuronTree = new Branch::NeuronTreeLCO;
     if (sizes[6]>0)
     {
@@ -183,6 +190,7 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
         local->neuronTree->branchesCount = 0;
         local->neuronTree->branches = nullptr;
     }
+#endif
 
     if (sizes[7]>0)
     {
@@ -361,7 +369,7 @@ void Branch::secondOrderCurrent()
 }
 
 hpx_action_t Branch::addSpikeEvent = 0;
-int Branch::addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[])
+int Branch::addSpikeEvent_handler(const int nargs, const void *args[], const size_t [])
 {
     neurox_hpx_pin(Branch);
     assert(nargs==2);
@@ -380,13 +388,13 @@ hpx_action_t Branch::initNeuronTreeLCO = 0;
 int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
 {
     neurox_hpx_pin(Branch);
+#if multiSplix == false
+    local->neuronTree = nullptr;
+    neurox_hpx_unpin
+#else
     assert(local->neuronTree);
     int branchesCount = local->neuronTree->branchesCount;
     local->neuronTree->parentLCO = parentLCO_ptr ? *parentLCO_ptr : HPX_NULL;
-#if multiSplix == false
-    local->neuronTree->thisBranchLCO = HPX_NULL;
-    local->neuronTree->branchesLCOs = nullptr;
-#else
     local->neuronTree->thisBranchLCO = branchesCount ? hpx_lco_and_new(1) : HPX_NULL;
     local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount] : nullptr;
 
@@ -397,10 +405,10 @@ int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
     for (int c = 0; c < branchesCount; c++)
     {
         futures[c] = hpx_lco_future_new(sizeof (hpx_t));
-        addrs[c]   = &(local->neuronTree->branchesLCOs[c]);
+        addrs[c]   = &local->neuronTree->branchesLCOs[c];
         sizes[c]   = sizeof(hpx_t);
         hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO, futures[c],
-                 &local->neuronTree->branchesLCOs[c], sizeof(hpx_t) );
+                 &local->neuronTree->thisBranchLCO, sizeof(hpx_t)); //pass my LCO down
     }
     if (branchesCount > 0)
     {
@@ -410,8 +418,8 @@ int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
     delete [] futures;
     delete [] addrs;
     delete [] sizes;
-#endif
     neurox_hpx_unpin_continue(local->neuronTree->thisBranchLCO); //send my LCO to parent
+#endif
 }
 
 void Branch::initialize()

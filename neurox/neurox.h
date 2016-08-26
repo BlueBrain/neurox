@@ -20,7 +20,7 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-#define multiSplix false
+#define multiSplix true
 #define multiMex   true
 
 #define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"

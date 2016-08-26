@@ -85,7 +85,8 @@ int Statistics::getNeuronSize_handler()
     branchSize.compartmentsCount+=local->n;
     branchSize.morphologies += (double) (local->n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
     branchSize.morphologies += local->p ? (double) (local->n* sizeof(index_t))/1024 : 0;
-    branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
+    if (local->neuronTree)
+        branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
     branchSize.metadata += (double) sizeof(Branch::MechanismInstance)*mechanismsCount/1024;
 
@@ -110,6 +111,7 @@ int Statistics::getNeuronSize_handler()
         }
     }
     //call the print function in children branches, pass their size to parent branch
+    if (local->neuronTree)
     for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
         SizeInfo subBranchSize;
@@ -158,6 +160,7 @@ int Statistics::getNeuronMechanismsDistribution_handler()
         mechsCountPerType[m] = local->mechsInstances[m].count;
 
     //call the print function in children branches, pass their size to parent branch
+    if (local->neuronTree)
     for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
         vector<unsigned> mechsCountPerTypeChild (mechanismsCount);

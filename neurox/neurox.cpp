@@ -113,20 +113,24 @@ static int main_handler(char **argv, size_t argc)
     Misc::Statistics::printSimulationSize();
     printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
     Misc::Statistics::printMechanismsDistribution();
+
     printf("neurox::BackwardEuler::initNeuronTreeLCO...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-     {  return hpx_call_sync(getNeuronAddr(i), Branch::initNeuronTreeLCO, NULL, 0);
+     {  return hpx_call_sync(getNeuronAddr(i), Branch::initNeuronTreeLCO, NULL, 0, HPX_NULL, 0);
      }, 0, neuronsCount, NULL);
+
     printf("neurox::BackwardEuler::finitialize...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
      {  return hpx_call_sync(getNeuronAddr(i), Branch::finitialize, NULL, 0);
      }, 0, neuronsCount, NULL);
+
     printf("neurox::BackwardEuler::solve...\n");
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t start = hpx_time_now();
     for (int i=0; i<neuronsCount;i++)
         hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO);
     hpx_lco_wait(mainLCO);
+
     printf("neurox::HPX_SUCCESS  (time: %g ms)\n",  hpx_time_elapsed_ms(start));
     hpx_exit(HPX_SUCCESS);
 }

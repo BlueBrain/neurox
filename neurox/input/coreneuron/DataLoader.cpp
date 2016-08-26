@@ -937,6 +937,7 @@ int DataLoader::broadcastNetCons_handler(const int nargs, const void *args[], co
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(DataLoader::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
     assert(nargs==2);
+
     const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
     const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
 

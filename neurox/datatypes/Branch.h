@@ -60,15 +60,13 @@ class Branch
 
     struct NeuronTreeLCO
     {
-        //List of children branches
-        int branchesCount;		///> number of branches (if any)
+        int branchesCount;		///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
 
-        hpx_t parentLCO;
-        hpx_t thisBranchLCO;
-        hpx_t * branchesLCOs;
-    } * neuronTree; ///> represents the tree structure
-    //TODO can be null if no MultiSplix
+        hpx_t parentLCO;        ///> LCO of parent execution
+        hpx_t thisBranchLCO;    ///> LCO of current branch execution
+        hpx_t * branchesLCOs;   ///> LCOs of branches' execution
+    } * neuronTree; ///> represents the tree structure (or NULL if full neuron representation)
 
     std::map<int, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
@@ -106,7 +104,6 @@ class Branch
     static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int backwardEuler_handler();
     static int finitialize_handler();
-
 };
 
 }; //namespace
