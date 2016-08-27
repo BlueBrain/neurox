@@ -101,6 +101,7 @@ class Branch
     static hpx_action_t initNeuronTreeLCO; ///> Initializes neuronTree
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
+    static hpx_action_t finitialize;
     static hpx_action_t backwardEuler;
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
@@ -123,8 +124,8 @@ class Branch
     static int initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t);
     static int clear_handler();
     static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int finitialize_handler();
     static int backwardEuler_handler();
-    static int backwardEulerTrigger_handler();
 };
 
 }; //namespace

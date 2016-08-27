@@ -487,31 +487,25 @@ void Branch::backwardEulerStep()
     //>waitForSynapsesDelivery(stepsCountPerComm);
 }
 
+hpx_action_t Branch::finitialize = 0;
+int Branch::finitialize_handler()
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
+    local->initialize();
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
 hpx_action_t Branch::backwardEuler = 0;
 int Branch::backwardEuler_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
-
-    local->initialize();
-
-    if (local->neuronTree)
-    {
-      //wait for 'initialize' termination from children
-      for (int c=0; c<local->neuronTree->branchesCount; c++)
-          hpx_lco_wait_reset(local->neuronTree->branchesLCOs[c]);
-
-      //parent is waiting for local LCO, so set it
-      hpx_lco_set(local->neuronTree->localLCO, 0, NULL, HPX_NULL, HPX_NULL);
-    }
-
-    hpx_time_t start = hpx_time_now();
     while (local->t <= inputParams->tstop)
         local->backwardEulerStep();
-
     neurox_hpx_recursive_branch_async_wait;
-    double elapsed = hpx_time_elapsed_ms(start);
-    neurox_hpx_unpin_continue(elapsed);
+    neurox_hpx_unpin;
 }
 
 void Branch::setupTreeMatrixMinimal()
@@ -567,6 +561,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::initSoma);
     neurox_hpx_register_action(0, Branch::clear);
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
+    neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(0, Branch::backwardEuler);
     neurox_hpx_register_action(1, Branch::initNeuronTreeLCO);
     neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);

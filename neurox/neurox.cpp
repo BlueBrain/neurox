@@ -119,13 +119,20 @@ static int main_handler(char **argv, size_t argc)
      {  return hpx_call_sync(getNeuronAddr(i), Branch::initNeuronTreeLCO, NULL, 0, HPX_NULL, 0);
      }, 0, neuronsCount, NULL);
 
-    printf("neurox::BackwardEuler::finitialize+solve...\n");
+    printf("neurox::BackwardEuler::finitialize...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(getNeuronAddr(i), Branch::finitialize, NULL, 0, HPX_NULL, 0);
+    }, 0, neuronsCount, NULL);
+
+    printf("neurox::BackwardEuler::solver...\n");
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
+    hpx_time_t now = hpx_time_now();
     for (int i=0; i<neuronsCount;i++)
         hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO);
     hpx_lco_wait(mainLCO);
+    double elapsed = hpx_time_elapsed_ms(now)/1e3;
 
-    printf("neurox::HPX_SUCCESS\n");
+    printf("neurox finished (solver time: %.2f secs).\n", elapsed);
     hpx_exit(HPX_SUCCESS);
 }
 
