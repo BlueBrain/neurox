@@ -17,7 +17,7 @@ neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
 hpx_t getNeuronAddr(int i) {
-    return hpx_addr_add(neuronsAddr, sizeof(Neuron)*i, sizeof(Neuron));
+    return hpx_addr_add(neuronsAddr, sizeof(Branch)*i, sizeof(Branch));
 }
 
 Mechanism * getMechanismFromType(int type) {
