@@ -29,4 +29,14 @@ class NetConX : Event
   private:
 };
 
+///temp wrapper for point process
+struct PointProcInfo
+{
+    int nodeId;
+    int mechType;
+    int mechInstance;
+    int instanceDataOffset;
+    int size;
+};
+
 }

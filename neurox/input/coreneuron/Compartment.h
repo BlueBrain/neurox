@@ -8,22 +8,10 @@ using namespace std;
 
 namespace neurox
 {
-
 namespace Input
 {
-
 namespace Coreneuron
 {
-
-struct PointProcInfo
-{
-    int nodeId;
-    int mechType;
-    int mechInstance;
-    int instanceDataOffset;
-    int size;
-};
-
 class Compartment
 {
   public:

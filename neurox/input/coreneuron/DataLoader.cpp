@@ -643,7 +643,7 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
     for (int i=0; i<neuronsCount; i++)
         hpx_call(getNeuronAddr(i), DataLoader::broadcastNetCons, lco_neurons,
-                 allNeuronsIdsVec.data(), allNeuronsIdsVec.size()*sizeof(int),
+                 allNeuronsIdsVec.data(),  allNeuronsIdsVec.size() *sizeof(int),
                  allNeuronsAddrVec.data(), allNeuronsAddrVec.size()*sizeof(hpx_t));
     hpx_lco_wait(lco_neurons);
     hpx_lco_delete(lco_neurons, NULL);
@@ -898,6 +898,8 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
             branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
+        //if (subSection.at(0)->id==0) //TODO delete debug only
+        //    branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[0], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {
@@ -909,7 +911,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
     //Allocate HPX Branch (top has already been created on main neurons array)
     hpx_t branchAddr = target==HPX_NULL ? hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT) : target;
 
-    //initiate main branch information (n, a, b, d, v, rhs, area, branching and mechanisms)
+    //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(int),
                   HPX_NULL, 0, //NOT USED

@@ -13,7 +13,6 @@ int main(int argc, char** argv)
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
-    neurox::Solver::HinesSolver::registerHpxActions();
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 
     //Init HPX

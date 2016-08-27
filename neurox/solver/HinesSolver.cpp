@@ -6,189 +6,116 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-hpx_action_t HinesSolver::setupMatrixRHS = 0;
-int HinesSolver::setupMatrixRHS_handler()
+HinesSolver::~HinesSolver(){}
+
+void HinesSolver::gaussianFwdTriangulation(Branch * local)
 {
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(HinesSolver::setupMatrixRHS);
-    for (int i=0; i<local->n; i++)
-    {
-        local->rhs[i]=0;
-        local->d[i]=0;
-    }
-    local->callModFunction(Mechanism::ModFunction::before_breakpoint);
-    local->callModFunction(Mechanism::ModFunction::current);
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-hpx_action_t HinesSolver::gaussianFwdTriangulation = 0;
-int HinesSolver::gaussianFwdTriangulation_handler(const double * vFromParent_ptr, const size_t)
-{
-  neurox_hpx_pin(Branch);
-  const int n = local->n;
-  const double *a   = local->a;
-  const double *b   = local->b;
-  const double *d   = local->d;
-  const double *v   = local->v;
-  double *rhs = local->rhs;
-  const int *p = local->p;
-  const int branchesCount = local->neuronTree->branchesCount;
-
-  /* now the internal axial currents.
-    The extracellular mechanism contribution is already done.
-        rhs += ai_j*(vi_j - vi)
-  */
-
-  if (local->p!=NULL)
-  {
-    double dv=0;
-    for (int i=1; i<n; i++)
-    {
-        dv = v[p[i]] - v[i];  //reads from parent
-        rhs[i] -= b[i]*dv;
-        rhs[p[i]] += a[i]*dv; //writes to parent
-    }
-  }
-  else //multiSpliX
-  {
-    hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-    void  ** addrs  = branchesCount ? new void*[branchesCount]  : nullptr;
-    size_t * sizes  = branchesCount ? new size_t[branchesCount] : nullptr;
-    double * childrenValues = branchesCount ? new double[branchesCount] : nullptr;
-
-    double valueForParent=-1;
-    for (int i = local->soma ? 1 : 0 ; i <n; i++)
-    {   //reads V from parent:
-        double dv = (i==0 ? *vFromParent_ptr : v[i-1]) - v[i];
-        rhs[i] -= b[i] *dv;
-        if (i>1)
-            rhs[i-1] += a[i]*dv;
-        else
-            valueForParent = a[i]*dv; //value to pass to parent
-    }
-
-    for (int c = 0; c < branchesCount; c++)
-    {   //passes V to children and waits for their values of a[i]*dv
-        futures[c] = hpx_lco_future_new(sizeof (double));
-        addrs[c]   = &childrenValues[c];
-        sizes[c]   = sizeof(double);
-        hpx_call(local->neuronTree->branches[c], HinesSolver::gaussianFwdTriangulation, futures[c], &valueForParent, sizeof(valueForParent));
-    }
-
-    if (branchesCount > 0) //required or fails
-        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-
-    //bottom compartment can now be updated with children's contribution
-    for (int c = 0; c < branchesCount; c++)
-    {
-        rhs[n-1] += childrenValues[c];
-        hpx_lco_delete(futures[c], HPX_NULL);
-    }
-
-    delete [] futures;
-    delete [] addrs;
-    delete [] sizes;
-    delete [] childrenValues;
-
-    if (!local->soma) //send parent its value
-        neurox_hpx_unpin_continue(valueForParent);
-  }
-  neurox_hpx_unpin;
-}
-
-
-hpx_action_t HinesSolver::setupMatrixLHS = 0;
-int HinesSolver::setupMatrixLHS_handler()
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(HinesSolver::setupMatrixLHS);
-    // calculate left hand side of
-    //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
-    //cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
-    //with a matrix so that the solution is of the form [dvm+dvx,dvx] on the right
-    //hand side after solving.
-    //This is a common operation for fixed step, cvode, and daspk methods
-    local->callModFunction(Mechanism::ModFunction::jacob);
-
-    //finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs (treeset_core.c)
-    //now the cap current can be computed because any change to cm
-    //by another model has taken effect.
-    local->callModFunction(Mechanism::ModFunction::jacobCapacitance);
-
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-
-hpx_action_t HinesSolver::gaussianBackSubstitution = 0;
-int HinesSolver::gaussianBackSubstitution_handler()
-{
-    neurox_hpx_pin(Branch);
-    const double *b   = local->b;
-    const double *a   = local->a;
-    const double *rhs = local->rhs;
-    const double *v = local->v;
-    const int *p = local->p;
     const int n = local->n;
-    const int branchesCount = local->neuronTree->branchesCount;
-    double *d   = local->d;
+    const double *a   = local->a;
+    const double *b   = local->b;
+    const double *v   = local->v;
+    const int *p = local->p;
+    double *rhs = local->rhs;
+    const Branch::NeuronTreeLCO * neuronTree = local->neuronTree;
 
-    if (p!=NULL)
+    /* now the internal axial currents.
+      The extracellular mechanism contribution is already done.
+          rhs += ai_j*(vi_j - vi)
+    */
+
+    double dv=0;
+    if (neuronTree==NULL)
     {
+      assert(local->p);
+      for (int i=1; i<n; i++)
+      {
+          dv = v[p[i]] - v[i];  //reads from parent
+          rhs[i] -= b[i]*dv;
+          rhs[p[i]] += a[i]*dv; //writes to parent
+      }
+    }
+    else
+    {
+        //top compartment (only if has parent)
+        if (neuronTree->parentLCO)
+        {
+            double fromParentV; //pass 'v[p[i]]' downwards to branches
+            hpx_lco_get(neuronTree->parentLCO, sizeof(double), &fromParentV);
+            dv = fromParentV - v[0];
+            rhs[0] -= b[0]*dv;
+
+            double toParentRHS = a[0]*dv; //pass 'a[i]*dv' upwards to parent
+            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toParentRHS);
+        }
+
+        //middle compartments
+        for (int i=1; i<n-1; i++)
+        {
+            dv = v[i-1] - v[i];
+            rhs[i] -= b[i]*dv;
+            rhs[i-1] += a[i]*dv;
+        }
+
+        //bottom compartment
+        rhs[n-1] -= b[n-1]*dv; //rhs[i] -= b[i]*dv
+        double fromChildrenRHS;
+        double toChildrenV = v[n-1];
+        for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
+        {
+            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toChildrenV);
+            hpx_lco_get(neuronTree->branchesLCOs[c], sizeof(double), &fromChildrenRHS);
+            rhs[n-1] += fromChildrenRHS;
+        }
+        hpx_lco_reset_sync(neuronTree->localLCO);
+    }
+}
+
+void HinesSolver::gaussianBackSubstitution(Branch * local)
+{
+    const int n = local->n;
+    const double *a   = local->a;
+    const double *b   = local->b;
+    const double *v   = local->v;
+    const double *rhs = local->rhs;
+    const int *p = local->p;
+    double *d   = local->d;
+    const Branch::NeuronTreeLCO * neuronTree = local->neuronTree;
+
+    if (neuronTree==NULL)
+    {
+        assert(local->p);
         for (int i=1; i<n; i++)
         {
             d[i] -= b[i];
-            d[p[i]] -= a[i];
+            d[p[i]] -= a[i]; //writes to parent
         }
     }
-    else //multiSpliX
+    else
     {
-      hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-      void  ** addrs  = branchesCount ? new void*[branchesCount]  : nullptr;
-      size_t * sizes  = branchesCount ? new size_t[branchesCount] : nullptr;
-      double * childrenValues = branchesCount ? new double[branchesCount] : nullptr;
+        double toParentD=-1;
+        //top compartment (only if has parent)
+        if (neuronTree->parentLCO)
+        {
+            d[0] -= b[0];
+            toParentD = a[0]; //pass 'a[i]' upwards to parent
+            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toParentD);
+        }
 
-      double valueForParent=-1;
-      for (int i = local->soma ? 1 : 0 ; i <n; i++)
-      {
-          d[i] -= b[i];
-          if (i>1)
-              d[i-1] -= a[i];
-          else
-              valueForParent = a[i]; //value to pass to parent
-      }
+        //middle compartments
+        for (int i=1; i<n-1; i++)
+        {
+            d[i] -= b[i];
+            d[i-1] -= a[i];
+        }
 
-      for (int c = 0; c < branchesCount; c++)
-      {   //waits for their values of a[i]
-          futures[c] = hpx_lco_future_new(sizeof (double));
-          addrs[c]   = &childrenValues[c];
-          sizes[c]   = sizeof(double);
-          hpx_call(local->neuronTree->branches[c], HinesSolver::gaussianBackSubstitution, futures[c]);
-      }
-
-      if (branchesCount > 0) //required or fails
-          hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-
-      //bottom compartment can now be updated with children's contribution
-      for (int c = 0; c < branchesCount; c++)
-      {
-          d[n-1] -= childrenValues[c];
-          hpx_lco_delete(futures[c], HPX_NULL);
-      }
-
-      delete [] futures;
-      delete [] addrs;
-      delete [] sizes;
-      delete [] childrenValues;
+        //bottom compartment
+        d[n-1] -= b[n-1]; //d[i] -= b[i]
+        double fromChildrenA;
+        for (int c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
+        {
+            hpx_lco_get(neuronTree->branchesLCOs[c], sizeof(double), &fromChildrenA);
+            d[n-1] -= fromChildrenA;
+        }
+        hpx_lco_reset_sync(neuronTree->localLCO);
     }
-    neurox_hpx_unpin;
-}
-
-void HinesSolver::registerHpxActions()
-{
-    neurox_hpx_register_action(0, HinesSolver::setupMatrixRHS);
-    neurox_hpx_register_action(0, HinesSolver::setupMatrixLHS);
-    neurox_hpx_register_action(1, HinesSolver::gaussianFwdTriangulation);
-    neurox_hpx_register_action(0, HinesSolver::gaussianBackSubstitution);
 }

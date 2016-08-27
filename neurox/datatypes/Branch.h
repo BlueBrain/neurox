@@ -5,8 +5,12 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <new>  //placement new
+
+using namespace neurox;
 
 namespace  neurox {
+
 class Neuron;
 
 /**
@@ -20,6 +24,24 @@ class Branch
 {
   public:
     Branch()=delete; ///> no constructor, build using hpx init function instead
+    static void* operator new(size_t bytes, void* addr);
+    static void operator delete(void* worker);
+
+    Branch(int n,
+           hpx_t branchHpxAddr,
+           double * data, size_t dataCount,
+           int *pdata, size_t pdataCount,
+           int * instancesCount, size_t instancesCountCount,
+           int * nodesIndices, size_t nodesIndicesCount,
+           hpx_t * branches, size_t branchesCount,
+           int * p, size_t pCount,
+           double * vecplayT, size_t vecplayTCount,
+           double * vecplayY, size_t vecplayYCount,
+           PointProcInfo * vecplayInfo, size_t vecplayCount,
+           NetConX * netcons, size_t netconsCount,
+           int * netConsPreId, size_t netConsPreIdsCount,
+           double *netConsArgs, size_t netConsArgsCount,
+           void** vdata, size_t vdataCount);
     ~Branch();
 
     //for conveniency we add t and dt to all branch localities
@@ -64,7 +86,7 @@ class Branch
         hpx_t *branches;		///> hpx address of the branches branches
 
         hpx_t parentLCO;        ///> LCO of parent execution
-        hpx_t thisBranchLCO;    ///> LCO of current branch execution
+        hpx_t localLCO;         ///> LCO of current branch execution
         hpx_t * branchesLCOs;   ///> LCOs of branches' execution
     } * neuronTree; ///> represents the tree structure (or NULL if full neuron representation)
 
@@ -79,7 +101,6 @@ class Branch
     static hpx_action_t initNeuronTreeLCO; ///> Initializes neuronTree
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
-    static hpx_action_t finitialize;
     static hpx_action_t backwardEuler;
 
     double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
@@ -103,7 +124,7 @@ class Branch
     static int clear_handler();
     static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
     static int backwardEuler_handler();
-    static int finitialize_handler();
+    static int backwardEulerTrigger_handler();
 };
 
 }; //namespace
