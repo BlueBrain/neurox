@@ -115,22 +115,25 @@ Branch::Branch (int n,
     assert(instancesOffset == nodesIndicesCount);
 
     //reconstructs parents or branching
-#if multiSplix==false
-    this->neuronTree = nullptr;
-#else
-    this->neuronTree = new Branch::NeuronTreeLCO;
-    if (branchesCount>0)
+    if (inputParams->multiSplix)
     {
+      this->neuronTree = new Branch::NeuronTreeLCO;
+      if (branchesCount>0)
+      {
         this->neuronTree->branchesCount = branchesCount;
         this->neuronTree->branches = new hpx_t[branchesCount];
-        memcpy(this->neuronTree->branches, branches, branches*sizeof(hpx_t));
+        memcpy(this->neuronTree->branches, branches, branchesCount*sizeof(hpx_t));
+      }
+      else
+      {
+        this->neuronTree->branchesCount = 0;
+        this->neuronTree->branches = nullptr;
+      }
     }
     else
     {
-        this->neuronTree->branchesCount = 0;
-        this->neuronTree->branches = nullptr;
+        this->neuronTree = nullptr;
     }
-#endif
 
     if (pCount>0)
     {
@@ -222,14 +225,15 @@ int Branch::init_handler(const int nargs, const void *args[], const size_t sizes
 void Branch::initMechanismsGraph(hpx_t target)
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
-#if multiMex==true
-    this->mechsGraph = new MechanismsGraphLCO;
-    this->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
-    this->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
-    this->mechsGraph->mechsLCOs[mechanismsMap[capacitance]] = HPX_NULL;
-    int terminalMechanismsCount=0;
-    for (int m=0; m<mechanismsCount; m++)
+    if (inputParams->multiMex)
     {
+      this->mechsGraph = new MechanismsGraphLCO;
+      this->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
+      this->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
+      this->mechsGraph->mechsLCOs[mechanismsMap[capacitance]] = HPX_NULL;
+      int terminalMechanismsCount=0;
+      for (int m=0; m<mechanismsCount; m++)
+      {
         if (mechanisms[m]->type == capacitance) continue; //exclude capacitance
         this->mechsGraph->mechsLCOs[m] = hpx_lco_reduce_new(max((short) 1,mechanisms[m]->dependenciesCount),
                       sizeof(Mechanism::ModFunction), Mechanism::initModFunction, Mechanism::reduceModFunction);
@@ -237,11 +241,13 @@ void Branch::initMechanismsGraph(hpx_t target)
             terminalMechanismsCount++;
         hpx_call(target,  Branch::MechanismsGraphLCO::nodeFunction,
                  this->mechsGraph->graphLCO, &mechanisms[m]->type, sizeof(int));
+      }
+      this->mechsGraph->endLCO = hpx_lco_and_new(terminalMechanismsCount);
     }
-    this->mechsGraph->endLCO = hpx_lco_and_new(terminalMechanismsCount);
-#else
-    this->mechsGraph = NULL;
-#endif
+    else
+    {
+      this->mechsGraph = NULL;
+    }
 }
 
 hpx_action_t Branch::initSoma = 0;
@@ -385,38 +391,41 @@ hpx_action_t Branch::initNeuronTreeLCO = 0;
 int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
 {
     neurox_hpx_pin(Branch);
-#if multiSplix == false
-    local->neuronTree = nullptr;
-    neurox_hpx_unpin
-#else
-    assert(local->neuronTree);
-    int branchesCount = local->neuronTree->branchesCount;
-    local->neuronTree->parentLCO = parentLCO_ptr ? *parentLCO_ptr : HPX_NULL;
-    local->neuronTree->localLCO = branchesCount ? hpx_lco_and_new(1) : HPX_NULL;
-    local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount] : nullptr;
-
-    //send my LCO to children, and receive theirs
-    hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-    void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
-    size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
-    for (int c = 0; c < branchesCount; c++)
+    if (!inputParams->multiSplix)
     {
+      local->neuronTree = nullptr;
+      neurox_hpx_unpin
+    }
+    else
+    {
+      assert(local->neuronTree);
+      int branchesCount = local->neuronTree->branchesCount;
+      local->neuronTree->parentLCO = parentLCO_ptr ? *parentLCO_ptr : HPX_NULL;
+      local->neuronTree->localLCO = branchesCount ? hpx_lco_and_new(1) : HPX_NULL;
+      local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount] : nullptr;
+
+      //send my LCO to children, and receive theirs
+      hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
+      void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
+      size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
+      for (int c = 0; c < branchesCount; c++)
+      {
         futures[c] = hpx_lco_future_new(sizeof (hpx_t));
         addrs[c]   = &local->neuronTree->branchesLCOs[c];
         sizes[c]   = sizeof(hpx_t);
         hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO, futures[c],
                  &local->neuronTree->localLCO, sizeof(hpx_t)); //pass my LCO down
-    }
-    if (branchesCount > 0)
-    {
+      }
+      if (branchesCount > 0)
+      {
         hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
         hpx_lco_delete_all(branchesCount, futures, NULL);
+      }
+      delete [] futures;
+      delete [] addrs;
+      delete [] sizes;
+      neurox_hpx_unpin_continue(local->neuronTree->localLCO); //send my LCO to parent
     }
-    delete [] futures;
-    delete [] addrs;
-    delete [] sizes;
-    neurox_hpx_unpin_continue(local->neuronTree->localLCO); //send my LCO to parent
-#endif
 }
 
 void Branch::initialize()

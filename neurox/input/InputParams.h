@@ -36,10 +36,18 @@ class InputParams
 
     int argc;           ///> original command line argc
     char ** argv;       ///> original command line argv
+
+    //neurox specific options
+    bool outputStatistics; ///> outputs statistics file
+    bool outputMechanismsDot; ///> outputs mechanisms.dot file
+    bool outputNetconsDot; ///> outputs netcons.dot file
+    bool outputCompartmentsDot; ///> outputs compartments*.dot files
+    bool multiMex; ///> graph-based parallelism of mechanisms
+    bool multiSplix; ///> tree-based parallelism of neurons morphologies
+
   private:
     /// Parses command line arguments and populates structure
     void parseCommandLine(int argc, char ** argv);
-
 };
 }; //InputParams
 }; //NeuroX

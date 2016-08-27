@@ -30,9 +30,17 @@ void InputParams::parseCommandLine(int argc, char ** argv)
 {
     try {
         //message printed (help text, text delimiter, version)
-        TCLAP::CmdLine cmd("neurox simulator", ' ', "0.1");
+        TCLAP::CmdLine cmd("neurox simulator.", ' ', "0.1");
 
-        //add all parameters
+        //neurox only command line arguments (switches dont require cmd.add() )
+        TCLAP::SwitchArg outputCompartmentsDot("5", "output-compartments-dot", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
+        TCLAP::SwitchArg outputNetconsDot("4", "output-netcons-dot", "outputs netcons.dot with netcons information across neurons.", cmd, false);
+        TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs-dot", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
+        TCLAP::SwitchArg outputStatistics("2", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
+        TCLAP::SwitchArg multiSplix("1", "multisplix", "activates tree-based parallelism of neurons morphologies.", cmd, false);
+        TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
+
+        //coreneuron command line parameters
         TCLAP::ValueArg<double> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"double");
         cmd.add(tstart);
         TCLAP::ValueArg<double> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"double");
@@ -72,9 +80,17 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->secondorder = DEF_secondorder;
         this->rev_dt = 1/dt.getValue();
         this->celsius = DEF_celsius;
+
+        this->outputStatistics = outputStatistics.getValue();
+        this->outputMechanismsDot = outputMechanismsDot.getValue();
+        this->outputNetconsDot = outputNetconsDot.getValue();
+        this->outputCompartmentsDot = outputCompartmentsDot.getValue();
+        this->multiMex = multiMex.getValue();
+        this->multiSplix = multiSplix.getValue();
     }
     catch (TCLAP::ArgException & e)
     {
         printf("TCLAP error: %s for argument %s\n", e.error().c_str(), e.argId().c_str());
+        exit(1);
     }
 }

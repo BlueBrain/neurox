@@ -173,7 +173,7 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long( argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:m:z:x:r:w:h",
+        c = getopt_long( argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:m:z:x:r:w:h:0:1:2:3:4:5",
                          long_options, &option_index );
 
         /* Detect the end of the options. */
@@ -272,13 +272,15 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
 
             case 'h':
             case '?':
+            /*
                 if ( nrnmpi_myid == 0 ) {
                     show_cb_opts_help();
                 }
 
                 nrn_exit( 0 );
-
+            */
             default:
+            /*
                 printf( "Option %s", long_options[option_index].name );
 
                 if ( optarg ) {
@@ -286,6 +288,7 @@ void cn_parameters::read_cb_opts( int argc, char **argv )
                 }
 
                 printf( "is not recognized. Ignoring...\n" );
+                */
                 break;
         }
     }

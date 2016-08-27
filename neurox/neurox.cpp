@@ -109,10 +109,14 @@ static int main_handler(char **argv, size_t argc)
     //reads morphology data
     printf("neurox::Input::Coreneuron::DataLoader::loadData...\n");
     neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
-    printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
-    Misc::Statistics::printSimulationSize();
-    printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
-    Misc::Statistics::printMechanismsDistribution();
+
+    if (neurox::inputParams->outputStatistics)
+    {
+      printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
+      Misc::Statistics::printSimulationSize();
+      printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
+      Misc::Statistics::printMechanismsDistribution();
+    }
 
     printf("neurox::BackwardEuler::initNeuronTreeLCO...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
@@ -132,7 +136,7 @@ static int main_handler(char **argv, size_t argc)
     hpx_lco_wait(mainLCO);
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
 
-    printf("neurox finished (solver time: %.2f secs).\n", elapsed);
+    printf("neurox::end (solver time: %.2f secs).\n", elapsed);
     hpx_exit(HPX_SUCCESS);
 }
 

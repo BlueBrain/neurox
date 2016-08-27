@@ -8,7 +8,7 @@ void modl_reg() {} ///No additional mechs, dont register any external
 
 int main(int argc, char** argv)
 {
-    //register HPX methods
+    //register HPX actions
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();

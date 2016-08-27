@@ -161,12 +161,12 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
 
     // memory footprint after mpi initialisation
-    report_mem_usage( "After HPX_Init" );
+    //report_mem_usage( "After HPX_Init" );
 
     // reads mechanism information from bbcore_mech.dat
     mk_mech( input_params.datpath );
 
-    report_mem_usage( "After mk_mech" );
+    //report_mem_usage( "After mk_mech" );
 
     // create net_cvode instance
     mk_netcvode();
@@ -176,7 +176,7 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
         nrn_set_extra_thread0_vdata();
     }
 
-    report_mem_usage( "Before nrn_setup" );
+    //report_mem_usage( "Before nrn_setup" );
 
     //pass by flag so existing tests do not need a changed nrn_setup prototype.
     nrn_setup_multiple = input_params.multiple;
@@ -254,7 +254,8 @@ void DataLoader::coreNeuronFakeSteps() //can be deleted
 
 void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
 {
-#if OUTPUT_COMPARTMENTS_DOT_FILE==true
+  if (inputParams->outputCompartmentsDot)
+  {
     assert(topCompartment!=NULL);
     fprintf(fileCompartments, "subgraph cluster_%d {\n", topCompartment->id);
     fprintf(fileCompartments, "style=filled; color=blue; fillcolor=floralwhite; node [style=filled, color=floralwhite];\n");
@@ -267,7 +268,7 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
     fprintf(fileCompartments, "}\n");
     for (int c=0; c<comp->branches.size(); c++)
         printSubClustersToFile(fileCompartments, comp->branches[c]);
-#endif
+  }
 }
 
 hpx_action_t DataLoader::createNeuron = 0;
@@ -296,16 +297,17 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
             parentCompartment->addChild(compartments.at(n));
         }
 
-#if OUTPUT_COMPARTMENTS_DOT_FILE==true
-        FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+".dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;  node [shape=cylinder];\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
-        printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
-        for (auto c : compartments) //draw edges
+        if (inputParams->outputCompartmentsDot)
+        {
+          FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+".dot").c_str(), "wt");
+          fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;  node [shape=cylinder];\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
+          printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
+          for (auto c : compartments) //draw edges
             for (auto k : c->branches)
                 fprintf(fileCompartments, "%d -- %d %s;\n", c->id, k->id, "");
-        fprintf(fileCompartments, "}\n");
-        fclose(fileCompartments);
-#endif
+          fprintf(fileCompartments, "}\n");
+          fclose(fileCompartments);
+        }
 
         //======= 2 - reconstructs mechanisms instances ========
 
@@ -388,10 +390,11 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
             addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
         }
 
-#if OUTPUT_NETCONS_DOT_FILE==true
-        int netConsFromOthers=0;
-        for (auto nc : netcons)
+        if (inputParams->outputNetconsDot)
         {
+          int netConsFromOthers=0;
+          for (auto nc : netcons)
+          {
             int gid = nc.first;
             if (allNeuronsIdsSet.find(gid) == allNeuronsIdsSet.end())
                 netConsFromOthers++;
@@ -402,13 +405,12 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                     minDelay = std::min(minDelay, ncv->delay);
                 fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
             }
+          }
+          #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
+            if (netConsFromOthers>0)
+              fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
+          #endif
         }
-#if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
-        if (netConsFromOthers>0)
-            fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
-#endif
-
-#endif
 
         //======= 4 - reconstruct VecPlayContinuous events =======
         for (int v=0; v<nt.n_vecplay; v++)
@@ -474,9 +476,10 @@ void DataLoader::loadData(int argc, char ** argv)
         allNeuronsIdsSet.insert(getNeuronIdFromNrnThreadId(i));
     }
 
-#if OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE==true
-    for (int i=0; i<neuronsCount; i++)
+    if (inputParams->outputCompartmentsDot)
     {
+      for (int i=0; i<neuronsCount; i++)
+      {
         int neuronId = getNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
@@ -487,9 +490,8 @@ void DataLoader::loadData(int argc, char ** argv)
             fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[n], n);
         fprintf(fileCompartments, "}\n");
         fclose(fileCompartments);
+      }
     }
-#endif
-
 
     /** Reconstructs unique data related to each mechanism*
      * nargs=3 where:
@@ -515,30 +517,34 @@ void DataLoader::loadData(int argc, char ** argv)
         assert(type==mech_it.first);
         vector<int> successorsIds;
         int dependenciesCount;
-#if multiMex==true
-        std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
-        for (int i=0; i<neuronsCount; i++)
-          for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
-          {
-            int otherType = tml2->index;
-            for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
+
+        if (inputParams->multiMex)
+        {
+          std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
+          for (int i=0; i<neuronsCount; i++)
+            for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
             {
+              int otherType = tml2->index;
+              for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
+              {
                 int ptype = memb_func[otherType].dparam_semantics[d];
                 if (otherType == type && ptype>0 && ptype<1000)
                     dependenciesIds.insert(ptype); //this mech depends on another one
                 if (otherType!= type && ptype==type)
                     if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
                         successorsIds.push_back(otherType); //other mech depends on this one
+              }
             }
-          }
-        dependenciesCount = dependenciesIds.size();
-#else
-        if ( tml->index == capacitance)  //capacitance is not part of graph
-        {
-            dependenciesCount=0;
+          dependenciesCount = dependenciesIds.size();
         }
         else
         {
+          if ( tml->index == capacitance)  //capacitance is not part of graph
+          {
+            dependenciesCount=0;
+          }
+          else
+          {
             //all except second element (the one after capacitance) have 1 dependency
             auto secondMech = uniqueMechs.begin(); //get first elem of map
             std::advance(secondMech, 1); //advance 1 position
@@ -549,8 +555,8 @@ void DataLoader::loadData(int argc, char ** argv)
             std::advance(successorMech, 1); //the mech immediately after in the map
             if (successorMech != uniqueMechs.end())
                 successorsIds.push_back(successorMech->first);
+          }
         }
-#endif
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
         if (strcmp(memb_func[type].sym, "PatternStim")==0 && inputParams->patternStim[0]=='\0')
@@ -580,16 +586,17 @@ void DataLoader::loadData(int argc, char ** argv)
 
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
-#if OUTPUT_MECHANISMS_DOT_FILE==true
-    FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
-    fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
-    fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
-    fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
-    fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
-    fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            getMechanismFromType(capacitance)->sym, capacitance);
-    for (int m =0; m< mechanismsCount; m++)
+    if (inputParams->outputMechanismsDot)
     {
+      FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
+      fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+      fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
+      fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
+            getMechanismFromType(capacitance)->sym, capacitance);
+      for (int m =0; m< mechanismsCount; m++)
+      {
         Mechanism * mech = mechanisms[m];
         if (mech->pntMap > 0) //if is point process make it dotted
             fprintf(fileMechs, "\"%s (%d)\" [style=dotted];\n", mech->sym, mech->type);
@@ -603,10 +610,10 @@ void DataLoader::loadData(int argc, char ** argv)
         for (int d=0; d<mech->successorsCount; d++)
             fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",  mech->sym, mech->type,
                     getMechanismFromType(mech->successors[d])->sym, getMechanismFromType(mech->successors[d])->type);
+      }
+      fprintf(fileMechs, "}\n");
+      fclose(fileMechs);
     }
-    fprintf(fileMechs, "}\n");
-    fclose(fileMechs);
-#endif
 
     //allocate HPX memory space for neurons
     printf("neurox::setNeurons...\n");
@@ -614,15 +621,16 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_bcast_rsync(neurox::setNeurons, &neuronsCount, sizeof(int), &neuronsAddr, sizeof(hpx_t));
     assert(neuronsAddr != HPX_NULL);
 
-#if OUTPUT_NETCONS_DOT_FILE==true
-    assert(HPX_LOCALITIES == 1);
-    fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-    //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
-#if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
-    fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
-#endif
-#endif
+    if (inputParams->outputNetconsDot)
+    {
+      assert(HPX_LOCALITIES == 1);
+      fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
+      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+      //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+      #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
+        fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
+      #endif
+    }
 
     printf("neurox::createNeurons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
@@ -648,10 +656,11 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_lco_wait(lco_neurons);
     hpx_lco_delete(lco_neurons, NULL);
 
-#if OUTPUT_NETCONS_DOT_FILE==true
-    fprintf(fileNetcons, "}\n");
-    fclose(fileNetcons);
-#endif
+    if (inputParams->outputNetconsDot)
+    {
+      fprintf(fileNetcons, "}\n");
+      fclose(fileNetcons);
+    }
 }
 
 void DataLoader::getNetConsBranchData(
@@ -783,10 +792,9 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         nodesIndicesMechs[m].clear();
     }
 
-#if multiSplix==false
-    //if there are more than one instace of the same ion mech on a node, this fails!
-    assert(instanceToOffset.size() == offsetToInstance.size());
-#endif
+    if (!inputParams->multiSplix)
+      //if there are more than one instace of the same ion mech on a node, this fails!
+      {assert(instanceToOffset.size() == offsetToInstance.size());}
 
     //convert all offsets in pdata to the correct ones
     //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
@@ -876,7 +884,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
     vector<int> branchNetConsPreId;
     vector<double> branchNetConsArgs;
 
-    if (multiSplix)
+    if (inputParams->multiSplix)
     {
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
@@ -910,6 +918,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
 
     //Allocate HPX Branch (top has already been created on main neurons array)
     hpx_t branchAddr = target==HPX_NULL ? hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT) : target;
+    bool multiSplix = inputParams->multiSplix;
 
     //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,

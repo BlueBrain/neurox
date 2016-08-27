@@ -6,6 +6,10 @@
 #include <vector>
 #include <memory>
 
+#define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
+#define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
+#define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS false
+
 using namespace std;
 
 namespace neurox
