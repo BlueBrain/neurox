@@ -117,7 +117,7 @@ Branch::Branch (int n,
     //reconstructs parents or branching
     if (inputParams->multiSplix)
     {
-      this->neuronTree = new Branch::NeuronTreeLCO;
+      this->neuronTree = new Branch::NeuronTree;
       if (branchesCount>0)
       {
         this->neuronTree->branchesCount = branchesCount;
@@ -388,44 +388,47 @@ int Branch::addSpikeEvent_handler(const int nargs, const void *args[], const siz
 }
 
 hpx_action_t Branch::initNeuronTreeLCO = 0;
-int Branch::initNeuronTreeLCO_handler(const hpx_t * parentLCO_ptr, size_t)
+int Branch::initNeuronTreeLCO_handler()
 {
     neurox_hpx_pin(Branch);
     if (!inputParams->multiSplix)
     {
       local->neuronTree = nullptr;
-      neurox_hpx_unpin
     }
     else
     {
       assert(local->neuronTree);
       int branchesCount = local->neuronTree->branchesCount;
-      local->neuronTree->parentLCO = parentLCO_ptr ? *parentLCO_ptr : HPX_NULL;
-      local->neuronTree->localLCO = branchesCount ? hpx_lco_and_new(1) : HPX_NULL;
-      local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount] : nullptr;
+      local->neuronTree->localLCO[0] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(double));
+      local->neuronTree->localLCO[1] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(double));
+      local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount*2] : nullptr;
 
-      //send my LCO to children, and receive theirs
-      hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-      void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
-      size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
-      for (int c = 0; c < branchesCount; c++)
+      //send my LCOs to children, and receive theirs
+      if (branchesCount>0)
       {
-        futures[c] = hpx_lco_future_new(sizeof (hpx_t));
-        addrs[c]   = &local->neuronTree->branchesLCOs[c];
-        sizes[c]   = sizeof(hpx_t);
-        hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO, futures[c],
-                 &local->neuronTree->localLCO, sizeof(hpx_t)); //pass my LCO down
-      }
-      if (branchesCount > 0)
-      {
+        hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
+        void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
+        size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
+        for (int c = 0; c < branchesCount; c++)
+        {
+          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*2);
+          addrs[c]   = &local->neuronTree->branchesLCOs[c*2];
+          sizes[c]   = sizeof(hpx_t)*2;
+          hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO, futures[c],
+                  local->neuronTree->localLCO, sizeof(hpx_t)*2); //pass my LCO down
+        }
         hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
         hpx_lco_delete_all(branchesCount, futures, NULL);
+
+        delete [] futures;
+        delete [] addrs;
+        delete [] sizes;
       }
-      delete [] futures;
-      delete [] addrs;
-      delete [] sizes;
-      neurox_hpx_unpin_continue(local->neuronTree->localLCO); //send my LCO to parent
+
+      if (!local->soma) //send my LCO to parent
+          neurox_hpx_unpin_continue(local->neuronTree->localLCO);
     }
+    neurox_hpx_unpin;
 }
 
 void Branch::initialize()
@@ -527,7 +530,7 @@ void Branch::setupTreeMatrixMinimal()
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
     this->callModFunction(Mechanism::ModFunction::current);
 
-    Solver::HinesSolver::gaussianFwdTriangulation(this);
+    Solver::HinesSolver::forwardTriangulation(this);
 
     // calculate left hand side of
     //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
@@ -542,7 +545,7 @@ void Branch::setupTreeMatrixMinimal()
     //by another model has taken effect.
     this->callModFunction(Mechanism::ModFunction::jacobCapacitance);
 
-    Solver::HinesSolver::gaussianBackSubstitution(this);
+    Solver::HinesSolver::backSubstitution(this);
 }
 
 void Branch::deliverEvents(double t)
@@ -572,6 +575,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(0, Branch::backwardEuler);
-    neurox_hpx_register_action(1, Branch::initNeuronTreeLCO);
+    neurox_hpx_register_action(0, Branch::initNeuronTreeLCO);
     neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
 }

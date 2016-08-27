@@ -8,7 +8,7 @@ using namespace neurox::Solver;
 
 HinesSolver::~HinesSolver(){}
 
-void HinesSolver::gaussianFwdTriangulation(Branch * local)
+void HinesSolver::forwardTriangulation(Branch * local)
 {
     const int n = local->n;
     const double *a   = local->a;
@@ -16,7 +16,7 @@ void HinesSolver::gaussianFwdTriangulation(Branch * local)
     const double *v   = local->v;
     const int *p = local->p;
     double *rhs = local->rhs;
-    const Branch::NeuronTreeLCO * neuronTree = local->neuronTree;
+    const Branch::NeuronTree * neuronTree = local->neuronTree;
 
     /* now the internal axial currents.
       The extracellular mechanism contribution is already done.
@@ -36,16 +36,17 @@ void HinesSolver::gaussianFwdTriangulation(Branch * local)
     }
     else
     {
-        //top compartment (only if has parent)
-        if (neuronTree->parentLCO)
+        //we use first local future for V, and second for RHS
+
+        if (!local->soma) //all branches except top
         {
-            double fromParentV; //pass 'v[p[i]]' downwards to branches
-            hpx_lco_get(neuronTree->parentLCO, sizeof(double), &fromParentV);
+            double fromParentV; //get 'v[p[i]]' from parent
+            hpx_lco_get_reset(neuronTree->localLCO[0], sizeof(double), &fromParentV);
             dv = fromParentV - v[0];
             rhs[0] -= b[0]*dv;
 
             double toParentRHS = a[0]*dv; //pass 'a[i]*dv' upwards to parent
-            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toParentRHS);
+            hpx_lco_set_rsync(neuronTree->localLCO[1], sizeof(double), &toParentRHS);
         }
 
         //middle compartments
@@ -57,20 +58,24 @@ void HinesSolver::gaussianFwdTriangulation(Branch * local)
         }
 
         //bottom compartment
+        assert(n>=2); //will fail otherwise
+        dv = v[n-2] - v[n-1];  //dv = v[p[i]] - v[i];
         rhs[n-1] -= b[n-1]*dv; //rhs[i] -= b[i]*dv
-        double fromChildrenRHS;
+
         double toChildrenV = v[n-1];
         for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
+            hpx_lco_set_rsync(neuronTree->branchesLCOs[c*2+0], sizeof(double), &toChildrenV);
+
+        double fromChildrenRHS;
+        for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
         {
-            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toChildrenV);
-            hpx_lco_get(neuronTree->branchesLCOs[c], sizeof(double), &fromChildrenRHS);
+            hpx_lco_get_reset(neuronTree->branchesLCOs[c*2+1], sizeof(double), &fromChildrenRHS);
             rhs[n-1] += fromChildrenRHS;
         }
-        hpx_lco_reset_sync(neuronTree->localLCO);
     }
 }
 
-void HinesSolver::gaussianBackSubstitution(Branch * local)
+void HinesSolver::backSubstitution(Branch * local)
 {
     const int n = local->n;
     const double *a   = local->a;
@@ -79,7 +84,7 @@ void HinesSolver::gaussianBackSubstitution(Branch * local)
     const double *rhs = local->rhs;
     const int *p = local->p;
     double *d   = local->d;
-    const Branch::NeuronTreeLCO * neuronTree = local->neuronTree;
+    const Branch::NeuronTree * neuronTree = local->neuronTree;
 
     if (neuronTree==NULL)
     {
@@ -92,13 +97,12 @@ void HinesSolver::gaussianBackSubstitution(Branch * local)
     }
     else
     {
-        double toParentD=-1;
-        //top compartment (only if has parent)
-        if (neuronTree->parentLCO)
+        double toParentA=-1;
+        if (!local->soma) //all branches except top
         {
             d[0] -= b[0];
-            toParentD = a[0]; //pass 'a[i]' upwards to parent
-            hpx_lco_set_rsync(neuronTree->localLCO, sizeof(double), &toParentD);
+            toParentA = a[0]; //pass 'a[i]' upwards to parent
+            hpx_lco_set_rsync(neuronTree->localLCO[1], sizeof(double), &toParentA);
         }
 
         //middle compartments
@@ -113,9 +117,8 @@ void HinesSolver::gaussianBackSubstitution(Branch * local)
         double fromChildrenA;
         for (int c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
         {
-            hpx_lco_get(neuronTree->branchesLCOs[c], sizeof(double), &fromChildrenA);
+            hpx_lco_get_reset(neuronTree->branchesLCOs[c*2+1], sizeof(double), &fromChildrenA);
             d[n-1] -= fromChildrenA;
         }
-        hpx_lco_reset_sync(neuronTree->localLCO);
     }
 }

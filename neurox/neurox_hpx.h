@@ -13,7 +13,7 @@
 //typedefs
 typedef hpx_addr_t hpx_t;
 typedef double floble_t;
-typedef int index_t; //int or unsigned short
+typedef int index_t; //int or short (no unsigned, pdata can be negative)
 
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0

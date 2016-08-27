@@ -20,8 +20,9 @@ class HinesSolver
     HinesSolver()=delete;
     ~HinesSolver();
 
-    static void gaussianFwdTriangulation(Branch * local);
-    static void gaussianBackSubstitution(Branch * local);
+    static void forwardTriangulation(Branch * local);
+    static void backSubstitution(Branch * local);
+
   private:
 };
 
