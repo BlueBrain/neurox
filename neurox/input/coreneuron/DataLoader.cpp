@@ -906,9 +906,6 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
         //recursively create children branches
         for (int c=0; c<comp->branches.size(); c++)
             branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
-        //if (subSection.at(0)->id==0) //TODO delete debug only BRUNO
-        //  for (int c=0; c<comp->branches.size(); c++)
-        //    branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[0], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {

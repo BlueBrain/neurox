@@ -5,6 +5,7 @@
 #include <set>
 
 using namespace neurox;
+using namespace neurox::Solver;
 
 void* Branch::operator new(size_t bytes, void* addr) {
   return addr;
@@ -399,9 +400,9 @@ int Branch::initNeuronTreeLCO_handler()
     {
       assert(local->neuronTree);
       int branchesCount = local->neuronTree->branchesCount;
-      local->neuronTree->localLCO[0] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(double));
-      local->neuronTree->localLCO[1] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(double));
-      local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount*2] : nullptr;
+      for (int i=0; i<NeuronTree::futuresSize; i++)
+          local->neuronTree->localLCO[i] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(double));
+      local->neuronTree->branchesLCOs = branchesCount ? new hpx_t[branchesCount][NeuronTree::futuresSize] : nullptr;
 
       //send my LCOs to children, and receive theirs
       if (branchesCount>0)
@@ -411,11 +412,11 @@ int Branch::initNeuronTreeLCO_handler()
         size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
         for (int c = 0; c < branchesCount; c++)
         {
-          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*2);
-          addrs[c]   = &local->neuronTree->branchesLCOs[c*2];
-          sizes[c]   = sizeof(hpx_t)*2;
+          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*NeuronTree::futuresSize);
+          addrs[c]   = &local->neuronTree->branchesLCOs[c];
+          sizes[c]   = sizeof(hpx_t)*NeuronTree::futuresSize;
           hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO, futures[c],
-                  local->neuronTree->localLCO, sizeof(hpx_t)*2); //pass my LCO down
+                  local->neuronTree->localLCO, sizeof(hpx_t)*NeuronTree::futuresSize); //pass my LCO down
         }
         hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
         hpx_lco_delete_all(branchesCount, futures, NULL);
@@ -503,7 +504,7 @@ hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
+    neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->initialize();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;

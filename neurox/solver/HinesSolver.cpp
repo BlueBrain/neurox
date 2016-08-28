@@ -64,12 +64,12 @@ void HinesSolver::forwardTriangulation(Branch * local)
 
         double toChildrenV = v[n-1];
         for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
-            hpx_lco_set_rsync(neuronTree->branchesLCOs[c*2+0], sizeof(double), &toChildrenV);
+            hpx_lco_set_rsync(neuronTree->branchesLCOs[c][0], sizeof(double), &toChildrenV);
 
         double fromChildrenRHS;
         for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
         {
-            hpx_lco_get_reset(neuronTree->branchesLCOs[c*2+1], sizeof(double), &fromChildrenRHS);
+            hpx_lco_get_reset(neuronTree->branchesLCOs[c][1], sizeof(double), &fromChildrenRHS);
             rhs[n-1] += fromChildrenRHS;
         }
     }
@@ -80,8 +80,6 @@ void HinesSolver::backSubstitution(Branch * local)
     const int n = local->n;
     const double *a   = local->a;
     const double *b   = local->b;
-    const double *v   = local->v;
-    const double *rhs = local->rhs;
     const int *p = local->p;
     double *d   = local->d;
     const Branch::NeuronTree * neuronTree = local->neuronTree;
@@ -97,12 +95,13 @@ void HinesSolver::backSubstitution(Branch * local)
     }
     else
     {
+        //we use third local future for A contribution to prent
         double toParentA=-1;
         if (!local->soma) //all branches except top
         {
             d[0] -= b[0];
             toParentA = a[0]; //pass 'a[i]' upwards to parent
-            hpx_lco_set_rsync(neuronTree->localLCO[1], sizeof(double), &toParentA);
+            hpx_lco_set_rsync(neuronTree->localLCO[2], sizeof(double), &toParentA);
         }
 
         //middle compartments
@@ -117,7 +116,7 @@ void HinesSolver::backSubstitution(Branch * local)
         double fromChildrenA;
         for (int c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
         {
-            hpx_lco_get_reset(neuronTree->branchesLCOs[c*2+1], sizeof(double), &fromChildrenA);
+            hpx_lco_get_reset(neuronTree->branchesLCOs[c][2], sizeof(double), &fromChildrenA);
             d[n-1] -= fromChildrenA;
         }
     }

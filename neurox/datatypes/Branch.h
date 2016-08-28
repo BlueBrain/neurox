@@ -84,8 +84,10 @@ class Branch
     {
         int branchesCount;		///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
-        hpx_t localLCO[2];      ///> LCO of current branch execution to communicate 2 variables with parent branch
-        hpx_t * branchesLCOs;   ///> LCOs of branches' execution (null if no children or hpx_t[2]*branchesCount)
+
+        static const size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
+        hpx_t localLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
+        hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
     } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
     std::map<int, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
