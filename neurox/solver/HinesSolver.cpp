@@ -50,7 +50,7 @@ void HinesSolver::forwardTriangulation(Branch * local)
         }
 
         //middle compartments
-        for (int i=1; i<n-1; i++)
+        for (int i=1; i<n; i++)
         {
             dv = v[i-1] - v[i];
             rhs[i] -= b[i]*dv;
@@ -58,10 +58,6 @@ void HinesSolver::forwardTriangulation(Branch * local)
         }
 
         //bottom compartment
-        assert(n>=2); //will fail otherwise
-        dv = v[n-2] - v[n-1];  //dv = v[p[i]] - v[i];
-        rhs[n-1] -= b[n-1]*dv; //rhs[i] -= b[i]*dv
-
         double toChildrenV = v[n-1];
         for (int c=0; c<neuronTree->branchesCount; c++) //rhs[p[i]] += a[i]*dv
             hpx_lco_set_rsync(neuronTree->branchesLCOs[c][0], sizeof(double), &toChildrenV);
@@ -105,14 +101,13 @@ void HinesSolver::backSubstitution(Branch * local)
         }
 
         //middle compartments
-        for (int i=1; i<n-1; i++)
+        for (int i=1; i<n; i++)
         {
             d[i] -= b[i];
             d[i-1] -= a[i];
         }
 
         //bottom compartment
-        d[n-1] -= b[n-1]; //d[i] -= b[i]
         double fromChildrenA;
         for (int c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
         {
