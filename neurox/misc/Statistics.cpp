@@ -45,26 +45,26 @@ void Statistics::printSimulationSize(bool writeToFile)
 
     FILE *outstream = stdout;
     if (writeToFile)
-        outstream = fopen(string("simulation-memory-consumption.txt").c_str(), "wt");
+        outstream = fopen(string("neurons-memory-consumption.csv").c_str(), "wt");
 
-    fprintf(outstream, "Simulation Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
-           simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
+    fprintf(outstream, "gid,compartments,branches,mechs-instances,total-KB,morphologies-KB,mechanisms-KB,synapses-KB,metadata-KB\n");
 
     for (int i=0; i<neuronsCount; i++)
     {
         SizeInfo neuronSize;
         hpx_call_sync(getNeuronAddr(i), Statistics::getNeuronSize, &neuronSize, sizeof(neuronSize));
-        fprintf(outstream, "%d: gid %d, %llu compartments, %llu branches, %llu mech instances, %.0f KB:\n",
-                i, neuronSize.neuronId, neuronSize.compartmentsCount, neuronSize.branchesCount, neuronSize.mechsInstancesCount, neuronSize.getTotalSize());
-        fprintf(outstream, "    morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB\n",
-                neuronSize.morphologies, neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
+        fprintf(outstream, "%d,%llu,%llu,%llu,%.1f,%.2f,%.2f,%.2f,%.2f\n",
+                neuronSize.neuronId, neuronSize.compartmentsCount, neuronSize.branchesCount,
+                neuronSize.mechsInstancesCount, neuronSize.getTotalSize(), neuronSize.morphologies,
+                neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
         simSize += neuronSize;
     }
-    fprintf(outstream, "TOTAL: %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.0f KB:\n",
+    printf("        %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
            neuronsCount, simSize.branchesCount, simSize.compartmentsCount, simSize.mechsInstancesCount, simSize.getTotalSize());
-    fprintf(outstream, "       morphologies %.0f KB, mechanisms %.0f KB, synapses %.0f KB, metadata %.0f KB, globalVars %.0f KB\n",
-           simSize.morphologies, simSize.mechanisms, simSize.synapses, simSize.metadata, simSize.globalVars);
-
+    printf("        (morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB)\n",
+           simSize.morphologies/1024., simSize.mechanisms/1024., simSize.synapses/1024, simSize.metadata/1024);
+    printf("        Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
+                   simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
     if (writeToFile)
         fclose(outstream);
 }
@@ -136,16 +136,16 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
             totalMechsInstances += mechsCountPerType[m];
         }
     }
+    printf("        Total mechs instances: %lld\n", totalMechsInstances);
 
     FILE *outstream = stdout;
     if (writeToFile)
-        outstream = fopen(string("mechs-distribution.txt").c_str(), "wt");
+        outstream = fopen(string("mechs-distribution.csv").c_str(), "wt");
+    fprintf(outstream, "mech-type,name,instances,avg-per-neuron\n");
 
-    fprintf(outstream, "Total mechs instances: %lld\n", totalMechsInstances);
     for (int m=0; m<mechanismsCount; m++)
-        fprintf(outstream, "- type %03d: %d instances of %s (%d), avg per neuron %.1f\n",
-             mechanisms[m]->type, sumMechsCountPerType[m], mechanisms[m]->sym, mechanisms[m]->type,
-             sumMechsCountPerType[m], (double) sumMechsCountPerType[m]/neuronsCount);
+        fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type, mechanisms[m]->sym,
+                sumMechsCountPerType[m],(double)sumMechsCountPerType[m]/neuronsCount);
 
     if (writeToFile)
         fclose(outstream);

@@ -515,8 +515,24 @@ int Branch::backwardEuler_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
+    int i=0;
     while (local->t <= inputParams->tstop)
+    {
+        if (local->soma) //neuron
+        { //docs: last argument should be 0 for and-lco
+          //hpx_t step = hpx_lco_array_at(timeMachine, i, 0);
+          //hpx_lco_set(step, 0, NULL, HPX_NULL, HPX_NULL);
+        }
+
         local->backwardEulerStep();
+        if (local->soma && i>=4)
+        {
+            //TODO use lco_gencount maybe?
+            //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
+            //hpx_lco_wait(step);
+        }
+        i++;
+    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

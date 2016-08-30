@@ -481,7 +481,7 @@ void DataLoader::loadData(int argc, char ** argv)
       for (int i=0; i<neuronsCount; i++)
       {
         int neuronId = getNeuronIdFromNrnThreadId(i);
-        FILE *fileCompartments = fopen(string("compartments"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
+        FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
         //for all nodes in this NrnThread
