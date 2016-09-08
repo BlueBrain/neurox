@@ -13,13 +13,13 @@ class Neuron
 {
   public:
     Neuron() = delete;
-    Neuron(int neuronId, double APthreshold);
+    Neuron(gid_t neuronId, floble_t APthreshold);
     ~Neuron();
 
-    int id;              ///> neuron global id
-    double APthreshold;  ///> Action Potential threshold
+    gid_t id;              ///> neuron global id
+    floble_t APthreshold;  ///> Action Potential threshold
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
-    void fireActionPotential(double t); ///> fires AP, returns LCO for sent synapses
+    void fireActionPotential(floble_t t); ///> fires AP, returns LCO for sent synapses
     void waitForSynapsesDelivery(int commStepSize); ///> waits for delivery of synapses
     size_t getNetConsCount(); ///>number of netcons
     void addSynapseTarget(hpx_t target);///> add hpx address of post-synaptic branch

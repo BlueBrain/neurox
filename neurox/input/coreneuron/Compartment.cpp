@@ -11,8 +11,8 @@ using namespace neurox::Input::Coreneuron;
 
 Compartment::~Compartment(){};
 
-Compartment::Compartment(int id, double a, double b, double d,
-                            double v, double rhs, double area, int p):
+Compartment::Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
+                         floble_t v, floble_t rhs, floble_t area, offset_t p):
     id(id), a(a), b(b), d(d), v(v), rhs(rhs), area(area), p(p) {};
 
 void Compartment::addChild(Compartment * child)
@@ -20,20 +20,27 @@ void Compartment::addChild(Compartment * child)
     branches.push_back(child);
 };
 
-void Compartment::addMechanismInstance(int mechType, double * data, int dataSize, Datum * pdata, int pdataSize)
+void Compartment::addMechanismInstance(int mechType,
+                                       double *  data, int dataSize,
+                                       Datum  * pdata, int pdataSize)
 {
     assert(mechanismsMap[mechType]!=-1);
     mechsTypes.push_back(mechType);
     if (dataSize>0)
-       this->data.insert (this->data.end() , data , data  + dataSize );
+        for (int i=0; i<dataSize; i++)
+            this->data.push_back((floble_t) data[i]);
     if (pdataSize>0)
-       this->pdata.insert (this->pdata.end() , pdata , pdata  + pdataSize );
+        for (int i=0; i<pdataSize; i++)
+            this->pdata.push_back((offset_t) pdata[i]);
 };
 
 void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
 {
     assert(ppi.size>0);
     this->vecPlayInfo.push_back(ppi);
-    this->vecPlayTdata.insert(this->vecPlayTdata.begin(), t, t+ppi.size);
-    this->vecPlayYdata.insert(this->vecPlayYdata.begin(), y, y+ppi.size);
+    for (int i=0; i<ppi.size; i++)
+    {
+        this->vecPlayTdata.push_back((floble_t) t[i]);
+        this->vecPlayYdata.push_back((floble_t) y[i]);
+    }
 }

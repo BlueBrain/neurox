@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.3, 2016-08-28T14:26:50. -->
+<!-- Written by QtCreator 4.0.3, 2016-09-08T12:17:52. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -72,7 +72,7 @@
     <valuelist type="QVariantList" key="CMake.Configuration">
      <value type="QString">ADDITIONAL_MECHPATH:PATH=/home/bmagalha/Workspace/neurodamus/lib/modlib</value>
      <value type="QString">ADDITIONAL_MECHS:FILEPATH=/home/bmagalha/Workspace/neurodamus/lib/modlib/coreneuron_modlist.txt</value>
-     <value type="QString">CMAKE_BUILD_TYPE:STRING=DEBUG</value>
+     <value type="QString">CMAKE_BUILD_TYPE:STRING=RelWithDebInfo</value>
      <value type="QString">CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/mpicxx</value>
      <value type="QString">CMAKE_C_COMPILER:STRING=/usr/bin/mpicc</value>
      <value type="QString">UNIT_TESTS:BOOL=OFF</value>
@@ -178,7 +178,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">neurox_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/10/data -o /home/bmagalha/Workspace/PCP_circuits/10/data -e 5 -t 0.025 -k 0 -0 -1 -2 --hpx-threads=1</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/Layer1/data -o /home/bmagalha/Workspace/PCP_circuits/Layer1/data -e 0.05 -t 0.025 -k 0 -0 -2 --hpx-threads=4</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory">/home/bmagalha/Workspace/neurox/build-qt</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory.default">/home/bmagalha/Workspace/neurox/build-qt/neurox</value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>

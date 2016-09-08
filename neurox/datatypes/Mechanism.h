@@ -19,23 +19,23 @@ class Mechanism
     Mechanism()=delete;
     ~Mechanism();
 
-    Mechanism(const int type, const short int dataSize, const short int pdataSize,
+    Mechanism(const int type, const short dataSize, const short pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
-              const short int symLengh = 0, const char * sym = nullptr,
-              const short int depedenciesCount = 0,
-              const short int successorsCount = 0, const int * successors = nullptr);
+              const short int symLengh=0, const char * sym = nullptr,
+              const short int depedenciesCount=0,
+              const short int successorsCount=0, const int *successors=nullptr);
 
     int type;
-    short int dataSize, pdataSize, vdataSize;
-    short int successorsCount;   ///> number of mechanisms succedding this one on a parallel execution
-    short int dependenciesCount; ///> number of mechanisms it depends on
-    short int symLength; ///> length of the name of the mechanism;
+    short dataSize, pdataSize, vdataSize;
+    short successorsCount;   ///> number of mechanisms succedding this one on a parallel execution
+    short dependenciesCount; ///> number of mechanisms it depends on
+    short symLength; ///> length of the name of the mechanism;
     char pntMap, isArtificial	;
     char isIon;
     int * successors; ///> mechanism id for successors mechanisms
 
     //For ionic mechanisms
-    double conci, conco, charge; //from global_conci, global_conco, global_charge variables
+    floble_t conci, conco, charge; //from global_conci, global_conco, global_charge variables
     char *sym; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)
@@ -72,9 +72,10 @@ class Mechanism
     ///Call the NetReceive functions on the mod file, for synapses handling
     void callNetReceiveFunction(
             const void * branch, const NetConX * netcon,
-            const double t, const char callNetReceive = 0);
+            const floble_t t, const char callNetReceive = 0);
 
-    void callModFunction(const void * branch, const Mechanism::ModFunction functionId);
+    void callModFunction(const void * branch,
+                         const Mechanism::ModFunction functionId);
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t initModFunction; ///> init function for hpx_reduce of mechanisms graphs
@@ -87,8 +88,8 @@ private:
     void registerBeforeAfterFunctions();   ///> register Before-After functions
     void registerModFunctions(int type); ///> register mechanisms functions (mod_t_f type)
 
-    static void initModFunction_handler(ModFunction * function_ptr, const size_t);
-    static void reduceModFunction_handler(ModFunction * lhs, const ModFunction *rhs, const size_t);
+    static void initModFunction_handler(ModFunction * func_ptr, const size_t);
+    static void reduceModFunction_handler(ModFunction * lhs,
+                                          const ModFunction *rhs, const size_t);
 };
-
 };

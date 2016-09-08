@@ -12,14 +12,11 @@
 
 using namespace std;
 
-namespace neurox
-{
+namespace neurox {
 
-namespace Input
-{
+namespace Input {
 
-namespace Coreneuron
-{
+namespace Coreneuron {
 
 /**
  * @brief The NrxSetup class
@@ -35,42 +32,58 @@ class DataLoader
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
 
     ///converts local branch data to coreneuron compatible (to use on mechanisms calls)
-    static void fromHpxToCoreneuronDataStructs(const void * branch, Memb_list & membList,
-                                               NrnThread & nrnThread, int mechType);
+    static void fromHpxToCoreneuronDataStructs(
+            const void * branch, Memb_list & membList,
+            NrnThread & nrnThread, int mechType);
+
+    static void cleanTempDataFromHpxToCoreNeuron(NrnThread * nt, Memb_list * ml);
 
     static void compareDataStructuresWithCoreNeuron(Branch * branch);
 
     static void registerHpxActions();
 
   private:
-    static void addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount,
-                                        int netconsOffset, map< int, vector<NetConX*> > & netcons);
+    static void addNetConsForThisNeuron(
+            neuron_id_t neuronId, neuron_id_t preNeuronId, int netconsCount,
+            offset_t netconsOffset, map< neuron_id_t, vector<NetConX*> > & netcons);
     static void coreNeuronInitialSetup(int argc, char ** argv);
-    static hpx_t createBranch(hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                              map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance);
+    static hpx_t createBranch(
+            hpx_t target, deque<Compartment*> & compartments,
+            Compartment * topCompartment,
+            map< neuron_id_t, vector<NetConX*> > & netcons,
+            int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance);
 
-    static int getNeuronIdFromNrnThreadId(int nrn_id);
-    static void getMechTypeAndInstanceForBranch(int & mechType, int & mechInstance);
+    static neuron_id_t getNeuronIdFromNrnThreadId(int nrn_id);
+    static void getMechTypeAndInstanceForBranch(
+            int & mechType, int & mechInstance);
 
-    static int getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
-                             vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices,
-                             int totalN, map<int, pair<int,int>> & offsetToInstance);
+    static int getBranchData(
+            deque<Compartment*> & compartments, vector<floble_t> & data,
+            vector<offset_t> & pdata, vector<void*> & vdata,
+            vector<offset_t> & p, vector<offset_t> & instancesCount,
+            vector<offset_t> & nodesIndices, int totalN,
+            map<offset_t, pair<int,offset_t>> & offsetToInstance);
 
-    static void getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
-                                    vector<double> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo);
+    static void getVecPlayBranchData(
+            deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
+            vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo);
 
-    static void getNetConsBranchData(deque<Compartment*> & compartments, map<int, vector<NetConX*> > & netcons,
-                                     vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreNeuronId,
-                                     vector<double> & branchNetConsArgs);
+    static void getNetConsBranchData(
+            deque<Compartment*> & compartments,
+            map<neuron_id_t, vector<NetConX*> > & netcons,
+            vector<NetConX> & branchNetCons,
+            vector<neuron_id_t> & branchNetConsPreId,
+            vector<floble_t> & branchNetConsArgs);
 
-    static void printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment);
+    static void printSubClustersToFile(
+            FILE * fileCompartments, Compartment *topCompartment);
 
     static hpx_action_t createNeuron;
     static hpx_action_t broadcastNetCons;
     static hpx_action_t addSynapseTarget;
 
     static int createNeuron_handler(const int * i, const size_t);
-    static int broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int broadcastNetCons_handler(const int, const void *[],const size_t[]);
     static int addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t);
 };
 

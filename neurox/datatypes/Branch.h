@@ -25,49 +25,49 @@ class Branch
   public:
     Branch()=delete; ///> no constructor, build using hpx init function instead
     static void* operator new(size_t bytes, void* addr);
-    static void operator delete(void* worker);
+    static void  operator delete(void* worker);
 
-    Branch(int n,
+    Branch(offset_t n,
            hpx_t branchHpxAddr,
-           double * data, size_t dataCount,
-           int *pdata, size_t pdataCount,
-           int * instancesCount, size_t instancesCountCount,
-           int * nodesIndices, size_t nodesIndicesCount,
+           floble_t * data, size_t dataCount,
+           offset_t *pdata, size_t pdataCount,
+           offset_t * instancesCount, size_t instancesCountCount, //same tipe as pdata
+           offset_t * nodesIndices, size_t nodesIndicesCount,
            hpx_t * branches, size_t branchesCount,
-           int * p, size_t pCount,
-           double * vecplayT, size_t vecplayTCount,
-           double * vecplayY, size_t vecplayYCount,
+           offset_t * p, size_t pCount,
+           floble_t * vecplayT, size_t vecplayTCount,
+           floble_t * vecplayY, size_t vecplayYCount,
            PointProcInfo * vecplayInfo, size_t vecplayCount,
            NetConX * netcons, size_t netconsCount,
-           int * netConsPreId, size_t netConsPreIdsCount,
-           double *netConsArgs, size_t netConsArgsCount,
+           gid_t * netConsPreId, size_t netConsPreIdsCount,
+           floble_t *netConsArgs, size_t netConsArgsCount,
            void** vdata, size_t vdataCount);
     ~Branch();
 
     //for conveniency we add t and dt to all branch localities
-    double t;       ///> current simulation time
-    double dt;      ///> time step
+    floble_t t;       ///> current simulation time
+    floble_t dt;      ///> time step
     char secondOrder;
 
     Neuron * soma;  ///> if top branch, it's populated, otherwise is NULL
 
     //sparse matrix information:
-    int n;		    ///> number of compartments
-    double * a;		///> top diagonal of Linear Algebra sparse tridiagonal matrix
-    double * b;		///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
-    double * d;		///> main diagonal of Linear Algebra spart tridiagonal matrix
-    double * v;		///> current voltage per compartment
-    double * rhs;	///> right-hand side (solution vector) of Linear Algebra solver
-    double * area;	///> current area per compartment
-    int *p;         ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
+    offset_t n;		 ///> number of compartments
+    floble_t * a;    ///> top diagonal of Linear Algebra sparse tridiagonal matrix
+    floble_t * b;    ///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
+    floble_t * d;    ///> main diagonal of Linear Algebra spart tridiagonal matrix
+    floble_t * v;	 ///> current voltage per compartment
+    floble_t * rhs;	 ///> right-hand side (solution vector) of Linear Algebra solver
+    floble_t * area; ///> current area per compartment
+    offset_t  * p;   ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
 
     struct MechanismInstance
     {
-        int count;          ///> number of instances of particular mechanism
-        double * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
-        int * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
-        int * nodesIndices; ///> array of nodes this instance will be applied to
-    } * mechsInstances;     ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
+        size_t count;          ///> number of instances of particular mechanism
+        floble_t * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
+        offset_t * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
+        offset_t * nodesIndices; ///> array of nodes this instance will be applied to
+    } * mechsInstances;         ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
 
     struct MechanismsGraphLCO
     {
@@ -82,7 +82,7 @@ class Branch
 
     struct NeuronTree
     {
-        int branchesCount;		///> number of branches (>0)
+        size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
 
         static const size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
@@ -90,9 +90,9 @@ class Branch
         hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
     } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
-    std::map<int, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
+    std::map<gid_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
-    std::priority_queue< std::pair<double,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
+    std::priority_queue< std::pair<floble_t,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
     static void registerHpxActions(); ///> Register all HPX actions
@@ -104,14 +104,14 @@ class Branch
     static hpx_action_t finitialize;
     static hpx_action_t backwardEuler;
 
-    double * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
+    floble_t * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
     VecPlayContinuouX ** vecplay; ///> described continuous events
-    int vecplayCount; //number of vecplay
+    size_t vecplayCount; //number of vecplay
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
-    void deliverEvents(double t);
+    void deliverEvents(floble_t t);
     void fixedPlayContinuous();
     void setupTreeMatrixMinimal();
     void secondOrderCurrent();
@@ -119,11 +119,11 @@ class Branch
     void backwardEulerStep();
 
   private:
-    static int init_handler(const int nargs, const void *args[], const size_t sizes[]);
-    static int initSoma_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int init_handler(const int, const void *[], const size_t[]);
+    static int initSoma_handler(const int, const void *[], const size_t[]);
     static int initNeuronTreeLCO_handler();
     static int clear_handler();
-    static int addSpikeEvent_handler(const int nargs, const void *args[], const size_t sizes[]);
+    static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();
     static int backwardEuler_handler();
 };

@@ -8,11 +8,13 @@ using namespace neurox::Misc;
 class Statistics::SizeInfo
 {
   public:
-    SizeInfo():neuronId(-1), morphologies(0), mechanisms(0), synapses(0), metadata(0),
-        globalVars(0), compartmentsCount(0), branchesCount(0), mechsInstancesCount(0){};
+    SizeInfo():neuronId(0), morphologies(0), mechanisms(0), synapses(0),
+               metadata(0), globalVars(0), compartmentsCount(0),
+               branchesCount(0), mechsInstancesCount(0){};
+
     ~SizeInfo(){};
 
-    int neuronId;
+    gid_t neuronId;
     double morphologies;
     double mechanisms;
     double synapses;
@@ -84,7 +86,7 @@ int Statistics::getNeuronSize_handler()
     branchSize.branchesCount++;
     branchSize.compartmentsCount+=local->n;
     branchSize.morphologies += (double) (local->n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
-    branchSize.morphologies += local->p ? (double) (local->n* sizeof(index_t))/1024 : 0;
+    branchSize.morphologies += local->p ? (double) (local->n* sizeof(offset_t))/1024 : 0;
     if (local->neuronTree)
         branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
@@ -96,11 +98,11 @@ int Statistics::getNeuronSize_handler()
             continue;
 
         branchSize.mechsInstancesCount += local->mechsInstances[m].count;
-        branchSize.mechanisms += (double) (sizeof(index_t) * local->mechsInstances[m].count) /1024;
+        branchSize.mechanisms += (double) (sizeof(offset_t) * local->mechsInstances[m].count) /1024;
         if (mechanisms[m]->dataSize>0)
             branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].count)/1024;
         if (mechanisms[m]->pdataSize>0)
-            branchSize.mechanisms += (double) (sizeof(index_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].count)/1024;
+            branchSize.mechanisms += (double) (sizeof(offset_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].count)/1024;
 
         if (mechanisms[m]->pntMap>0)
         {

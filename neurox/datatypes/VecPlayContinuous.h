@@ -15,22 +15,23 @@ class VecPlayContinuouX : Event
 {
   public:
     VecPlayContinuouX() = delete;
-    VecPlayContinuouX(double * const pd, const double *t, const double *y, const size_t size);
+    VecPlayContinuouX(floble_t *pd, const floble_t *t,
+                      const floble_t *y, const size_t size);
     ~VecPlayContinuouX();
 
-    void deliver(double t, Branch* branch) override;
-    void continuous(double tt);
-    double getFirstInstant();
+    void deliver(floble_t t, Branch* branch) override;
+    void continuous(floble_t tt);
+    floble_t getFirstInstant();
     int type() override { return VecPlayContinuousType; }
 
-    double *pd; ///>index to last value pointed by function continuous()
+    floble_t *pd; ///>index to last value pointed by function continuous()
 
   private:
-    double * y; ///> array of values
-    double * t; ///> array of times instantes
-    int size; ///> size of t and y arrays
-    int uBoundIndex;
-    int lastIndex;
+    floble_t * y; ///> array of values
+    floble_t * t; ///> array of times instantes
+    size_t size; ///> size of t and y arrays
+    size_t uBoundIndex;
+    size_t lastIndex;
 };
 
 }

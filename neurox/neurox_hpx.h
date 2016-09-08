@@ -11,9 +11,10 @@
 #include "hpx/hpx.h"
 
 //typedefs
-typedef hpx_addr_t hpx_t;
-typedef double floble_t;
-typedef int index_t; //int or short (no unsigned, pdata can be negative)
+typedef hpx_addr_t hpx_t;      ///> hpx address (just rephrased with shorter naming)
+typedef float floble_t;       ///> float or doble (v, matrix values and mechanisms)
+typedef short offset_t; ///> INT OR SHORT ONLY FOR NOW (TODO) ushort or uint (p vector, nodes indices)
+typedef long long neuron_id_t; ///> neuron gids (gid_t or id_t already used by types.h)
 
 //Memory alignment for hpx_gas_allocs
 #define NEUROX_HPX_MEM_ALIGNMENT 0

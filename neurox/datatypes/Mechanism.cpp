@@ -10,15 +10,17 @@
 using namespace std;
 using namespace neurox;
 
-Mechanism::Mechanism(const int type, const short int dataSize, const short int pdataSize,
-                     const char isArtificial, const char pntMap, const char isIon,
+Mechanism::Mechanism(const int type, const short int dataSize,
+                     const short int pdataSize, const char isArtificial,
+                     const char pntMap, const char isIon,
                      const short int symLength, const char * sym,
                      const short int dependenciesCount,
                      const short int successorsCount, const int * successors):
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
-    symLength(symLength), pntMap(pntMap), isArtificial(isArtificial), isIon(isIon),
-    successors(nullptr), sym(nullptr), conci(-1), conco(-1), charge(-1)
+    symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
+    isIon(isIon), successors(nullptr), sym(nullptr),
+    conci(-1), conco(-1), charge(-1)
 {
     if (pntMap>0)
     {
@@ -27,7 +29,8 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
             case IClamp           : vdataSize=1; break;
             case ProbAMPANMDA_EMS : vdataSize=2; break;
             case ProbGABAAB_EMS   : vdataSize=2; break;
-            default  : throw std::invalid_argument("Unknown vdataSize for mech type (FLAG2).");
+            default  : throw std::invalid_argument
+                    ("Unknown vdataSize for mech type (FLAG2).");
         }
         assert(vdataSize == pdataSize -1); //always?
     }
@@ -73,11 +76,12 @@ Mechanism::Mechanism(const int type, const short int dataSize, const short int p
 };
 
 hpx_action_t Mechanism::initModFunction = 0;
-void Mechanism::initModFunction_handler(ModFunction * function_ptr, const size_t)
+void Mechanism::initModFunction_handler(ModFunction *function_ptr, const size_t)
 {}
 
 hpx_action_t Mechanism::reduceModFunction = 0;
-void Mechanism::reduceModFunction_handler(ModFunction * lhs, const ModFunction *rhs, const size_t)
+void Mechanism::reduceModFunction_handler
+    (ModFunction * lhs, const ModFunction *rhs, const size_t)
 { *lhs = *rhs; }
 
 void Mechanism::registerBeforeAfterFunctions()
@@ -156,9 +160,9 @@ void Mechanism::registerIon()
     assert(this->isIon);
 
     double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
-    conci = ion_global_map[type][0];
-    conco = ion_global_map[type][1];
-    charge = ion_global_map[type][2];
+    conci  = (floble_t) ion_global_map[type][0];
+    conco  = (floble_t) ion_global_map[type][1];
+    charge = (floble_t) ion_global_map[type][2];
 
     this->membFunc.alloc = ion_alloc; //assert(0) should never be called
     this->membFunc.initialize = ion_init;
@@ -170,7 +174,8 @@ Mechanism::~Mechanism(){
     delete [] successors;
 };
 
-void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunction functionId)
+void Mechanism::callModFunction(const void * branch,
+                                const Mechanism::ModFunction functionId)
 {
     Memb_list membList;
     NrnThread nrnThread;
@@ -231,7 +236,8 @@ void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunctio
         case Mechanism::ModFunction::threadTableCheck:
             if (membFunc.thread_table_check_)
                 membFunc.thread_table_check_
-                    (0, membList.nodecount, membList.data, membList.pdata, membList._thread, &nrnThread, type);
+                    (0, membList.nodecount, membList.data, membList.pdata,
+                     membList._thread, &nrnThread, type);
             break;
         case Mechanism::ModFunction::threadCleanup:
             if (membFunc.thread_cleanup_)
@@ -241,13 +247,13 @@ void Mechanism::callModFunction(const void * branch, const Mechanism::ModFunctio
             printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
             exit(1);
     }
-    delete [] nrnThread._shadow_d;
-    delete [] nrnThread._shadow_rhs;
+    Input::Coreneuron::DataLoader::cleanTempDataFromHpxToCoreNeuron
+            (&nrnThread, &membList);
 }
 
 void Mechanism::callNetReceiveFunction(
         const void * branch, const NetConX * netcon,
-        const double t, const char callNetReceiveInit)
+        const floble_t t, const char callNetReceiveInit)
 {
     Memb_list membList;
     NrnThread nrnThread;
@@ -273,8 +279,8 @@ void Mechanism::callNetReceiveFunction(
         //getMechanismFromType(netcon->mechType)->pnt_receive
                // (&nrnThread, &membList, &pp, netcon->args, 0);
     }
-    delete [] nrnThread._shadow_d;
-    delete [] nrnThread._shadow_rhs;
+    Input::Coreneuron::DataLoader::cleanTempDataFromHpxToCoreNeuron
+            (&nrnThread, &membList);
 }
 
 void Mechanism::registerHpxActions()

@@ -27,20 +27,21 @@ using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
 FILE *fileNetcons;
-std::set<int> allNeuronsIdsSet;
+std::set<neuron_id_t> allNeuronsIdsSet;
 
-int DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
+neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
-    return nrn_threads[nrn_id].presyns[0].gid_;
+    return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
 }
 
 void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 {
 #ifndef NDEBUG
+    assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     if (!branch->soma) return; //run only once
     NrnThread & nt = nrn_threads[0];
     assert(nt.end == branch->n);
-    for (int i=0; i<branch->n; i++)
+    for (offset_t i=0; i<branch->n; i++)
     {
         assert(nt._actual_a[i] == branch->a[i]);
         assert(nt._actual_b[i] == branch->b[i]);
@@ -66,8 +67,8 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         Branch::MechanismInstance & instance = branch->mechsInstances[m];
         assert(ml->nodecount == instance.count);
         //assert(ml->_nodecount_padded == instance.instancesCount);
-        int dataSize = mechanisms[m]->dataSize;
-        int pdataSize = mechanisms[m]->pdataSize;
+        short dataSize = mechanisms[m]->dataSize;
+        short pdataSize = mechanisms[m]->pdataSize;
         for (int n=0; n<ml->nodecount; n++) //for every mech instance
         {
             assert(ml->nodeindices[n]==instance.nodesIndices[n]);
@@ -107,35 +108,99 @@ void DataLoader::fromHpxToCoreneuronDataStructs(
     Branch * branch = (Branch*) branch_ptr;
     int m=mechanismsMap[mechType];
     Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
-    membList.data  = mechsInstances[m].data;
-    membList.pdata = mechsInstances[m].pdata;
-    membList.nodecount = mechsInstances[m].count;
-    membList._nodecount_padded = membList.nodecount;
-    membList.nodeindices = mechsInstances[m].nodesIndices;
+    if (sizeof(floble_t)==sizeof(double))
+    {
+        nrnThread._data = (double*)(void*) branch->data;
+        membList.data  = (double*)(void*) mechsInstances[m].data;
+        nrnThread._actual_a    = (double*)(void*) branch->a;
+        nrnThread._actual_b    = (double*)(void*) branch->b;
+        nrnThread._actual_d    = (double*)(void*) branch->d;
+        nrnThread._actual_rhs  = (double*)(void*) branch->rhs;
+        nrnThread._actual_v    = (double*)(void*) branch->v;
+        nrnThread._actual_area = (double*)(void*) branch->area;
+    }
+    else
+    {
+        //must also include data from dependencies!
+        int ndata=0;
+        for (int i=0; i<mechanismsCount; i++)
+            ndata += mechanisms[i]->dataSize;
+
+        nrnThread._data = new double[ndata];
+        for (int i=0; i<branch->n*6; i++)
+            nrnThread._data[i] = (double) branch->data[i];
+
+        ndata = branch->n*6;
+        for (int i=0; i<mechanismsCount; i++)
+        {
+          if (mechanisms[m]->type==mechType)
+              membList.data = &nrnThread._data[ndata];
+
+          for (int j=0; j<mechanisms[i]->dataSize; j++)
+            nrnThread._data[ndata++] = (double) mechsInstances[i].data[j];
+        }
+
+        //data (RHS, D, A, V, B, area, and mechs...)
+        nrnThread._actual_rhs = &nrnThread._data[branch->n*0];
+        nrnThread._actual_d   = &nrnThread._data[branch->n*1];
+        nrnThread._actual_a   = &nrnThread._data[branch->n*2];
+        nrnThread._actual_v   = &nrnThread._data[branch->n*3];
+        nrnThread._actual_b   = &nrnThread._data[branch->n*4];
+        nrnThread._actual_area= &nrnThread._data[branch->n*5];
+    }
+
+    if (sizeof(offset_t) == sizeof(int))
+    {
+        membList.pdata = (int*)(void*) mechsInstances[m].pdata;
+        membList.nodeindices = (int*)(void*) mechsInstances[m].nodesIndices;
+    }
+    else
+    {
+        membList.pdata = new int[getMechanismFromType(mechType)->pdataSize];
+        for (int i=0; i<getMechanismFromType(mechType)->pdataSize; i++)
+            membList.pdata[i] = (int) mechsInstances[m].pdata[i];
+
+        membList.nodeindices = new int[mechsInstances[m].count];
+        for (int i=0; i< mechsInstances[m].count; i++)
+            membList.nodeindices[i] = (int) mechsInstances[m].nodesIndices[i];
+    }
+
+    membList.nodecount = (int) mechsInstances[m].count;
+    membList._nodecount_padded = (int) membList.nodecount;
     membList._thread = NULL; //TODO: ThreadDatum never used ?
-    nrnThread.end = branch->n;
+    nrnThread.end = (int) branch->n;
     nrnThread.ncell = 1;
     nrnThread.weights = NULL; //TODO: FOR NOW, until it crashes
     nrnThread.mapping = NULL; //TODO is it used?
-    nrnThread._actual_a = branch->a;
-    nrnThread._actual_b = branch->b;
-    nrnThread._actual_d = branch->d;
-    nrnThread._actual_rhs = branch->rhs;
-    nrnThread._actual_v = branch->v;
-    nrnThread._actual_area = branch->area;
-    nrnThread._data = branch->data;
+
     //TODO is this worth is? to avoid race conditions, they use these shadow as intermediate values storing
     //Why not be a vector in vdata instead of Nt?
     //(i think is because in vdata you have pointer per instance, not per mech type)
     //does the RNG in vdata need to be one per instance or could be one per type?
     nrnThread._shadow_rhs = (mechType == ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
     nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
-    nrnThread._dt = dt;
-    nrnThread._t = t;
+    nrnThread._dt = branch->dt;
+    nrnThread._t = branch->t;
     //TODO this field is only used inside the capacitance mod function in capac.c
     nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
     nrnThread._vdata = branch->vdata;
     //compareDataStructuresWithCoreNeuron(branch);
+}
+
+void DataLoader::cleanTempDataFromHpxToCoreNeuron(NrnThread * nt, Memb_list * ml)
+{
+    if (sizeof(offset_t) != sizeof(int))
+    {
+        delete [] ml->pdata;
+        delete [] ml->nodeindices;
+    }
+
+    if (sizeof(floble_t) != sizeof(double))
+    {
+        delete [] nt->_data;
+    }
+    delete [] nt->_shadow_d;
+    delete [] nt->_shadow_rhs;
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
@@ -199,20 +264,27 @@ void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
     input_params.show_cb_opts();
 }
 
-void DataLoader::addNetConsForThisNeuron(int neuronId, int preNeuronId, int netconsCount, int netconsOffset, map< int, vector<NetConX*> > & netcons)
+void DataLoader::addNetConsForThisNeuron(
+        neuron_id_t neuronId, neuron_id_t preNeuronId, int netconsCount,
+        offset_t netconsOffset, map< neuron_id_t, vector<NetConX*> > & netcons)
 {
-    for (int s = 0; s<netconsCount; s++)
+    for (size_t s = 0; s<netconsCount; s++)
     {
       NetCon* nc = netcon_in_presyn_order_[netconsOffset + s];
-      int postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+      neuron_id_t postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
 
       //if synapse is not for this neuron...
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
+      int argsCount = pnt_receive_size[mechType];
+      vector<floble_t> args;
+      for (int i=0; i<argsCount; i++)
+          args.push_back( (floble_t) nc->weight_[i]);
+
       netcons[preNeuronId].push_back(
-          new NetConX(mechType, (int) nc->target_->_i_instance, nc->delay_,
-                      nc->weight_, pnt_receive_size[mechType], nc->active_));
+          new NetConX(mechType, (offset_t) nc->target_->_i_instance,
+                   (floble_t) nc->delay_, args.data(), argsCount, nc->active_));
     }
 }
 
@@ -279,16 +351,17 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         //reconstructs neurons
         NrnThread & nt = nrn_threads[i];
-        int neuronId = getNeuronIdFromNrnThreadId(i);
+        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
 
         //======= 1 - reconstructs matrix (solver) values =======
 
         deque<Compartment*> compartments;
         for (int n=0; n<nt.end; n++)
-            compartments.push_back(
-                new Compartment(n, nt._actual_a[n], nt._actual_b[n], nt._actual_d[n],
-                                nt._actual_v[n], nt._actual_rhs[n], nt._actual_area[n],
-                                nt._v_parent_index[n]));
+            compartments.push_back( new Compartment(
+                (offset_t) n, (floble_t) nt._actual_a[n],
+                (floble_t) nt._actual_b[n], (floble_t) nt._actual_d[n],
+                (floble_t) nt._actual_v[n], (floble_t) nt._actual_rhs[n],
+                (floble_t) nt._actual_area[n],(offset_t) nt._v_parent_index[n]));
 
         //reconstructs parents tree
         for (int n=1; n<nt.end; n++) //exclude top (no parent)
@@ -311,10 +384,10 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         //======= 2 - reconstructs mechanisms instances ========
 
-        int vdataTotalOffset=0;
-        int dataTotalOffset=nt.end*6;
-        int pointProcTotalOffset=0;
-        map<int, pair<int,int>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
+        unsigned vdataTotalOffset=0;
+        unsigned dataTotalOffset=nt.end*6;
+        unsigned pointProcTotalOffset=0;
+        map<offset_t, pair<int,offset_t>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
         for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -325,8 +398,10 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 assert (ml->nodeindices[n] < compartments.size());
+                assert (ml->nodeindices[n] < 2^sizeof(offset_t));
                 if (mech->isIon)
-                    offsetToInstance[dataTotalOffset] = make_pair(type, ml->nodeindices[n]);
+                    offsetToInstance[dataTotalOffset] =
+                            make_pair(type, (offset_t) ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
                 void ** vdata = &nt._vdata[vdataTotalOffset];
@@ -360,34 +435,40 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 #endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
-                dataTotalOffset   += mech->dataSize;
-                dataOffset  += mech->dataSize;
-                pdataOffset += mech->pdataSize;
-                vdataTotalOffset += mech->vdataSize;
+                dataTotalOffset  += (unsigned) mech->dataSize;
+                dataOffset       += (unsigned) mech->dataSize;
+                pdataOffset      += (unsigned) mech->pdataSize;
+                vdataTotalOffset += (unsigned) mech->vdataSize;
+                assert(dataTotalOffset  < 2^sizeof(offsetToInstance));
+                assert(dataOffset       < 2^sizeof(offsetToInstance));
+                assert(pdataOffset      < 2^sizeof(offsetToInstance));
+                assert(vdataTotalOffset < 2^sizeof(offsetToInstance));
             }
         }
 
         //======= 3 - reconstruct NetCons =====================
 
-        map< int, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron offset (not id)
+        map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron offset (not id)
 
         //get all incoming synapses from neurons in other MPI ranks (or NrnThread?)
         for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
              syn_it!=gid2in.end(); syn_it++)
         {
-            int preNeuronId = syn_it->first;
+            neuron_id_t preNeuronId = (neuron_id_t) syn_it->first;
             //we can also get it from netcon_srcgid[nrn_thread_it][netcon_it]
             InputPreSyn * ips = syn_it->second;
-            addNetConsForThisNeuron(neuronId, preNeuronId, ips->nc_cnt_, ips->nc_index_, netcons);
+            addNetConsForThisNeuron( neuronId, preNeuronId, ips->nc_cnt_,
+                                     (offset_t) ips->nc_index_, netcons);
         }
 
         //get all incoming synapses from neurons in the same MPI rank (or NrnThread?)
         for (std::map<int, PreSyn*>::iterator syn_it = gid2out.begin();
              syn_it!=gid2out.end(); syn_it++)
         {
-            int preNeuronId = syn_it->first;
+            neuron_id_t preNeuronId = (neuron_id_t) syn_it->first;
             PreSyn * ps = syn_it->second;
-            addNetConsForThisNeuron(neuronId, preNeuronId, ps->nc_cnt_, ps->nc_index_, netcons);
+            addNetConsForThisNeuron( neuronId, preNeuronId, ps->nc_cnt_,
+                                     (offset_t) ps->nc_index_, netcons);
         }
 
         if (inputParams->outputNetconsDot)
@@ -400,10 +481,11 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                 netConsFromOthers++;
             else
             {
-                double minDelay=99999;
+                floble_t minDelay=99999;
                 for (auto ncv : nc.second) //get minimum delay between neurons
                     minDelay = std::min(minDelay, ncv->delay);
-                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", gid , neuronId, nc.second.size(), minDelay);
+                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n",
+                        gid , neuronId, nc.second.size(), minDelay);
             }
           }
           #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
@@ -425,20 +507,21 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                 int type = tml->index;
                 Mechanism * mech = getMechanismFromType(type);
                 Memb_list * ml = tml->ml;
-                int dataOffset=0;
+                unsigned dataOffset=0;
                 for (int n=0; n<ml->nodecount; n++)
                 {
                    // if is this mechanism and this instance
                    if (&ml->data[dataOffset] <= pd && pd < &ml->data[dataOffset+mech->dataSize])
                    {
+                       assert(n < 2^sizeof(offset_t));
                        ppi.nodeId = ml->nodeindices[n];
                        ppi.mechType = type;
-                       ppi.mechInstance = n;
-                       ppi.instanceDataOffset = pd - &ml->data[dataOffset];
+                       ppi.mechInstance = (offset_t) n;
+                       ppi.instanceDataOffset = (offset_t) (pd - &ml->data[dataOffset]);
                        ppi.size = vec->t_->size();
                        continue;
                    }
-                   dataOffset += mech->dataSize;
+                   dataOffset += (unsigned) mech->dataSize;
                 }
                 if (ppi.nodeId!=-1) continue;
             }
@@ -448,10 +531,11 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         //======= 5 - recursively create branches tree ===========
 
-        double APthreshold = nrn_threads[i].presyns[0].threshold_;
-        createBranch(target, compartments, compartments.at(0), netcons, (int) compartments.size(), offsetToInstance);
+        floble_t APthreshold = (floble_t) nrn_threads[i].presyns[0].threshold_;
+        createBranch(target, compartments, compartments.at(0), netcons,
+                     (size_t) compartments.size(), offsetToInstance);
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
-                      &neuronId, sizeof(int), &APthreshold, sizeof(double));
+                      &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
         for (auto c : compartments)
             delete c;
         for (auto nc: netcons)
@@ -469,7 +553,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
 
-    allNeuronsIdsSet = std::set<int>();
+    allNeuronsIdsSet = std::set<neuron_id_t>();
     for (int i=0; i<neuronsCount; i++)
     {
         assert(nrn_threads[i].ncell == 1);
@@ -480,7 +564,7 @@ void DataLoader::loadData(int argc, char ** argv)
     {
       for (int i=0; i<neuronsCount; i++)
       {
-        int neuronId = getNeuronIdFromNrnThreadId(i);
+        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
@@ -634,12 +718,13 @@ void DataLoader::loadData(int argc, char ** argv)
 
     printf("neurox::createNeurons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i));
+    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron,
+                            NULL, 0, &i, sizeof(i) );
     }, 0, neuronsCount, NULL);
 
     //all neurons have been created, every branch will inform pre-syn ids that they are connected
     assert(allNeuronsIdsSet.size() == neuronsCount);
-    std::vector<int>   allNeuronsIdsVec  (neuronsCount);
+    std::vector<neuron_id_t> allNeuronsIdsVec  (neuronsCount);
     std::vector<hpx_t> allNeuronsAddrVec (neuronsCount);
     for (int i=0; i<neuronsCount; i++)
     {
@@ -651,7 +736,7 @@ void DataLoader::loadData(int argc, char ** argv)
     hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
     for (int i=0; i<neuronsCount; i++)
         hpx_call(getNeuronAddr(i), DataLoader::broadcastNetCons, lco_neurons,
-                 allNeuronsIdsVec.data(),  allNeuronsIdsVec.size() *sizeof(int),
+                 allNeuronsIdsVec.data(),  allNeuronsIdsVec.size() *sizeof(neuron_id_t),
                  allNeuronsAddrVec.data(), allNeuronsAddrVec.size()*sizeof(hpx_t));
     hpx_lco_wait(lco_neurons);
     hpx_lco_delete(lco_neurons, NULL);
@@ -664,9 +749,9 @@ void DataLoader::loadData(int argc, char ** argv)
 }
 
 void DataLoader::getNetConsBranchData(
-        deque<Compartment*> & compartments, map<int, vector<NetConX*> > & netcons,
-        vector<NetConX> & branchNetCons, vector<int> & branchNetConsPreId,
-        vector<double> & branchNetConsArgs)
+        deque<Compartment*> & compartments, map<neuron_id_t, vector<NetConX*> > & netcons,
+        vector<NetConX> & branchNetCons, vector<neuron_id_t> & branchNetConsPreId,
+        vector<floble_t> & branchNetConsArgs)
 {
     //get size and allocate it
     int ncCount=0, argsCount=0;
@@ -678,8 +763,8 @@ void DataLoader::getNetConsBranchData(
         }
 
     branchNetCons = vector<NetConX> (ncCount);
-    branchNetConsPreId = vector<int> (ncCount);
-    branchNetConsArgs = vector<double> (ncCount);
+    branchNetConsPreId = vector<neuron_id_t> (ncCount);
+    branchNetConsArgs = vector<floble_t> (ncCount);
 
     int i=0;
     for (auto nc : netcons)
@@ -695,8 +780,9 @@ void DataLoader::getNetConsBranchData(
         }
 }
 
-void DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector<double> & vecPlayTdata,
-                                     vector<double> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo)
+void DataLoader::getVecPlayBranchData(
+        deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
+        vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo)
 {
     for (auto comp : compartments)
     {
@@ -706,8 +792,11 @@ void DataLoader::getVecPlayBranchData(deque<Compartment*> & compartments, vector
     }
 }
 
-int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double> & data, vector<int> & pdata, vector<void*> & vdata,
-                                  vector<int> & p, vector<int> & instancesCount, vector<int> & nodesIndices, int totalN, map<int, pair<int,int>> & offsetToInstance)
+int DataLoader::getBranchData(
+        deque<Compartment*> & compartments, vector<floble_t> & data,
+        vector<offset_t> & pdata, vector<void*> & vdata, vector<offset_t> & p,
+        vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
+        int totalN, map<offset_t, pair<int, offset_t>> & offsetToInstance)
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
@@ -726,15 +815,15 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     for (auto comp: compartments)
         p.push_back(comp->p);
 
-    vector<vector<double>> dataMechs (mechanismsCount);
-    vector<vector<int>> pdataMechs (mechanismsCount);
-    vector<vector<int>> nodesIndicesMechs (mechanismsCount);
+    vector<vector<floble_t>> dataMechs (mechanismsCount);
+    vector<vector<offset_t>> pdataMechs (mechanismsCount);
+    vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
     vector<vector<void*>> vdataMechs (mechanismsCount);
 
     int n=0;
-    vector<int> pdataType; //type of pdata offset per pdata entry
-    map< pair<int,int>, int> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
-    map<int,int> fromNeuronToBranchId; //map of branch id per compartment id
+    vector<offset_t> pdataType; //type of pdata offset per pdata entry
+    map< pair<int, offset_t>, offset_t> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
+    map<offset_t,offset_t> fromNeuronToBranchId; //map of branch id per compartment id
     for (auto comp : compartments)
     {
         int compDataOffset=0;
@@ -764,8 +853,8 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
-        for (int n=0; n<instancesCount[m]; n++)
-          for (int d=0; d<mech->pdataSize; d++)
+        for (offset_t n=0; n<instancesCount[m]; n++)
+          for (short d=0; d<mech->pdataSize; d++)
             pdataType.push_back(memb_func[mech->type].dparam_semantics[d]);
 
         int dataOffset=0;
@@ -800,9 +889,11 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
     //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
     int vdataOffset=0;
     assert(pdataType.size() == pdata.size());
-    for (int i=0; i<pdata.size(); i++)
+    assert(pdata.size() < 2^sizeof(offset_t));
+
+    for (size_t i=0; i<pdata.size(); i++)
     {
-        int p = pdata.at(i);
+        offset_t p = pdata.at(i);
         int ptype = pdataType.at(i);
         switch (ptype)
         {
@@ -812,8 +903,8 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         case -1:  //"area" (6th field)
         {
             assert(p>=totalN*5 && p<totalN<6);
-            int oldId = p-totalN*5;
-            int newId = fromNeuronToBranchId[oldId];
+            offset_t oldId = p-totalN*5;
+            offset_t newId = fromNeuronToBranchId[oldId];
             pdata[i] = n*5+newId;
             break;
         }
@@ -825,14 +916,14 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
         case -4: //"netsend"
         case -6: //"pntproc"
         case -7: //"bbcorepointer"
-            pdata[i] = vdataOffset++;
+            pdata[i] = (offset_t) vdataOffset++;
             break;
         default:
             if (ptype>0 && ptype<1000) //name preffixed by '#'
             {   //ptype is the ion (mechanism) type it depends on
                 //pdata[i] is an offset in pdata
-                std::pair<int, int> mechNodePair;
-                int oldOffset = -1;
+                std::pair<int, offset_t> mechNodePair;
+                offset_t oldOffset = -1;
                 for (auto val : offsetToInstance)
                     if (val.first<=pdata[i])
                     {
@@ -844,7 +935,7 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
                 assert(oldOffset>=totalN*6); //also fails if not found
                 assert(mechNodePair.first == ptype); //fails if expected type does not agree with the one in the data offset
                 assert(pdata[i]-oldOffset < getMechanismFromType(mechNodePair.first)->dataSize); //instance offset is correct
-                int newOffset = instanceToOffset.at(mechNodePair);
+                offset_t newOffset = instanceToOffset.at(mechNodePair);
                 assert(newOffset>=n*6);
                 pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset on the data vector for that instance
                 assert(pdata[i]>=n*6);
@@ -862,27 +953,27 @@ int DataLoader::getBranchData(deque<Compartment*> & compartments, vector<double>
 }
 
 hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               map< int, vector<NetConX*> > & netcons, int totalN, map<int, pair<int,int>> & offsetToInstance)
+                               map< neuron_id_t, vector<NetConX*> > & netcons, int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
-    int n = -1; //number of compartments in branch
-    vector<double> data; //compartments info (RHS, D, A, B, V, AREA)*n
-    vector<int> pdata; //pointers to data
-    vector<int> p; //parent nodes index
-    vector<int> instancesCount (mechanismsCount);
-    vector<int> nodesIndices;
+    offset_t n; //number of compartments in branch
+    vector<floble_t> data; //compartments info (RHS, D, A, B, V, AREA)*n
+    vector<offset_t> pdata; //pointers to data
+    vector<offset_t> p; //parent nodes index
+    vector<offset_t> instancesCount (mechanismsCount);
+    vector<offset_t> nodesIndices;
     vector<hpx_t> branches;
     vector<void*> vdata; //TODO should go away at some point,
 
     //Vector Play instances
-    vector<double> vecPlayT;
-    vector<double> vecPlayY;
+    vector<floble_t> vecPlayT;
+    vector<floble_t> vecPlayY;
     vector<PointProcInfo> vecPlayInfo;
 
     //branch NetCons
     vector<NetConX> branchNetCons;
-    vector<int> branchNetConsPreId;
-    vector<double> branchNetConsArgs;
+    vector<neuron_id_t> branchNetConsPreId;
+    vector<floble_t> branchNetConsArgs;
 
     if (inputParams->multiSplix)
     {
@@ -904,7 +995,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
         //getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
 
         //recursively create children branches
-        for (int c=0; c<comp->branches.size(); c++)
+        for (size_t c=0; c<comp->branches.size(); c++)
             branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
@@ -920,20 +1011,20 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
 
     //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
-                  &n, sizeof(int),
+                  &n, sizeof(offset_t),
                   HPX_NULL, 0, //NOT USED
-                  data.size()>0 ? data.data() : nullptr, sizeof(double)*data.size(),
-                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(int)*pdata.size(),
-                  instancesCount.data(), instancesCount.size()*sizeof(int),
-                  nodesIndices.data(), nodesIndices.size()*sizeof(int),
+                  data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
+                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
+                  instancesCount.data(), instancesCount.size()*sizeof(offset_t),
+                  nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
                   multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(int)*p.size(),
-                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(double)*vecPlayT.size(),
-                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(double)*vecPlayY.size(),
-                  vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(double)*vecPlayInfo.size(),
+                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
+                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
+                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
+                  vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(floble_t)*vecPlayInfo.size(),
                   branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetCon)*branchNetCons.size(),
-                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(int)*branchNetConsPreId.size(),
-                  branchNetConsArgs.size() > 0 ? branchNetConsArgs.data() : nullptr, sizeof(double)*branchNetConsArgs.size(),
+                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
+                  branchNetConsArgs.size() > 0 ? branchNetConsArgs.data() : nullptr, sizeof(floble_t)*branchNetConsArgs.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()
                   );
 
@@ -947,16 +1038,16 @@ int DataLoader::broadcastNetCons_handler(const int nargs, const void *args[], co
     neurox_hpx_recursive_branch_async_call(DataLoader::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
     assert(nargs==2);
 
-    const int   * neuronsIds  = (const int*)   args[0]; //list of all existing neurons ids
+    const neuron_id_t * neuronsIds = (const neuron_id_t*) args[0]; //list of all existing neurons ids
     const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
 
     //create index of unique pre-neurons ids
-    std::set<int> netconsPreNeuronIds;
+    std::set<neuron_id_t> netconsPreNeuronIds;
     for (auto nc : local->netcons)
         netconsPreNeuronIds.insert(nc.first);
 
     //inform pre-synaptic neurons (once) that we connect
-    for (int i=0; i<sizes[0]/sizeof(int); i++) //for all existing neurons
+    for (int i=0; i<sizes[0]/sizeof(neuron_id_t); i++) //for all existing neurons
         //if I'm connected to it (ie is not artificial)
         if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
             //tell the neuron to add the synapse to this branch

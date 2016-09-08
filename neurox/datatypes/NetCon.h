@@ -14,17 +14,18 @@ class NetConX : Event
 {
   public:
     NetConX();
-    NetConX(int mechType, int mechInstance, double delay, double * args, short int argsCount, bool active);
+    NetConX(int mechType, offset_t mechInstance, floble_t delay,
+            floble_t * args, unsigned short argsCount, bool active);
     ~NetConX();
 
-    void deliver(double t, Branch* branch) override; //event method (inherited)
+    void deliver(floble_t t, Branch* branch) override; //event method (inherited)
 
     int mechType;   ///> mechanism type associated with this synapse
-    short int argsCount;  ///> size of variable args
+    unsigned short argsCount;  ///> size of variable args
     bool active;          ///> decides whether NetCon is active (or not)
-    double delay;         ///> synaptic (soma-bouton distance + transmitters release delay)
-    double * args;        ///> net_receive arguments (equivalent to weights in Coreneuron's NetCon)
-    int mechInstance;     ///> mechanism instance, from the mechanism type
+    floble_t delay;       ///> synaptic (soma-bouton distance + transmitters release delay)
+    floble_t * args;      ///> net_receive arguments (equivalent to weights in Coreneuron's NetCon)
+    offset_t mechInstance;     ///> mechanism instance, from the mechanism type
 
   private:
 };
@@ -32,11 +33,11 @@ class NetConX : Event
 ///temp wrapper for point process
 struct PointProcInfo
 {
-    int nodeId;
+    offset_t nodeId;
     int mechType;
-    int mechInstance;
-    int instanceDataOffset;
-    int size;
+    offset_t mechInstance;
+    offset_t instanceDataOffset;
+    size_t size;
 };
 
 }

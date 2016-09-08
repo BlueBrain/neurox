@@ -5,7 +5,7 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-Neuron::Neuron(int neuronId, double APthreshold):
+Neuron::Neuron(gid_t neuronId, floble_t APthreshold):
     id(neuronId), APthreshold(APthreshold)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);
@@ -38,7 +38,7 @@ void Neuron::addSynapseTarget(hpx_t target)
 }
 
 
-void Neuron::fireActionPotential(double t)
+void Neuron::fireActionPotential(floble_t t)
 {
     //netcvode.cpp::PreSyn::send()
     if (synapses.size()>0)

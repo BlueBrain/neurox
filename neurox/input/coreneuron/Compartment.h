@@ -16,26 +16,29 @@ class Compartment
 {
   public:
     Compartment()=delete;
-    Compartment(int id, double a, double b, double d, double v, double rhs, double area, int p);
+    Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
+                floble_t v, floble_t rhs, floble_t area, offset_t p);
     ~Compartment();
 
     void addChild(Compartment* child);
 
-    void addMechanismInstance(int mechId, double * data, int dataSize, Datum * pdata, int pdataSize);
+    void addMechanismInstance(int mechId,
+                              double * data, int dataSize,
+                              Datum * pdata, int pdataSize);
     void addVecPlay(double * t, double *y, PointProcInfo & ppi);
 
-    int id;
+    offset_t id;
     vector<Compartment*> branches;
-    double a,b,d,v,rhs,area;
-    int p;
+    floble_t a,b,d,v,rhs,area;
+    offset_t p;
     vector<int> mechsTypes;
-    vector<double> data;
+    vector<floble_t> data;
     vector<Datum> pdata;
 
     //vecplay data
     vector<PointProcInfo> vecPlayInfo;
-    vector<double> vecPlayTdata;
-    vector<double> vecPlayYdata;
+    vector<floble_t> vecPlayTdata;
+    vector<floble_t> vecPlayYdata;
 
     //vdata
     vector<void*> vdata;

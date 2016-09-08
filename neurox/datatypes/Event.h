@@ -23,7 +23,7 @@ class Branch;
  */
 class Event {
 public:
-    virtual void deliver(double t, Branch* branch)=0;
+    virtual void deliver(floble_t t, Branch* branch)=0;
     virtual int type() { return DiscreteEventType; }
 };
 

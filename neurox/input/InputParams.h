@@ -1,4 +1,5 @@
 #pragma once
+#include "neurox_hpx.h"
 
 namespace neurox
 {
@@ -18,17 +19,17 @@ class InputParams
     ~InputParams();
 
     //Execution parameters (cn_input_parameters)
-    int secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
-    int prcellgid;      ///> gid of cell for prcellstate
-    double t; 			///> current simulation time (msecs)
-    double dt; 			///> time step ie delta-t (msecs)
-    double rev_dt; 		///> reverse of delta t (1/msecs)
-    double celsius; 	///> celsius temperature (degrees)
-    double tstart; 		///> start time of simulation in msec*/
-    double tstop;		///> stop time of simulation in msec*/
-    double dt_io;    	///> i/o timestep to use in msec*/
-    double voltage;     ///> initial voltage set on all neurons
-    double forwardSkip;	///> forward skip time
+    char secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
+    neuron_id_t prcellgid;      ///> gid of cell for prcellstate
+    offset_t t; 			///> current simulation time (msecs)
+    offset_t dt; 			///> time step ie delta-t (msecs)
+    offset_t rev_dt; 		///> reverse of delta t (1/msecs)
+    offset_t celsius; 	    ///> celsius temperature (degrees)
+    offset_t tstart; 		///> start time of simulation in msec*/
+    offset_t tstop;		///> stop time of simulation in msec*/
+    offset_t dt_io;    	///> i/o timestep to use in msec*/
+    offset_t voltage;     ///> initial voltage set on all neurons
+    offset_t forwardSkip;	///> forward skip time
 
     char inputPath[512];	///> path of input directory
     char outputPath[512];	///> path of output directory
