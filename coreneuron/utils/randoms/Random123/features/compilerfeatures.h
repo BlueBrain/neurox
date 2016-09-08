@@ -201,6 +201,8 @@ added to each of the *features.h files, AND to examples/ut_features.cpp.
 #include "iccfeatures.h"
 #elif defined(__xlC__)
 #include "xlcfeatures.h"
+#elif defined(__PGI)
+#include "pgccfeatures.h"
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 #include "sunprofeatures.h"
 #elif defined(__OPEN64__)
@@ -213,8 +215,6 @@ added to each of the *features.h files, AND to examples/ut_features.cpp.
 #include "fujitsufeatures.h"
 #elif defined(__GNUC__)
 #include "gccfeatures.h"
-#elif defined(__PGI)
-#include "pgccfeatures.h"
 #elif defined(_MSC_FULL_VER)
 #include "msvcfeatures.h"
 #else

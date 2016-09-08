@@ -153,18 +153,17 @@ void Mechanism::registerCapacitance()
 //from eion.c
 extern void ion_init(NrnThread* nt, Memb_list* ml, int type);
 extern void ion_cur(NrnThread* nt, Memb_list* ml, int type);
-extern void ion_alloc(double*, int*, int type);
 
 void Mechanism::registerIon()
 {
     assert(this->isIon);
 
-    double ** ion_global_map = get_ion_global_map(); // added to membfunc.h and eion.c;
+    double ** ion_global_map = nrn_ion_global_map; //get_nrn_ion_global_map(); // added to membfunc.h and eion.c;
     conci  = (floble_t) ion_global_map[type][0];
     conco  = (floble_t) ion_global_map[type][1];
     charge = (floble_t) ion_global_map[type][2];
 
-    this->membFunc.alloc = ion_alloc; //assert(0) should never be called
+    //this->membFunc.alloc = ion_alloc; //assert(0) should never be called
     this->membFunc.initialize = ion_init;
     this->membFunc.current = ion_cur;
 }
@@ -262,7 +261,6 @@ void Mechanism::callNetReceiveFunction(
 
     Point_process pp;
     pp._i_instance = netcon->mechInstance;
-    pp._presyn = NULL;
     pp._tid = -1;
 
     pp._type = netcon->mechType;

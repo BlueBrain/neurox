@@ -75,8 +75,6 @@ typedef long long neuron_id_t; ///> neuron gids (gid_t or id_t already used by t
     HPX_REGISTER_ACTION(HPX_FUNCTION, 0, func, func##_handler);
 
 /**
-
-/**
  * shortcut for the declaration of hpx functions.
  * Pass function type and name:
  * 0 : no arguments

@@ -279,8 +279,10 @@ void DataLoader::addNetConsForThisNeuron(
       int mechType = nc->target_->_type;
       int argsCount = pnt_receive_size[mechType];
       vector<floble_t> args;
+/*TODO
       for (int i=0; i<argsCount; i++)
           args.push_back( (floble_t) nc->weight_[i]);
+*/
 
       netcons[preNeuronId].push_back(
           new NetConX(mechType, (offset_t) nc->target_->_i_instance,
@@ -419,9 +421,6 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 #ifndef NDEBUG
                     Point_process * pp = &nt.pntprocs[pointProcTotalOffset++];
                     assert(nt._vdata[pdata[1]] == pp);
-                    assert(pp->_presyn == NULL); //PS is always NULL? Maybe circuit too small --> no synapses
-                    //presyns i think are only used by nrniv/netcvode.cpp mechfor net_event (not for our HPX use case)
-                    //see netstim mod files (vdata[ppvar[1*STRIDE]] is used by artcell_net_send() ).
                     if (mech->pdataSize > 2)
                     {
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
