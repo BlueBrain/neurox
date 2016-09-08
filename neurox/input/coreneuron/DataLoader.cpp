@@ -282,11 +282,11 @@ void DataLoader::addNetConsForThisNeuron(
 /*TODO
       for (int i=0; i<argsCount; i++)
           args.push_back( (floble_t) nc->weight_[i]);
-*/
 
       netcons[preNeuronId].push_back(
           new NetConX(mechType, (offset_t) nc->target_->_i_instance,
                    (floble_t) nc->delay_, args.data(), argsCount, nc->active_));
+*/
     }
 }
 
@@ -896,9 +896,6 @@ int DataLoader::getBranchData(
         int ptype = pdataType.at(i);
         switch (ptype)
         {
-        case 0: //not registered (its an *_ion type)
-            //do nothing, its a flag (the 'iontype', see eion.c)
-            break;
         case -1:  //"area" (6th field)
         {
             assert(p>=totalN*5 && p<totalN<6);
@@ -908,6 +905,8 @@ int DataLoader::getBranchData(
             break;
         }
         case -2: //"iontype"
+            //do nothing, its a flag (the 'iontype', see nrnoc/eion.c)
+            break;
         case -3: //"cvodeieq"
         case -5: //"pointer"
             assert(0); //not used

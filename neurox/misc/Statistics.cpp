@@ -61,12 +61,19 @@ void Statistics::printSimulationSize(bool writeToFile)
                 neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
         simSize += neuronSize;
     }
-    printf("        %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
-           neuronsCount, simSize.branchesCount, simSize.compartmentsCount, simSize.mechsInstancesCount, simSize.getTotalSize());
-    printf("        (morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB)\n",
-           simSize.morphologies/1024., simSize.mechanisms/1024., simSize.synapses/1024, simSize.metadata/1024);
-    printf("        Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
-                   simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
+    printf(": %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
+           neuronsCount, simSize.branchesCount, simSize.compartmentsCount,
+           simSize.mechsInstancesCount, simSize.getTotalSize()/1024);
+    printf(": SUM morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB;\n",
+           simSize.morphologies/1024., simSize.mechanisms/1024.,
+           simSize.synapses/1024, simSize.metadata/1024);
+    printf(": AVG morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB;\n",
+           simSize.morphologies/ (double) neuronsCount,
+           simSize.mechanisms  / (double) neuronsCount,
+           simSize.synapses    / (double) neuronsCount,
+           simSize.metadata    / (double) neuronsCount );
+    printf(": Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
+           simSize.globalVars, simSize.globalVars/HPX_LOCALITIES, HPX_LOCALITIES);
     if (writeToFile)
         fclose(outstream);
 }
@@ -138,7 +145,7 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
             totalMechsInstances += mechsCountPerType[m];
         }
     }
-    printf("        Total mechs instances: %lld\n", totalMechsInstances);
+    printf(": Total mechs instances: %lld\n", totalMechsInstances);
 
     FILE *outstream = stdout;
     if (writeToFile)

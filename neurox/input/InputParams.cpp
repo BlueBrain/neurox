@@ -41,26 +41,26 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
 
         //coreneuron command line parameters
-        TCLAP::ValueArg<offset_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"double");
+        TCLAP::ValueArg<floble_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"floble_t");
         cmd.add(tstart);
-        TCLAP::ValueArg<offset_t> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"double");
+        TCLAP::ValueArg<floble_t> tstop("e","tstop","Execution stop time (msecs). The default value is 100",false, 100 ,"floble_t");
         cmd.add(tstop);
-        TCLAP::ValueArg<offset_t> dt("t","dt","Execution time step (msecs). The default value is 0.025",false, DEF_dt ,"double");
+        TCLAP::ValueArg<floble_t> dt("t","dt","Execution time step (msecs). The default value is 0.025",false, DEF_dt ,"floble_t");
         cmd.add(dt);
-        TCLAP::ValueArg<offset_t> dt_io("i","dt_io","I/O time step (msecs). The default value is 0.1",false, 0.1 ,"double");
+        TCLAP::ValueArg<floble_t> dt_io("i","dt_io","I/O time step (msecs). The default value is 0.1",false, 0.1 ,"floble_t");
         cmd.add(dt_io);
-        TCLAP::ValueArg<offset_t> celsius("l","celsius","System temperatura (celsius degrees). The default value is 34",false, 34.0 ,"double");
+        TCLAP::ValueArg<floble_t> celsius("l","celsius","System temperatura (celsius degrees). The default value is 34",false, 34.0 ,"floble_t");
         cmd.add(celsius);
+        TCLAP::ValueArg<floble_t> forwardskip("k","forwardskip","Set forwardskip time step (msecs). The default value is 0",false, 0 ,"floble_t");
+        cmd.add(forwardskip);
+        TCLAP::ValueArg<neuron_id_t> prcellgid("g","prcellgid","Output prcellstate information for given gid. The default value is -1",false, -1 ,"neuron_id_t");
+        cmd.add(prcellgid);
         TCLAP::ValueArg<std::string> patternStim("p","pattern","Apply patternstim with the spike file. No default value",false, "" ,"string");
         cmd.add(patternStim);
-        TCLAP::ValueArg<gid_t> prcellgid("g","prcellgid","Output prcellstate information for given gid. The default value is -1",false, -1 ,"int");
-        cmd.add(prcellgid);
         TCLAP::ValueArg<std::string> inputPath("d","inputpath","Path to input files directory",true,"./input","string");
         cmd.add(inputPath);
         TCLAP::ValueArg<std::string> outputPath("o","outputpath","Path to output directory. The default value is ./output",false,"./output","string");
         cmd.add(outputPath);
-        TCLAP::ValueArg<offset_t> forwardskip("k","forwardskip","Set forwardskip time step (msecs). The default value is 0",false, 0 ,"double");
-        cmd.add(forwardskip);
 
         //parse command line arguments
         cmd.parse( argc, argv );

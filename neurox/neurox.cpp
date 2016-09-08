@@ -126,6 +126,7 @@ static int main_handler(char **argv, size_t argc)
       Misc::Statistics::printSimulationSize();
       printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
       Misc::Statistics::printMechanismsDistribution();
+      hpx_exit(HPX_SUCCESS);
     }
 
     printf("neurox::NeuronTreeLCO::init...\n");

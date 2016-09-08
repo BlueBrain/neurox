@@ -19,32 +19,32 @@ class InputParams
     ~InputParams();
 
     //Execution parameters (cn_input_parameters)
-    char secondorder; 	///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
-    neuron_id_t prcellgid;      ///> gid of cell for prcellstate
-    offset_t t; 			///> current simulation time (msecs)
-    offset_t dt; 			///> time step ie delta-t (msecs)
-    offset_t rev_dt; 		///> reverse of delta t (1/msecs)
-    offset_t celsius; 	    ///> celsius temperature (degrees)
-    offset_t tstart; 		///> start time of simulation in msec*/
-    offset_t tstop;		///> stop time of simulation in msec*/
-    offset_t dt_io;    	///> i/o timestep to use in msec*/
-    offset_t voltage;     ///> initial voltage set on all neurons
-    offset_t forwardSkip;	///> forward skip time
+    char secondorder;       ///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
+    neuron_id_t prcellgid;  ///> gid of cell for prcellstate
+    floble_t t; 	        ///> current simulation time (msecs)
+    floble_t dt; 	        ///> time step ie delta-t (msecs)
+    floble_t rev_dt; 	    ///> reverse of delta t (1/msecs)
+    floble_t celsius; 	    ///> celsius temperature (degrees)
+    floble_t tstart; 	    ///> start time of simulation in msec*/
+    floble_t tstop;	        ///> stop time of simulation in msec*/
+    floble_t dt_io;    	    ///> i/o timestep to use in msec*/
+    floble_t voltage;       ///> initial voltage set on all neurons
+    floble_t forwardSkip;	///> forward skip time
 
-    char inputPath[512];	///> path of input directory
-    char outputPath[512];	///> path of output directory
-    char patternStim[512];	///> patternStim file path (the filename of an output_spikes.h format raster file.)
+    char inputPath[512];    ///> path of input directory
+    char outputPath[512];   ///> path of output directory
+    char patternStim[512];  ///> patternStim file path (the filename of an output_spikes.h format raster file.)
 
-    int argc;           ///> original command line argc
-    char ** argv;       ///> original command line argv
+    int argc;               ///> original command line argc
+    char ** argv;           ///> original command line argv
 
     //neurox specific options
-    bool outputStatistics; ///> outputs statistics file
-    bool outputMechanismsDot; ///> outputs mechanisms.dot file
-    bool outputNetconsDot; ///> outputs netcons.dot file
+    bool outputStatistics;      ///> outputs statistics file
+    bool outputMechanismsDot;   ///> outputs mechanisms.dot file
+    bool outputNetconsDot;      ///> outputs netcons.dot file
     bool outputCompartmentsDot; ///> outputs compartments*.dot files
-    bool multiMex; ///> graph-based parallelism of mechanisms
-    bool multiSplix; ///> tree-based parallelism of neurons morphologies
+    bool multiMex;              ///> graph-based parallelism of mechanisms
+    bool multiSplix;            ///> tree-based parallelism of morphologies
 
   private:
     /// Parses command line arguments and populates structure
