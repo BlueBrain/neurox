@@ -122,10 +122,11 @@ static int main_handler(char **argv, size_t argc)
 
     if (neurox::inputParams->outputStatistics)
     {
-      printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
-      Misc::Statistics::printSimulationSize();
       printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
       Misc::Statistics::printMechanismsDistribution();
+      printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
+      Misc::Statistics::printSimulationSize();
+
       hpx_exit(HPX_SUCCESS);
     }
 

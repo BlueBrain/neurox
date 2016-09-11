@@ -125,42 +125,55 @@ int Statistics::getNeuronSize_handler()
                 branchSize.synapses += (double) (sizeof(void*)*3 + sizeof(Point_process) + sizeof(/*RNG_state*/uint32_t[4])) /1024;
         }
     }
+
     //call the print function in children branches, pass their size to parent branch
-    if (local->neuronTree)
+    if (local->neuronTree && local->neuronTree->branchesCount>0)
     {
-      int branchesCount = local->neuronTree->branchesCount; 
-      hpx_t branchesLCO = hpx_lco_and_new(branchesCount);
+      int branchesCount = local->neuronTree->branchesCount;
       SizeInfo * subBranchSizes = new SizeInfo[branchesCount];
 
-      for (int c=0; c<branchesCount; c++)
-          hpx_call(local->neuronTree->branches[c], Statistics::getNeuronSize,
-                   branchesLCO, &subBranchSizes[c], sizeof(SizeInfo) );
+      hpx_t * futures = new hpx_t[branchesCount];
+      void ** addrs   = new void*[branchesCount];
+      size_t* sizes   = new size_t[branchesCount];
+      for (offset_t c = 0; c < branchesCount; c++)
+      {
+          futures[c] = hpx_lco_future_new(sizeof(SizeInfo));
+          addrs[c]   = &subBranchSizes[c];
+          sizes[c]   = sizeof(SizeInfo);
+          hpx_call(local->neuronTree->branches[c],
+                   Statistics::getNeuronSize, futures[c]);
+      }
+      hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
+      hpx_lco_delete_all(branchesCount, futures, NULL);
 
-      hpx_lco_wait(branchesLCO);
+      delete [] futures;
+      delete [] addrs;
+      delete [] sizes;
 
       for (int c=0; c<branchesCount; c++)
           branchSize+=subBranchSizes[c];
 
-      hpx_lco_delete(branchesLCO, HPX_NULL);
+      delete [] subBranchSizes;
     }
     neurox_hpx_unpin_continue(branchSize);
 }
 
 void Statistics::printMechanismsDistribution(bool writeToFile)
 {
-    vector<unsigned> sumMechsCountPerType(mechanismsCount);
+    unsigned * mechsCountPerType = new unsigned[mechanismsCount];
+    unsigned * sumMechsCountPerType = new unsigned[mechanismsCount]();
     unsigned long long totalMechsInstances=0;
     for (int i=0; i<neuronsCount; i++)
     {
-        unsigned mechsCountPerType[mechanismsCount];
         hpx_call_sync(getNeuronAddr(i), Statistics::getNeuronMechanismsDistribution,
-                      mechsCountPerType, sizeof(mechsCountPerType));
+                      mechsCountPerType, sizeof(unsigned)*mechanismsCount);
         for (int m=0; m<mechanismsCount; m++)
         {
             sumMechsCountPerType[m] += mechsCountPerType[m];
             totalMechsInstances += mechsCountPerType[m];
         }
     }
+    delete [] mechsCountPerType;
     printf(": Total mechs instances: %lld\n", totalMechsInstances);
 
     FILE *outstream = stdout;
@@ -174,6 +187,8 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
 
     if (writeToFile)
         fclose(outstream);
+
+    delete [] sumMechsCountPerType;
 }
 
 hpx_action_t Statistics::getNeuronMechanismsDistribution=0;
@@ -184,27 +199,37 @@ int Statistics::getNeuronMechanismsDistribution_handler()
     for (int m=0; m<mechanismsCount; m++)
         mechsCountPerType[m] = local->mechsInstances[m].count;
 
-    //call the print function in children branches, pass their size to parent branch
-    if (local->neuronTree)
+    //call the function on children branches, pass their size to parent branch
+    if (local->neuronTree && local->neuronTree->branchesCount>0)
     {
       int branchesCount = local->neuronTree->branchesCount;
-      hpx_t branchesLCO = hpx_lco_and_new(branchesCount);
-      unsigned ** mechsCountPerTypeChild = new unsigned *[branchesCount];
 
+      unsigned ** mechsCountPerTypeChild = new unsigned *[branchesCount];
       for (int c=0; c<branchesCount; c++)
           mechsCountPerTypeChild[c] = new unsigned[mechanismsCount];
 
-      for (int c=0; c<branchesCount; c++)
-          hpx_call(local->neuronTree->branches[c], Statistics::getNeuronMechanismsDistribution,
-                 branchesLCO, mechsCountPerTypeChild[c], sizeof(unsigned)*mechanismsCount);
+      hpx_t * futures = new hpx_t[branchesCount];
+      void ** addrs   = new void*[branchesCount];
+      size_t* sizes   = new size_t[branchesCount];
+      for (offset_t c = 0; c < branchesCount; c++)
+      {
+          futures[c] = hpx_lco_future_new(sizeof(unsigned[mechanismsCount]));
+          addrs[c]   = mechsCountPerTypeChild[c];
+          sizes[c]   = sizeof(unsigned[mechanismsCount]);
+          hpx_call(local->neuronTree->branches[c],
+                   Statistics::getNeuronMechanismsDistribution, futures[c]);
+      }
+      hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
+      hpx_lco_delete_all(branchesCount, futures, NULL);
 
-      hpx_lco_wait(branchesLCO);
+      delete [] futures;
+      delete [] addrs;
+      delete [] sizes;
 
       for (int c=0; c<branchesCount; c++)
           for (int m=0; m<mechanismsCount; m++)
               mechsCountPerType[m] += mechsCountPerTypeChild[c][m];
 
-      hpx_lco_delete(branchesLCO, HPX_NULL);
       for (int c=0; c<branchesCount; c++)
           delete [] mechsCountPerTypeChild[c];
       delete [] mechsCountPerTypeChild;
