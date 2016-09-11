@@ -61,13 +61,19 @@ void Statistics::printSimulationSize(bool writeToFile)
                 neuronSize.mechanisms, neuronSize.synapses, neuronSize.metadata);
         simSize += neuronSize;
     }
-    printf(": %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
+
+    printf(": SUM %llu neurons, %llu branches, %llu compartments, %llu mech instances, %.1f MB\n",
            neuronsCount, simSize.branchesCount, simSize.compartmentsCount,
            simSize.mechsInstancesCount, simSize.getTotalSize()/1024);
+    printf(": AVG per neuron: %.2f branches, %.2f compartments, %.2f mech instances, %.2f KB\n",
+           simSize.branchesCount / (double) neuronsCount,
+           simSize.compartmentsCount / (double) neuronsCount,
+           simSize.mechsInstancesCount / (double) neuronsCount,
+           simSize.getTotalSize() / (double) neuronsCount);
     printf(": SUM morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, metadata %.2f MB;\n",
            simSize.morphologies/1024., simSize.mechanisms/1024.,
            simSize.synapses/1024, simSize.metadata/1024);
-    printf(": AVG morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB;\n",
+    printf(": AVG per neuron: morphologies %.2f KB, mechanisms %.2f KB, synapses %.2f KB, metadata %.2f KB;\n",
            simSize.morphologies/ (double) neuronsCount,
            simSize.mechanisms  / (double) neuronsCount,
            simSize.synapses    / (double) neuronsCount,
@@ -121,11 +127,21 @@ int Statistics::getNeuronSize_handler()
     }
     //call the print function in children branches, pass their size to parent branch
     if (local->neuronTree)
-    for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
-        SizeInfo subBranchSize;
-        hpx_call_sync(local->neuronTree->branches[c], Statistics::getNeuronSize, &subBranchSize, sizeof(subBranchSize));
-        branchSize+=subBranchSize;
+      int branchesCount = local->neuronTree->branchesCount; 
+      hpx_t branchesLCO = hpx_lco_and_new(branchesCount);
+      SizeInfo * subBranchSizes = new SizeInfo[branchesCount];
+
+      for (int c=0; c<branchesCount; c++)
+          hpx_call(local->neuronTree->branches[c], Statistics::getNeuronSize,
+                   branchesLCO, &subBranchSizes[c], sizeof(SizeInfo) );
+
+      hpx_lco_wait(branchesLCO);
+
+      for (int c=0; c<branchesCount; c++)
+          branchSize+=subBranchSizes[c];
+
+      hpx_lco_delete(branchesLCO, HPX_NULL);
     }
     neurox_hpx_unpin_continue(branchSize);
 }
@@ -170,13 +186,28 @@ int Statistics::getNeuronMechanismsDistribution_handler()
 
     //call the print function in children branches, pass their size to parent branch
     if (local->neuronTree)
-    for (int c=0; c<local->neuronTree->branchesCount; c++)
     {
-        vector<unsigned> mechsCountPerTypeChild (mechanismsCount);
-        hpx_call_sync(local->neuronTree->branches[c], Statistics::getNeuronMechanismsDistribution,
-                  mechsCountPerTypeChild.data(), sizeof(mechsCountPerType));
-        for (int m=0; m<mechanismsCount; m++)
-            mechsCountPerType[m] += mechsCountPerTypeChild[m];
+      int branchesCount = local->neuronTree->branchesCount;
+      hpx_t branchesLCO = hpx_lco_and_new(branchesCount);
+      unsigned ** mechsCountPerTypeChild = new unsigned *[branchesCount];
+
+      for (int c=0; c<branchesCount; c++)
+          mechsCountPerTypeChild[c] = new unsigned[mechanismsCount];
+
+      for (int c=0; c<branchesCount; c++)
+          hpx_call(local->neuronTree->branches[c], Statistics::getNeuronMechanismsDistribution,
+                 branchesLCO, mechsCountPerTypeChild[c], sizeof(unsigned)*mechanismsCount);
+
+      hpx_lco_wait(branchesLCO);
+
+      for (int c=0; c<branchesCount; c++)
+          for (int m=0; m<mechanismsCount; m++)
+              mechsCountPerType[m] += mechsCountPerTypeChild[c][m];
+
+      hpx_lco_delete(branchesLCO, HPX_NULL);
+      for (int c=0; c<branchesCount; c++)
+          delete [] mechsCountPerTypeChild[c];
+      delete [] mechsCountPerTypeChild;
     }
     neurox_hpx_unpin_continue(mechsCountPerType);
 }

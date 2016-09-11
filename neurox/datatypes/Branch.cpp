@@ -95,8 +95,8 @@ Branch::Branch(offset_t n,
                 {
                     offset_t offsetPP  = instancePdata[1];
                     offset_t offsetRNG = instancePdata[2];
-                    assert(offsetPP  < vdataCount);
-                    assert(offsetRNG < vdataCount);
+                    //assert(offsetPP  < vdataCount);
+                    //assert(offsetRNG < vdataCount);
                     void * rng = instanceVdata[1];
                 }
                 //We will call bbcore_red on the correct vdata offset
