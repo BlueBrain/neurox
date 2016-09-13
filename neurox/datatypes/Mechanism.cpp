@@ -1,12 +1,6 @@
 #include "neurox/neurox.h"
 #include <cstring>
 
-#include "coreneuron/nrnoc/membfunc.h" //mod_f_t
-#include "coreneuron/nrnoc/membdef.h" //Memb_func, BAMech
-#include "coreneuron/nrnoc/multicore.h" //NrnThread
-#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list
-#include "coreneuron/nrniv/netcon.h"
-
 using namespace std;
 using namespace neurox;
 
@@ -89,7 +83,8 @@ void Mechanism::registerBeforeAfterFunctions()
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
-        this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
+        this->BAfunctions[i] = get_BA_function(this->sym, i);
+        //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
 }
 
 void Mechanism::disableMechFunctions()
@@ -116,19 +111,18 @@ void Mechanism::disableMechFunctions()
 
 void Mechanism::registerModFunctions(int type)
 {
-    this->membFunc.alloc = memb_func[type].alloc;
-    this->membFunc.setdata_ = memb_func[type].setdata_;
-    this->membFunc.destructor = memb_func[type].destructor;
-    this->membFunc.current =  memb_func[type].current;
-    this->membFunc.jacob = memb_func[type].jacob;
-    this->membFunc.state = memb_func[type].state;
-    this->membFunc.initialize = memb_func[type].initialize;
-    this->membFunc.thread_cleanup_ = memb_func[type].thread_cleanup_;
-    this->membFunc.thread_mem_init_ = memb_func[type].thread_mem_init_;
-    this->membFunc.thread_size_ = memb_func[type].thread_size_;
-    //look up tables are created and destroyed inside mod files, not accessible via coreneuron
-    this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
-    this->nrn_bbcore_read = nrn_bbcore_read_[type];
+    this->membFunc.alloc = NULL; // memb_func[type].alloc;
+    this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
+    this->membFunc.destructor = NULL; // memb_func[type].destructor;
+    this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
+    this->membFunc.jacob = get_jacob_function(this->sym); //memb_func[type].jacob;
+    this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
+    this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
+    this->membFunc.thread_cleanup_ = NULL; //memb_func[type].thread_cleanup_;
+    this->membFunc.thread_mem_init_ = NULL; //TODO memb_func[type].thread_mem_init_;
+    this->membFunc.thread_size_ = NULL; //TODO memb_func[type].thread_size_;
+    this->membFunc.thread_table_check_ = NULL; //TODO memb_func[type].thread_table_check_;
+    this->nrn_bbcore_read = NULL; //TODO nrn_bbcore_read_[type];
 }
 
 //from coreneuron/nrnoc/capac.c
@@ -158,7 +152,7 @@ void Mechanism::registerIon()
 {
     assert(this->isIon);
 
-    double ** ion_global_map = nrn_ion_global_map; //get_nrn_ion_global_map(); // added to membfunc.h and eion.c;
+    double ** ion_global_map = nrn_ion_global_map; //get_ion_global_map();
     conci  = (floble_t) ion_global_map[type][0];
     conco  = (floble_t) ion_global_map[type][1];
     charge = (floble_t) ion_global_map[type][2];

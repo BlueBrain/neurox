@@ -149,6 +149,16 @@ if(EXISTS ${ADDITIONAL_MECHS})
 endif()
 mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 
+# Create C file with all "get function pointers" methods
+
+set(MOD_FUNC_PTRS_C "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
+set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
+
+add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
+    DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
+    COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD2C_OPTMECH_MODS} > "${MOD_FUNC_PTRS_C}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
 # For 'non-standard' mod files, need to generate registering function in mod_func.c
 
 set(MOD_FUNC_C "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
@@ -167,7 +177,7 @@ endforeach()
 
 # Add generated sources from MOD files
 
-set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
+set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 
 # artificial cells must be on cpu, defaul nrnran123.c is for cpu, nrn_setup.cpp uses nrnran123 for only memory calculation purpose which should use cpu version of nrnran123
 set(NOACC_MECH_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/netstim.c ${CMAKE_CURRENT_BINARY_DIR}/netstim_inhpoisson.c ${CMAKE_CURRENT_BINARY_DIR}/pattern.c ${CMAKE_CURRENT_SOURCE_DIR}/utils/randoms/nrnran123.c ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/nrn_setup.cpp)

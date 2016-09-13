@@ -1,6 +1,6 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include "neurox/datatypes/Branch.h"
 #include <queue>
 #include <map>
 #include <vector>

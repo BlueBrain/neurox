@@ -2,10 +2,6 @@
 
 #include "neurox/neurox.h"
 #include <vector>
-#include "coreneuron/nrnoc/membfunc.h" //mod_f_t, mod_alloc_t
-#include "coreneuron/nrnoc/nrnoc_ml.h" //ThreadDatum
-#include "coreneuron/nrnconf.h" //Datum
-#include "coreneuron/nrnoc/multicore.h" //NrnThread
 
 namespace neurox
 {

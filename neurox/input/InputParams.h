@@ -1,5 +1,5 @@
 #pragma once
-#include "neurox_hpx.h"
+#include "neurox.h"
 
 namespace neurox
 {

@@ -1,9 +1,7 @@
-﻿#include "neurox/input/InputParams.h"
+﻿#include "neurox.h"
 #include "tclap/CmdLine.h"
 #include "stdio.h"
 #include "string.h"
-
-#include "coreneuron/nrnoc/membdef.h"
 
 using namespace neurox::Input;
 

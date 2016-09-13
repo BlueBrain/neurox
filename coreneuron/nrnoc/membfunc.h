@@ -38,55 +38,9 @@ extern "C" {
 typedef Datum *(*Pfrpdat)(void);
 
 struct NrnThread;
+struct Memb_func;
 
-typedef void (*mod_alloc_t)(double*, Datum*, int);
-typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
-typedef void (*pnt_receive_t)(Point_process*, int, double);
-
-typedef struct Memb_func {
-	mod_alloc_t alloc;
-	mod_f_t	current;
-	mod_f_t	jacob;
-	mod_f_t	state;
-	mod_f_t	initialize;
-	Pfri	destructor;	/* only for point processes */
-	Symbol	*sym;
-	int vectorized;
-	int thread_size_; /* how many Datum needed in Memb_list if vectorized */
-	void (*thread_mem_init_)(ThreadDatum*); /* after Memb_list._thread is allocated */
-	void (*thread_cleanup_)(ThreadDatum*); /* before Memb_list._thread is freed */
-    void (*thread_table_check_)(int, int, double*, Datum*, ThreadDatum*, void*, int);
-	int is_point;
-	void (*setdata_)(double*, Datum*);
-	int* dparam_semantics; /* for nrncore writing. */
-} Memb_func;
-
-
-#define VINDEX	-1
-#define CABLESECTION	1
-#define MORPHOLOGY	2
-#define CAP	3
-#define EXTRACELL	5
-
-#define nrnocCONST 1
-#define DEP 2
-#define STATE 3	/*See init.c and cabvars.h for order of nrnocCONST, DEP, and STATE */
-
-#define BEFORE_INITIAL 0
-#define AFTER_INITIAL 1
-#define BEFORE_BREAKPOINT 2
-#define AFTER_SOLVE 3
-#define BEFORE_STEP 4
-#define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
-typedef struct BAMech {
-	mod_f_t f;
-	int type;
-	struct BAMech* next;
-} BAMech;
 extern BAMech** bamech_;
-
-extern int nrn_ion_global_map_size;
-extern double **nrn_ion_global_map;
 
 extern Memb_func* memb_func;
 extern int n_memb_func;
@@ -113,16 +67,6 @@ extern int point_register_mech(const char**, mod_alloc_t alloc, mod_f_t cur,
   mod_f_t jacob, mod_f_t stat, mod_f_t initialize, int nrnpointerindex,
   void*(*constructor)(), void(*destructor)(), int vectorized
   );
-
-//exposing capacitor functions from nrnoc/capac.c
-extern void nrn_capacity_current(struct NrnThread*, Memb_list*, int);
-extern void cap_alloc(double*, Datum*, int type);
-extern void cap_init(struct NrnThread*, Memb_list*, int);
-
-//exposing ion functions from nrnoc/eion.c
-extern void ion_alloc();
-extern void ion_cur(struct NrnThread*, Memb_list*, int);
-extern void ion_init(struct NrnThread*, Memb_list*, int);
 
 typedef void(*NetBufReceive_t)(struct NrnThread*);
 extern void hoc_register_net_receive_buffering(NetBufReceive_t, int);
@@ -153,7 +97,6 @@ extern int* nrn_mech_data_layout_;
 extern void _nrn_thread_reg0(int i, void(*f)(ThreadDatum*));
 extern void _nrn_thread_reg1(int i, void(*f)(ThreadDatum*));
 
-typedef void (*bbcore_read_t)(double*, int*, int*, int*, int, int, double*, Datum*, ThreadDatum*, struct NrnThread*, double);
 extern bbcore_read_t* nrn_bbcore_read_;
 
 extern int nrn_mech_depend(int type, int* dependencies);
@@ -172,6 +115,8 @@ extern void net_sem_from_gpu(int, int, int, int, int, double, double);
 
 extern void hoc_malchk(void); /* just a stub */
 extern void* hoc_Emalloc(size_t);
+
+
 
 #if defined(__cplusplus)
 }
