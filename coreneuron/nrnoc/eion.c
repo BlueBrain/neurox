@@ -28,10 +28,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 #include <string.h>
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/membdef.h"
-#include "coreneuron/nrnoc/nrnoc_decl.h"
+
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
 
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
@@ -70,9 +70,9 @@ static char *mechanism[] = { /*just a template*/
 	0
 };
 
-static void ion_alloc();
-static void ion_cur(NrnThread*, Memb_list*, int);
-static void ion_init(NrnThread*, Memb_list*, int);
+void ion_alloc();
+void ion_cur(NrnThread*, Memb_list*, int);
+void ion_init(NrnThread*, Memb_list*, int);
 
 double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
@@ -97,12 +97,12 @@ void ion_reg(const char* name, double valence) {
 	double val;
 #define VAL_SENTINAL -10000.
 
-	Sprintf(buf[0], "%s_ion", name);
-	Sprintf(buf[1], "e%s", name);
-	Sprintf(buf[2], "%si", name);
-	Sprintf(buf[3], "%so", name);
-	Sprintf(buf[5], "i%s", name);
-	Sprintf(buf[6], "di%s_dv_", name);
+    sprintf(buf[0], "%s_ion", name);
+    sprintf(buf[1], "e%s", name);
+    sprintf(buf[2], "%si", name);
+    sprintf(buf[3], "%so", name);
+    sprintf(buf[5], "i%s", name);
+    sprintf(buf[6], "di%s_dv_", name);
 	for (i=0; i<7; i++) {
 		mechanism[i+1] = buf[i];
 	}
@@ -128,8 +128,8 @@ void ion_reg(const char* name, double valence) {
 
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
-		Sprintf(buf[0], "%si0_%s", name, buf[0]);
-		Sprintf(buf[1], "%so0_%s", name, buf[0]);
+        sprintf(buf[0], "%si0_%s", name, buf[0]);
+        sprintf(buf[1], "%so0_%s", name, buf[0]);
 		if (strcmp("na", name) == 0) {
 			na_ion = mechtype;
 			global_conci(mechtype) = DEF_nai;
@@ -269,7 +269,7 @@ double nrn_nernst_coef(type) int type; {
 
 
 /* Must be called prior to any channels which update the currents */
-static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
+void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -302,7 +302,7 @@ static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 /* Must be called prior to other models which possibly also initialize
 	concentrations based on their own states
 */
-static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
+void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -331,7 +331,7 @@ static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	}
 }
 
-static void ion_alloc() {
+void ion_alloc() {
 	assert(0);
 }
 

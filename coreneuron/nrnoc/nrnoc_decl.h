@@ -48,7 +48,6 @@ extern int use_solve_interleave;
 extern int* nrn_index_sort(int* values, int n);
 extern void solve_interleaved(int ith);
 extern void nrn_solve_minimal(NrnThread*);
-extern void second_order_cur(NrnThread*);
 extern void nrn_ba(NrnThread*, int);
 extern void dt2thread(double);
 extern void clear_event_queue(void);
@@ -64,7 +63,6 @@ extern void alloc_mech(int);
 extern void ion_reg(const char*, double);
 extern void nrn_mk_table_check(void);
 extern void initnrn(void);
-extern void  nrn_capacity_current(NrnThread*, Memb_list*);
 extern int prcellstate(int gid, const char* suffix);
 extern int nrn_i_layout(int i, int cnt, int j, int size, int layout);
 
