@@ -26,9 +26,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/membdef.h"
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
 
 #if defined(_OPENACC)
 #define _PRAGMA_FOR_INIT_ACC_LOOP_ _Pragma("acc parallel loop present(vdata[0:_cntml_padded*nparm]) if(_nt->compute_gpu)")
@@ -51,8 +51,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 static const char *mechanism[] = { "0", "capacitance", "cm",0, "i_cap", 0,0 };
-static void cap_alloc(double*, Datum*, int type);
-static void cap_init(NrnThread*, Memb_list*, int);
+void cap_alloc(double*, Datum*, int);
+void cap_init(NrnThread*, Memb_list*, int);
+void cap_jacob(NrnThread*, Memb_list*, int);
 
 #define nparm 2
 
@@ -75,7 +76,7 @@ for pure implicit fixed step it is 1/dt
 It used to be static but is now a thread data variable
 */
 
-void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
+void cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -104,7 +105,7 @@ void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml) {
 	}
 }
 
-static void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
+void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -123,7 +124,7 @@ static void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	}
 }
 
-void nrn_capacity_current(NrnThread* _nt, Memb_list* ml) {
+void cap_cur(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -157,7 +158,7 @@ void nrn_capacity_current(NrnThread* _nt, Memb_list* ml) {
 
 /* the rest can be constructed automatically from the above info*/
 
-static void cap_alloc(double* data, Datum* pdata, int type) {
+void cap_alloc(double* data, Datum* pdata, int type) {
 	(void)pdata; (void)type; /* unused */
 	data[0] = DEF_cm;	/*default capacitance/cm^2*/
 }
