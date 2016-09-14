@@ -27,7 +27,6 @@
 
 //#define NDEBUG //(if active, disables assertions and debug output)
 
-#define capacitance 3
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139

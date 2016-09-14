@@ -622,7 +622,7 @@ void DataLoader::loadData(int argc, char ** argv)
         }
         else
         {
-          if ( tml->index == capacitance)  //capacitance is not part of graph
+          if ( tml->index == CAP)  //capacitance is not part of graph
           {
             dependenciesCount=0;
           }
@@ -677,17 +677,17 @@ void DataLoader::loadData(int argc, char ** argv)
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
       fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            getMechanismFromType(capacitance)->sym, capacitance);
+            getMechanismFromType(CAP)->sym, CAP);
       for (int m =0; m< mechanismsCount; m++)
       {
         Mechanism * mech = mechanisms[m];
         if (mech->pntMap > 0) //if is point process make it dotted
             fprintf(fileMechs, "\"%s (%d)\" [style=dotted];\n", mech->sym, mech->type);
 
-        if (mech->dependenciesCount==0 && mech->type!=capacitance) //top mechanism
+        if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
             fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
 
-        if (mech->successorsCount==0 && mech->type!= capacitance) //bottom mechanism
+        if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
             fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->sym, mech->type, "end");
 
         for (int d=0; d<mech->successorsCount; d++)

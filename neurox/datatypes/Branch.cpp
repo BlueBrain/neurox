@@ -233,11 +233,11 @@ void Branch::initMechanismsGraph(hpx_t target)
       this->mechsGraph = new MechanismsGraphLCO;
       this->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
       this->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
-      this->mechsGraph->mechsLCOs[mechanismsMap[capacitance]] = HPX_NULL;
+      this->mechsGraph->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
       size_t terminalMechanismsCount=0;
       for (size_t m=0; m<mechanismsCount; m++)
       {
-        if (mechanisms[m]->type == capacitance) continue; //exclude capacitance
+        if (mechanisms[m]->type == CAP) continue; //exclude capacitance
         this->mechsGraph->mechsLCOs[m] = hpx_lco_reduce_new(
                     max((short) 1,mechanisms[m]->dependenciesCount),
                     sizeof(Mechanism::ModFunction), Mechanism::initModFunction,
@@ -296,7 +296,7 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
     if (functionId == Mechanism::ModFunction::currentCapacitance
      || functionId == Mechanism::ModFunction::jacobCapacitance)
     {
-      mechanisms[mechanismsMap[capacitance]]->callModFunction(this, functionId);
+      mechanisms[mechanismsMap[CAP]]->callModFunction(this, functionId);
     }
     //for all others except capacitance (mechanisms graph)
     else
@@ -306,7 +306,7 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
           //launch execution on top nodes of the branch
           for (int m=0; m<mechanismsCount;m++)
           {
-            if (mechanisms[m]->type == capacitance)   continue; //not capacitance
+            if (mechanisms[m]->type == CAP)   continue; //not capacitance
             if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branche
             hpx_lco_set(this->mechsGraph->mechsLCOs[m],
                         sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
@@ -317,7 +317,7 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
         else //serial
         {
             for (int m=0; m<mechanismsCount; m++)
-                if ( mechanisms[m]->type == capacitance
+                if ( mechanisms[m]->type == CAP
                    && (  functionId == Mechanism::ModFunction::current
                       || functionId == Mechanism::ModFunction::jacob))
                     continue;
@@ -333,7 +333,7 @@ int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr,
 {
     neurox_hpx_pin(Branch);
     int type = *mechType_ptr;
-    assert(type!=capacitance); //capacitance should be outside mechanisms graph
+    assert(type!=CAP); //capacitance should be outside mechanisms graph
     assert(local->mechsGraph->mechsLCOs[mechanismsMap[type]] != HPX_NULL);
     Mechanism * mech = getMechanismFromType(type);
 
@@ -491,6 +491,7 @@ void Branch::backwardEulerStep()
     setupTreeMatrixMinimal();
 
     //eion.c : second_order_cur()
+    //TODO when we use only CoreNeuron structs, replace this by original func;
     if (this->secondOrder == 2)
         secondOrderCurrent();
 

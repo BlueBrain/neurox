@@ -335,7 +335,7 @@ void ion_alloc() {
 	assert(0);
 }
 
-void second_order_cur(struct NrnThread* _nt) {
+void second_order_cur(NrnThread* _nt) {
 	extern int secondorder;
 	NrnThreadMembList* tml;
 	Memb_list* ml;

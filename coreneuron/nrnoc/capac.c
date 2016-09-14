@@ -51,8 +51,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 static const char *mechanism[] = { "0", "capacitance", "cm",0, "i_cap", 0,0 };
-void cap_alloc(double*, Datum*, int type);
+void cap_alloc(double*, Datum*, int);
 void cap_init(NrnThread*, Memb_list*, int);
+void cap_jacob(NrnThread*, Memb_list*, int);
 
 #define nparm 2
 
@@ -75,7 +76,7 @@ for pure implicit fixed step it is 1/dt
 It used to be static but is now a thread data variable
 */
 
-void nrn_cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
+void cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;

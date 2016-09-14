@@ -48,11 +48,21 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define BEFORE_STEP 4
 #define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
 
+#if defined(__cplusplus)
+class NetCon;
+class PreSyn;
+extern "C" {
+#else
+typedef void NetCon;
+typedef void PreSyn;
+#endif
+
 typedef int Datum;
 typedef int (*Pfri)();
 typedef char Symbol;
 
 struct NrnThread;
+typedef struct NrnThread NrnThread;
 
 /* will go away at some point */
 typedef struct Point_process {
@@ -153,17 +163,17 @@ typedef struct BAMech {
 
 //exposing capacitor functions from nrnoc/capac.c
 extern void cap_alloc(double*, Datum*, int type);
-extern void cap_cur(struct NrnThread*, Memb_list*, int);
-extern void cap_init(struct NrnThread*, Memb_list*, int);
+extern void cap_cur(NrnThread*, Memb_list*, int);
+extern void cap_init(NrnThread*, Memb_list*, int);
+extern void cap_jacob(NrnThread*, Memb_list*, int);
 
 //exposing ion functions from nrnoc/eion.c
-extern void ion_cur(struct NrnThread*, Memb_list*, int);
-extern void ion_init(struct NrnThread*, Memb_list*, int);
-extern void second_order_cur(struct NrnThread* nt);
+extern void ion_cur(NrnThread*, Memb_list*, int);
+extern void ion_init(NrnThread*, Memb_list*, int);
 
 //exposing all other mechanisms functions from coreneuron/mech/mod_func.c
 extern mod_f_t get_init_function(const char * sym);
-extern mod_f_t get_jacob_function(const char * sym);
+//extern mod_f_t get_jacob_function(const char * sym);
 extern mod_f_t get_cur_function(const char * sym);
 extern mod_f_t get_state_function(const char * sym);
 extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
@@ -171,5 +181,9 @@ extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
 //exposing access to ions table (called directly by some mechs)
 extern int nrn_ion_global_map_size;
 extern double **nrn_ion_global_map;
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

@@ -17,7 +17,7 @@
 
 # Constructs the getters for mechanisms function pointers;
 
-# Usage: mod_func_ptrs.c.pl [MECH1.mod MECH2.mod ...]
+# Usage: mod_func_ptrs.c.pl [PATH-MECH1.mod PATH-MECH2.mod ...]
 
 @mods=@ARGV;
 
@@ -25,18 +25,20 @@ s/\.mod$// foreach @mods;
 
 @mods=sort @mods;
 
-@funcs=('init','cur','jacob','state');
+@funcs=('init','cur','state');
+#@funcs=('init','cur','jacob','state');
 
 print <<"__eof";
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include \"coreneuron/nrnoc/membfunc.h\"
-#include \"coreneuron/nrnoc/multicore.h\"
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
 __eof
 
 #Get the correct SUFFIX from each mod file for each mechanism
-@suffixes=();
+@suffixes_all=();
+@suffixes_with_cur=(); #with cur function (BREAKPOINT block in mod)
 
 for $m(@mods) {
   $filename = "${m}.mod";
@@ -58,27 +60,34 @@ for $m(@mods) {
   @lines[0] =~ s/[\r\n]+$//; #remove bad endings (breakline)
   my @words = split / /, @lines[0]; #get words from first (and only) line containing 'SUFFIX'
   my $suffix = @words[1]; #get SUFFIX name as second word"
-  push(@suffixes, $suffix); 
+  push(@suffixes_all, $suffix); 
+
+  #now add only those with nrn_cur function definition
+  my @breakpointlines = grep /BREAKPOINT/, @content;
+  if (scalar @breakpointlines == 1) {
+    push(@suffixes_with_cur, $suffix);
+  }
 }
 
 #Output the get of function pointers for init, jacob, current and state functions
 
 for $f(@funcs) {
-print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_${f}__${_}(NrnThread*, Memb_list*, int)"} @suffixes]};
-__eof
+@suffixes_with_this_func=();
+if ($f eq "cur"){
+  @suffixes_with_this_func = @suffixes_with_cur;
+}
+else {
+  @suffixes_with_this_func = @suffixes_all;
 }
 
-for $f(@funcs) {
 print <<"__eof";
 
-mod_f_t get_${f}_function(const char * sym) {
+extern void \n  @{[join ",\n  ", map {"_nrn_${f}__${_}(NrnThread*, Memb_list*, int)"} @suffixes_with_this_func]};
 
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_${f}__${_};"} @suffixes]}
-
-  printf(\"Could not find ${f} function for mechanism %s\\n\", sym);
-  abort();
+mod_f_t get_${f}_function(const char * sym)
+{
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_${f}__${_};"} @suffixes_with_this_func]}
   return NULL;
 }
 __eof

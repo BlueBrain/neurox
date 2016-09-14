@@ -47,7 +47,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         return;
 
     disableMechFunctions();
-    if (this->type == capacitance) //capacitance: capac.c
+    if (this->type == CAP) //capacitance: capac.c
         registerCapacitance();
     else if (this->isIon)  //ion: eion.c
         registerIon();
@@ -115,7 +115,7 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
     this->membFunc.destructor = NULL; // memb_func[type].destructor;
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
-    this->membFunc.jacob = get_jacob_function(this->sym); //memb_func[type].jacob;
+    this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
     this->membFunc.thread_cleanup_ = NULL; //memb_func[type].thread_cleanup_;
@@ -125,28 +125,18 @@ void Mechanism::registerModFunctions(int type)
     this->nrn_bbcore_read = NULL; //TODO nrn_bbcore_read_[type];
 }
 
-//from coreneuron/nrnoc/capac.c
-extern void cap_alloc(double*, int*, int type);
-extern void cap_init(struct NrnThread*, Memb_list*, int);
-extern void cap_cur(struct NrnThread*, Memb_list*, int);
-extern void nrn_cap_jacob(struct NrnThread*, Memb_list*, int);
-
 void Mechanism::registerCapacitance()
 {
     assert(this->sym && strcmp("capacitance", this->sym)==0);
     this->membFunc.alloc = cap_alloc;
     this->membFunc.initialize = cap_init;
     this->membFunc.current = cap_cur;
-    this->membFunc.jacob = nrn_cap_jacob;
+    this->membFunc.jacob = cap_jacob;
     //this->membFunc.alloc = Capacitance::cap_alloc;
     //this->membFunc.initialize = Capacitance::cap_init;
     //this->membFunc.current = Capacitance::nrn_capacity_current;
     //this->membFunc.jacob = Capacitance::nrn_cap_jacob;
 }
-
-//from eion.c
-extern void ion_init(NrnThread* nt, Memb_list* ml, int type);
-extern void ion_cur(NrnThread* nt, Memb_list* ml, int type);
 
 void Mechanism::registerIon()
 {
@@ -191,12 +181,12 @@ void Mechanism::callModFunction(const void * branch,
                 membFunc.alloc(membList.data, membList.pdata, type);
             break;
         case Mechanism::ModFunction::currentCapacitance:
-            assert(type == capacitance);
+            assert(type == CAP);
             assert(membFunc.current != NULL);
             membFunc.current(&nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::current:
-            assert(type != capacitance);
+            assert(type != CAP);
             if (membFunc.current)
                 membFunc.current(&nrnThread, &membList, type);
             break;
@@ -205,12 +195,12 @@ void Mechanism::callModFunction(const void * branch,
                 membFunc.state(&nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::jacobCapacitance:
-            assert(type == capacitance);
+            assert(type == CAP);
             assert(membFunc.jacob != NULL);
             membFunc.jacob(&nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::jacob:
-            assert(type != capacitance);
+            assert(type != CAP);
             if (membFunc.jacob)
                 membFunc.jacob(&nrnThread, &membList, type);
             break;
