@@ -28,10 +28,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 #include <string.h>
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/membdef.h"
-#include "coreneuron/nrnoc/nrnoc_decl.h"
+
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
 
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
@@ -97,12 +97,12 @@ void ion_reg(const char* name, double valence) {
 	double val;
 #define VAL_SENTINAL -10000.
 
-	Sprintf(buf[0], "%s_ion", name);
-	Sprintf(buf[1], "e%s", name);
-	Sprintf(buf[2], "%si", name);
-	Sprintf(buf[3], "%so", name);
-	Sprintf(buf[5], "i%s", name);
-	Sprintf(buf[6], "di%s_dv_", name);
+    sprintf(buf[0], "%s_ion", name);
+    sprintf(buf[1], "e%s", name);
+    sprintf(buf[2], "%si", name);
+    sprintf(buf[3], "%so", name);
+    sprintf(buf[5], "i%s", name);
+    sprintf(buf[6], "di%s_dv_", name);
 	for (i=0; i<7; i++) {
 		mechanism[i+1] = buf[i];
 	}
@@ -128,8 +128,8 @@ void ion_reg(const char* name, double valence) {
 
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
-		Sprintf(buf[0], "%si0_%s", name, buf[0]);
-		Sprintf(buf[1], "%so0_%s", name, buf[0]);
+        sprintf(buf[0], "%si0_%s", name, buf[0]);
+        sprintf(buf[1], "%so0_%s", name, buf[0]);
 		if (strcmp("na", name) == 0) {
 			na_ion = mechtype;
 			global_conci(mechtype) = DEF_nai;

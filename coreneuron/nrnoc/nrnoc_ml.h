@@ -48,6 +48,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define BEFORE_STEP 4
 #define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
 
+#define VECTORIZE 1
+
 #if defined(__cplusplus)
 class NetCon;
 class PreSyn;
@@ -170,6 +172,7 @@ extern void cap_jacob(NrnThread*, Memb_list*, int);
 //exposing ion functions from nrnoc/eion.c
 extern void ion_cur(NrnThread*, Memb_list*, int);
 extern void ion_init(NrnThread*, Memb_list*, int);
+extern void second_order_cur(NrnThread* _nt);
 
 //exposing all other mechanisms functions from coreneuron/mech/mod_func.c
 extern mod_f_t get_init_function(const char * sym);
@@ -181,6 +184,11 @@ extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
 //exposing access to ions table (called directly by some mechs)
 extern int nrn_ion_global_map_size;
 extern double **nrn_ion_global_map;
+
+//exposing temperature and memb_func variables (used by eion.c)
+extern double celsius;
+extern int n_memb_func;
+extern Memb_func* memb_func;
 
 #if defined(__cplusplus)
 }

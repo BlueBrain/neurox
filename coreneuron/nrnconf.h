@@ -40,7 +40,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define NRNBBCORE 1
 
 #define nil NULL
-#define Sprintf sprintf
 
 #define VEC_A(i) (_nt->_actual_a[(i)]) 
 #define VEC_B(i) (_nt->_actual_b[(i)])
@@ -48,13 +47,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define VEC_RHS(i) (_nt->_actual_rhs[(i)])
 #define VEC_V(i) (_nt->_actual_v[(i)])
 #define VEC_AREA(i) (_nt->_actual_area[(i)])
-#define VECTORIZE 1
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-extern double celsius;
 extern double t, dt;
 extern int rev_dt;
 extern int secondorder;

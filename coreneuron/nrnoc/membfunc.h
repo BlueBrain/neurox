@@ -42,8 +42,6 @@ struct Memb_func;
 
 extern BAMech** bamech_;
 
-extern Memb_func* memb_func;
-extern int n_memb_func;
 #define NRNPOINTER 4 /* added on to list of mechanism variables.These are
 pointers which connect variables  from other mechanisms via the _ppval array.
 */

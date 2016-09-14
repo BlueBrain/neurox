@@ -26,9 +26,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/membdef.h"
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
 
 #if defined(_OPENACC)
 #define _PRAGMA_FOR_INIT_ACC_LOOP_ _Pragma("acc parallel loop present(vdata[0:_cntml_padded*nparm]) if(_nt->compute_gpu)")
