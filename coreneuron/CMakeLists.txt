@@ -117,6 +117,7 @@ macro(mod2c_from_file name modlist searchpath)
 
         if(modpath_)
             mod2c_target(${name} "${modpath_}")
+            list(APPEND MOD_PATHS ${modpath_})
         else()
 	    message(WARNING "Unable to locate MOD file: ${mod_}")
         endif()
@@ -149,21 +150,12 @@ if(EXISTS ${ADDITIONAL_MECHS})
 endif()
 mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 
-# Create C file with all "get function pointers" methods
-
-set(MOD_FUNC_PTRS_C "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
-set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
-
-add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
-    DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
-    COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD2C_OPTMECH_MODS} > "${MOD_FUNC_PTRS_C}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-
 # For 'non-standard' mod files, need to generate registering function in mod_func.c
 
-set(MOD_FUNC_C "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
+set(MOD_FUNC_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
 set(MOD_FUNC_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func.c.pl")
 
+# ... pass as argument to the perl script the list of mod file names;
 add_custom_command(OUTPUT "${MOD_FUNC_C}"
     DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_C_PL}"
     COMMAND perl "${MOD_FUNC_C_PL}" ${MOD2C_OPTMECH_MODS} > "${MOD_FUNC_C}"
@@ -174,6 +166,17 @@ add_custom_command(OUTPUT "${MOD_FUNC_C}"
 foreach(depfile ${MECH_FILE_LISTS})
     configure_file("${depfile}" "${CMAKE_CURRENT_BINARY_DIR}/dummy_reconfigure_dep")
 endforeach()
+
+# Create C file with all "get function pointers" methods
+
+set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
+set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
+
+# ... pass as argument to the perl script the list of mods full paths;
+add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
+    DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
+    COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD_PATHS} > "${MOD_FUNC_PTRS_C}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Add generated sources from MOD files
 

@@ -123,7 +123,7 @@ void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	}
 }
 
-void nrn_capacity_current(NrnThread* _nt, Memb_list* ml, int type) {
+void cap_cur(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;

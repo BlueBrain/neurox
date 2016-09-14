@@ -15,12 +15,12 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# Construct the modl_reg() function from a provided list
-# of modules.
+# Constructs the getters for mechanisms function pointers;
 
-# Usage: mod_func.c.pl [MECH1.mod MECH2.mod ...]
+# Usage: mod_func_ptrs.c.pl [MECH1.mod MECH2.mod ...]
 
 @mods=@ARGV;
+
 s/\.mod$// foreach @mods;
 
 @mods=sort @mods;
@@ -40,7 +40,7 @@ __eof
 
 for $m(@mods) {
   $filename = "${m}.mod";
-  open $fh, '<', $filename or die "error: unable to open file '$filename' for reading : $!. ERROR1";
+  open $fh, '<', $filename or die "error: unable to open file '$filename' for reading : $!.";
   my @content = <$fh>; 
   close $fh;
   my @lines = grep /SUFFIX/, @content;
@@ -51,7 +51,7 @@ for $m(@mods) {
     @lines = grep /ARTIFICIAL_CELL/, @content;
   }
   if (!@lines) {
-    die "error: unable to find mechanism name for ${filename}. Add the missing keywork to coreneuron/mech/mod_func.c.pl. ERROR2"
+    die "error: unable to find mechanism name for ${filename}. Add the missing keywork to coreneuron/mech/mod_func.c.pl."
   }
   @lines[0] =~ s/^\s+|\s+$//g;  #remove trailing whitespaces from beginning and end
   @lines[0] =~ s/ +/ /; #replace multiple spaces by one

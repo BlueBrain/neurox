@@ -31,6 +31,23 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define CACHEVEC 2
 
+#define VINDEX	-1
+#define CABLESECTION	1
+#define MORPHOLOGY	2
+#define CAP	3
+#define EXTRACELL	5
+
+#define nrnocCONST 1
+#define DEP 2
+#define STATE 3	/*See init.c and cabvars.h for order of nrnocCONST, DEP, and STATE */
+
+#define BEFORE_INITIAL 0
+#define AFTER_INITIAL 1
+#define BEFORE_BREAKPOINT 2
+#define AFTER_SOLVE 3
+#define BEFORE_STEP 4
+#define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
+
 typedef int Datum;
 typedef int (*Pfri)();
 typedef char Symbol;
@@ -82,6 +99,7 @@ typedef struct NetSendBuffer_t {
 	int reallocated; /* if buffer resized/reallocated, needs to be copy to cpu */
 }NetSendBuffer_t;
 
+///Mechanisms instances handlers
 typedef struct Memb_list {
 #if CACHEVEC != 0
     /* nodeindices contains all nodes this extension is responsible for,
@@ -107,8 +125,9 @@ typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
 typedef void (*pnt_receive_t)(Point_process*, int, double);
 typedef void (*bbcore_read_t)(double*, int*, int*, int*, int, int, double*, Datum*, ThreadDatum*, struct NrnThread*, double);
 
+///Mechanisms functions handlers
 typedef struct Memb_func {
-    mod_alloc_t alloc; //NOT USED
+    mod_alloc_t alloc; //TODO: NOT USED? (see capac.c)
     mod_f_t	current;
     mod_f_t	jacob;
     mod_f_t	state;
@@ -125,22 +144,7 @@ typedef struct Memb_func {
     int* dparam_semantics; /* for nrncore writing. */
 } Memb_func;
 
-#define VINDEX	-1
-#define CABLESECTION	1
-#define MORPHOLOGY	2
-#define CAP	3
-#define EXTRACELL	5
-
-#define nrnocCONST 1
-#define DEP 2
-#define STATE 3	/*See init.c and cabvars.h for order of nrnocCONST, DEP, and STATE */
-
-#define BEFORE_INITIAL 0
-#define AFTER_INITIAL 1
-#define BEFORE_BREAKPOINT 2
-#define AFTER_SOLVE 3
-#define BEFORE_STEP 4
-#define BEFORE_AFTER_SIZE 5 /* 1 more than the previous */
+///Linked-list of Before-After functions
 typedef struct BAMech {
     mod_f_t f;
     int type;
@@ -148,14 +152,14 @@ typedef struct BAMech {
 } BAMech;
 
 //exposing capacitor functions from nrnoc/capac.c
-extern void nrn_capacity_current(struct NrnThread*, Memb_list*, int);
 extern void cap_alloc(double*, Datum*, int type);
+extern void cap_cur(struct NrnThread*, Memb_list*, int);
 extern void cap_init(struct NrnThread*, Memb_list*, int);
 
 //exposing ion functions from nrnoc/eion.c
-extern void ion_alloc();
 extern void ion_cur(struct NrnThread*, Memb_list*, int);
 extern void ion_init(struct NrnThread*, Memb_list*, int);
+extern void second_order_cur(struct NrnThread* nt);
 
 //exposing all other mechanisms functions from coreneuron/mech/mod_func.c
 extern mod_f_t get_init_function(const char * sym);
@@ -164,7 +168,7 @@ extern mod_f_t get_cur_function(const char * sym);
 extern mod_f_t get_state_function(const char * sym);
 extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
 
-//exposing access to ions table
+//exposing access to ions table (called directly by some mechs)
 extern int nrn_ion_global_map_size;
 extern double **nrn_ion_global_map;
 

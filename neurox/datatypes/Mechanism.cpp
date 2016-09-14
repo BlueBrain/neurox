@@ -128,7 +128,7 @@ void Mechanism::registerModFunctions(int type)
 //from coreneuron/nrnoc/capac.c
 extern void cap_alloc(double*, int*, int type);
 extern void cap_init(struct NrnThread*, Memb_list*, int);
-extern void nrn_capacity_current(struct NrnThread*, Memb_list*, int);
+extern void cap_cur(struct NrnThread*, Memb_list*, int);
 extern void nrn_cap_jacob(struct NrnThread*, Memb_list*, int);
 
 void Mechanism::registerCapacitance()
@@ -136,7 +136,7 @@ void Mechanism::registerCapacitance()
     assert(this->sym && strcmp("capacitance", this->sym)==0);
     this->membFunc.alloc = cap_alloc;
     this->membFunc.initialize = cap_init;
-    this->membFunc.current = nrn_capacity_current;
+    this->membFunc.current = cap_cur;
     this->membFunc.jacob = nrn_cap_jacob;
     //this->membFunc.alloc = Capacitance::cap_alloc;
     //this->membFunc.initialize = Capacitance::cap_init;
