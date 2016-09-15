@@ -1,11 +1,6 @@
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrniv/netcon.h"
 #include "coreneuron/nrniv/nrn_acc_manager.h"
-#include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/vrecitem.h"
-#include "coreneuron/nrniv/profiler_interface.h"
 #include "coreneuron/nrniv/cellorder.h"
-#include "coreneuron/nrniv/cuda_profile.h"
 
 #ifdef _OPENACC
 #include<openacc.h>

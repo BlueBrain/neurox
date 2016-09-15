@@ -35,8 +35,6 @@ extern "C" {
 
 #include "coreneuron/nrnoc/nrnoc_ml.h"
 
-typedef Datum *(*Pfrpdat)(void);
-
 struct NrnThread;
 struct Memb_func;
 
@@ -84,9 +82,6 @@ extern void nrn_wrote_conc(int, double*, int, int, double**, double, int);
 extern void hoc_register_prop_size(int, int, int);
 extern void hoc_register_dparam_semantics(int type, int, const char* name);
 
-typedef struct { const char* name; double* pdoub; } DoubScal;
-typedef struct { const char* name; double* pdoub; int index1; } DoubVec;
-typedef struct { const char* name; void (*func)(void); } VoidFunc;
 extern void hoc_register_var(DoubScal*, DoubVec*, VoidFunc*);
 
 extern void _nrn_layout_reg(int, int);

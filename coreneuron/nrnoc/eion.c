@@ -29,9 +29,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <string.h>
 
-#include "coreneuron/nrnoc/membdef.h"  //static definitions
-#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
-#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
+#include "coreneuron/coreneuron.h"
 
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
