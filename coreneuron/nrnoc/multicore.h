@@ -59,6 +59,9 @@ extern void nrn_thread_table_check(void);
 
 extern void nrn_threads_free(void);
 
+extern int n_memb_func;
+extern Memb_func* memb_func;
+
 #if defined(__cplusplus)
 }
 #endif

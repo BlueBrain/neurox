@@ -68,7 +68,6 @@ static char *mechanism[] = { /*just a template*/
 	0
 };
 
-void ion_alloc();
 void ion_cur(NrnThread*, Memb_list*, int);
 void ion_init(NrnThread*, Memb_list*, int);
 
@@ -76,7 +75,7 @@ double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
 int nrn_is_ion(int type) {
-	return (memb_func[type].alloc == ion_alloc);
+    return (nrn_ion_global_map[type] != NULL);
 }
 
 int nrn_ion_global_map_size;
@@ -105,14 +104,11 @@ void ion_reg(const char* name, double valence) {
 		mechanism[i+1] = buf[i];
 	}
 	mechanism[5] = (char *)0; /* buf[4] not used above */
-	mechtype = nrn_get_mechtype(buf[0]);
-	if (memb_func[mechtype].alloc != ion_alloc) {
-		register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
-		mechtype = nrn_get_mechtype(mechanism[1]);
-		_nrn_layout_reg(mechtype, LAYOUT);
-		hoc_register_prop_size(mechtype, nparm, 1 );
-		hoc_register_dparam_semantics(mechtype, 0, "iontype");
-		nrn_writes_conc(mechtype, 1);
+    mechtype = nrn_get_mechtype(buf[0]);
+    if (mechtype >= nrn_ion_global_map_size ||
+        nrn_ion_global_map[mechtype] == NULL) { //if hasn't yet been allocated
+
+        //allocates mem for ion in ion_map and sets null all non-ion types
 		if (nrn_ion_global_map_size <= mechtype) {
 			int size = mechtype + 1;
 			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map,
@@ -123,6 +119,13 @@ void ion_reg(const char* name, double valence) {
             }
 			nrn_ion_global_map_size = mechtype + 1;
 		}
+
+        register_mech((const char**)mechanism,  (mod_f_t)0 , ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
+        mechtype = nrn_get_mechtype(mechanism[1]);
+        _nrn_layout_reg(mechtype, LAYOUT);
+        hoc_register_prop_size(mechtype, nparm, 1 );
+        hoc_register_dparam_semantics(mechtype, 0, "iontype");
+        nrn_writes_conc(mechtype, 1);
 
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
@@ -329,10 +332,6 @@ void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	}
 }
 
-void ion_alloc() {
-	assert(0);
-}
-
 void second_order_cur(NrnThread* _nt) {
 	extern int secondorder;
 	NrnThreadMembList* tml;
@@ -350,7 +349,8 @@ void second_order_cur(NrnThread* _nt) {
     double * _vec_rhs = _nt->_actual_rhs;
 
   if (secondorder == 2) {
-	for (tml = _nt->tml; tml; tml = tml->next) if (memb_func[tml->index].alloc == ion_alloc) {
+    for (tml = _nt->tml; tml; tml = tml->next)
+      if (nrn_ion_global_map[tml->index] != NULL) { //if is an ion
 		ml = tml->ml;
 		_cntml_actual = ml->nodecount;
 		ni = ml->nodeindices;
