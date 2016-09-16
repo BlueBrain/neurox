@@ -26,44 +26,39 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef multicore_h
-#define multicore_h
+/***
+ * Includes all headers required to communicate and run all methods
+ * described in CoreNeuron, neurox, and mod2c C-generated mechanisms
+ * functions.
+**/
 
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/membfunc.h"
-#include "coreneuron/nrnoc/nrnoc_nt.h"
+#pragma once
 
-#if defined(__cplusplus)
-class NetCon;
-class PreSyn;
-extern "C" {
-#else
-typedef void NetCon;
-typedef void PreSyn;
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
+
+#include "coreneuron/mech/cfile/scoplib.h"
+#include "coreneuron/utils/randoms/nrnran123.h"
+
+#include "coreneuron/nrniv/profiler_interface.h"
+#include "coreneuron/nrniv/cuda_profile.h"
+
+#if defined(_OPENACC) && !defined(DISABLE_OPENACC)
+#include "coreneuron/nrniv/nrn_acc_manager.h"
+#include <openacc.h>
 #endif
 
-/*
-   Point_process._presyn, used only if its NET_RECEIVE sends a net_event, is
-   eliminated. Needed only by net_event function. Replaced by
-   PreSyn* = nt->presyns + nt->pnt2presyn_ix[pnttype2presyn[pnt->_type]][pnt->_i_instance];
-*/
-extern int nrn_has_net_event_cnt_; /* how many net_event sender types are there? */
-extern int* nrn_has_net_event_; /* the types that send a net_event */
-extern int* pnttype2presyn; /* from the type, which array of pnt2presyn_ix are we talking about. */
+//TODO files to add for library:
+// - nrniv/nrn_acc_manager.cpp
+// - nrnoc/capac.c
+// - nrnoc/eion.c
+// - nrniv/profiler_interface.cpp
+// - nrniv/cuda_profile.cpp
+// - (all header files above)
 
-extern void nrn_threads_create(int n, int parallel);
-extern int nrn_nthread;
-extern NrnThread* nrn_threads;
-extern void nrn_multithread_job(void*(*)(NrnThread*));
-extern void nrn_thread_table_check(void);
 
-extern void nrn_threads_free(void);
-
-extern int n_memb_func;
-extern Memb_func* memb_func;
-
-#if defined(__cplusplus)
-}
-#endif
-
-#endif

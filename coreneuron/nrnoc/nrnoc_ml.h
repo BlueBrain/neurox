@@ -63,6 +63,10 @@ typedef int Datum;
 typedef int (*Pfri)();
 typedef char Symbol;
 
+typedef struct { const char* name; double* pdoub; } DoubScal;
+typedef struct { const char* name; double* pdoub; int index1; } DoubVec;
+typedef struct { const char* name; void (*func)(void); } VoidFunc;
+
 struct NrnThread;
 typedef struct NrnThread NrnThread;
 
@@ -185,10 +189,8 @@ extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
 extern int nrn_ion_global_map_size;
 extern double **nrn_ion_global_map;
 
-//exposing temperature and memb_func variables (used by eion.c)
+//exposing temperature variable (used by eion.c)
 extern double celsius;
-extern int n_memb_func;
-extern Memb_func* memb_func;
 
 #if defined(__cplusplus)
 }
