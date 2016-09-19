@@ -98,7 +98,7 @@ typedef struct NrnThread {
     double* _data;        ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
     int* _idata;          ///> all the Datum to ints index into here
     void** _vdata;        ///> all the Datum to pointers index into here
-    void** _vecplay;      ///> array of instances of VecPlayContinuous
+    void** _vecplay;      ///> array of instances of VecPlayContinuous (continuous events)
 
     double* _actual_rhs;  ///> right-hand side (solution vector) of Linear Algebra solver
     double* _actual_d;    ///> main diagonal of Linear Algebra spart tridiagonal matrix

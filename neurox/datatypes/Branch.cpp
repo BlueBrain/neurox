@@ -28,30 +28,103 @@ Branch::Branch(offset_t n,
                PointProcInfo * ppis, size_t vecplayCount,
                NetConX * netcons, size_t netconsCount,
                gid_t * netConsPreId, size_t netConsPreIdsCount,
-               floble_t *netConsArgs, size_t netConsArgsCount,
+               floble_t *netConsWeights, size_t netConsWeightsCount,
                void** vdata, size_t vdataCount):
     soma(nullptr)
 {
-    this->nt._t = inputParams->t;
-    this->nt._dt = inputParams->dt;
-    this->nt.cj = (inputParams->secondorder ? 2.0 : 1.0 ) / this->nt._dt;
-    this->nt.end = n;
+    NrnThread & nt = this->nt;
+
+    //all non usable values
+    nt.tml = NULL;
+    nt._ml_list = NULL;
+    nt.pntprocs = NULL;
+    nt.presyns = NULL;
+    nt.presyns_helper = NULL;
+    nt.pnt2presyn_ix = NULL;
+    nt.netcons = NULL;
+    nt.n_pntproc=-1;
+    nt.n_presyn=-1;
+    nt.n_input_presyn = -1;
+    nt.n_netcon = -1;
+    nt.ncell=-1;
+    nt.id = this->soma ? this->soma->id : -1;
+    nt._stop_stepping = -1;
+    nt._permute = NULL;
+    nt._sp13mat = NULL;
+    nt._ecell_memb_list = NULL;
+    nt._ctime = -1;
+    for (int i=0; i<BEFORE_AFTER_SIZE; i++)
+      nt.tbl[i] = NULL;
+    nt.shadow_rhs_cnt=-1;
+    nt.compute_gpu=0;
+    nt._net_send_buffer_size=-1;
+    nt._net_send_buffer_cnt=-1;
+    nt._net_send_buffer = NULL;
+    nt.mapping = NULL;
+    nt._idata = NULL;
+    nt._nidata = -1;
+
+    //assignemnts start here
+    nt._t = inputParams->t;
+    nt._dt = inputParams->dt;
+    nt.cj = (inputParams->secondorder ? 2.0 : 1.0 ) / inputParams->dt;
+    nt.end = n;
+
+    nt._data = dataCount==0 ? nullptr : new floble_t[dataCount];
+    memcpy(nt._data, data, dataCount*sizeof(floble_t));
+    nt._ndata = dataCount;
+
+    nt._vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
+    memcpy(nt._vdata, vdata, vdataCount*sizeof(void*));
+    nt._nvdata = vdataCount;
+
+    nt.weights = netConsWeightsCount==0 ? nullptr : new floble_t[netConsWeightsCount];
+    memcpy(nt.weights, netConsWeights, sizeof(floble_t)*netConsWeightsCount);
+    nt.n_weight = netConsWeightsCount;
+
+    nt._actual_rhs  = nt._data + n*0;
+    nt._actual_d    = nt._data + n*1;
+    nt._actual_a    = nt._data + n*2;
+    nt._actual_b    = nt._data + n*3;
+    nt._actual_v    = nt._data + n*4;
+    nt._actual_area = nt._data + n*5;
+
+    //Shadow arrays
+    int shadowElemsCount = std::max(
+                mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
+                mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
+            );
+    this->nt._shadow_rhs = new double[shadowElemsCount];
+    this->nt._shadow_d   = new double[shadowElemsCount];
+
     this->eventsQueueMutex = hpx_lco_sema_new(1);
-
-
     this->initMechanismsGraph(branchHpxAddr);
 
-    this->nt._data = dataCount==0 ? nullptr : new floble_t[dataCount];
-    memcpy(this->nt._data, data, dataCount*sizeof(floble_t));
-    this->nt._vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
-    memcpy(this->nt._vdata, vdata, vdataCount*sizeof(void*));
+    //parent index
+    if (pCount>0)
+    {
+        assert(pCount==n);
+        nt._v_parent_index = new offset_t[pCount];
+        memcpy(nt._v_parent_index, p, n*sizeof(offset_t));
+    }
+    else
+    {
+        this->nt._v_parent_index = nullptr;
+    }
 
-    this->nt._actual_rhs = this->nt._data + n*0;
-    this->nt._actual_d = this->nt._data + n*1;
-    this->nt._actual_a = this->nt._data + n*2;
-    this->nt._actual_b = this->nt._data + n*3;
-    this->nt._actual_v = this->nt._data + n*4;
-    this->nt._actual_area = this->nt._data + n*5;
+    //vecplay
+    nt.n_vecplay = vecplayCount;
+    nt._vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
+
+    offset_t vOffset=0;
+    for (size_t v=0; v < nt.n_vecplay; v++)
+    {
+        int m = mechanismsMap[ppis[v].mechType];
+        floble_t *instancesData = this->mechsInstances[m].data;
+        floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
+        nt._vecplay[v] = new VecPlayContinuouX(pd, &vecplayT[vOffset], &vecplayY[vOffset], ppis[v].size);
+        vOffset += ppis[v].size;
+    }
 
     // reconstruct mechanisms
     assert (recvMechanismsCount == mechanismsCount);
@@ -143,48 +216,16 @@ Branch::Branch(offset_t n,
         this->neuronTree = nullptr;
     }
 
-    if (pCount>0)
-    {
-        assert(pCount==n);
-        this->nt._v_parent_index = new offset_t[pCount];
-        memcpy(this->nt._v_parent_index, p, n*sizeof(offset_t));
-    }
-    else
-    {
-        this->nt._v_parent_index = nullptr;
-    }
-
-    //reconstructs vecplay
-    this->vecplayCount = vecplayCount;
-    this->vecplay = this->vecplayCount == 0 ? nullptr : new VecPlayContinuouX*[this->vecplayCount];
-
-    offset_t vOffset=0;
-    for (size_t v=0; v<this->vecplayCount; v++)
-    {
-        int m = mechanismsMap[ppis[v].mechType];
-        floble_t *instancesData = this->mechsInstances[m].data;
-        floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
-        this->vecplay[v] = new VecPlayContinuouX(pd, &vecplayT[vOffset], &vecplayY[vOffset], ppis[v].size);
-        vOffset += ppis[v].size;
-    }
-
     //reconstructs netcons
     offset_t argsOffset=0;
     for (offset_t nc=0; nc<netconsCount; nc++)
     {
         this->netcons[ netConsPreId[nc] ].push_back(
                     new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
-                    &netConsArgs[argsOffset], netcons[nc].argsCount, netcons[nc].active));
+                    &netConsWeights[argsOffset], netcons[nc].argsCount, netcons[nc].active));
         argsOffset += netcons[nc].argsCount;
     }
 
-    //Shadow arrays
-    int shadowElemsCount = std::max(
-                mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
-                mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
-            );
-    this->nt._shadow_rhs = new double[shadowElemsCount];
-    this->nt._shadow_d   = new double[shadowElemsCount];
 }
 
 Branch::~Branch()
@@ -289,9 +330,12 @@ int Branch::clear_handler()
 void Branch::initEventsQueue()
 {
     hpx_lco_sema_p(this->eventsQueueMutex);
-    for (size_t v=0; v<this->vecplayCount; v++)
-        eventsQueue.push(make_pair(this->vecplay[v]->getFirstInstant(),
-                                   (Event*) this->vecplay[v]));
+    for (size_t v=0; v<this->nt.n_vecplay; v++)
+    {
+        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(this->nt._vecplay[v]);
+        eventsQueue.push(make_pair(vecplay->getFirstInstant(),
+                                   (Event*) vecplay));
+    }
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
@@ -617,8 +661,12 @@ void Branch::deliverEvents(floble_t t)
 void Branch::fixedPlayContinuous()
 {
     double t = this->nt._t;
-    for (int v=0; v<this->vecplayCount; v++)
-        this->vecplay[v]->continuous(t);
+    for (int v=0; v<this->nt.n_vecplay; v++)
+    {
+        void * vecplay_void = this->nt._vecplay[v];
+        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(vecplay_void);
+        vecplay->continuous(t);
+    }
 }
 
 void Branch::registerHpxActions()
