@@ -932,6 +932,10 @@ void read_phase2(data_reader &F, int imult, NrnThread& nt) {
     tml->next = NULL;
     tml->index = F.read_int();
     tml->ml->nodecount = F.read_int();
+    if (nrn_ion_global_map[tml->index]==NULL && //if ion and not declared
+        memb_func[tml->index].alloc == NULL) {  //or not ion and not declared
+      hoc_execerror(memb_func[tml->index].sym, "mechanism does not exist");
+    }
     if (!memb_func[tml->index].sym) {
       printf("%s (type %d) is not available\n", nrn_get_mechname(tml->index), tml->index);
       exit(1);
