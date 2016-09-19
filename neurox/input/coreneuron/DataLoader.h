@@ -31,13 +31,6 @@ class DataLoader
     static void coreNeuronFakeSteps();
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
 
-    ///converts local branch data to coreneuron compatible (to use on mechanisms calls)
-    static void fromHpxToCoreneuronDataStructs(
-            const void * branch, Memb_list & membList,
-            NrnThread & nrnThread, int mechType);
-
-    static void cleanTempDataFromHpxToCoreNeuron(NrnThread * nt, Memb_list * ml);
-
     static void compareDataStructuresWithCoreNeuron(Branch * branch);
 
     static void registerHpxActions();

@@ -30,54 +30,58 @@ Branch::Branch(offset_t n,
                gid_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *netConsArgs, size_t netConsArgsCount,
                void** vdata, size_t vdataCount):
-    soma(nullptr), n(n)
+    soma(nullptr)
 {
-    this->t = inputParams->t;
-    this->dt = inputParams->dt;
-    this->secondOrder = inputParams->secondorder;
+    this->nt._t = inputParams->t;
+    this->nt._dt = inputParams->dt;
+    this->nt.cj = (inputParams->secondorder ? 2.0 : 1.0 ) / this->nt._dt;
+    this->nt.end = n;
     this->eventsQueueMutex = hpx_lco_sema_new(1);
+
+
     this->initMechanismsGraph(branchHpxAddr);
 
-    this->data = dataCount==0 ? nullptr : new floble_t[dataCount];
-    memcpy(this->data, data, dataCount*sizeof(floble_t));
-    this->vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
-    memcpy(this->vdata, vdata, vdataCount*sizeof(void*));
-    this->rhs = this->data + this->n*0;
-    this->d = this->data + this->n*1;
-    this->a = this->data + this->n*2;
-    this->b = this->data + this->n*3;
-    this->v = this->data + this->n*4;
-    this->area = this->data + this->n*5;
+    this->nt._data = dataCount==0 ? nullptr : new floble_t[dataCount];
+    memcpy(this->nt._data, data, dataCount*sizeof(floble_t));
+    this->nt._vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
+    memcpy(this->nt._vdata, vdata, vdataCount*sizeof(void*));
+
+    this->nt._actual_rhs = this->nt._data + n*0;
+    this->nt._actual_d = this->nt._data + n*1;
+    this->nt._actual_a = this->nt._data + n*2;
+    this->nt._actual_b = this->nt._data + n*3;
+    this->nt._actual_v = this->nt._data + n*4;
+    this->nt._actual_area = this->nt._data + n*5;
 
     // reconstruct mechanisms
     assert (recvMechanismsCount == mechanismsCount);
-    offset_t dataOffset=6*this->n;
+    offset_t dataOffset=6*n;
     offset_t pdataOffset=0;
     offset_t vdataOffset=0;
     offset_t instancesOffset=0;
-    this->mechsInstances = new MechanismInstance[mechanismsCount];
+    this->mechsInstances = new Memb_list[mechanismsCount];
 
     for (offset_t m=0; m<mechanismsCount; m++)
     {
-        MechanismInstance & instance = this->mechsInstances[m];
+        Memb_list & instance = this->mechsInstances[m];
         Mechanism * mech = mechanisms[m];
-        instance.count = instancesCount[m];
+        instance.nodecount = instancesCount[m];
 
         //data, pdata, and nodesIndices arrays
-        instance.data = mech->dataSize ==0 ? nullptr : this->data+dataOffset;
-        instance.pdata = mech->pdataSize==0 ? nullptr : new offset_t[mech->pdataSize * instance.count];
-        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.count));
-        instance.nodesIndices = instance.count>0 ? new offset_t[instance.count] : nullptr;
-        memcpy(instance.nodesIndices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.count);
+        instance.data = mech->dataSize ==0 ? nullptr : this->nt._data+dataOffset;
+        instance.pdata = mech->pdataSize==0 ? nullptr : new offset_t[mech->pdataSize * instance.nodecount];
+        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.nodecount));
+        instance.nodeindices = instance.nodecount>0 ? new offset_t[instance.nodecount] : nullptr;
+        memcpy(instance.nodeindices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.nodecount);
 
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])
-        for (size_t i=0; i<instance.count; i++)
+        for (size_t i=0; i<instance.nodecount; i++)
         {
             //point pdata to the correct offset, and allocate vdata
             assert(dataOffset  <= dataCount);
             assert(vdataOffset <= vdataCount);
-            floble_t * instanceData  = (floble_t*) &this->data[dataOffset ];
+            floble_t * instanceData  = (floble_t*) &this->nt._data[dataOffset ];
             floble_t * instanceData2 = (floble_t*) &instance.data [i*mech->dataSize];
             offset_t *  instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
             assert (instanceData = instanceData2); //Make sure data offsets are good so far
@@ -87,7 +91,7 @@ Branch::Branch(offset_t n,
                     || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
                         && mech->vdataSize == 2 && mech->pdataSize == 3));
 
-                void** instanceVdata = (void**) &this->vdata[vdataOffset];
+                void** instanceVdata = (void**) &this->nt._vdata[vdataOffset];
                 Point_process * pp = (Point_process *) instanceVdata[0];
                 (void) pp;
                 (void) instanceVdata;
@@ -142,12 +146,12 @@ Branch::Branch(offset_t n,
     if (pCount>0)
     {
         assert(pCount==n);
-        this->p = new offset_t[pCount];
-        memcpy(this->p, p, n*sizeof(offset_t));
+        this->nt._v_parent_index = new offset_t[pCount];
+        memcpy(this->nt._v_parent_index, p, n*sizeof(offset_t));
     }
     else
     {
-        this->p = nullptr;
+        this->nt._v_parent_index = nullptr;
     }
 
     //reconstructs vecplay
@@ -173,18 +177,21 @@ Branch::Branch(offset_t n,
                     &netConsArgs[argsOffset], netcons[nc].argsCount, netcons[nc].active));
         argsOffset += netcons[nc].argsCount;
     }
+
+    //Shadow arrays
+    int shadowElemsCount = std::max(
+                mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
+                mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
+            );
+    this->nt._shadow_rhs = new double[shadowElemsCount];
+    this->nt._shadow_d   = new double[shadowElemsCount];
 }
 
 Branch::~Branch()
 {
-    delete [] b;
-    delete [] d;
-    delete [] a;
-    delete [] v;
-    delete [] p;
-    delete [] rhs;
-    delete [] area;
-    delete [] data;
+    delete [] nt._v_parent_index;
+    delete [] nt._actual_area;
+    delete [] this->nt._data;
 
     if (neuronTree)
     {
@@ -194,7 +201,7 @@ Branch::~Branch()
 
     for (int m=0; m<mechanismsCount; m++)
     {
-        delete [] mechsInstances[m].nodesIndices;
+        delete [] mechsInstances[m].nodeindices;
         delete [] mechsInstances[m].pdata;
     }
     delete [] mechsInstances;
@@ -367,18 +374,20 @@ int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr,
 
 void Branch::secondOrderCurrent()
 {
-    MechanismInstance * mechInstances= this->mechsInstances;
+    floble_t *& rhs = this->nt._actual_rhs;
+
+    Memb_list * mechInstances= this->mechsInstances;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
         if (!mech->isIon) continue;
         assert(nparm==mech->dataSize); //see '#define nparm 5' in eion.c
 
-        for (int i=0; i<mechInstances[m].count; i++)
+        for (int i=0; i<mechInstances[m].nodecount; i++)
         {
             floble_t * data = &mechInstances[m].data[i*mech->dataSize];
-            offset_t & nodeIndex = mechInstances[m].nodesIndices[i];
-            data[cur] += data[dcurdv] * this->rhs[nodeIndex];
+            offset_t & nodeIndex = mechInstances[m].nodeindices[i];
+            data[cur] += data[dcurdv] * rhs[nodeIndex];
         }
     }
 }
@@ -449,15 +458,17 @@ int Branch::initNeuronTreeLCO_handler()
 
 void Branch::initialize()
 {
-    //set up by finitialize.c:nrn_finitialize(): if (setv)
-    assert(inputParams->secondorder < sizeof(char));
-    this->secondOrder = inputParams->secondorder;
-    initEventsQueue();
-    deliverEvents(this->t);
+    floble_t *& v = this->nt._actual_v;
+    double t = this->nt._t;
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
-    for (int n=0; n<this->n; n++)
-        this->v[n]=inputParams->voltage;
+    assert(inputParams->secondorder < sizeof(char));
+    initEventsQueue();
+    deliverEvents(t);
+
+    //set up by finitialize.c:nrn_finitialize(): if (setv)
+    for (int n=0; n<this->nt.end; n++)
+        v[n]=inputParams->voltage;
 
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
@@ -480,6 +491,11 @@ void Branch::initialize()
 
 void Branch::backwardEulerStep()
 {
+    floble_t *& v = this->nt._actual_v;
+    floble_t *& rhs = this->nt._actual_rhs;
+    double & t = this->nt._t;
+    double & dt = this->nt._dt;
+
     //2. multicore.c::nrn_fixed_step_thread()
     //2.1 cvodestb::deliver_net_events(nth);
     //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
@@ -492,11 +508,11 @@ void Branch::backwardEulerStep()
 
     //eion.c : second_order_cur()
     //TODO when we use only CoreNeuron structs, replace this by original func;
-    if (this->secondOrder == 2)
+    if (inputParams->secondorder)
         secondOrderCurrent();
 
     //fadvance_core.c : update() / Branch::updateV
-    for (int i=0; i<n; i++)
+    for (int i=0; i<this->nt.end; i++)
         v[i] += (inputParams->secondorder ? 2 : 1) * rhs[i];
 
     callModFunction(Mechanism::ModFunction::jacob);
@@ -532,7 +548,8 @@ int Branch::backwardEuler_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
     int i=0;
-    while (local->t <= inputParams->tstop)
+    double & t = local->nt._t;
+    while (t <= inputParams->tstop)
     {
         if (local->soma) //neuron
         { //docs: last argument should be 0 for and-lco
@@ -555,10 +572,13 @@ int Branch::backwardEuler_handler()
 
 void Branch::setupTreeMatrixMinimal()
 {
-    for (int i=0; i<this->n; i++)
+    floble_t *& d = this->nt._actual_d;
+    floble_t *& rhs = this->nt._actual_rhs;
+
+    for (int i=0; i<this->nt.end; i++)
     {
-        this->rhs[i]=0;
-        this->d[i]=0;
+        rhs[i]=0;
+        d[i]=0;
     }
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
     this->callModFunction(Mechanism::ModFunction::current);
@@ -596,8 +616,9 @@ void Branch::deliverEvents(floble_t t)
 
 void Branch::fixedPlayContinuous()
 {
+    double t = this->nt._t;
     for (int v=0; v<this->vecplayCount; v++)
-        this->vecplay[v]->continuous(this->t);
+        this->vecplay[v]->continuous(t);
 }
 
 void Branch::registerHpxActions()

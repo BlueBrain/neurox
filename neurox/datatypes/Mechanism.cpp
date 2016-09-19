@@ -157,15 +157,13 @@ Mechanism::~Mechanism(){
     delete [] successors;
 };
 
-void Mechanism::callModFunction(const void * branch,
+void Mechanism::callModFunction(const void * branch_ptr,
                                 const Mechanism::ModFunction functionId)
 {
     Memb_list membList;
-    NrnThread nrnThread;
+    Branch * branch = (Branch*) branch_ptr;
+    NrnThread * nrnThread = &branch->nt;
 
-    //Note:The Jacob updates D and nrn_cur updates RHS, so we need a mutex for compartments
-    //The state function does not write to compartment, only reads, so no mutex needed (TODO)
-    Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs(branch, membList, nrnThread, type);
     switch(functionId)
     {
         case Mechanism::before_initialize:
@@ -174,7 +172,7 @@ void Mechanism::callModFunction(const void * branch,
         case Mechanism::after_solve:
         case Mechanism::before_step:
                if (BAfunctions[(int) functionId])
-                   BAfunctions[(int) functionId](&nrnThread, &membList, type);
+                   BAfunctions[(int) functionId](nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::alloc:
             if (membFunc.alloc)
@@ -183,30 +181,30 @@ void Mechanism::callModFunction(const void * branch,
         case Mechanism::ModFunction::currentCapacitance:
             assert(type == CAP);
             assert(membFunc.current != NULL);
-            membFunc.current(&nrnThread, &membList, type);
+            membFunc.current(nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::current:
             assert(type != CAP);
             if (membFunc.current)
-                membFunc.current(&nrnThread, &membList, type);
+                membFunc.current(nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)
-                membFunc.state(&nrnThread, &membList, type);
+                membFunc.state(nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::jacobCapacitance:
             assert(type == CAP);
             assert(membFunc.jacob != NULL);
-            membFunc.jacob(&nrnThread, &membList, type);
+            membFunc.jacob(nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::jacob:
             assert(type != CAP);
             if (membFunc.jacob)
-                membFunc.jacob(&nrnThread, &membList, type);
+                membFunc.jacob(nrnThread, &membList, type);
             break;
         case Mechanism::ModFunction::initialize:
             if (membFunc.initialize)
-                membFunc.initialize(&nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
+                membFunc.initialize(nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
             break;
         case Mechanism::ModFunction::destructor:
             if (membFunc.destructor)
@@ -220,7 +218,7 @@ void Mechanism::callModFunction(const void * branch,
             if (membFunc.thread_table_check_)
                 membFunc.thread_table_check_
                     (0, membList.nodecount, membList.data, membList.pdata,
-                     membList._thread, &nrnThread, type);
+                     membList._thread, nrnThread, type);
             break;
         case Mechanism::ModFunction::threadCleanup:
             if (membFunc.thread_cleanup_)
@@ -230,25 +228,22 @@ void Mechanism::callModFunction(const void * branch,
             printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
             exit(1);
     }
-    Input::Coreneuron::DataLoader::cleanTempDataFromHpxToCoreNeuron
-            (&nrnThread, &membList);
 }
 
 void Mechanism::callNetReceiveFunction(
-        const void * branch, const NetConX * netcon,
+        const void * branch_ptr, const NetConX * netcon,
         const floble_t t, const char callNetReceiveInit)
 {
-    Memb_list membList;
-    NrnThread nrnThread;
-    Input::Coreneuron::DataLoader::fromHpxToCoreneuronDataStructs
-            ((Branch*) branch, membList, nrnThread, netcon->mechType);
+    Branch * branch = (Branch*) branch_ptr;
+    //Memb_list & membList = branch->mechsInstances[mechanismsMap];
+    NrnThread * nrnThread = &branch->nt;
 
     Point_process pp;
     pp._i_instance = netcon->mechInstance;
     pp._tid = -1;
 
     pp._type = netcon->mechType;
-    nrnThread._t = t + netcon->delay; //delivery time
+    nrnThread->_t = nrnThread->_dt + netcon->delay; //delivery time
     //see netcvode.cpp:433 (NetCon::deliver)
     //We have to pass NrnThread, MembList, and deliveryTime instead
     if (callNetReceiveInit)
@@ -261,8 +256,6 @@ void Mechanism::callNetReceiveFunction(
         //getMechanismFromType(netcon->mechType)->pnt_receive
                // (&nrnThread, &membList, &pp, netcon->args, 0);
     }
-    Input::Coreneuron::DataLoader::cleanTempDataFromHpxToCoreNeuron
-            (&nrnThread, &membList);
 }
 
 void Mechanism::registerHpxActions()

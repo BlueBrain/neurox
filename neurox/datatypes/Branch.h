@@ -44,30 +44,13 @@ class Branch
            void** vdata, size_t vdataCount);
     ~Branch();
 
-    //for conveniency we add t and dt to all branch localities
-    floble_t t;       ///> current simulation time
-    floble_t dt;      ///> time step
-    char secondOrder;
+    NrnThread nt; ///> compartments metadata
+    Memb_list *mechsInstances; ///> Arrays of mechanism instances (size neurox::mechanismsCount)
 
-    Neuron * soma;  ///> if top branch, it's populated, otherwise is NULL
+    Neuron * soma;    ///> if top branch, it's populated, otherwise is NULL
 
-    //sparse matrix information:
-    offset_t n;		 ///> number of compartments
-    floble_t * a;    ///> top diagonal of Linear Algebra sparse tridiagonal matrix
-    floble_t * b;    ///> bottom diagonal of Linear Algebra sparse tridiagonal matrix
-    floble_t * d;    ///> main diagonal of Linear Algebra spart tridiagonal matrix
-    floble_t * v;	 ///> current voltage per compartment
-    floble_t * rhs;	 ///> right-hand side (solution vector) of Linear Algebra solver
-    floble_t * area; ///> current area per compartment
-    offset_t  * p;   ///> index of parents compartments (if multiSpliX is 0) or NULL (if multiSpliX is 1)
-
-    struct MechanismInstance
-    {
-        size_t count;          ///> number of instances of particular mechanism
-        floble_t * data;	    ///> pointer to Branch::data vector with start position of this mechanism's data
-        offset_t * pdata;		///> pointer to Branch::pdata vector with start position of this mechanism's pointer data
-        offset_t * nodesIndices; ///> array of nodes this instance will be applied to
-    } * mechsInstances;         ///> Arrays of mechanism instances (total size of Neuron::mechanismsCount)
+    VecPlayContinuouX ** vecplay; ///> described continuous events
+    size_t vecplayCount;          ///> size of vecplay
 
     struct MechanismsGraphLCO
     {
@@ -78,6 +61,7 @@ class Branch
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
+
     void initMechanismsGraph(hpx_t target); ///> creates mechanisms instance graph based on global var 'mechanisms'
 
     struct NeuronTree
@@ -103,11 +87,6 @@ class Branch
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
     static hpx_action_t finitialize;
     static hpx_action_t backwardEuler;
-
-    floble_t * data; ///> all double data for the branch (RHS, D, A, B, V, Area, and mechanisms)
-    void ** vdata; ///> TODO make part of mechsInstances. all pointer data for the branch (RNG + something for ProbAMBA and ProbGABA)
-    VecPlayContinuouX ** vecplay; ///> described continuous events
-    size_t vecplayCount; //number of vecplay
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue

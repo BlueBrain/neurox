@@ -88,8 +88,9 @@ hpx_action_t Statistics::getNeuronSize=0;
 int Statistics::getNeuronSize_handler()
 {
     neurox_hpx_pin(Branch);
-    assert(local->n>0);
+    assert(local->nt.end>0);
     SizeInfo branchSize;
+    int n = local->nt.end;
     if (local->soma)
     {
         branchSize.neuronId += local->soma->id;
@@ -97,25 +98,25 @@ int Statistics::getNeuronSize_handler()
         branchSize.synapses += (double) (local->soma->getNetConsCount()*sizeof(hpx_t)) /1024;
     }
     branchSize.branchesCount++;
-    branchSize.compartmentsCount+=local->n;
-    branchSize.morphologies += (double) (local->n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
-    branchSize.morphologies += local->p ? (double) (local->n* sizeof(offset_t))/1024 : 0;
+    branchSize.compartmentsCount += n;
+    branchSize.morphologies += (double) (n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
+    branchSize.morphologies += local->nt._v_parent_index ? (double) (n* sizeof(offset_t))/1024 : 0;
     if (local->neuronTree)
         branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
-    branchSize.metadata += (double) sizeof(Branch::MechanismInstance)*mechanismsCount/1024;
+    branchSize.metadata += (double) sizeof(Memb_list)*mechanismsCount/1024;
 
     for (int m=0; m<mechanismsCount; m++)
     {
-        if (local->mechsInstances[m].count == 0)
+        if (local->mechsInstances[m].nodecount == 0)
             continue;
 
-        branchSize.mechsInstancesCount += local->mechsInstances[m].count;
-        branchSize.mechanisms += (double) (sizeof(offset_t) * local->mechsInstances[m].count) /1024;
+        branchSize.mechsInstancesCount += local->mechsInstances[m].nodecount;
+        branchSize.mechanisms += (double) (sizeof(offset_t) * local->mechsInstances[m].nodecount) /1024;
         if (mechanisms[m]->dataSize>0)
-            branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].count)/1024;
+            branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].nodecount)/1024;
         if (mechanisms[m]->pdataSize>0)
-            branchSize.mechanisms += (double) (sizeof(offset_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].count)/1024;
+            branchSize.mechanisms += (double) (sizeof(offset_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].nodecount)/1024;
 
         if (mechanisms[m]->pntMap>0)
         {
@@ -197,7 +198,7 @@ int Statistics::getNeuronMechanismsDistribution_handler()
     neurox_hpx_pin(Branch);
     unsigned mechsCountPerType[mechanismsCount];
     for (int m=0; m<mechanismsCount; m++)
-        mechsCountPerType[m] = local->mechsInstances[m].count;
+        mechsCountPerType[m] = local->mechsInstances[m].nodecount;
 
     //call the function on children branches, pass their size to parent branch
     if (local->neuronTree && local->neuronTree->branchesCount>0)

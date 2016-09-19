@@ -123,15 +123,15 @@ typedef struct Memb_list {
      * directly via the nrn_actual_* arrays instead of accessing it in the
      * order of insertion and via the node-structure, making it more
      * cache-efficient */
-    int *nodeindices;
+    int *nodeindices; ///> array of nodes this instance will be applied to
 #endif /* CACHEVEC */
     int* _permute;
-    double* data;
-    Datum* pdata;
+    double* data; ///> pointer to NrnThread::_data array with start position of this mechanism's data
+    Datum* pdata; ///> pointer to NrnThread::pdata array with start position of this mechanism's pointer data
     ThreadDatum* _thread; /* thread specific data (when static is no good) */
     NetReceiveBuffer_t* _net_receive_buffer;
     NetSendBuffer_t* _net_send_buffer;
-    int nodecount; /* actual node count */
+    int nodecount; ///> number of nodes (instances) of mechanism on the NrnThread
     int _nodecount_padded;
 } Memb_list;
 

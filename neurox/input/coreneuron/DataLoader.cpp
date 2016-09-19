@@ -40,22 +40,21 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     if (!branch->soma) return; //run only once
     NrnThread & nt = nrn_threads[0];
-    assert(nt.end == branch->n);
-    for (offset_t i=0; i<branch->n; i++)
+    for (offset_t i=0; i<branch->nt.end; i++)
     {
-        assert(nt._actual_a[i] == branch->a[i]);
-        assert(nt._actual_b[i] == branch->b[i]);
-        assert(nt._actual_d[i] == branch->d[i]);
-        assert(nt._actual_v[i] == branch->v[i]);
-        assert(nt._actual_rhs[i] == branch->rhs[i]);
-        assert(nt._actual_area[i] == branch->area[i]);
-        if (branch->p)
-        {  assert(nt._v_parent_index[i] == branch->p[i]); }
+        assert(nt._actual_a[i] == branch->nt._actual_a[i]);
+        assert(nt._actual_b[i] == branch->nt._actual_b[i]);
+        assert(nt._actual_d[i] == branch->nt._actual_d[i]);
+        assert(nt._actual_v[i] == branch->nt._actual_v[i]);
+        assert(nt._actual_rhs[i] == branch->nt._actual_rhs[i]);
+        assert(nt._actual_area[i] == branch->nt._actual_area[i]);
+        if (branch->nt._v_parent_index)
+        {  assert(nt._v_parent_index[i] == branch->nt._v_parent_index[i]); }
     }
 
     //make sure that morphology data is correctly aligned in mem
-    for (int i=0; i<6*branch->n; i++)
-            {   assert(nt._data[i]==branch->data[i]); }
+    for (int i=0; i<6*branch->nt.end; i++)
+            {   assert(nt._data[i]==branch->nt._data[i]); }
 
     int mechCount=0;
     int vdataOffset=0;
@@ -64,21 +63,21 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         int type = tml->index;
         int m = mechanismsMap[type];
         Memb_list * ml = tml->ml; //Mechanisms application to each compartment
-        Branch::MechanismInstance & instance = branch->mechsInstances[m];
-        assert(ml->nodecount == instance.count);
+        Memb_list & instance = branch->mechsInstances[m];
+        assert(ml->nodecount == instance.nodecount);
         //assert(ml->_nodecount_padded == instance.instancesCount);
         short dataSize = mechanisms[m]->dataSize;
         short pdataSize = mechanisms[m]->pdataSize;
         for (int n=0; n<ml->nodecount; n++) //for every mech instance
         {
-            assert(ml->nodeindices[n]==instance.nodesIndices[n]);
+            assert(ml->nodeindices[n]==instance.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
             {   assert(ml->data[i]==instance.data[i]); }
 
             for (int i=0; i<pdataSize; i++)
             {
                 assert(ml->pdata[i] == instance.pdata[i]);
-                assert(nt._data[ml->pdata[i]] == branch->data[instance.pdata[i]]);
+                assert(nt._data[ml->pdata[i]] == branch->nt._data[instance.pdata[i]]);
             }
 
             /* We comment this because it runs for NULL presyn
@@ -99,108 +98,6 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
     }
     assert(mechCount==mechanismsCount);
 #endif
-}
-
-void DataLoader::fromHpxToCoreneuronDataStructs(
-        const void * branch_ptr, Memb_list & membList,
-        NrnThread & nrnThread, int mechType)
-{
-    Branch * branch = (Branch*) branch_ptr;
-    int m=mechanismsMap[mechType];
-    Branch::MechanismInstance * mechsInstances = branch->mechsInstances;
-    if (sizeof(floble_t)==sizeof(double))
-    {
-        nrnThread._data = (double*)(void*) branch->data;
-        membList.data  = (double*)(void*) mechsInstances[m].data;
-        nrnThread._actual_a    = (double*)(void*) branch->a;
-        nrnThread._actual_b    = (double*)(void*) branch->b;
-        nrnThread._actual_d    = (double*)(void*) branch->d;
-        nrnThread._actual_rhs  = (double*)(void*) branch->rhs;
-        nrnThread._actual_v    = (double*)(void*) branch->v;
-        nrnThread._actual_area = (double*)(void*) branch->area;
-    }
-    else
-    {
-        //must also include data from dependencies!
-        int ndata=0;
-        for (int i=0; i<mechanismsCount; i++)
-            ndata += mechanisms[i]->dataSize;
-
-        nrnThread._data = new double[ndata];
-        for (int i=0; i<branch->n*6; i++)
-            nrnThread._data[i] = (double) branch->data[i];
-
-        ndata = branch->n*6;
-        for (int i=0; i<mechanismsCount; i++)
-        {
-          if (mechanisms[m]->type==mechType)
-              membList.data = &nrnThread._data[ndata];
-
-          for (int j=0; j<mechanisms[i]->dataSize; j++)
-            nrnThread._data[ndata++] = (double) mechsInstances[i].data[j];
-        }
-
-        //data (RHS, D, A, V, B, area, and mechs...)
-        nrnThread._actual_rhs = &nrnThread._data[branch->n*0];
-        nrnThread._actual_d   = &nrnThread._data[branch->n*1];
-        nrnThread._actual_a   = &nrnThread._data[branch->n*2];
-        nrnThread._actual_v   = &nrnThread._data[branch->n*3];
-        nrnThread._actual_b   = &nrnThread._data[branch->n*4];
-        nrnThread._actual_area= &nrnThread._data[branch->n*5];
-    }
-
-    if (sizeof(offset_t) == sizeof(int))
-    {
-        membList.pdata = (int*)(void*) mechsInstances[m].pdata;
-        membList.nodeindices = (int*)(void*) mechsInstances[m].nodesIndices;
-    }
-    else
-    {
-        membList.pdata = new int[getMechanismFromType(mechType)->pdataSize];
-        for (int i=0; i<getMechanismFromType(mechType)->pdataSize; i++)
-            membList.pdata[i] = (int) mechsInstances[m].pdata[i];
-
-        membList.nodeindices = new int[mechsInstances[m].count];
-        for (int i=0; i< mechsInstances[m].count; i++)
-            membList.nodeindices[i] = (int) mechsInstances[m].nodesIndices[i];
-    }
-
-    membList.nodecount = (int) mechsInstances[m].count;
-    membList._nodecount_padded = (int) membList.nodecount;
-    membList._thread = NULL; //TODO: ThreadDatum never used ?
-    nrnThread.end = (int) branch->n;
-    nrnThread.ncell = 1;
-    nrnThread.weights = NULL; //TODO: FOR NOW, until it crashes
-    nrnThread.mapping = NULL; //TODO is it used?
-
-    //TODO is this worth is? to avoid race conditions, they use these shadow as intermediate values storing
-    //Why not be a vector in vdata instead of Nt?
-    //(i think is because in vdata you have pointer per instance, not per mech type)
-    //does the RNG in vdata need to be one per instance or could be one per type?
-    nrnThread._shadow_rhs = (mechType == ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
-    nrnThread._shadow_d = (mechType==ProbAMPANMDA_EMS || mechType==ProbGABAAB_EMS) ? new double[mechsInstances[m].count]() : NULL;
-    nrnThread._dt = branch->dt;
-    nrnThread._t = branch->t;
-    //TODO this field is only used inside the capacitance mod function in capac.c
-    nrnThread.cj = inputParams->secondorder ?  2.0/inputParams->dt : 1.0/inputParams->dt;
-    nrnThread._vdata = branch->vdata;
-    //compareDataStructuresWithCoreNeuron(branch);
-}
-
-void DataLoader::cleanTempDataFromHpxToCoreNeuron(NrnThread * nt, Memb_list * ml)
-{
-    if (sizeof(offset_t) != sizeof(int))
-    {
-        delete [] ml->pdata;
-        delete [] ml->nodeindices;
-    }
-
-    if (sizeof(floble_t) != sizeof(double))
-    {
-        delete [] nt->_data;
-    }
-    delete [] nt->_shadow_d;
-    delete [] nt->_shadow_rhs;
 }
 
 void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
