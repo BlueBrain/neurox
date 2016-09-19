@@ -109,16 +109,16 @@ void ion_reg(const char* name, double valence) {
         nrn_ion_global_map[mechtype] == NULL) { //if hasn't yet been allocated
 
         //allocates mem for ion in ion_map and sets null all non-ion types
-		if (nrn_ion_global_map_size <= mechtype) {
+            if (nrn_ion_global_map_size <= mechtype) {
 			int size = mechtype + 1;
-			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map,
-				sizeof(double*)*size);
+			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map, sizeof(double*)*size);
 
             for(i=nrn_ion_global_map_size; i<mechtype; i++) {
                 nrn_ion_global_map[i] = NULL;
             }
 			nrn_ion_global_map_size = mechtype + 1;
-		}
+        }
+        nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
         register_mech((const char**)mechanism,  (mod_f_t)0 , ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
         mechtype = nrn_get_mechtype(mechanism[1]);
@@ -127,7 +127,6 @@ void ion_reg(const char* name, double valence) {
         hoc_register_dparam_semantics(mechtype, 0, "iontype");
         nrn_writes_conc(mechtype, 1);
 
-        nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
         sprintf(buf[0], "%si0_%s", name, buf[0]);
         sprintf(buf[1], "%so0_%s", name, buf[0]);
