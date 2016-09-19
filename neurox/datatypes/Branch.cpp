@@ -172,8 +172,8 @@ Branch::Branch(offset_t n,
                 {
                     offset_t offsetPP  = instancePdata[1];
                     offset_t offsetRNG = instancePdata[2];
-                    //assert(offsetPP  < vdataCount);
-                    //assert(offsetRNG < vdataCount);
+                    assert(offsetPP  < vdataCount);
+                    assert(offsetRNG < vdataCount);
                     void * rng = instanceVdata[1];
                 }
                 //We will call bbcore_red on the correct vdata offset
@@ -225,7 +225,6 @@ Branch::Branch(offset_t n,
                     &netConsWeights[argsOffset], netcons[nc].argsCount, netcons[nc].active));
         argsOffset += netcons[nc].argsCount;
     }
-
 }
 
 Branch::~Branch()
