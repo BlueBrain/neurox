@@ -106,7 +106,8 @@ void ion_reg(const char* name, double valence) {
 	mechanism[5] = (char *)0; /* buf[4] not used above */
     mechtype = nrn_get_mechtype(buf[0]);
     if (mechtype >= nrn_ion_global_map_size ||
-        nrn_ion_global_map[mechtype] == NULL) { //if hasn't yet been allocated
+        nrn_ion_global_map[mechtype] == NULL) //if hasn't yet been registered
+    {
 
         //allocates mem for ion in ion_map and sets null all non-ion types
 		if (nrn_ion_global_map_size <= mechtype) {
