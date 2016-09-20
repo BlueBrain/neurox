@@ -89,14 +89,6 @@ Branch::Branch(offset_t n,
     nt._actual_v    = nt._data + n*4;
     nt._actual_area = nt._data + n*5;
 
-    //Shadow arrays
-    int shadowElemsCount = std::max(
-                mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
-                mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
-            );
-    this->nt._shadow_rhs = new double[shadowElemsCount];
-    this->nt._shadow_d   = new double[shadowElemsCount];
-
     this->eventsQueueMutex = hpx_lco_sema_new(1);
     this->initMechanismsGraph(branchHpxAddr);
 
@@ -194,6 +186,14 @@ Branch::Branch(offset_t n,
     assert(pdataOffset == pdataCount);
     assert(vdataOffset == vdataCount);
     assert(instancesOffset == nodesIndicesCount);
+
+    //Shadow arrays
+    int shadowElemsCount = std::max(
+                mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
+                mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
+            );
+    this->nt._shadow_rhs = new double[shadowElemsCount];
+    this->nt._shadow_d   = new double[shadowElemsCount];
 
     //reconstructs parents or branching
     if (inputParams->multiSplix)

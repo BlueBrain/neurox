@@ -158,13 +158,11 @@ static int maxgid;
 #if !defined(NRN_SOA_PAD)
 // for layout 0, every range variable array must have a size which
 // is a multiple of NRN_SOA_PAD doubles
-//#define NRN_SOA_PAD 4
-#define NRN_SOA_PAD 1 //PRAMOD
+#define NRN_SOA_PAD 4
 #endif
 #if !defined(NRN_SOA_BYTE_ALIGN)
 // for layout 0, every range variable array must be aligned by at least 16 bytes (the size of the simd memory bus)
-#define NRN_SOA_BYTE_ALIGN (1*sizeof(double)) //PRAMOD
-//#define NRN_SOA_BYTE_ALIGN (2*sizeof(double))
+#define NRN_SOA_BYTE_ALIGN (2*sizeof(double))
 #endif
 
 static MUTDEC
@@ -931,11 +929,10 @@ void read_phase2(data_reader &F, int imult, NrnThread& nt) {
     tml->ml->_permute = NULL;
     tml->next = NULL;
     tml->index = F.read_int();
-    tml->ml->nodecount = F.read_int();
-    if (nrn_ion_global_map[tml->index]==NULL && //if ion and not declared
-        memb_func[tml->index].alloc == NULL) {  //or not ion and not declared
+    if (memb_func[tml->index].alloc == NULL) {
       hoc_execerror(memb_func[tml->index].sym, "mechanism does not exist");
     }
+    tml->ml->nodecount = F.read_int();
     if (!memb_func[tml->index].sym) {
       printf("%s (type %d) is not available\n", nrn_get_mechname(tml->index), tml->index);
       exit(1);

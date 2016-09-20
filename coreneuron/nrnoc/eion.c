@@ -70,12 +70,14 @@ static char *mechanism[] = { /*just a template*/
 
 void ion_cur(NrnThread*, Memb_list*, int);
 void ion_init(NrnThread*, Memb_list*, int);
+void ion_alloc(double*, Datum*, int);
 
 double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
 int nrn_is_ion(int type) {
-    return (nrn_ion_global_map[type] != NULL);
+    return (type < nrn_ion_global_map_size
+         && nrn_ion_global_map[type] != NULL);
 }
 
 int nrn_ion_global_map_size;
@@ -106,28 +108,28 @@ void ion_reg(const char* name, double valence) {
 	mechanism[5] = (char *)0; /* buf[4] not used above */
     mechtype = nrn_get_mechtype(buf[0]);
     if (mechtype >= nrn_ion_global_map_size ||
-        nrn_ion_global_map[mechtype] == NULL) //if hasn't yet been registered
-    {
+        nrn_ion_global_map[mechtype] == NULL) { //if hasn't yet been allocated
 
         //allocates mem for ion in ion_map and sets null all non-ion types
-		if (nrn_ion_global_map_size <= mechtype) {
+            if (nrn_ion_global_map_size <= mechtype) {
 			int size = mechtype + 1;
-			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map,
-				sizeof(double*)*size);
+			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map, sizeof(double*)*size);
+            assert(nrn_ion_global_map!=NULL);
 
             for(i=nrn_ion_global_map_size; i<mechtype; i++) {
                 nrn_ion_global_map[i] = NULL;
             }
 			nrn_ion_global_map_size = mechtype + 1;
-		}
+        }
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
-        register_mech((const char**)mechanism,  (mod_f_t)0 , ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
+        register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
         mechtype = nrn_get_mechtype(mechanism[1]);
         _nrn_layout_reg(mechtype, LAYOUT);
         hoc_register_prop_size(mechtype, nparm, 1 );
         hoc_register_dparam_semantics(mechtype, 0, "iontype");
         nrn_writes_conc(mechtype, 1);
+
 
         sprintf(buf[0], "%si0_%s", name, buf[0]);
         sprintf(buf[1], "%so0_%s", name, buf[0]);
@@ -330,6 +332,10 @@ void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 			erev = nrn_nernst(conci, conco, charge, celsius);
 		}
 	}
+}
+
+void ion_alloc(double* p, Datum* ppvar, int _type) {
+    assert(0);
 }
 
 void second_order_cur(NrnThread* _nt) {

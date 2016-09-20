@@ -445,7 +445,7 @@ void DataLoader::loadData(int argc, char ** argv)
     coreNeuronInitialSetup(argc, argv);
 
     //we will walk a bit with coreneuron
-    coreNeuronFakeSteps();
+    //coreNeuronFakeSteps();
 
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
 
