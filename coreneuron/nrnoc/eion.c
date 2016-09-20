@@ -76,7 +76,8 @@ double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
 int nrn_is_ion(int type) {
-    return (nrn_ion_global_map[type] != NULL);
+    return (type < nrn_ion_global_map_size
+         && nrn_ion_global_map[type] != NULL);
 }
 
 int nrn_ion_global_map_size;
