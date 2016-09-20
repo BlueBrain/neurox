@@ -70,6 +70,7 @@ static char *mechanism[] = { /*just a template*/
 
 void ion_cur(NrnThread*, Memb_list*, int);
 void ion_init(NrnThread*, Memb_list*, int);
+void ion_alloc(double*, Datum*, int);
 
 double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
@@ -120,7 +121,7 @@ void ion_reg(const char* name, double valence) {
         }
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
-        register_mech((const char**)mechanism,  (mod_f_t)0 , ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
+        register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
         mechtype = nrn_get_mechtype(mechanism[1]);
         _nrn_layout_reg(mechtype, LAYOUT);
         hoc_register_prop_size(mechtype, nparm, 1 );
@@ -329,6 +330,10 @@ void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 			erev = nrn_nernst(conci, conco, charge, celsius);
 		}
 	}
+}
+
+void ion_alloc(double* p, Datum* ppvar, int _type) {
+    assert(0);
 }
 
 void second_order_cur(NrnThread* _nt) {

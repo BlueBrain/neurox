@@ -929,8 +929,7 @@ void read_phase2(data_reader &F, int imult, NrnThread& nt) {
     tml->ml->_permute = NULL;
     tml->next = NULL;
     tml->index = F.read_int();
-    if (nrn_ion_global_map[tml->index]==NULL && //if ion and not declared
-        memb_func[tml->index].alloc == NULL) {  //or not ion and not declared
+    if (memb_func[tml->index].alloc == NULL) {
       hoc_execerror(memb_func[tml->index].sym, "mechanism does not exist");
     }
     tml->ml->nodecount = F.read_int();
