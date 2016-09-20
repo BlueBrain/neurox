@@ -60,148 +60,171 @@ int nrn_feenableexcept() {
 }
 #endif
 
-int main1( int argc, char **argv, char **env )
+void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init);
+
+void nrn_load_data(int argc, char **argv, cn_input_params & input_params)
 {
-    char prcellname[1024], filesdat_buf[1024];
 
-    ( void )env; /* unused */
-
-    #if defined(NRN_FEEXCEPT)
-        nrn_feenableexcept();
-    #endif
-
-#ifdef ENABLE_SELECTIVE_PROFILING
-    stop_profile();
+#if defined(NRN_FEEXCEPT)
+  nrn_feenableexcept();
 #endif
 
+#ifdef ENABLE_SELECTIVE_PROFILING
+  stop_profile();
+#endif
+
+  // mpi initialisation
+  nrnmpi_init( 1, &argc, &argv );
+
+  // initialise default coreneuron parameters
+  initnrn();
+
+  // create mutex for nrn123, protect instance_count_
+  nrnran123_mutconstruct();
+
+  // read command line parameters
+  input_params.read_cb_opts( argc, argv );
+  celsius = input_params.celsius;
+  t = input_params.celsius;
+
+#if _OPENACC
+  if (!input_params.compute_gpu && input_params.cell_interleave_permute == 2) {
+    fprintf(stderr, "compiled with _OPENACC does not allow the combination of --cell_permute=2 and missing --gpu\n");
+    exit(1);
+  }
+#endif
+
+  // if multi-threading enabled, make sure mpi library supports it
+  if ( input_params.threading ) {
+    nrnmpi_check_threading_support();
+  }
+
+  // full path of files.dat file
+  char filesdat_buf[1024];
+  sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
+
+  // memory footprint after mpi initialisation
+  report_mem_usage( "After MPI_Init" );
+
+  // reads mechanism information from bbcore_mech.dat
+  mk_mech( input_params.datpath );
+
+  // read the global variable names and set their values from globals.dat
+  set_globals( input_params.datpath );
+
+  report_mem_usage( "After mk_mech" );
+
+  // set global variables for start time, timestep and temperature
+  t = input_params.tstart;
+
+  if (input_params.dt != -1000.) {// command line arg highest precedence
+    dt = input_params.dt;
+  }else if (dt == -1000.) { // not on command line and no celsius in globals.dat
+    dt = 0.025; // lowest precedence
+  }
+  input_params.dt = dt; // for printing
+
+  rev_dt = (int)(1./dt);
+
+  if (input_params.celsius != -1000.) {// command line arg highest precedence
+    celsius = input_params.celsius;
+  }else if (celsius == -1000.) { // not on command line and no celsius in globals.dat
+    celsius = 34.0; // lowest precedence
+  }
+  input_params.celsius = celsius; // for printing
+
+  // create net_cvode instance
+  mk_netcvode();
+
+  // One part done before call to nrn_setup. Other part after.
+  if ( input_params.patternstim ) {
+      nrn_set_extra_thread0_vdata();
+  }
+
+  report_mem_usage( "Before nrn_setup" );
+
+  //set if need to interleave cells
+  use_interleave_permute = input_params.cell_interleave_permute;
+  cellorder_nwarp = input_params.nwarp;
+  use_solve_interleave = input_params.cell_interleave_permute;
+
+  //pass by flag so existing tests do not need a changed nrn_setup prototype.
+  nrn_setup_multiple = input_params.multiple;
+  nrn_setup_extracon = input_params.extracon;
+
+  // reading *.dat files and setting up the data structures, setting mindelay
+  nrn_setup( input_params, filesdat, nrn_need_byteswap );
+
+  report_mem_usage( "After nrn_setup " );
+
+  // Invoke PatternStim
+  if ( input_params.patternstim ) {
+      nrn_mkPatternStim( input_params.patternstim );
+  }
+
+  /// Setting the timeout
+  nrn_set_timeout(200.);
+
+  // show all configuration parameters for current run
+  input_params.show_cb_opts();
+
+  // allocate buffer for mpi communication
+  mk_spikevec_buffer( input_params.spikebuf );
+
+  #pragma acc data copyin (celsius, secondorder) if(input_params.compute_gpu)
+  {
+    if( input_params.compute_gpu) {
+        setup_nrnthreads_on_device(nrn_threads, nrn_nthread);
+    }
+
+    if (nrn_have_gaps) {
+        nrn_partrans::gap_update_indices();
+    }
+
+    // call prcellstate for prcellgid
+    call_prcellstate_for_prcellgid(input_params.prcellgid,
+                                   input_params.compute_gpu, 1);
+    report_mem_usage( "After mk_spikevec_buffer" );
+  }
+}
+
+void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init)
+{
+    char prcellname[1024];
 #ifdef ENABLE_CUDA
     const char *prprefix = "cu";
 #else
     const char *prprefix = "acc";
 #endif
 
-    // mpi initialisation
-    nrnmpi_init( 1, &argc, &argv );
+    if ( prcellgid >= 0 ) {
+        if(compute_gpu){
+            if (is_init)
+                sprintf( prcellname, "%s_gpu_init", prprefix);
+            else
+               sprintf( prcellname, "%s_gpu_t%g", prprefix, t);
+        }
+        else {
+          if (is_init)
+              strcpy( prcellname, "cpu_init");
+          else
+              sprintf( prcellname, "cpu_t%g", t );
+        }
+        update_nrnthreads_on_host(nrn_threads, nrn_nthread);
+        prcellstate( prcellgid, prcellname );
+    }
+}
 
-    // initialise default coreneuron parameters
-    initnrn();
+int main1( int argc, char **argv, char **env )
+{
+    ( void )env; /* unused */
 
-    // create mutex for nrn123, protect instance_count_
-    nrnran123_mutconstruct();
-
-    // handles coreneuron configuration parameters
+    //Initial data loading
     cn_input_params input_params;
-
-    // read command line parameters
-    input_params.read_cb_opts( argc, argv );
-    celsius = input_params.celsius;
-    t = input_params.celsius;
-
-#if _OPENACC
-    if (!input_params.compute_gpu && input_params.cell_interleave_permute == 2) {
-      fprintf(stderr, "compiled with _OPENACC does not allow the combination of --cell_permute=2 and missing --gpu\n");
-      exit(1);
-    }
-#endif
-
-    // if multi-threading enabled, make sure mpi library supports it
-    if ( input_params.threading ) {
-        nrnmpi_check_threading_support();
-    }
-
-    // full path of files.dat file
-    sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
-
-    // memory footprint after mpi initialisation
-    report_mem_usage( "After MPI_Init" );
-
-    // reads mechanism information from bbcore_mech.dat
-    mk_mech( input_params.datpath );
-
-    // read the global variable names and set their values from globals.dat
-    set_globals( input_params.datpath );
-
-    report_mem_usage( "After mk_mech" );
-
-    // set global variables for start time, timestep and temperature
-    t = input_params.tstart;
-
-    if (input_params.dt != -1000.) {// command line arg highest precedence
-      dt = input_params.dt;
-    }else if (dt == -1000.) { // not on command line and no celsius in globals.dat
-      dt = 0.025; // lowest precedence
-    }
-    input_params.dt = dt; // for printing
-
-    rev_dt = (int)(1./dt);
-
-    if (input_params.celsius != -1000.) {// command line arg highest precedence
-      celsius = input_params.celsius;
-    }else if (celsius == -1000.) { // not on command line and no celsius in globals.dat
-      celsius = 34.0; // lowest precedence
-    }
-    input_params.celsius = celsius; // for printing
-
-    // create net_cvode instance
-    mk_netcvode();
-
-    // One part done before call to nrn_setup. Other part after.
-    if ( input_params.patternstim ) {
-        nrn_set_extra_thread0_vdata();
-    }
-
-    report_mem_usage( "Before nrn_setup" );
-
-    //set if need to interleave cells
-    use_interleave_permute = input_params.cell_interleave_permute;
-    cellorder_nwarp = input_params.nwarp;
-    use_solve_interleave = input_params.cell_interleave_permute;
-
-    //pass by flag so existing tests do not need a changed nrn_setup prototype.
-    nrn_setup_multiple = input_params.multiple;
-    nrn_setup_extracon = input_params.extracon;
-
-    // reading *.dat files and setting up the data structures, setting mindelay
-    nrn_setup( input_params, filesdat, nrn_need_byteswap );
-
-    report_mem_usage( "After nrn_setup " );
-
-    // Invoke PatternStim
-    if ( input_params.patternstim ) {
-        nrn_mkPatternStim( input_params.patternstim );
-    }
-
-    /// Setting the timeout
-    nrn_set_timeout(200.);
-
-    // show all configuration parameters for current run
-    input_params.show_cb_opts();
-
-    // allocate buffer for mpi communication
-    mk_spikevec_buffer( input_params.spikebuf );
+    nrn_load_data(argc, argv, input_params);
 
     #pragma acc data copyin (celsius, secondorder) if(input_params.compute_gpu)
     {
-        if( input_params.compute_gpu) {
-            setup_nrnthreads_on_device(nrn_threads, nrn_nthread);
-        }
-
-        if (nrn_have_gaps) {
-            nrn_partrans::gap_update_indices();
-        }
-
-        // call prcellstate for prcellgid
-        if ( input_params.prcellgid >= 0 ) {
-            if(input_params.compute_gpu)
-                sprintf( prcellname, "%s_gpu_init", prprefix);
-            else
-                strcpy( prcellname, "cpu_init");
-            update_nrnthreads_on_host(nrn_threads, nrn_nthread);
-            prcellstate( input_params.prcellgid, prcellname );
-        }
-
-        report_mem_usage( "After mk_spikevec_buffer" );
-
         nrn_finitialize( input_params.voltage != 1000., input_params.voltage );
 
         report_mem_usage( "After nrn_finitialize" );
@@ -228,14 +251,8 @@ int main1( int argc, char **argv, char **env )
         }
 
         // call prcellstate for prcellgid
-        if ( input_params.prcellgid >= 0 ) {
-            if(input_params.compute_gpu)
-                sprintf( prcellname, "%s_gpu_t%g", prprefix, t);
-            else
-                sprintf( prcellname, "cpu_t%g", t );
-            update_nrnthreads_on_host(nrn_threads, nrn_nthread);
-            prcellstate( input_params.prcellgid, prcellname );
-        }
+        call_prcellstate_for_prcellgid(input_params.prcellgid,
+                                       input_params.compute_gpu, 0);
 
         // handle forwardskip
         if ( input_params.forwardskip > 0.0 ) {
@@ -257,14 +274,8 @@ int main1( int argc, char **argv, char **env )
         #endif
 
         // prcellstate after end of solver
-        if ( input_params.prcellgid >= 0 ) {
-            if(input_params.compute_gpu)
-                sprintf( prcellname, "%s_gpu_t%g", prprefix, t);
-            else
-                sprintf( prcellname, "cpu_t%g", t );
-            update_nrnthreads_on_host(nrn_threads, nrn_nthread);
-            prcellstate( input_params.prcellgid, prcellname );
-        }
+        call_prcellstate_for_prcellgid(input_params.prcellgid,
+                                       input_params.compute_gpu, 0);
 
         #ifdef ENABLE_REPORTING
             if(input_params.report && r)
