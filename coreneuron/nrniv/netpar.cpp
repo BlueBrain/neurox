@@ -116,8 +116,8 @@ static void alloc_mpi_space() {
 spbufout_ = (NRNMPI_Spikebuf*)emalloc(sizeof(NRNMPI_Spikebuf));
 spbufin_ = (NRNMPI_Spikebuf*)emalloc(nrnmpi_numprocs*sizeof(NRNMPI_Spikebuf));
 #endif
-#endif
     }
+#endif
 }
 
 NetParEvent::NetParEvent(){
@@ -661,10 +661,9 @@ int nrn_set_timeout(int timeout) {
 
 void BBS_netpar_solve(double tstop) {
 
-    double time = nrnmpi_wtime();
-
 #if NRNMPI
-	double mt, md;
+    double time = nrnmpi_wtime();
+    double mt, md;
 	tstopunset;
 	mt = dt ; md = mindelay_ - 1e-10;
 	if (md < mt) {
@@ -683,14 +682,17 @@ void BBS_netpar_solve(double tstop) {
 		npe_[0].wx_ = npe_[0].ws_ = 0.;
 	};
 //printf("%d netpar_solve exit t=%g tstop=%g mindelay_=%g\n",nrnmpi_myid, t, tstop, mindelay_);
+    double end_time = nrnmpi_wtime();
+    nrnmpi_barrier();
 #else // not NRNMPI
+    double time = 0;
 	ncs2nrn_integrate(tstop);
+    double end_time =0; //TODO
 #endif
 	tstopunset;
 
-    nrnmpi_barrier();
 	if ( nrnmpi_myid == 0 ) {
-      printf( "\nSolver Time : %g\n", nrnmpi_wtime() - time );
+      printf( "\nSolver Time : %g\n", end_time - time );
     }
 }
 
