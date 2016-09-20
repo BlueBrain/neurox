@@ -60,6 +60,8 @@ int nrn_feenableexcept() {
 }
 #endif
 
+int main1( int argc, char **argv, char **env );
+void nrn_load_data(int argc, char **argv, cn_input_params & input_params);
 void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init);
 
 void nrn_load_data(int argc, char **argv, cn_input_params & input_params)
@@ -74,7 +76,9 @@ void nrn_load_data(int argc, char **argv, cn_input_params & input_params)
 #endif
 
   // mpi initialisation
+#if NRNMPI
   nrnmpi_init( 1, &argc, &argv );
+#endif
 
   // initialise default coreneuron parameters
   initnrn();
@@ -95,9 +99,11 @@ void nrn_load_data(int argc, char **argv, cn_input_params & input_params)
 #endif
 
   // if multi-threading enabled, make sure mpi library supports it
+#if NRNMPI
   if ( input_params.threading ) {
     nrnmpi_check_threading_support();
   }
+#endif
 
   // full path of files.dat file
   char filesdat_buf[1024];
@@ -290,8 +296,10 @@ int main1( int argc, char **argv, char **env )
     // Cleaning the memory
     nrn_cleanup();
 
+#if NRNMPI
     // mpi finalize
     nrnmpi_finalize();
+#endif
 
     finalize_data_on_device();
 
