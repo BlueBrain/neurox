@@ -114,7 +114,6 @@ void ion_reg(const char* name, double valence) {
             if (nrn_ion_global_map_size <= mechtype) {
 			int size = mechtype + 1;
 			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map, sizeof(double*)*size);
-            assert(nrn_ion_global_map!=NULL);
 
             for(i=nrn_ion_global_map_size; i<mechtype; i++) {
                 nrn_ion_global_map[i] = NULL;
