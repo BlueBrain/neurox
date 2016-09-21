@@ -152,8 +152,9 @@ static int main_handler(char **argv, size_t argc)
         hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO);
     hpx_lco_wait(mainLCO);
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
-
     printf("neurox::end (solver time: %.2f secs).\n", elapsed);
+
+    //neurox::Input::Coreneuron::DataLoader::cleanData();
     hpx_exit(HPX_SUCCESS);
 }
 

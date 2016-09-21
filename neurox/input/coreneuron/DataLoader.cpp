@@ -440,9 +440,16 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
     neurox_hpx_unpin;
 }
 
+void DataLoader::cleanData()
+{
+    nrn_cleanup();
+}
+
 void DataLoader::loadData(int argc, char ** argv)
 {
-    coreNeuronInitialSetup(argc, argv);
+    cn_input_params input_params;
+    nrn_load_data(argc, argv, input_params);
+    //coreNeuronInitialSetup(argc, argv);
 
     //we will walk a bit with coreneuron
     //coreNeuronFakeSteps();

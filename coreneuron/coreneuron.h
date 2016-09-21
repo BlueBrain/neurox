@@ -38,6 +38,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <math.h>
 
+#define NRNMPI 0
+#include "coreneuron/nrnmpi/nrnmpiuse.h" //NRNMPI #define
 #include "coreneuron/nrnoc/membdef.h"  //static definitions
 #include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
 #include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
