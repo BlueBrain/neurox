@@ -27,7 +27,7 @@ Branch::Branch(offset_t n,
                floble_t * vecplayY, size_t vecplayYCount,
                PointProcInfo * ppis, size_t vecplayCount,
                NetConX * netcons, size_t netconsCount,
-               gid_t * netConsPreId, size_t netConsPreIdsCount,
+               neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *netConsWeights, size_t netConsWeightsCount,
                void** vdata, size_t vdataCount):
     soma(nullptr)
@@ -266,7 +266,7 @@ int Branch::init_handler( const int nargs, const void *args[],
         (floble_t*) args[9], sizes[8]/sizeof(floble_t), //vecplay Y data
         (PointProcInfo*) args[10], sizes[10]/sizeof(PointProcInfo), //point processes info
         (NetConX*) args[11], sizes[11]/sizeof(NetConX), //netcons
-        (gid_t *) args[12], sizes[12]/sizeof(gid_t), //netcons preneuron ids
+        (neuron_id_t *) args[12], sizes[12]/sizeof(neuron_id_t), //netcons preneuron ids
         (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons args
         (void**) args[14], sizes[14]/sizeof(void*));
     neurox_hpx_unpin;
@@ -308,7 +308,7 @@ int Branch::initSoma_handler(const int nargs,
 {
     neurox_hpx_pin(Branch);
     assert(nargs==2);
-    const gid_t    neuronId    = *(const gid_t*)    args[0];
+    const neuron_id_t neuronId = *(const neuron_id_t*)    args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
     local->soma=new Neuron(neuronId, APthreshold);
     neurox_hpx_unpin;

@@ -14,7 +14,7 @@ class Statistics::SizeInfo
 
     ~SizeInfo(){};
 
-    gid_t neuronId;
+    neuron_id_t neuronId;
     double morphologies;
     double mechanisms;
     double synapses;

@@ -13,10 +13,10 @@ class Neuron
 {
   public:
     Neuron() = delete;
-    Neuron(gid_t neuronId, floble_t APthreshold);
+    Neuron(neuron_id_t neuronId, floble_t APthreshold);
     ~Neuron();
 
-    gid_t id;              ///> neuron global id
+    neuron_id_t id;          ///> neuron global id
     floble_t APthreshold;  ///> Action Potential threshold
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
     void fireActionPotential(floble_t t); ///> fires AP, returns LCO for sent synapses

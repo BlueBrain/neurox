@@ -5,7 +5,7 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-Neuron::Neuron(gid_t neuronId, floble_t APthreshold):
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     id(neuronId), APthreshold(APthreshold)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);

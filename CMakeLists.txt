@@ -46,6 +46,12 @@ set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
+## Force C++11
+set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
+set(CMAKE_CXX_STANDARD 11) # C++11...
+set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
+set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
+
 ## global options
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
 option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
@@ -188,7 +194,7 @@ ELSE()
     #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
     include_directories(${HPX_INCLUDE_DIRS})
     #add_definitions(-fPIC)
-    add_definitions(-std=c++11 )
+    #add_definitions(-std=c++11 )
     link_directories(${HPX_LIBRARY_DIRS})
   ENDIF()
 ENDIF()

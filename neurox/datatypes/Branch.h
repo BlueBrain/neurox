@@ -39,7 +39,7 @@ class Branch
            floble_t * vecplayY, size_t vecplayYCount,
            PointProcInfo * vecplayInfo, size_t vecplayCount,
            NetConX * netcons, size_t netconsCount,
-           gid_t * netConsPreId, size_t netConsPreIdsCount,
+           neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
            floble_t *netConsArgs, size_t netConsArgsCount,
            void** vdata, size_t vdataCount);
     ~Branch();
@@ -70,7 +70,7 @@ class Branch
         hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
     } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
-    std::map<gid_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
+    std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
 
     std::priority_queue< std::pair<floble_t,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
