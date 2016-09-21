@@ -101,7 +101,6 @@ static void rendezvous_rank_get(HAVEWANT_t* data, int size,
   }else
 #endif
   {
-
     for (int i=0; i < sdispl[nhost]; ++i) {
     	rdata[i] = sdata[i];
     }
@@ -187,7 +186,7 @@ sprintf(buf, "key = %lld is wanted but does not exist\n", (long long)key);
       want_s_ownerranks, want_s_cnt, want_s_displ);
   }else
 #endif
-    {
+  {
     for (int i=0; i < want_r_displ[nhost]; ++i) {
       want_s_ownerranks[i] = want_r_ownerranks[i];
     }

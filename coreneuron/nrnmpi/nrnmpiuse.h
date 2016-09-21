@@ -30,7 +30,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define usenrnmpi_h
 
 /* define to 1 if you want MPI specific features activated */
-#define NRNMPI 1
+#ifndef NRNMPI
+  #define NRNMPI 1
+#endif
 
 /* define to 1 if you want parallel distributed cells (and gap junctions) */
 #define PARANEURON 1
