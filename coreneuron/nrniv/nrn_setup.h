@@ -47,6 +47,10 @@ static void read_phase3(data_reader &F, int imult, NrnThread& nt);
 static void read_phasegap(data_reader &F, int imult, NrnThread& nt);
 static void setup_ThreadData(NrnThread& nt);
 
+//Functions to load and clean data;
+extern void nrn_load_data(int argc, char **argv, cn_input_params & input_params);
+extern void nrn_cleanup();
+
 namespace coreneuron {
 
     /// Reading phase number.

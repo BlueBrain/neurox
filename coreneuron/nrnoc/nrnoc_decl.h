@@ -52,7 +52,9 @@ extern void nrn_ba(NrnThread*, int);
 extern void dt2thread(double);
 extern void clear_event_queue(void);
 extern void nrn_spike_exchange_init(void);
+#if NRNMPI
 extern void nrn_spike_exchange(NrnThread*);
+#endif
 extern void modl_reg(void);
 extern int nrn_is_ion(int);
 extern void nrn_finitialize(int setv, double v);

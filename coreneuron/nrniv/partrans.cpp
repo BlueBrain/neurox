@@ -81,11 +81,14 @@ void nrnmpi_v_transfer() {
 #endif /* METHOD == 2 */
 
   // transfer
+#if NRNMPI
   if (nrnmpi_numprocs > 1) { // otherwise insrc_buf_ == outsrc_buf_
     nrnmpi_barrier();
     nrnmpi_dbl_alltoallv(outsrc_buf_, outsrccnt_, outsrcdspl_,
       insrc_buf_, insrccnt_, insrcdspl_);
-  } else { // actually use the multiprocess code even for one process to aid debugging
+  } else
+#endif
+  { // actually use the multiprocess code even for one process to aid debugging
     for (int i=0; i < outsrcdspl_[1]; ++i) {
       insrc_buf_[i] = outsrc_buf_[i];
     }
