@@ -5,6 +5,7 @@
 #include <list>
 #include <tuple>
 #include <algorithm>
+#include <numeric>
 
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"

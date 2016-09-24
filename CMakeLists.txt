@@ -46,8 +46,7 @@ set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-## Force C++11
-set(CMAKE_CXX_FLAGS "-std=c++11 -stdlib=libc++")
+## Automatically add C++11 flags (eg -libc++ or -lstdc++)
 set(CMAKE_CXX_STANDARD 11) # C++11...
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
@@ -165,6 +164,13 @@ FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
         /opt/local/include
 )
 
+#Exception: add lc++ flag instead of lstdc++ on Apple machines
+IF (APPLE)
+  message (STATUS "Found MacOS: Added gcc LLVM flag lc++")
+  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lc++")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lc++")
+ENDIF()
+
 IF(TCLAP_INCLUDE_DIR)
         message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
 ELSE()
@@ -173,28 +179,27 @@ ENDIF()
 include_directories(${TCLAP_INCLUDE_DIR})
 
 # Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of                PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
+#As a requirement for pkg_check_modules we need to provide the path of
+#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
 set(PKG_CONFIG_EXECUTABLE pkg-config)
 IF (NOT PKG_CONFIG_FOUND)
   message (FATAL_ERROR "pkg-config not found")
 ELSE()
   #use pkg-config to find hpx
-  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}:                     ${PKG_CONFIG_EXECUTABLE}")
+  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
   pkg_check_modules(HPX REQUIRED hpx )
   IF (NOT HPX_FOUND)
     message (FATAL_ERROR "pkg-config did not find HPX")
   ELSE()
-    message (STATUS "hpx ${HPX_VERSION} found by pkg-config:")
+    #message (STATUS "pkg-config found hpx ${HPX_VERSION}:")
     message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-    message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
+    #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
     message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
     #message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
     #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
     #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
     #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
     include_directories(${HPX_INCLUDE_DIRS})
-    #add_definitions(-fPIC)
-    #add_definitions(-std=c++11 )
     link_directories(${HPX_LIBRARY_DIRS})
   ENDIF()
 ENDIF()

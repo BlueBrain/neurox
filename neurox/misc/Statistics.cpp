@@ -1,6 +1,8 @@
 #include "neurox/neurox.h"
-#include "string.h"
 #include <numeric>
+#include <string>
+#include <sstream>
+#include <iostream>
 
 using namespace neurox;
 using namespace neurox::Misc;

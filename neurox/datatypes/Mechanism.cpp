@@ -120,7 +120,7 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
     this->membFunc.thread_cleanup_ = NULL; //memb_func[type].thread_cleanup_;
     this->membFunc.thread_mem_init_ = NULL; //TODO memb_func[type].thread_mem_init_;
-    this->membFunc.thread_size_ = NULL; //TODO memb_func[type].thread_size_;
+    this->membFunc.thread_size_ = 0; //TODO memb_func[type].thread_size_;
     this->membFunc.thread_table_check_ = NULL; //TODO memb_func[type].thread_table_check_;
     this->nrn_bbcore_read = NULL; //TODO nrn_bbcore_read_[type];
 }
