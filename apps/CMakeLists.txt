@@ -24,7 +24,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 
-include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/coreneuron ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/coreneuron ${PROJECT_BINARY_DIR}/neurox ${PROJECT_SOURCE_DIR}/neurox)
+
+include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/coreneuron ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_BINARY_DIR}/coreneuron)
 
 # The mechanism registration function will be defined depending on whether we
 # are using neurodamus list of mechanisms
@@ -40,7 +41,7 @@ set_target_properties(coreneuron_exec PROPERTIES
                             OUTPUT_NAME "coreneuron_exec"
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-target_link_libraries(coreneuron_exec coreneuron neurox ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} ${HPX_LIBRARIES} ${reportinglib_LIBRARY})
+target_link_libraries(coreneuron_exec coreneuron ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES} ${reportinglib_LIBRARY})
 
 install(TARGETS coreneuron_exec
          DESTINATION ${BIN_INSTALL_DIR}/)
