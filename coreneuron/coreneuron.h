@@ -26,33 +26,38 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifdef __cplusplus
-extern "C" {
+/***
+ * Includes all headers required to communicate and run all methods
+ * described in CoreNeuron, neurox, and mod2c C-generated mechanisms
+ * functions.
+**/
+
+#pragma once
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include "coreneuron/scopmath_core/newton_struct.h" //Newton Struct
+#include "coreneuron/nrnoc/membdef.h"  //static definitions
+#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
+
+#include "coreneuron/mech/cfile/scoplib.h"
+#include "coreneuron/utils/randoms/nrnran123.h"
+
+#include "coreneuron/nrniv/profiler_interface.h"
+#include "coreneuron/nrniv/cuda_profile.h"
+
+#if defined(_OPENACC) && !defined(DISABLE_OPENACC)
+#include "coreneuron/nrniv/nrn_acc_manager.h"
+#include <openacc.h>
 #endif
 
-extern  void capacitance_reg(void), _passive_reg(void),
-#if EXTRACELLULAR
-	extracell_reg_(void),
-#endif
-	_stim_reg(void),
-	_hh_reg(void),
-        _netstim_reg(void),
-	_expsyn_reg(void);
-
-static void (*mechanism[])(void) = { /* type will start at 3 */
-	capacitance_reg,
-	_passive_reg,
-#if EXTRACELLULAR
-	/* extracellular requires special handling and must be type 5 */
-	extracell_reg_,
-#endif
-	_stim_reg,
-	_hh_reg,
-	_expsyn_reg,
-        _netstim_reg,
-	0
-};
-
-#ifdef __cplusplus
-}
-#endif
+//TODO files to add for library:
+// - nrniv/nrn_acc_manager.cpp
+// - nrnoc/capac.c
+// - nrnoc/eion.c
+// - nrniv/profiler_interface.cpp
+// - nrniv/cuda_profile.cpp
+// - scopmath_core/newton_struct.cpp
+// - (all header files above)
