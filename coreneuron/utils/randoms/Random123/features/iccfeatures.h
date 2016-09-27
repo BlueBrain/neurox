@@ -33,11 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __icpcfeatures_dot_hpp
 
 // icc relies on gcc libraries and other toolchain components.
-#define R123_GNUC_VERSION (__GNUC__*10000 + __GNUC_MINOR__*100 + __GNUC_PATCHLEVEL__)
+#define R123_GNUC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 
 #if !defined(__x86_64__) && !defined(__i386__)
-#  error "This code has only been tested on x86 platforms."
-{ // maybe an unbalanced brace will terminate the compilation
+#error "This code has only been tested on x86 platforms."
+{  // maybe an unbalanced brace will terminate the compilation
 // You are invited to try Easy123 on other architectures, by changing
 // the conditions that reach this error, but you should consider it a
 // porting exercise and expect to encounter bugs and deficiencies.
@@ -62,7 +62,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_BUILTIN_EXPECT
-#define R123_BUILTIN_EXPECT(expr,likely) __builtin_expect(expr,likely)
+#define R123_BUILTIN_EXPECT(expr, likely) __builtin_expect(expr, likely)
 #endif
 
 // The basic idiom is:
@@ -119,7 +119,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // AES-NI Whitepaper by Gueron says that icc has supported AES-NI from
 // 11.1 onwards.
 //
-#define R123_USE_AES_NI ((__ICC>=1101) && defined(__AES__))
+#define R123_USE_AES_NI ((__ICC >= 1101) && defined(__AES__))
 #endif
 
 #ifndef R123_USE_AES_OPENSSL
