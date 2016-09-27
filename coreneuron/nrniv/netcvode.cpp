@@ -420,8 +420,7 @@ void PreSyn::record(double tt) {
 }
 
 bool ConditionEvent::check(NrnThread *nt) {
-    (void) nt;
-	if (value() > 0.0) {
+	if (value(nt) > 0.0) {
 		if (flag_ == false) {
 			flag_ = true;
 			return true;

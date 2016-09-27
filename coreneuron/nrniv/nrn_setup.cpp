@@ -790,9 +790,9 @@ void nrn_cleanup() {
       Memb_list* ml = tml->ml;
 
       ml->data = NULL; // this was pointing into memory owned by nt
-      delete[] ml->pdata;
+      free(ml->pdata);
       ml->pdata = NULL;
-      delete[] ml->nodeindices;
+      free(ml->nodeindices);
       ml->nodeindices = NULL;
       if (ml->_permute) {
         delete [] ml->_permute;
@@ -806,6 +806,8 @@ void nrn_cleanup() {
           free(nrb->_weight_index);
           free(nrb->_nrb_t);
           free(nrb->_nrb_flag);
+          free(nrb->_displ);
+          free(nrb->_nrb_index);
         }
         free(nrb);
       }
@@ -836,7 +838,7 @@ void nrn_cleanup() {
     nt->_actual_a = NULL;
     nt->_actual_b = NULL;
 
-    delete[] nt->_v_parent_index;
+    free(nt->_v_parent_index);
     nt->_v_parent_index = NULL;
 
     free(nt->_data);
@@ -847,6 +849,16 @@ void nrn_cleanup() {
 
     free(nt->_vdata);
     nt->_vdata = NULL;
+
+    if (nt->_permute) {
+      delete [] nt->_permute;
+      nt->_permute = NULL;
+    }
+
+    if (nt->presyns_helper) {
+      free(nt->presyns_helper);
+      nt->_permute = NULL;
+    }
 
     if (nt->pntprocs) {
         delete[] nt->pntprocs;
@@ -861,10 +873,10 @@ void nrn_cleanup() {
     if (nt->pnt2presyn_ix) {
       for (int i=0; i < nrn_has_net_event_cnt_; ++i) {
         if (nt->pnt2presyn_ix[i]) {
-          delete [] nt->pnt2presyn_ix[i];
+          free(nt->pnt2presyn_ix[i]);
         }
       }
-      delete [] nt->pnt2presyn_ix;
+      free(nt->pnt2presyn_ix);
     }
 
     if (nt->netcons) {
@@ -1571,9 +1583,9 @@ for (int i=0; i < nt.end; ++i) {
       }
 
       nrb->_pnt_index = (int*)ecalloc(nrb->_size, sizeof(int));
+      nrb->_displ = (int*)ecalloc(nrb->_size + 1, sizeof(int));
+      nrb->_nrb_index = (int*)ecalloc(nrb->_size, sizeof(int));
       nrb->_weight_index = (int*)ecalloc(nrb->_size, sizeof(int));
-      // when == 1, NetReceiveBuffer_t is newly allocated (i.e. we need to free previous copy and recopy new data 
-      nrb->reallocated = 1;
       nrb->_nrb_t = (double*)ecalloc(nrb->_size, sizeof(double));
       nrb->_nrb_flag = (double*)ecalloc(nrb->_size, sizeof(double));
     }
@@ -1588,8 +1600,9 @@ for (int i=0; i < nt.end; ++i) {
       NetSendBuffer_t* nsb = (NetSendBuffer_t*)ecalloc(1, sizeof(NetSendBuffer_t));
       ml->_net_send_buffer = nsb;
 
-      // begin with a size equal to the number of instances
-      nsb->_size = ml->nodecount;
+      // begin with a size equal to twice number of instances
+      // at present there is no provision for dynamically increasing this.
+      nsb->_size = ml->nodecount*2;
       nsb->_cnt = 0;
 
       nsb->_sendtype = (int*)ecalloc(nsb->_size, sizeof(int));

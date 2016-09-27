@@ -512,6 +512,7 @@ void nrn_threads_create(int n, int parallel) {
 				nt->_ml_list = (Memb_list**)0;
 				nt->pntprocs = (Point_process*)0;
 				nt->presyns = (PreSyn*)0;
+				nt->presyns_helper = NULL;
 				nt->pnt2presyn_ix = (int**)0;
 				nt->netcons = (NetCon*)0;
 				nt->weights = (double*)0;
@@ -543,6 +544,7 @@ void nrn_threads_create(int n, int parallel) {
 				nt->_net_send_buffer_size = 0;
 				nt->_net_send_buffer = (int*)0;
 				nt->_net_send_buffer_cnt = 0;
+				nt->mapping = NULL;
 			}
 		}
 		v_structure_change = 1;

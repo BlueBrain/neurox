@@ -63,6 +63,29 @@ double* makevector(size_t size) {
     return (double*)ecalloc(size, sizeof(char));
 }
 
+void freevector(double* p) {
+    if (p) {
+        free(p);
+    }
+}
+
+double** makematrix(size_t nrows, size_t ncols) {
+    size_t i;
+    double **matrix;
+    matrix = (double **) emalloc(nrows * sizeof(double *));
+    *matrix = (double *) emalloc(nrows * ncols * sizeof(double));
+    for (i = 1; i < nrows; i++)
+        matrix[i] = matrix[i - 1] + ncols;
+    return (matrix);
+}
+
+void freematrix(double** matrix) {
+    if (matrix != NULL) {
+        free(*matrix);
+        free(matrix); 
+    }
+}
+
 void* emalloc(size_t size) {
   void* memptr;
   memptr = malloc(size);

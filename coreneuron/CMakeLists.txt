@@ -71,7 +71,7 @@ macro(mod2c_target name input)
     list(APPEND MOD2C_${name}_MODS "${mod2c_modname_}")
 
     add_custom_command(OUTPUT "${mod2c_output_}"
-      DEPENDS ${input}
+      DEPENDS ${input} "${mod2c_install_prefix}/mod2c_core"
       COMMAND ${CMAKE_COMMAND} -E copy "${mod2c_source_}" "${CMAKE_CURRENT_BINARY_DIR}"
       COMMAND ${MOD2C} "${mod2c_modname_}"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -167,6 +167,18 @@ foreach(depfile ${MECH_FILE_LISTS})
     configure_file("${depfile}" "${CMAKE_CURRENT_BINARY_DIR}/dummy_reconfigure_dep")
 endforeach()
 
+# to work around no acc ability to pass function pointers as arguments,
+# some translated c files depend on a _kinderiv.h file that is constructed
+# by kinderiv.py
+
+set(KINDERIV_PY "${CMAKE_CURRENT_SOURCE_DIR}/kinderiv.py")
+set(KINDERIV_H "${CMAKE_CURRENT_BINARY_DIR}/_kinderiv.h")
+
+add_custom_command(OUTPUT "${KINDERIV_H}"
+    DEPENDS ${MOD2C_OPTMECH_OUTPUTS} ${MOD2C_STDMECH_OUTPUTS} "${KINDERIV_PY}"
+    COMMAND python "${KINDERIV_PY}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
 # Create C file with all "get function pointers" methods
 
 set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
@@ -188,11 +200,14 @@ set(NOACC_MECH_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/netstim.c ${CMAKE_CURRENT_BIN
 if(ENABLE_OPENACC)
     set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "")
     set_source_files_properties(${NOACC_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "-DDISABLE_OPENACC")
+    if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
+        set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/scopmath_core/sparse_thread.c PROPERTIES COMPILE_FLAGS "-ta=tesla:nollvm")
+    endif()
 endif()
 
 set(coreneuron_all_c_files ${coreneuron_all_c_files} ${GENERATED_MECH_C_FILES})
 
-add_library(coreneuron ${COMPILE_LIBRARY_TYPE} ${coreneuron_all_headers} ${coreneuron_all_templates} ${coreneuron_all_c_files})
+add_library(coreneuron ${COMPILE_LIBRARY_TYPE} ${coreneuron_all_headers} ${coreneuron_all_templates} ${coreneuron_all_c_files} ${KINDERIV_H})
 
 set(link_cudacoreneuron)
 set(link_reportinglib)
