@@ -122,7 +122,7 @@ has taken effect
 	/* note, the first is CAP */
 	if (_nt->tml) {
 		assert(_nt->tml->index == CAP);
-		nrn_cap_jacob(_nt, _nt->tml->ml);
+		cap_jacob(_nt, _nt->tml->ml, _nt->tml->index);
 	}
 
     double *vec_d = &(VEC_D(0));

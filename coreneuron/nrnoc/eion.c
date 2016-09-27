@@ -28,10 +28,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <math.h>
 #include <string.h>
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/membdef.h"
-#include "coreneuron/nrnoc/nrnoc_decl.h"
+
+#include "coreneuron/coreneuron.h"
 
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
@@ -70,15 +68,18 @@ static char *mechanism[] = { /*just a template*/
 	0
 };
 
-static void ion_alloc();
-static void ion_cur(NrnThread*, Memb_list*, int);
-static void ion_init(NrnThread*, Memb_list*, int);
+void ion_cur(NrnThread*, Memb_list*, int);
+void ion_init(NrnThread*, Memb_list*, int);
+void ion_alloc(double*, Datum*, int);
 
 double nrn_nernst(), nrn_ghk();
 static int na_ion, k_ion, ca_ion; /* will get type for these special ions */
 
 int nrn_is_ion(int type) {
-	return (memb_func[type].alloc == ion_alloc);
+    //Old: commented to remove dependency on memb_func globar var
+    //return (memb_func[type].alloc == ion_alloc);
+    return (type < nrn_ion_global_map_size     //type smaller than largest ion's
+         && nrn_ion_global_map[type] != NULL); //allocated ion charge variables
 }
 
 int nrn_ion_global_map_size;
@@ -97,63 +98,66 @@ void ion_reg(const char* name, double valence) {
 	double val;
 #define VAL_SENTINAL -10000.
 
-	Sprintf(buf[0], "%s_ion", name);
-	Sprintf(buf[1], "e%s", name);
-	Sprintf(buf[2], "%si", name);
-	Sprintf(buf[3], "%so", name);
-	Sprintf(buf[5], "i%s", name);
-	Sprintf(buf[6], "di%s_dv_", name);
-	for (i=0; i<7; i++) {
-		mechanism[i+1] = buf[i];
-	}
-	mechanism[5] = (char *)0; /* buf[4] not used above */
-	mechtype = nrn_get_mechtype(buf[0]);
-	if (memb_func[mechtype].alloc != ion_alloc) {
-		register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
-		mechtype = nrn_get_mechtype(mechanism[1]);
-		_nrn_layout_reg(mechtype, LAYOUT);
-		hoc_register_prop_size(mechtype, nparm, 1 );
-		hoc_register_dparam_semantics(mechtype, 0, "iontype");
-		nrn_writes_conc(mechtype, 1);
-		if (nrn_ion_global_map_size <= mechtype) {
-			int size = mechtype + 1;
-			nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map,
-				sizeof(double*)*size);
+    sprintf(buf[0], "%s_ion", name);
+    sprintf(buf[1], "e%s", name);
+    sprintf(buf[2], "%si", name);
+    sprintf(buf[3], "%so", name);
+    sprintf(buf[5], "i%s", name);
+    sprintf(buf[6], "di%s_dv_", name);
+        for (i=0; i<7; i++) {
+                mechanism[i+1] = buf[i];
+        }
+        mechanism[5] = (char *)0; /* buf[4] not used above */
+    mechtype = nrn_get_mechtype(buf[0]);
+    if (mechtype >= nrn_ion_global_map_size ||
+        nrn_ion_global_map[mechtype] == NULL) { //if hasn't yet been allocated
+
+        //allocates mem for ion in ion_map and sets null all non-ion types
+            if (nrn_ion_global_map_size <= mechtype) {
+                        int size = mechtype + 1;
+                        nrn_ion_global_map = (double**)erealloc(nrn_ion_global_map, sizeof(double*)*size);
 
             for(i=nrn_ion_global_map_size; i<mechtype; i++) {
                 nrn_ion_global_map[i] = NULL;
             }
-			nrn_ion_global_map_size = mechtype + 1;
-		}
-
+                        nrn_ion_global_map_size = mechtype + 1;
+        }
         nrn_ion_global_map[mechtype] = (double*)emalloc(3*sizeof(double));
 
-		Sprintf(buf[0], "%si0_%s", name, buf[0]);
-		Sprintf(buf[1], "%so0_%s", name, buf[0]);
-		if (strcmp("na", name) == 0) {
-			na_ion = mechtype;
-			global_conci(mechtype) = DEF_nai;
-			global_conco(mechtype) = DEF_nao;
-			global_charge(mechtype) = 1.;
-		}else if (strcmp("k", name) == 0) {
-			k_ion = mechtype;
-			global_conci(mechtype) = DEF_ki;
-			global_conco(mechtype) = DEF_ko;
-			global_charge(mechtype) = 1.;
-		}else if (strcmp("ca", name) == 0) {
-			ca_ion = mechtype;
-			global_conci(mechtype) = DEF_cai;
-			global_conco(mechtype) = DEF_cao;
-			global_charge(mechtype) = 2.;
-		}else{
-			global_conci(mechtype) = DEF_ioni;
-			global_conco(mechtype) = DEF_iono;
-			global_charge(mechtype) = VAL_SENTINAL;
-		}
-	}
-	val = global_charge(mechtype);
-	if (valence != VAL_SENTINAL && val != VAL_SENTINAL && valence != val) {
-		fprintf(stderr, "%s ion valence defined differently in\n\
+        register_mech((const char**)mechanism, ion_alloc, ion_cur, (mod_f_t)0, (mod_f_t)0, (mod_f_t)ion_init, -1, 1);
+        mechtype = nrn_get_mechtype(mechanism[1]);
+        _nrn_layout_reg(mechtype, LAYOUT);
+        hoc_register_prop_size(mechtype, nparm, 1 );
+        hoc_register_dparam_semantics(mechtype, 0, "iontype");
+        nrn_writes_conc(mechtype, 1);
+
+
+        sprintf(buf[0], "%si0_%s", name, buf[0]);
+        sprintf(buf[1], "%so0_%s", name, buf[0]);
+                if (strcmp("na", name) == 0) {
+                        na_ion = mechtype;
+                        global_conci(mechtype) = DEF_nai;
+                        global_conco(mechtype) = DEF_nao;
+                        global_charge(mechtype) = 1.;
+                }else if (strcmp("k", name) == 0) {
+                        k_ion = mechtype;
+                        global_conci(mechtype) = DEF_ki;
+                        global_conco(mechtype) = DEF_ko;
+                        global_charge(mechtype) = 1.;
+                }else if (strcmp("ca", name) == 0) {
+                        ca_ion = mechtype;
+                        global_conci(mechtype) = DEF_cai;
+                        global_conco(mechtype) = DEF_cao;
+                        global_charge(mechtype) = 2.;
+                }else{
+                        global_conci(mechtype) = DEF_ioni;
+                        global_conco(mechtype) = DEF_iono;
+                        global_charge(mechtype) = VAL_SENTINAL;
+                }
+        }
+        val = global_charge(mechtype);
+        if (valence != VAL_SENTINAL && val != VAL_SENTINAL && valence != val) {
+                fprintf(stderr, "%s ion valence defined differently in\n\
 two USEION statements (%g and %g)\n",
 			buf[0], valence, global_charge(mechtype));
 		nrn_exit(1);
@@ -195,9 +199,9 @@ void nrn_wrote_conc(int type, double* p1, int p2, int it, double **gimap, double
         flag = 0;
     }
 #endif
-	if (it & 04) {
+        if (it & 04) {
 #if LAYOUT <= 0 /* SoA */
-		int _iml = 0;
+                int _iml = 0;
         /* passing _nt to this function causes cray compiler to segfault during compilation
          * hence passing _cntml_padded
          */
@@ -241,7 +245,7 @@ ion_style("name_ion", [c_style, e_style, einit, eadvance, cinit])
  eca is parameter but if conc exists then eca is assigned
  if conc is nrnocCONST then eca calculated on finitialize
  if conc is STATE then eca calculated on fadvance and conc finitialize
- 	with global nai0, nao0
+        with global nai0, nao0
 
  nernst(ci, co, charge) and ghk(v, ci, co, charge) available to hoc
  and models.
@@ -269,7 +273,7 @@ double nrn_nernst_coef(type) int type; {
 
 
 /* Must be called prior to any channels which update the currents */
-static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
+void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -286,7 +290,7 @@ static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_padded = ml->_nodecount_padded;
 	pd = ml->data; ppd = ml->pdata;
     _PRAGMA_FOR_CUR_ACC_LOOP_
-	for (_iml = 0; _iml < _cntml_actual; ++_iml) {
+        for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 #endif
 #if LAYOUT > 1 /*AoSoA*/
 #error AoSoA not implemented.
@@ -302,7 +306,7 @@ static void ion_cur(NrnThread* nt, Memb_list* ml, int type) {
 /* Must be called prior to other models which possibly also initialize
 	concentrations based on their own states
 */
-static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
+void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _iml;
 	double* pd; Datum* ppd;
@@ -316,7 +320,7 @@ static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	int _cntml_padded = ml->_nodecount_padded;
 	pd = ml->data; ppd = ml->pdata;
     _PRAGMA_FOR_INIT_ACC_LOOP_
-	for (_iml = 0; _iml < _cntml_actual; ++_iml) {
+        for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 #endif
 #if LAYOUT > 1 /*AoSoA*/
 #error AoSoA not implemented.
@@ -331,8 +335,8 @@ static void ion_init(NrnThread* nt, Memb_list* ml, int type) {
 	}
 }
 
-static void ion_alloc() {
-	assert(0);
+void ion_alloc(double* p, Datum* ppvar, int _type) {
+    assert(0);
 }
 
 void second_order_cur(NrnThread* _nt) {
@@ -352,10 +356,11 @@ void second_order_cur(NrnThread* _nt) {
     double * _vec_rhs = _nt->_actual_rhs;
 
   if (secondorder == 2) {
-	for (tml = _nt->tml; tml; tml = tml->next) if (memb_func[tml->index].alloc == ion_alloc) {
-		ml = tml->ml;
-		_cntml_actual = ml->nodecount;
-		ni = ml->nodeindices;
+    for (tml = _nt->tml; tml; tml = tml->next)
+      if (nrn_is_ion(tml->index)) {
+                ml = tml->ml;
+                _cntml_actual = ml->nodecount;
+                ni = ml->nodeindices;
 #if LAYOUT == 1 /*AoS*/
 		for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 		  pd = ml->data + _iml*nparm;
@@ -363,7 +368,7 @@ void second_order_cur(NrnThread* _nt) {
 #if LAYOUT == 0 /*SoA*/
 		_cntml_padded = ml->_nodecount_padded;
 		pd = ml->data;
-        _PRAGMA_FOR_SEC_ORDER_CUR_ACC_LOOP_
+	_PRAGMA_FOR_SEC_ORDER_CUR_ACC_LOOP_
 		for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 #endif
 #if LAYOUT > 1 /*AoSoA*/
@@ -376,3 +381,4 @@ void second_order_cur(NrnThread* _nt) {
 }
 
 #endif
+
