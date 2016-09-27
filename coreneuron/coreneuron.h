@@ -53,11 +53,31 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <openacc.h>
 #endif
 
-//TODO files to add for library:
-// - nrniv/nrn_acc_manager.cpp
-// - nrnoc/capac.c
-// - nrnoc/eion.c
-// - nrniv/profiler_interface.cpp
-// - nrniv/cuda_profile.cpp
-// - scopmath_core/newton_struct.cpp
-// - (all header files above)
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+//TODO add external variables required by mechanisms
+//extern double celsius;
+//extern int nrn_ion_global_map_size;
+//extern double** nrn_ion_global_map;
+
+//from (auto-generated) mod_func_ptrs.c
+extern mod_f_t get_init_function(const char * sym);
+extern mod_f_t get_cur_function(const char * sym);
+extern mod_f_t get_state_function(const char * sym);
+extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
+
+//from nrnoc/capac.c
+extern void nrn_init_capacitance(struct NrnThread*, struct Memb_list*, int);;
+extern void nrn_cur_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_alloc_capacitance(double* data, Datum* pdata, int type);
+
+//from nrnoc/eion.c
+extern void nrn_init_ion(struct NrnThread*, struct Memb_list*, int);
+extern void nrn_cur_ion(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_alloc_ion(double* data, Datum* pdata, int type);
+
+#if defined(__cplusplus)
+}
+#endif
