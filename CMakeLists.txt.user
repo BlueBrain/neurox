@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.1.0, 2016-09-26T09:39:03. -->
+<!-- Written by QtCreator 4.1.0, 2016-09-27T19:39:56. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -69,13 +69,9 @@
    <value type="int" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
     <valuelist type="QVariantList" key="CMake.Configuration">
-     <value type="QString">ADDITIONAL_MECHPATH:PATH=/Users/bmagalha/Workspace/neurodamus/lib/modlib</value>
-     <value type="QString">ADDITIONAL_MECHS:FILEPATH=/Users/bmagalha/Workspace/neurodamus/lib/modlib/coreneuron_modlist.txt</value>
-     <value type="QString">CMAKE_BUILD_TYPE:STRING=Debug</value>
-     <value type="QString">CMAKE_CXX_COMPILER:STRING=/opt/local/bin/mpicxx</value>
-     <value type="QString">CMAKE_C_COMPILER:STRING=/opt/local/bin/mpicc</value>
-     <value type="QString">QT_QMAKE_EXECUTABLE:STRING=%{Qt:qmakeExecutable}</value>
-     <value type="QString">UNIT_TESTS:BOOL=OFF</value>
+     <value type="QString">CMAKE_BUILD_TYPE:STRING=</value>
+     <value type="QString">CMAKE_CXX_COMPILER:INTERNAL=/opt/local/bin/mpicxx</value>
+     <value type="QString">CMAKE_C_COMPILER:INTERNAL=/opt/local/bin/mpicc</value>
     </valuelist>
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/Users/bmagalha/Workspace/neurox/build-qt</value>
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">

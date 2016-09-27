@@ -102,9 +102,9 @@ static void nrn_lhs(NrnThread* _nt) {
     int stream_id = _nt->stream_id;
 #endif
 
-    i1 = 0;
-    i2 = i1 + _nt->ncell;
-    i3 = _nt->end;
+	i1 = 0;
+	i2 = i1 + _nt->ncell;
+	i3 = _nt->end;
 
 	/* note that CAP has no jacob */
 	for (tml = _nt->tml; tml; tml = tml->next) if (memb_func[tml->index].jacob) {
@@ -122,7 +122,7 @@ has taken effect
 	/* note, the first is CAP */
 	if (_nt->tml) {
 		assert(_nt->tml->index == CAP);
-        cap_jacob(_nt, _nt->tml->ml, _nt->tml->index);
+		nrn_jacob_capacitance(_nt, _nt->tml->ml, _nt->tml->index);
 	}
 
     double *vec_d = &(VEC_D(0));

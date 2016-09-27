@@ -35,23 +35,29 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <errno.h>
 #include <stdint.h>
 
-#include "coreneuron/nrnoc/nrnoc_ml.h"
-
 #define NRNBBCORE 1
 
 #define nil NULL
+#define Sprintf sprintf
 
+typedef int Datum;
+typedef int (*Pfri)();
+typedef char Symbol;
+
+#define CACHEVEC 2
 #define VEC_A(i) (_nt->_actual_a[(i)]) 
 #define VEC_B(i) (_nt->_actual_b[(i)])
 #define VEC_D(i) (_nt->_actual_d[(i)])
 #define VEC_RHS(i) (_nt->_actual_rhs[(i)])
 #define VEC_V(i) (_nt->_actual_v[(i)])
 #define VEC_AREA(i) (_nt->_actual_area[(i)])
+#define VECTORIZE 1
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
+extern double celsius;
 extern double t, dt;
 extern int rev_dt;
 extern int secondorder;
@@ -73,6 +79,14 @@ extern void* erealloc(void* ptr, size_t size);
 extern void* emalloc_align(size_t size, size_t alignment);
 extern void* ecalloc_align(size_t n, size_t alignment, size_t size);
 extern double hoc_Exp(double x);
+
+/* will go away at some point */
+typedef struct Point_process {
+	int _i_instance;
+	short _type;
+	short _tid; /* NrnThread id */
+} Point_process;
+
 extern char* pnt_name(Point_process* pnt);
 
 #if defined(__cplusplus)

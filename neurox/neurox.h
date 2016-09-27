@@ -1,9 +1,7 @@
 #pragma once
 
 //Coreneuron core datatypes
-#include "coreneuron/nrnoc/membdef.h"  //definitions
-#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
-#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
+#include "coreneuron/coreneuron.h"  //definitions
 
 //Core datatypes
 #include "neurox/neurox_hpx.h"

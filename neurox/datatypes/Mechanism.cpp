@@ -1,4 +1,5 @@
 #include "neurox/neurox.h"
+#include "coreneuron/nrnoc/membfunc.h"
 #include <cstring>
 
 using namespace std;
@@ -128,10 +129,10 @@ void Mechanism::registerModFunctions(int type)
 void Mechanism::registerCapacitance()
 {
     assert(this->sym && strcmp("capacitance", this->sym)==0);
-    this->membFunc.alloc = cap_alloc;
-    this->membFunc.initialize = cap_init;
-    this->membFunc.current = cap_cur;
-    this->membFunc.jacob = cap_jacob;
+    this->membFunc.alloc = nrn_alloc_capacitance;
+    this->membFunc.initialize = nrn_init_capacitance;
+    this->membFunc.current = nrn_cur_capacitance;
+    this->membFunc.jacob = nrn_jacob_capacitance;
     //this->membFunc.alloc = Capacitance::cap_alloc;
     //this->membFunc.initialize = Capacitance::cap_init;
     //this->membFunc.current = Capacitance::nrn_capacity_current;
@@ -148,8 +149,8 @@ void Mechanism::registerIon()
     charge = (floble_t) ion_global_map[type][2];
 
     //this->membFunc.alloc = ion_alloc; //assert(0) should never be called
-    this->membFunc.initialize = ion_init;
-    this->membFunc.current = ion_cur;
+    this->membFunc.initialize = nrn_init_ion;
+    this->membFunc.current = nrn_cur_ion;
 }
 
 Mechanism::~Mechanism(){

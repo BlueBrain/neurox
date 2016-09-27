@@ -32,8 +32,7 @@ print <<"__eof";
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
-#include "coreneuron/nrnoc/nrnoc_nt.h" //NrnThread
+#include "coreneuron/coreneuron.h"
 __eof
 
 #Get the correct SUFFIX from each mod file for each mechanism

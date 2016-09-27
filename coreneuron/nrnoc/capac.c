@@ -49,16 +49,17 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 static const char *mechanism[] = { "0", "capacitance", "cm",0, "i_cap", 0,0 };
-void cap_alloc(double*, Datum*, int);
-void cap_init(NrnThread*, Memb_list*, int);
-void cap_jacob(NrnThread*, Memb_list*, int);
+void nrn_alloc_capacitance(double*, Datum*, int);
+void nrn_init_capacitance(NrnThread*, Memb_list*, int);
+void nrn_jacob_capacitance(NrnThread*, Memb_list*, int);
 
 #define nparm 2
 
-void capac_reg_(void) {
+void capacitance_reg(void) {
 	int mechtype;
 	/* all methods deal with capacitance in special ways */
-	register_mech(mechanism, cap_alloc, (mod_f_t)0, (mod_f_t)0, (mod_f_t)0, (mod_f_t)cap_init, -1, 1);
+	register_mech(mechanism, nrn_alloc_capacitance, (mod_f_t)0, (mod_f_t)0,
+		      (mod_f_t)0, nrn_init_capacitance, -1, 1);
 	mechtype = nrn_get_mechtype(mechanism[1]);
 	_nrn_layout_reg(mechtype, LAYOUT);
 	hoc_register_prop_size(mechtype, nparm, 0);
@@ -74,7 +75,7 @@ for pure implicit fixed step it is 1/dt
 It used to be static but is now a thread data variable
 */
 
-void cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
+void nrn_jacob_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -103,7 +104,7 @@ void cap_jacob(NrnThread* _nt, Memb_list* ml, int type) {
 	}
 }
 
-void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
+void nrn_init_capacitance(NrnThread* _nt, Memb_list* ml, int type ) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -122,7 +123,7 @@ void cap_init(NrnThread* _nt, Memb_list* ml, int type ) {
 	}
 }
 
-void cap_cur(NrnThread* _nt, Memb_list* ml, int type) {
+void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
 	int _cntml_actual = ml->nodecount;
 	int _cntml_padded = ml->_nodecount_padded;
 	int _iml;
@@ -156,7 +157,7 @@ void cap_cur(NrnThread* _nt, Memb_list* ml, int type) {
 
 /* the rest can be constructed automatically from the above info*/
 
-void cap_alloc(double* data, Datum* pdata, int type) {
+void nrn_alloc_capacitance(double* data, Datum* pdata, int type) {
 	(void)pdata; (void)type; /* unused */
 	data[0] = DEF_cm;	/*default capacitance/cm^2*/
 }
