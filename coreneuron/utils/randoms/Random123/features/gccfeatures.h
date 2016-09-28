@@ -32,16 +32,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __gccfeatures_dot_hpp
 #define __gccfeatures_dot_hpp
 
-#define R123_GNUC_VERSION (__GNUC__*10000 + __GNUC_MINOR__*100 + __GNUC_PATCHLEVEL__)
+#define R123_GNUC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 
 #if !defined(__x86_64__) && !defined(__i386__) && !defined(__powerpc__)
-#  error "This code has only been tested on x86 and powerpc platforms."
+#error "This code has only been tested on x86 and powerpc platforms."
 #include <including_a_nonexistent_file_will_stop_some_compilers_from_continuing_with_a_hopeless_task>
 { /* maybe an unbalanced brace will terminate the compilation */
- /* Feel free to try the Random123 library on other architectures by changing
- the conditions that reach this error, but you should consider it a
- porting exercise and expect to encounter bugs and deficiencies.
- Please let the authors know of any successes (or failures). */
+  /* Feel free to try the Random123 library on other architectures by changing
+  the conditions that reach this error, but you should consider it a
+  porting exercise and expect to encounter bugs and deficiencies.
+  Please let the authors know of any successes (or failures). */
 #endif
 
 #ifdef __powerpc__
@@ -70,7 +70,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_BUILTIN_EXPECT
-#define R123_BUILTIN_EXPECT(expr,likely) __builtin_expect(expr,likely)
+#define R123_BUILTIN_EXPECT(expr, likely) __builtin_expect(expr, likely)
 #endif
 
 /* According to the C++0x standard, we should be able to test the numeric
@@ -80,7 +80,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    earlier versions, the only way  to detect whether --std=c++0x was requested
    on the command line is to look at the __GCC_EXPERIMENTAL_CXX0X__ pp-symbol.
 */
-#define GNU_CXX11 (__cplusplus>=201103L || (R123_GNUC_VERSION<40700 && defined(__GCC_EXPERIMENTAL_CXX0X__) ))
+#define GNU_CXX11 \
+    (__cplusplus >= 201103L || (R123_GNUC_VERSION < 40700 && defined(__GCC_EXPERIMENTAL_CXX0X__)))
 
 #ifndef R123_USE_CXX11_UNRESTRICTED_UNIONS
 #define R123_USE_CXX11_UNRESTRICTED_UNIONS ((R123_GNUC_VERSION >= 40600) && GNU_CXX11)
@@ -99,11 +100,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_USE_CXX11_RANDOM
-#define R123_USE_CXX11_RANDOM ((R123_GNUC_VERSION>=40500) && GNU_CXX11)
+#define R123_USE_CXX11_RANDOM ((R123_GNUC_VERSION >= 40500) && GNU_CXX11)
 #endif
 
 #ifndef R123_USE_CXX11_TYPE_TRAITS
-#define R123_USE_CXX11_TYPE_TRAITS ((R123_GNUC_VERSION>=40400) && GNU_CXX11)
+#define R123_USE_CXX11_TYPE_TRAITS ((R123_GNUC_VERSION >= 40400) && GNU_CXX11)
 #endif
 
 #ifndef R123_USE_AES_NI
@@ -158,7 +159,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_USE_ASM_GNU
-#define R123_USE_ASM_GNU (defined(__x86_64__)||defined(__i386__))
+#define R123_USE_ASM_GNU (defined(__x86_64__) || defined(__i386__))
 #endif
 
 #ifndef R123_USE_CPUID_MSVC
@@ -166,7 +167,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_USE_X86INTRIN_H
-#define R123_USE_X86INTRIN_H ((defined(__x86_64__)||defined(__i386__)) && R123_GNUC_VERSION >= 40402)
+#define R123_USE_X86INTRIN_H \
+    ((defined(__x86_64__) || defined(__i386__)) && R123_GNUC_VERSION >= 40402)
 #endif
 
 #ifndef R123_USE_IA32INTRIN_H
@@ -178,7 +180,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_USE_EMMINTRIN_H
-/* gcc -m64 on Solaris 10 defines __SSE2__ but doesn't have 
+/* gcc -m64 on Solaris 10 defines __SSE2__ but doesn't have
    emmintrin.h in the include search path.  This is
    so broken that I refuse to try to work around it.  If this
    affects you, figure out where your emmintrin.h lives and

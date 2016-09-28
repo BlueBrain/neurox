@@ -38,7 +38,7 @@ with cray compiler.
 #endif
 
 #ifndef R123_BUILTIN_EXPECT
-#define R123_BUILTIN_EXPECT(expr,likely) expr
+#define R123_BUILTIN_EXPECT(expr, likely) expr
 #endif
 
 #ifndef R123_USE_WMMINTRIN_H
