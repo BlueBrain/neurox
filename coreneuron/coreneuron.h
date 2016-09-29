@@ -42,22 +42,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnoc/membdef.h"  //static definitions
 #include "coreneuron/nrnoc/nrnoc_ml.h" //Memb_list and mechs info
 
-#include "coreneuron/mech/cfile/scoplib.h"
-#include "coreneuron/utils/randoms/nrnran123.h"
-
-#include "coreneuron/nrniv/profiler_interface.h"
-#include "coreneuron/nrniv/cuda_profile.h"
-
-#if defined(_OPENACC) && !defined(DISABLE_OPENACC)
-#include "coreneuron/nrniv/nrn_acc_manager.h"
-#include <openacc.h>
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-//TODO add global variables required by mechanisms
+//TODO add external variables required by mechanisms
 //extern double celsius;
 //extern int nrn_ion_global_map_size;
 //extern double** nrn_ion_global_map;
