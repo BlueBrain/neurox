@@ -449,7 +449,7 @@ void DataLoader::cleanData()
 void DataLoader::loadData(int argc, char ** argv)
 {
     cn_input_params input_params;
-    nrn_load_data(argc, argv, input_params);
+    nrn_init_and_load_data(argc, argv, input_params);
     //coreNeuronInitialSetup(argc, argv);
 
     //we will walk a bit with coreneuron

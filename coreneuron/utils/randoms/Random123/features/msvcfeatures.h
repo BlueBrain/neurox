@@ -37,8 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#endif
 
 #if !defined(_M_IX86) && !defined(_M_X64)
-#  error "This code has only been tested on x86 platforms."
-{ // maybe an unbalanced brace will terminate the compilation
+#error "This code has only been tested on x86 platforms."
+{  // maybe an unbalanced brace will terminate the compilation
 // You are invited to try Random123 on other architectures, by changing
 // the conditions that reach this error, but you should consider it a
 // porting exercise and expect to encounter bugs and deficiencies.
@@ -63,7 +63,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef R123_BUILTIN_EXPECT
-#define R123_BUILTIN_EXPECT(expr,likely) expr
+#define R123_BUILTIN_EXPECT(expr, likely) expr
 #endif
 
 // The basic idiom is:
@@ -192,8 +192,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #error UINT64_C not defined.  You must define __STDC_CONSTANT_MACROS before you #include <stdint.h>
 #endif
 
-#pragma warning(disable:4244)
-#pragma warning(disable:4996)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4996)
 
 // If you add something, it must go in all the other XXfeatures.hpp
 // and in ../ut_features.cpp
