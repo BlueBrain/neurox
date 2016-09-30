@@ -42,7 +42,7 @@ __eof
 for $m(@mods) {
   $filename = "${m}.mod";
   open $fh, '<', $filename or die "error: unable to open file '$filename' for reading : $!.";
-  my @content = <$fh>; 
+  my @content = <$fh>;
   close $fh;
   my @lines = grep /SUFFIX/, @content;
   if (!@lines) {
@@ -59,7 +59,7 @@ for $m(@mods) {
   @lines[0] =~ s/[\r\n]+$//; #remove bad endings (breakline)
   my @words = split / /, @lines[0]; #get words from first (and only) line containing 'SUFFIX'
   my $suffix = @words[1]; #get SUFFIX name as second word"
-  push(@suffixes_all, $suffix); 
+  push(@suffixes_all, $suffix);
 
   #now add only those with nrn_cur function definition
   my @breakpointlines = grep /BREAKPOINT/, @content;

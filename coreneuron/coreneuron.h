@@ -32,7 +32,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * functions.
 **/
 
-#pragma once
+#ifndef CORENEURON_H
+#define CORENEURON_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,11 +52,13 @@ extern "C" {
 //extern int nrn_ion_global_map_size;
 //extern double** nrn_ion_global_map;
 
+#ifdef EXPORT_MECHS_FUNCTIONS
 //from (auto-generated) mod_func_ptrs.c
 extern mod_f_t get_init_function(const char * sym);
 extern mod_f_t get_cur_function(const char * sym);
 extern mod_f_t get_state_function(const char * sym);
 extern mod_f_t get_BA_function(const char * sym, int BA_func_id);
+#endif
 
 //from nrnoc/capac.c
 extern void nrn_init_capacitance(struct NrnThread*, struct Memb_list*, int);;
@@ -69,4 +72,6 @@ extern void nrn_alloc_ion(double* data, Datum* pdata, int type);
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
