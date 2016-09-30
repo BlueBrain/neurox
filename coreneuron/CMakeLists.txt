@@ -1,136 +1,38 @@
+# Copyright (c) 2016, Blue Brain Project
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+# THE POSSIBILITY OF SUCH DAMAGE.
+
+
 include_directories(utils/randoms)
+include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${MPI_INCLUDE_PATH})
 
-set(CORENEURON_PUBLIC_HEADERS
-${COMMON_INCLUDES}
-nrnconf.h
-nrnoc/md1redef.h
-nrnoc/md2redef.h
-nrnoc/membfunc.h
-nrnoc/multicore.h
-nrnoc/nrnoc_ml.h
-utils/randoms/nrnran123.h
-utils/endianness.h
-utils/swap_endian.h
-utils/memory_utils.h
-utils/sdprintf.h
-mech/cfile/scoplib.h
-../neurox/neurox.h
-../neurox/datatypes.h
-../neurox/nrx_setup.h
-)
-
-set(CORENEURON_HEADERS
-nrnomp/nrnomp.h
-nrnmpi/mpispike.h
-nrnmpi/nrnmpidec.h
-nrnmpi/nrnmpi_def_cinc.h
-nrnmpi/nrnmpi.h
-nrnmpi/nrnmpi_impl.h
-nrnmpi/nrnmpiuse.h
-nrnoc/membdef.h
-nrnoc/nrnoc_decl.h
-nrnoc/nrnpthread.h
-nrniv/ivocvect.h
-nrniv/memory.h
-nrniv/netcon.h
-nrniv/netcvode.h
-nrniv/nrn_assert.h
-nrniv/nrn_datareader.h
-nrniv/nrn_setup.h
-nrniv/nrn_stats.h
-nrniv/nrnoptarg.h
-nrniv/nrniv_decl.h
-nrniv/nrniv_mf.h
-nrniv/nrnmutdec.h
-nrniv/output_spikes.h
-nrniv/prcellstate.cpp
-nrniv/sptbinq.h
-nrniv/vrecitem.h
-mech/cfile/cabvars.h
-../neurox/neurox.h
-../neurox/datatypes.h
-../neurox/nrx_setup.h
-../neurox/nrxoptarg.h
-)
-
-set(CORENEURON_SOURCES
-${COMMON_SOURCES}
-nrnomp/nrnomp.c
-nrnmpi/nrnmpi.c
-nrnmpi/mpispike.c
-nrnoc/capac.c
-nrnoc/eion.c
-nrnoc/finitialize.c
-nrnoc/fadvance_core.c
-nrnoc/solve_core.c
-nrnoc/treeset_core.c
-nrnoc/nrnoc_aux.c
-nrnoc/register_mech.c
-nrnoc/multicore.c
-nrnoc/nrntimeout.c
-nrniv/coreneuron_main.cpp
-nrniv/cvodestb.cpp
-nrniv/ivocvect.cpp
-nrniv/netpar.cpp
-nrniv/netcvode.cpp
-nrniv/tqueue.cpp
-nrniv/mk_mech.cpp
-nrniv/nrn_datareader.cpp
-nrniv/nrn_setup.cpp
-nrniv/nrn_stats.cpp
-nrniv/nrnoptarg.cpp
-nrniv/output_spikes.cpp
-nrniv/patternstim.cpp
-nrniv/vrecord.cpp
-nrniv/main1.cpp
-utils/randoms/nrnran123.c
-utils/memory_utils.cpp
-utils/sdprintf.cpp
-../neurox/nrx_setup.cpp
-../neurox/datatypes.cpp
-../neurox/main.cpp
-../neurox/nrxoptarg.cpp
-)
-
-#Incldude tclap
-FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
-	/usr/local/include
-	/usr/include
-	/opt/local/include
-)
-
-IF(TCLAP_INCLUDE_DIR)
-	message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
-ELSE()
-	message(FATAL_ERROR "Could not find TCLAP")
-ENDIF()
-include_directories(${TCLAP_INCLUDE_DIR})
-
-# Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
-set(PKG_CONFIG_EXECUTABLE pkg-config)
-IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config not found")
-ELSE()
-  #use pkg-config to find hpx
-  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
-  pkg_check_modules(HPX REQUIRED hpx )
-  IF (NOT HPX_FOUND)
-    message (FATAL_ERROR "pkg-config did not find HPX")
-  ELSE()
-    message (STATUS "hpx ${HPX_VERSION} found by pkg-config:")
-    message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-    #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
-    #message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
-    message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
-    #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
-    include_directories(${HPX_INCLUDE_DIRS})
-    SET(CORENEURON_LINK_LIBRARIES ${HPX_LDFLAGS})
-  ENDIF()
-ENDIF()
-
+FILE(GLOB_RECURSE coreneuron_all_headers "*.h")
+FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp")
+FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*")
+file(GLOB_RECURSE coreneuron_cuda_files "*.cu")
 
 # Compile and include MOD files
 
@@ -169,7 +71,7 @@ macro(mod2c_target name input)
     list(APPEND MOD2C_${name}_MODS "${mod2c_modname_}")
 
     add_custom_command(OUTPUT "${mod2c_output_}"
-      DEPENDS ${input}
+      DEPENDS ${input} "${mod2c_install_prefix}/mod2c_core"
       COMMAND ${CMAKE_COMMAND} -E copy "${mod2c_source_}" "${CMAKE_CURRENT_BINARY_DIR}"
       COMMAND ${MOD2C} "${mod2c_modname_}"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -185,36 +87,41 @@ endmacro()
 # variables. Go CMake! You rock!
 
 macro(mod2c_from_file name modlist searchpath)
-    if((NOT EXISTS "${modlist}") OR (IS_DIRECTORY "${modlist}"))
-        message(WARNING "Unable to read MOD list file: ${modlist}")
+    unset(tmp_path_ CACHE)
+    if(NOT EXISTS "${modlist}")
+	string(REGEX REPLACE ":" ";" spath "${searchpath}")
+	foreach(path_ ${spath})
+            file(GLOB_RECURSE mod_files "${path_}/*.mod")
+            list(APPEND mods_ "${mod_files};")
+        endforeach()
     else()
-	unset(tmp_path_ CACHE)
 	file(READ "${modlist}" mods_)
-	string(REGEX REPLACE "[ \t\n]+" ";" mods_ "${mods_}")
-	list(REMOVE_ITEM mods_ "")
-
-	foreach(mod_ ${mods_})
-	    unset(modpath_)
-	    if(NOT IS_ABSOLUTE "${mod_}")
-		find_path(tmp_path_ "${mod_}" PATH ${searchpath} NO_DEFAULT_PATH)
-		if(tmp_path_)
-		    set(modpath_ "${tmp_path_}/${mod_}")
-		endif()
-		unset(tmp_path_ CACHE)
-	    else()
-		set(modpath_ "${mod_}")
-	    endif()
-	    if((NOT EXISTS "${modpath_}") OR (IS_DIRECTORY "${modpath_}"))
-		unset(modpath_)
-	    endif()
-
-	    if(modpath_)
-		mod2c_target(${name} "${modpath_}")
-	    else()
-		message(WARNING "Unable to locate MOD file: ${mod_}")
-	    endif()
-	endforeach()
     endif()
+    string(REGEX REPLACE "[ \t\n]+" ";" mods_ "${mods_}")
+    list(REMOVE_ITEM mods_ "")
+
+    foreach(mod_ ${mods_})
+        unset(modpath_)
+        if(NOT IS_ABSOLUTE "${mod_}")
+            find_path(tmp_path_ "${mod_}" PATH ${searchpath} NO_DEFAULT_PATH)
+	    if(tmp_path_)
+	        set(modpath_ "${tmp_path_}/${mod_}")
+	    endif()
+	    unset(tmp_path_ CACHE)
+        else()
+            set(modpath_ "${mod_}")
+	endif()
+	if((NOT EXISTS "${modpath_}") OR (IS_DIRECTORY "${modpath_}"))
+	    unset(modpath_)
+        endif()
+
+        if(modpath_)
+            mod2c_target(${name} "${modpath_}")
+            list(APPEND MOD_PATHS ${modpath_})
+        else()
+	    message(WARNING "Unable to locate MOD file: ${mod_}")
+        endif()
+    endforeach()
 endmacro()
 
 # Standard MOD files are always built
@@ -226,44 +133,29 @@ foreach(MOD ${MECH_STDMODS})
   mod2c_target(STDMECH "${STDMODLIBPATH}/${MOD}")
 endforeach()
 
-# Additional MOD files: these can come from Neurodamus and/or from a configure-time
-# variable (see CORENEURON_ADDITIONAL_MECHS below)
-
 set(MECH_FILE_LISTS)
 
-# Neurodamus mechanisms are built by default
-
-option(CORENEURON_NEURODAMUS_MECHS "Compile CoreNeuron with all available mechanisms from Neurodamus" ON)
-
-if(CORENEURON_NEURODAMUS_MECHS)
-  set(MODLIBPATH "${CMAKE_CURRENT_SOURCE_DIR}/mech/neurodamus/lib/modlib")
-  set(MODLISTFILE "${CMAKE_CURRENT_SOURCE_DIR}/mech/coreneuron_modlist.txt")
-
-  if(EXISTS "${MODLISTFILE}")
-    list(APPEND MECH_FILE_LISTS "${MODLISTFILE}")
-    mod2c_from_file(OPTMECH "${MODLISTFILE}" "${MODLIBPATH}")
-  else()
-    message(FATAL_ERROR "Cannot find coreneuron_modlist.txt listing .mod files to include. Consider setting CORENEURON_NEURODAMUS_MECHS to OFF")
-  endif()
-endif()
-
-# Additional optional mechanisms specified in CORENEURON_ADDITIONAL_MECHS
-# and CORENEURON_ADDITIONAL_MECHPATH (set as a PATH cache variable, but
+# Additional optional mechanisms specified in ADDITIONAL_MECHS
+# and ADDITIONAL_MECHPATH (set as a PATH cache variable, but
 # can in fact be a list of paths.)
+# If ADDITIONAL_MECHS is not provided, the entire ADDITIONAL_MECHPATH
+# will be checked for the mod files.
 
-set(CORENEURON_ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
-set(CORENEURON_ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
-
-if(EXISTS ${CORENEURON_ADDITIONAL_MECHS})
-    list(APPEND MECH_FILE_LISTS "${CORENEURON_ADDITIONAL_MECHS}")
-    mod2c_from_file(OPTMECH "${CORENEURON_ADDITIONAL_MECHS}" "${CORENEURON_ADDITIONAL_MECHPATH}")
+if(EXISTS ${ADDITIONAL_MECHS})
+    if(IS_DIRECTORY "${modlist}")
+        message(WARNING "Unable to read MOD list file: ${modlist}")
+    else()
+        list(APPEND MECH_FILE_LISTS "${ADDITIONAL_MECHS}")
+    endif()
 endif()
+mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 
 # For 'non-standard' mod files, need to generate registering function in mod_func.c
 
-set(MOD_FUNC_C "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
+set(MOD_FUNC_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
 set(MOD_FUNC_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func.c.pl")
 
+# ... pass as argument to the perl script the list of mod file names;
 add_custom_command(OUTPUT "${MOD_FUNC_C}"
     DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_C_PL}"
     COMMAND perl "${MOD_FUNC_C_PL}" ${MOD2C_OPTMECH_MODS} > "${MOD_FUNC_C}"
@@ -275,12 +167,80 @@ foreach(depfile ${MECH_FILE_LISTS})
     configure_file("${depfile}" "${CMAKE_CURRENT_BINARY_DIR}/dummy_reconfigure_dep")
 endforeach()
 
+# to work around no acc ability to pass function pointers as arguments,
+# some translated c files depend on a _kinderiv.h file that is constructed
+# by kinderiv.py
+
+set(KINDERIV_PY "${CMAKE_CURRENT_SOURCE_DIR}/kinderiv.py")
+set(KINDERIV_H "${CMAKE_CURRENT_BINARY_DIR}/_kinderiv.h")
+
+add_custom_command(OUTPUT "${KINDERIV_H}"
+    DEPENDS ${MOD2C_OPTMECH_OUTPUTS} ${MOD2C_STDMECH_OUTPUTS} "${KINDERIV_PY}"
+    COMMAND python "${KINDERIV_PY}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+if (EXPORT_MECHS_FUNCTIONS)
+  # Create C file with all "get function pointers" methods
+  set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
+  set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
+
+  # ... pass as argument to the perl script the list of mods full paths;
+  add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
+      DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
+      COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD_PATHS} > "${MOD_FUNC_PTRS_C}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
+
 # Add generated sources from MOD files
 
-set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
-set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "-Wno-error")
+set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 
-SET(CORENEURON_SOURCES ${CORENEURON_SOURCES} ${GENERATED_MECH_C_FILES})
-common_library(coreneuron)
+# artificial cells must be on cpu, defaul nrnran123.c is for cpu, nrn_setup.cpp uses nrnran123 for only memory calculation purpose which should use cpu version of nrnran123
+set(NOACC_MECH_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/netstim.c ${CMAKE_CURRENT_BINARY_DIR}/netstim_inhpoisson.c ${CMAKE_CURRENT_BINARY_DIR}/pattern.c ${CMAKE_CURRENT_SOURCE_DIR}/utils/randoms/nrnran123.c ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/nrn_setup.cpp)
 
-install(FILES ${CMAKE_BINARY_DIR}/coreneuron/CMakeFiles/coreneuron.dir/nrniv/coreneuron_main.cpp.o DESTINATION lib)
+if(ENABLE_OPENACC)
+    set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "")
+    set_source_files_properties(${NOACC_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "-DDISABLE_OPENACC")
+    if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
+        set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/scopmath_core/sparse_thread.c PROPERTIES COMPILE_FLAGS "-ta=tesla:nollvm")
+    endif()
+endif()
+
+set(coreneuron_all_c_files ${coreneuron_all_c_files} ${GENERATED_MECH_C_FILES})
+
+#to indent generated c/cpp files
+if(CLANG_FORMAT_FOUND)
+    add_custom_target(formatbuild COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_FILES:STRING="${GENERATED_MECH_C_FILES}"
+        -DCLANG_FORMAT_EXECUTABLE=${CLANG_FORMAT_EXECUTABLE}
+        -P "${PROJECT_SOURCE_DIR}/CMake/ClangFormatUtils.cmake"
+        )
+endif()
+
+
+add_library(coreneuron ${COMPILE_LIBRARY_TYPE} ${coreneuron_all_headers} ${coreneuron_all_templates} ${coreneuron_all_c_files} ${KINDERIV_H})
+
+set(link_cudacoreneuron)
+set(link_reportinglib)
+
+#@TODO: CMake should have option for arch
+if(ENABLE_OPENACC)
+    cuda_add_library("cudacoreneuron" ${coreneuron_cuda_files} OPTIONS -arch=sm_20)
+    set(link_cudacoreneuron cudacoreneuron)
+endif()
+
+if(ENABLE_REPORTINGLIB)
+  set(link_reportinglib ${REPORTINGLIB_LIBRARIES})
+endif()
+target_link_libraries(coreneuron ${MPI_C_LIBRARIES}
+    ${link_reportinglib} ${link_cudacoreneuron} ${CUDA_LIBRARIES} )
+
+
+set_target_properties(coreneuron PROPERTIES
+                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+                            SOVERSION ${VERSION_MAJOR}
+                            CLEAN_DIRECT_OUTPUT 1)
+
+install(TARGETS coreneuron
+             LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+             ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )

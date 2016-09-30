@@ -1,17 +1,29 @@
 /*
-Copyright (c) 2014 EPFL-BBP, All rights reserved.
+Copyright (c) 2016, Blue Brain Project
+All rights reserved.
 
-THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 /*
@@ -32,12 +44,12 @@ extern "C" {
 
 /* from bbsmpipack.c */
 typedef struct bbsmpibuf {
-	char* buf;
-	int size;
-	int pkposition;
-	int upkpos;
-	int keypos;
-	int refcount;
+    char* buf;
+    int size;
+    int pkposition;
+    int upkpos;
+    int keypos;
+    int refcount;
 } bbsmpibuf;
 
 extern bbsmpibuf* nrnmpi_newbuf(int size);
@@ -76,7 +88,8 @@ extern void nrnmpi_terminate();
 extern void nrnmpi_abort(int errcode);
 extern void nrnmpi_subworld_size(int n);
 extern int nrn_wrap_mpi_init(int* flag);
-extern void nrnmpi_fatal_error(const char *msg);
+extern void nrnmpi_fatal_error(const char* msg);
+extern void nrnmpi_check_threading_support();
 
 /* from mpispike.c */
 extern void nrnmpi_spike_initialize(void);
@@ -88,9 +101,15 @@ extern void nrnmpi_int_gather(int* s, int* r, int cnt, int root);
 extern void nrnmpi_int_gatherv(int* s, int scnt, int* r, int* rcnt, int* rdispl, int root);
 extern void nrnmpi_int_allgather(int* s, int* r, int n);
 extern void nrnmpi_int_allgatherv(int* s, int* r, int* n, int* dspl);
+extern void nrnmpi_int_alltoall(int* s, int* r, int n);
 extern void nrnmpi_int_alltoallv(int* s, int* scnt, int* sdispl, int* r, int* rcnt, int* rdispl);
 extern void nrnmpi_dbl_allgatherv(double* s, double* r, int* n, int* dspl);
-extern void nrnmpi_dbl_alltoallv(double* s, int* scnt, int* sdispl, double* r, int* rcnt, int* rdispl);
+extern void nrnmpi_dbl_alltoallv(double* s,
+                                 int* scnt,
+                                 int* sdispl,
+                                 double* r,
+                                 int* rcnt,
+                                 int* rdispl);
 extern void nrnmpi_char_alltoallv(char* s, int* scnt, int* sdispl, char* r, int* rcnt, int* rdispl);
 extern void nrnmpi_dbl_broadcast(double* buf, int cnt, int root);
 extern void nrnmpi_int_broadcast(int* buf, int cnt, int root);

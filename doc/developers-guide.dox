@@ -48,7 +48,7 @@
 @section Building_and_Installing Building and Installing
 
 Note: The default build of CoreNeuron includes production mechanisms from Neurodamus, unless the CORENEURON_NEURODAMUS_MECHS
-flag is OFF. Additional mechanisms can be set with the CORENEURON_ADDITIONAL_MECHS variable (see below).
+flag is OFF. Additional mechanisms can be set with the ADDITIONAL_MECHS variable (see below).
 
 
 @subsection Dependencies Dependencies
@@ -94,14 +94,12 @@ which will result in different building outputs:
   - CORENEURON_OPENMP: OpenMP threading. Default value: ON.
   - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
   - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
-  - CORENEURON_PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
-  - CORENEURON_NEURODAMUS_MECHS: defines whether to build a library with all the mechanisms from Neurodamus,
-which are currently getting synced through the <code>.gitexternal</code> mechanism. Default value: ON.
-  - CORENEURON_ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
+  - PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
+  - ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
 which can be specified with an absolute path name, or as a bare file name.
-  - CORENEURON_ADDITIONAL_MECHPATH: List of directories to search for mod files specified in CORENEURON_ADDITIONAL_MECHS.
+  - ADDITIONAL_MECHPATH: List of directories to search for mod files specified in ADDITIONAL_MECHS.
 
-Note that .mod files specified in CORENEURON_ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
+Note that .mod files specified in ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
 located are reported with a warning rather than with a fatal error.
 
 
@@ -146,6 +144,14 @@ The installation folder will be $PATH_TO_INSTALL_FOLDER, and should contain:
      -# $PATH_TO_INSTALL_FOLDER/bin/coreneuron_exec
 
 where # is the (sub) version number.
+
+@section Using ReportingLib
+If you want enable use of ReportingLib for the soma reports, install ReportingLib first and enable it using -DENABLE_REPORTINGLIB (use same install path for ReportingLib as CoreNeuron).
+
+@section Using Neurodamus
+If you are building CoreNeuron with Neurodamus, you have to set ADDITIONAL_MECHPATH and ADDITIONAL_MECHS as:
+cmake .. -DADDITIONAL_MECHPATH="/path/of/neurodamus/lib/modlib" -DADDITIONAL_MECHS="/path/of/neurodamus/lib/modlib/coreneuron_modlist.txt"
+Make sure to switch to appropriate branch of Neurodamus (based on your dataset/experiment, e.g. coreneuronsetup).
 
 
 @section Running Running
@@ -210,16 +216,24 @@ parameters which can be set from the command line: <br><br>
               Set the spike buffer to be of the size SIZE (int). The default value is '100000'.<br><br>
        -g NUMBER, \--prcellgid=NUMBER<br>
               Output prcellstate information for the gid NUMBER (int). The default value is '-1'.<br><br>
-       -c, --threading<br>
+       -c, \--threading<br>
               Optiong to enable threading. The default implies no threading.<br><br>
        -d PATH, \--datpath=PATH<br>
               Set the path with required CoreNeuron data to PATH (char*). The default value is '.'.<br><br>
        -f FILE, \--filesdat=FILE<br>
               Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
-       -o PATH, --outpath=PATH<br>
+       -o PATH, \--outpath=PATH<br>
               Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
-       -k TIME, --forwardskip=TIME<br>
+       -k TIME, \--forwardskip=TIME<br>
               Set forwardskip to TIME (double). The default value is '0.'.<br><br>
+       -r TYPE, \--report=TYPE<br>
+              Enable voltage report with specificied type (0 for disable, 1 for soma, 2 for full compartment).<br><br>
+       -w, \--dt_report=TIME<br>
+              Set the dt for soma reports (using ReportingLib) to TIME (double). The default value is '0.1'.<br><br>
+       -z MULTIPLE, \--multiple=MULTIPLE<br>
+              Model duplication factor. Model size is normal size * MULTIPLE (int). The default value is '1'.<br><br>
+       -x EXTRACON, \--extracon=EXTRACON<br>
+              Number of extra random connections in each thread to other duplicate models (int). The default value is '0'.<br><br>
        -mpi<br>
               Enable MPI. In order to initialize MPI environment this argument must be specified.<br><br>
 
