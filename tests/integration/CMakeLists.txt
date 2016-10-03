@@ -37,7 +37,9 @@ set(TEST_CASE_ARGS
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
   string(REPLACE "!" ";" string_line ${args_line})
+if(MPI_FOUND)
   string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;1")
+endif()
   list(GET string_line 0 TEST_NAME)
   list(GET string_line 1 TEST_ARGS)
   set(SIM_NAME ${TEST_NAME})
@@ -54,7 +56,9 @@ endforeach()
 if(ADDITIONAL_MECHS AND CORENEURON_MAIN)
 
   function(exec_test TEST_NAME SUBTEST_NAME)
+if(MPI_FOUND)
     string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
+endif()
     set(SIM_NAME "${TEST_NAME}/${SUBTEST_NAME}")
     if(${SUBTEST_NAME} MATCHES "generic")
       set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --tstop=100. -mpi")
@@ -70,7 +74,7 @@ if(ADDITIONAL_MECHS AND CORENEURON_MAIN)
              COMMAND "/bin/sh" ${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME}/integration_test.sh
              WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME}")
   endfunction(exec_test)
-  
+
   set(TEST_NAME "10Cells")
   set(SUBTEST_NAME "generic" "forwardskip" "spikereplay")
   foreach(subtest ${SUBTEST_NAME})
