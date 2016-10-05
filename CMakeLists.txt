@@ -82,8 +82,8 @@ include(FindPkgConfig)
 include(CTest)
 
 #Find all dependencies
+find_package(MPI REQUIRED) #neurox-based installations always require MPI
 if (ENABLE_MPI)
-    find_package(MPI REQUIRED)
     add_definitions("-DNRNMPI=1")
 else()
     message(STATUS "Use of MPI disabled by user-provided option")
