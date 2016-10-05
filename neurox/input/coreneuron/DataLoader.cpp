@@ -35,12 +35,20 @@ neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
     return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
 }
 
-void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
+void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch, int nrnThreadId)
 {
 #ifndef NDEBUG
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
-    if (!branch->soma) return; //run only once
-    NrnThread & nt = nrn_threads[0];
+    assert(branch->soma); //only non-branched neurons
+    NrnThread & nt = nrn_threads[nrnThreadId];
+
+    //make sure all morphology and mechs data is correct
+    for (int i=0; i<nt._ndata; i++)
+    {   assert(nt._data[i] == branch->nt._data[i]); }
+
+    for (int i=0; i<6*branch->nt.end; i++)
+    {   assert(nt._data[i] == branch->nt._data[i]); }
+
     for (offset_t i=0; i<branch->nt.end; i++)
     {
         assert(nt._actual_a[i] == branch->nt._actual_a[i]);
@@ -53,10 +61,6 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         {  assert(nt._v_parent_index[i] == branch->nt._v_parent_index[i]); }
     }
 
-    //make sure that morphology data is correctly aligned in mem
-    for (int i=0; i<6*branch->nt.end; i++)
-            {   assert(nt._data[i]==branch->nt._data[i]); }
-
     int mechCount=0;
     int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
@@ -64,21 +68,21 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
         int type = tml->index;
         int m = mechanismsMap[type];
         Memb_list * ml = tml->ml; //Mechanisms application to each compartment
-        Memb_list & instance = branch->mechsInstances[m];
-        assert(ml->nodecount == instance.nodecount);
+        Memb_list & instances = branch->mechsInstances[m];
+        assert(ml->nodecount == instances.nodecount);
         //assert(ml->_nodecount_padded == instance.instancesCount);
-        short dataSize = mechanisms[m]->dataSize;
+        short dataSize  = mechanisms[m]->dataSize;
         short pdataSize = mechanisms[m]->pdataSize;
         for (int n=0; n<ml->nodecount; n++) //for every mech instance
         {
-            assert(ml->nodeindices[n]==instance.nodeindices[n]);
+            assert(ml->nodeindices[n]==instances.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
-            {   assert(ml->data[i]==instance.data[i]); }
+            {   assert(ml->data[n*dataSize+i]==instances.data[n*dataSize+i]); }
 
             for (int i=0; i<pdataSize; i++)
             {
-                assert(ml->pdata[i] == instance.pdata[i]);
-                assert(nt._data[ml->pdata[i]] == branch->nt._data[instance.pdata[i]]);
+                int ptype = memb_func[type].dparam_semantics[i];
+                assert(ml->pdata[n*pdataSize+i] == instances.pdata[n*pdataSize+i]);
             }
 
             /* We comment this because it runs for NULL presyn
@@ -99,67 +103,6 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
     }
     assert(mechCount==mechanismsCount);
 #endif
-}
-
-void DataLoader::coreNeuronInitialSetup(int argc, char ** argv)
-{
-    char prcellname[1024], filesdat_buf[1024];
-
-    // initialise default coreneuron parameters
-    //initnrn(); //part of GlobalInfo constructor
-
-    // handles coreneuron configuration parameters
-    cn_input_params input_params;
-
-    // read command line parameters
-    input_params.read_cb_opts( argc, argv );
-
-    // set global variables for start time, timestep and temperature
-    t = input_params.tstart;
-    dt = input_params.dt;
-    rev_dt = (int)(1./dt);
-    celsius = input_params.celsius;
-
-    // full path of files.dat file
-    sd_ptr filesdat=input_params.get_filesdat_path(filesdat_buf,sizeof(filesdat_buf));
-
-    // memory footprint after mpi initialisation
-    //report_mem_usage( "After HPX_Init" );
-
-    // reads mechanism information from bbcore_mech.dat
-    mk_mech( input_params.datpath );
-
-    //report_mem_usage( "After mk_mech" );
-
-    // create net_cvode instance
-    mk_netcvode();
-
-    // One part done before call to nrn_setup. Other part after.
-    if ( input_params.patternstim ) {
-        nrn_set_extra_thread0_vdata();
-    }
-
-    //report_mem_usage( "Before nrn_setup" );
-
-    //pass by flag so existing tests do not need a changed nrn_setup prototype.
-    nrn_setup_multiple = input_params.multiple;
-    nrn_setup_extracon = input_params.extracon;
-
-    // reading *.dat files and setting up the data structures, setting mindelay
-    nrn_setup( input_params, filesdat, nrn_need_byteswap );
-
-    report_mem_usage( "After nrn_setup " );
-
-    // Invoke PatternStim
-    if ( input_params.patternstim ) {
-        nrn_mkPatternStim( input_params.patternstim );
-    }
-
-    /// Setting the timeout
-    nrn_set_timeout(200.);
-
-    // show all configuration parameters for current run
-    input_params.show_cb_opts();
 }
 
 void DataLoader::addNetConsForThisNeuron(
@@ -298,7 +241,7 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 assert (ml->nodeindices[n] < compartments.size());
-                assert (ml->nodeindices[n] < 2^sizeof(offset_t));
+                assert (ml->nodeindices[n] < 2^(sizeof(offset_t)*8));
                 if (mech->isIon)
                     offsetToInstance[dataTotalOffset] =
                             make_pair(type, (offset_t) ml->nodeindices[n]);
@@ -307,6 +250,8 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                 void ** vdata = &nt._vdata[vdataTotalOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
+                for (int i=0; i<mech->dataSize; i++)
+                {   assert(data[i]==nt._data[dataTotalOffset+i]); }
 
                 if (mech->pntMap > 0) //vdata
                 {
@@ -332,9 +277,9 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 #endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
-                dataTotalOffset  += (unsigned) mech->dataSize;
                 dataOffset       += (unsigned) mech->dataSize;
                 pdataOffset      += (unsigned) mech->pdataSize;
+                dataTotalOffset  += (unsigned) mech->dataSize;
                 vdataTotalOffset += (unsigned) mech->vdataSize;
                 assert(dataTotalOffset  < 2^sizeof(offsetToInstance));
                 assert(dataOffset       < 2^sizeof(offsetToInstance));
@@ -452,7 +397,6 @@ void DataLoader::loadData(int argc, char ** argv)
 
     cn_input_params input_params;
     nrn_init_and_load_data(argc, argv, input_params);
-    //coreNeuronInitialSetup(argc, argv);
 
     //we will walk a bit with coreneuron
     //coreNeuronFakeSteps();
@@ -495,17 +439,31 @@ void DataLoader::loadData(int argc, char ** argv)
     std::vector<char> mechsSym;
 
     //Different nrn_threads[i] have diff mechanisms sets; we will get the list of unique mechs types
-    map<int, NrnThreadMembList*> uniqueMechs;
+    //from the neuron that expresses them all
+    set<int> uniqueMechsIds; //list of unique ids
     for (int i=0; i<neuronsCount; i++)
         for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
-            if (uniqueMechs.find(tml->index)==uniqueMechs.end())
-                uniqueMechs[tml->index] = tml;
+            if (uniqueMechsIds.find(tml->index) == uniqueMechsIds.end())
+                uniqueMechsIds.insert(tml->index);
 
-    for (auto mech_it : uniqueMechs)
+    //get neuron that contains all ids
+    int neuronIdx=-1;
+    for (int i=0; i<neuronsCount; i++)
     {
-        NrnThreadMembList *tml = mech_it.second;
+        int count=0;
+        for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
+            count++;
+        if (count == uniqueMechsIds.size())
+        {
+            neuronIdx=i;
+            break;
+        }
+    }
+    assert(neuronIdx!=-1);
+
+    for (NrnThreadMembList* tml = nrn_threads[neuronIdx].tml; tml!=NULL; tml = tml->next)
+    {
         int type = tml->index;
-        assert(type==mech_it.first);
         vector<int> successorsIds;
         int dependenciesCount;
 
@@ -530,23 +488,10 @@ void DataLoader::loadData(int argc, char ** argv)
         }
         else
         {
-          if ( tml->index == CAP)  //capacitance is not part of graph
-          {
-            dependenciesCount=0;
-          }
-          else
-          {
-            //all except second element (the one after capacitance) have 1 dependency
-            auto secondMech = uniqueMechs.begin(); //get first elem of map
-            std::advance(secondMech, 1); //advance 1 position
-            dependenciesCount = type==secondMech->first ? 0 : 1;
-            //all except last one have a successor
-            //auto successorMech = mech_it;
-            auto successorMech = uniqueMechs.find(mech_it.first);
-            std::advance(successorMech, 1); //the mech immediately after in the map
-            if (successorMech != uniqueMechs.end())
-                successorsIds.push_back(successorMech->first);
-          }
+          //all except second element (the one after capacitance) have 1 dependency
+          dependenciesCount = type==CAP ? 0 : 1;
+          if (tml->next!=NULL)
+              successorsIds.push_back(tml->next->index);
         }
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
@@ -796,7 +741,7 @@ int DataLoader::getBranchData(
     //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
     int vdataOffset=0;
     assert(pdataType.size() == pdata.size());
-    assert(pdata.size() < 2^sizeof(offset_t));
+    assert(pdata.size() < 2^(sizeof(offset_t)*8));
 
     for (size_t i=0; i<pdata.size(); i++)
     {
@@ -848,7 +793,7 @@ int DataLoader::getBranchData(
             }
             else if (ptype>=1000) //name not preffixed
             {
-                pdata[i] = ptype-1000; //just a value (concentration) summed with 1000
+                // (concentration = ptype-1000;) //do nothing: value of concentration summed with 1000
             }
             else
                 throw std::runtime_error("Unknown pdata type %d (FLAG3)\n");

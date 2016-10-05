@@ -148,7 +148,7 @@ Branch::Branch(offset_t n,
             assert(vdataOffset <= vdataCount);
             floble_t * instanceData  = (floble_t*) &this->nt._data[dataOffset ];
             floble_t * instanceData2 = (floble_t*) &instance.data [i*mech->dataSize];
-            offset_t *  instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
+            offset_t * instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
             assert (instanceData = instanceData2); //Make sure data offsets are good so far
             if (mech->pntMap>0)
             {
@@ -501,6 +501,8 @@ int Branch::initNeuronTreeLCO_handler()
 
 void Branch::initialize()
 {
+    neurox::Input::Coreneuron::DataLoader::compareDataStructuresWithCoreNeuron(this, 0);
+
     floble_t *& v = this->nt._actual_v;
     double t = this->nt._t;
 

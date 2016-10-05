@@ -32,7 +32,7 @@ class DataLoader
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
     static void cleanData(); ///>removes all Nrn data structures
 
-    static void compareDataStructuresWithCoreNeuron(Branch * branch);
+    static void compareDataStructuresWithCoreNeuron(Branch * branch, int nrnThreadId);
 
     static void registerHpxActions();
 
@@ -40,7 +40,7 @@ class DataLoader
     static void addNetConsForThisNeuron(
             neuron_id_t neuronId, neuron_id_t preNeuronId, int netconsCount,
             offset_t netconsOffset, map< neuron_id_t, vector<NetConX*>> & netcons);
-    static void coreNeuronInitialSetup(int argc, char ** argv);
+
     static hpx_t createBranch(
             hpx_t target, deque<Compartment*> & compartments,
             Compartment * topCompartment,
