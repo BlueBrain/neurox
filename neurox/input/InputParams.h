@@ -35,9 +35,6 @@ class InputParams
     char outputPath[512];   ///> path of output directory
     char patternStim[512];  ///> patternStim file path (the filename of an output_spikes.h format raster file.)
 
-    int argc;               ///> original command line argc
-    char ** argv;           ///> original command line argv
-
     //neurox specific options
     bool outputStatistics;      ///> outputs statistics file
     bool outputMechanismsDot;   ///> outputs mechanisms.dot file

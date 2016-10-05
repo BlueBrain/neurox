@@ -43,14 +43,14 @@ int setNeurons_handler(const int nargs, const void *args[], const size_t[])
 }
 
 hpx_action_t setInputParams = 0;
-int setInputParams_handler(const Input::InputParams * data, const size_t)
+int setInputParams_handler(const Input::InputParams * ip, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     if (inputParams!=nullptr)
         delete [] neurox::inputParams;
 
-    inputParams = new neurox::Input::InputParams();
-    memcpy(neurox::inputParams, data, sizeof(neurox::Input::InputParams));
+    neurox::inputParams = new neurox::Input::InputParams();
+    memcpy(neurox::inputParams, ip, sizeof(neurox::Input::InputParams));
     neurox_hpx_unpin;
 }
 
@@ -109,15 +109,17 @@ hpx_action_t main = 0;
 static int main_handler(char **argv, size_t argc)
 {
     //parse command line arguments and broadcasts it to other localities
-    Input::InputParams inputParams(argc, argv);
+    Input::InputParams * inputParams_local = new Input::InputParams(argc, argv);
     printf("neurox started (localities: %d, threads/locality: %d)\n", HPX_LOCALITIES, HPX_THREADS);
-    hpx_bcast_rsync(neurox::setInputParams, &inputParams, sizeof (Input::InputParams));
+    hpx_bcast_rsync(neurox::setInputParams, inputParams_local, sizeof (Input::InputParams));
+    delete inputParams_local; inputParams_local = nullptr;
 
     // many steps with large dt so that cells start at their resting potential
     assert(neurox::inputParams->forwardSkip == 0); //not supported yet
 
     //reads morphology data
     printf("neurox::Input::Coreneuron::DataLoader::loadData...\n");
+    assert(neurox::inputParams != nullptr);
     neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
 
     if (neurox::inputParams->outputStatistics)
@@ -136,7 +138,7 @@ static int main_handler(char **argv, size_t argc)
      }, 0, neuronsCount, NULL);
 
     printf("neurox::TimeMachine::init...");
-    int totalStepsCount = inputParams.tstop/inputParams.dt;
+    int totalStepsCount = inputParams->tstop/inputParams->dt;
     hpx_t timeMachine = hpx_lco_and_local_array_new(totalStepsCount, neurox::neuronsCount);
     hpx_bcast_rsync(neurox::setTimeMachine, &timeMachine, sizeof(hpx_t));
 

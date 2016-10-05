@@ -448,6 +448,8 @@ void DataLoader::cleanData()
 
 void DataLoader::loadData(int argc, char ** argv)
 {
+    assert (neurox::inputParams!=nullptr); //TODO mem corruption
+
     cn_input_params input_params;
     nrn_init_and_load_data(argc, argv, input_params);
     //coreNeuronInitialSetup(argc, argv);
@@ -455,7 +457,8 @@ void DataLoader::loadData(int argc, char ** argv)
     //we will walk a bit with coreneuron
     //coreNeuronFakeSteps();
 
-    int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+    int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0,
+                                 [](int n, NrnThread & nt){return n+nt.ncell;});
 
     allNeuronsIdsSet = std::set<neuron_id_t>();
     for (int i=0; i<neuronsCount; i++)

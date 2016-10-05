@@ -39,7 +39,7 @@ namespace neurox
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
-    extern Input::InputParams * inputParams; ///> Parameters parsed from command line
+    extern Input::InputParams *  inputParams; ///> Parameters parsed from command line
 
     extern hpx_t timeMachine;      ///> array of AND gates to control progress of individual neurons
 
