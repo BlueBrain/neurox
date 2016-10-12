@@ -35,9 +35,14 @@ neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
     return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
 }
 
-void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch, int nrnThreadId)
+void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch)
 {
-#ifndef NDEBUG
+#ifdef CORENEURON_H
+    int nrnThreadId = branch->soma->nrnThreadId;
+#else
+    assert(0);
+    int nrnThreadId = 0;
+#endif
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     assert(branch->soma); //only non-branched neurons
     NrnThread & nt = nrn_threads[nrnThreadId];
@@ -102,7 +107,6 @@ void DataLoader::compareDataStructuresWithCoreNeuron(Branch * branch, int nrnThr
         mechCount++;
     }
     assert(mechCount==mechanismsCount);
-#endif
 }
 
 void DataLoader::addNetConsForThisNeuron(
@@ -376,8 +380,14 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         floble_t APthreshold = (floble_t) nrn_threads[i].presyns[0].threshold_;
         createBranch(target, compartments, compartments.at(0), netcons,
                      (size_t) compartments.size(), offsetToInstance);
+#ifdef CORENEURON_H
+        hpx_call_sync(target, Branch::initSoma, NULL, 0,
+                      &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t),
+                      &i, sizeof(i));
+#else
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
+#endif
         for (auto c : compartments)
             delete c;
         for (auto nc: netcons)

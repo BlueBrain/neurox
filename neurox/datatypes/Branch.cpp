@@ -307,10 +307,15 @@ int Branch::initSoma_handler(const int nargs,
                              const void *args[], const size_t[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2);
+    assert(nargs==2 || nargs==3);
     const neuron_id_t neuronId = *(const neuron_id_t*)    args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
+#ifdef CORENEURON_H
+    const int nrnThreadId = *(const int*) args[2];
+    local->soma=new Neuron(neuronId, APthreshold, nrnThreadId);
+#else
     local->soma=new Neuron(neuronId, APthreshold);
+#endif
     neurox_hpx_unpin;
 }
 
@@ -501,8 +506,6 @@ int Branch::initNeuronTreeLCO_handler()
 
 void Branch::initialize()
 {
-    neurox::Input::Coreneuron::DataLoader::compareDataStructuresWithCoreNeuron(this, 0);
-
     floble_t *& v = this->nt._actual_v;
     double t = this->nt._t;
 
@@ -581,6 +584,17 @@ hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
+
+#ifndef NDEBUG
+#ifdef CORENEURON_H
+    if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
+    {
+        printf("NDEBUG::comparing Coreneuron vs HPX structs...\n");
+        neurox::Input::Coreneuron::DataLoader::compareDataStructuresWithCoreNeuron(local);
+    }
+#endif
+#endif
+
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->initialize();
     neurox_hpx_recursive_branch_async_wait;

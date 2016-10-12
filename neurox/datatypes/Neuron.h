@@ -13,8 +13,14 @@ class Neuron
 {
   public:
     Neuron() = delete;
-    Neuron(neuron_id_t neuronId, floble_t APthreshold);
     ~Neuron();
+
+#ifdef CORENEURON_H
+    Neuron(neuron_id_t neuronId, floble_t APthreshold, int nrnThreadId=-1);
+    int nrnThreadId;
+#else
+    Neuron(neuron_id_t neuronId, floble_t APthreshold);
+#endif
 
     neuron_id_t id;          ///> neuron global id
     floble_t APthreshold;  ///> Action Potential threshold

@@ -5,7 +5,12 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
+#ifdef CORENEURON_H
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int nrnThreadId):
+    nrnThreadId(nrnThreadId),
+#else
 Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
+#endif
     id(neuronId), APthreshold(APthreshold)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);

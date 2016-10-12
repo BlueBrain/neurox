@@ -32,7 +32,7 @@ class DataLoader
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
     static void cleanData(); ///>removes all Nrn data structures
 
-    static void compareDataStructuresWithCoreNeuron(Branch * branch, int nrnThreadId);
+    static void compareDataStructuresWithCoreNeuron(Branch * branch);
 
     static void registerHpxActions();
 
