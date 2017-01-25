@@ -415,31 +415,6 @@ int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr,
     neurox_hpx_unpin;
 }
 
-//from eion.c
-#define nparm 5
-#define cur	3
-#define dcurdv 4
-
-void Branch::secondOrderCurrent()
-{
-    floble_t *& rhs = this->nt._actual_rhs;
-
-    Memb_list * mechInstances= this->mechsInstances;
-    for (int m=0; m<mechanismsCount; m++)
-    {
-        Mechanism * mech = mechanisms[m];
-        if (!mech->isIon) continue;
-        assert(nparm==mech->dataSize); //see '#define nparm 5' in eion.c
-
-        for (int i=0; i<mechInstances[m].nodecount; i++)
-        {
-            floble_t * data = &mechInstances[m].data[i*mech->dataSize];
-            offset_t & nodeIndex = mechInstances[m].nodeindices[i];
-            data[cur] += data[dcurdv] * rhs[nodeIndex];
-        }
-    }
-}
-
 hpx_action_t Branch::addSpikeEvent = 0;
 int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
@@ -525,16 +500,9 @@ void Branch::initialize()
     callModFunction(Mechanism::ModFunction::initialize);
     callModFunction(Mechanism::ModFunction::after_initialize);
 
-    //set up by finitialize.c:nrn_finitialize() -> fadvance_core.c:dt2thread()
-    //local->cj = inputParams->secondorder ? 2.0/inputParams->dt : 1.0/inputParams->dt;
-    //done when calling mechanisms //TODO have a copy per branch to speed-up?
     deliverEvents(t);
     setupTreeMatrixMinimal();
     deliverEvents(t);
-
-    //part of nrn_fixed_step_group_minimal
-    //1. multicore.c::nrn_thread_table_check()
-    callModFunction(Mechanism::ModFunction::threadTableCheck);
 }
 
 void Branch::backwardEulerStep()
@@ -544,20 +512,18 @@ void Branch::backwardEulerStep()
     double & t = this->nt._t;
     double & dt = this->nt._dt;
 
-    //2. multicore.c::nrn_fixed_step_thread()
-    //2.1 cvodestb::deliver_net_events(nth);
-    //(send outgoing spikes netcvode.cpp::NetCvode::check_thresh() )
+    //2. fadvance_core.c::nrn_fixed_step_thread()
     bool reachedThresold = soma && v[0] >= soma->APthreshold;
     if (reachedThresold) soma->fireActionPotential(t);
-    t += .5*dt;
     deliverEvents(t);
+    t += .5*dt;
     fixedPlayContinuous();
     setupTreeMatrixMinimal();
+    deliverEvents(t);
 
     //eion.c : second_order_cur()
-    //TODO when we use only CoreNeuron structs, replace this by original func;
     if (inputParams->secondorder)
-        secondOrderCurrent();
+        second_order_cur(&this->nt, inputParams->secondorder );
 
     //fadvance_core.c : update() / Branch::updateV
     for (int i=0; i<this->nt.end; i++)
@@ -584,19 +550,35 @@ hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::finitialize);
 
 #ifndef NDEBUG
 #ifdef CORENEURON_H
     if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
     {
-        printf("NDEBUG::comparing Coreneuron vs HPX structs...\n");
-        neurox::Input::Coreneuron::DataLoader::compareDataStructuresWithCoreNeuron(local);
+        printf("NDEBUG::comparing Coreneuron vs HPX data (before finitialize)...\n");
+        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
     }
 #endif
 #endif
 
-    neurox_hpx_recursive_branch_async_call(Branch::finitialize);
-    local->initialize();
+    local->initialize(); //finitialize.c::finitilize()
+
+#ifndef NDEBUG
+#ifdef CORENEURON_H
+    if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
+    {
+        printf("NDEBUG::comparing Coreneuron vs HPX data (after finitialize)...\n");
+        neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize2();
+        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
+    }
+#endif
+#endif
+
+    //part of fadvance_core.c::nrn_fixed_step_minimal
+    //multicore.c::nrn_thread_table_check()
+    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
+
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

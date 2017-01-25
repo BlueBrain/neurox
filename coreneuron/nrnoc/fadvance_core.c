@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrniv/nrn_acc_manager.h"
+#include "coreneuron/coreneuron.h"
 
 static void* nrn_fixed_step_thread(NrnThread*);
 static void* nrn_fixed_step_lastpart(NrnThread*);
@@ -199,6 +200,7 @@ void nrn_ba(NrnThread* nt, int bat) {
 static void* nrn_fixed_step_thread(NrnThread* nth) {
     /* check thresholds and deliver all (including binqueue)
        events up to t+dt/2 */
+    extern int secondorder;
     deliver_net_events(nth);
     nth->_t += .5 * nth->_dt;
 
@@ -213,7 +215,7 @@ static void* nrn_fixed_step_thread(NrnThread* nth) {
         fixed_play_continuous(nth);
         setup_tree_matrix_minimal(nth);
         nrn_solve_minimal(nth);
-        second_order_cur(nth);
+        second_order_cur(nth, secondorder);
         update(nth);
     }
     if (!nrn_have_gaps) {

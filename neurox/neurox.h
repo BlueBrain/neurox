@@ -16,9 +16,10 @@
 //Fixed-step Backward-Euler solver
 #include "neurox/solver/HinesSolver.h"
 
-//CoreNeuron data loader
+//CoreNeuron specific data loader
 #include "neurox/input/coreneuron/Compartment.h"
 #include "neurox/input/coreneuron/DataLoader.h"
+#include "neurox/input/coreneuron/DataComparison.h"
 
 //Miscellaneous
 #include "neurox/misc/Statistics.h"

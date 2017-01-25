@@ -56,6 +56,7 @@ void nrn_finitialize(int setv, double v) {
     }
 
     if (nrn_have_gaps) {
+        assert(0); //Bruno: not supported
         nrnmpi_v_transfer();
         for (i = 0; i < nrn_nthread; ++i) {
             nrnthread_v_transfer(nrn_threads + i);
