@@ -96,44 +96,7 @@ void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch)
     assert(mechCount==mechanismsCount);
 }
 
-void DataComparison::coreNeuronFinitialize2()
+void DataComparison::coreNeuronFinitialize()
 {
     nrn_finitialize(inputParams->voltage != 1000., inputParams->voltage);
 }
-
-void DataComparison::coreNeuronFinitialize() //can be deleted
-{
-    //nrn_finitialize
-    int i;
-    NrnThread* _nt;
-    dt2thread(-1.);
-    nrn_thread_table_check();
-    clear_event_queue();
-    nrn_spike_exchange_init();
-    nrn_play_init(); /* Vector.play */
-        ///Play events should be executed before initializing events
-    for (i=0; i < nrn_nthread; ++i) {
-        nrn_deliver_events(nrn_threads + i); /* The play events at t=0 */
-    }
-          for (_nt = nrn_threads; _nt < nrn_threads + nrn_nthread; ++_nt) {
-            for (i=0; i < _nt->end; ++i) {
-            (_nt->_actual_v[(i)]) = inputParams->voltage;
-            }
-          }
-    for (i=0; i < nrn_nthread; ++i) {
-        nrn_ba(nrn_threads + i, BEFORE_INITIAL);
-    }
-
-    /* the memblist list in NrnThread is already so ordered */
-    for (i=0; i < nrn_nthread; ++i) {
-        NrnThread* nt = nrn_threads + i;
-        NrnThreadMembList* tml;
-        for (tml = nt->tml; tml; tml = tml->next) {
-            mod_f_t s = memb_func[tml->index].initialize;
-            if (s) {
-                // TODO COMMENTED (*s)(nt, tml->ml, tml->index);
-            }
-        }
-    }
-}
-

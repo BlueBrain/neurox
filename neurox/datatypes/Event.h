@@ -18,7 +18,7 @@ class Branch;
 
 /**
  * @brief The Event virtual class
- * Simullar DiscreteEvent in Coreneuron (netcon.h)
+ * Simillar to DiscreteEvent in Coreneuron (netcon.h)
  * Stores the function calls that all events must have;
  */
 class Event {

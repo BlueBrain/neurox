@@ -22,7 +22,6 @@ class DataComparison
     ~DataComparison()=delete;
 
     static void coreNeuronFinitialize();
-    static void coreNeuronFinitialize2();
     static void compareDataStructuresWithCoreNeuron(Branch * branch);
 
   private:

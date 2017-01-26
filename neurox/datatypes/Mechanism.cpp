@@ -161,9 +161,14 @@ Mechanism::~Mechanism(){
 void Mechanism::callModFunction(const void * branch_ptr,
                                 const Mechanism::ModFunction functionId)
 {
-    Memb_list membList;
     Branch * branch = (Branch*) branch_ptr;
+    assert(branch);
     NrnThread * nrnThread = &branch->nt;
+    assert(nrnThread);
+    Memb_list * membList = &branch->mechsInstances[mechanismsMap[this->type]];
+    assert(membList);
+    assert(membList->data);
+    assert(membList->nodeindices);
 
     switch(functionId)
     {
@@ -173,39 +178,39 @@ void Mechanism::callModFunction(const void * branch_ptr,
         case Mechanism::after_solve:
         case Mechanism::before_step:
                if (BAfunctions[(int) functionId])
-                   BAfunctions[(int) functionId](nrnThread, &membList, type);
+                   BAfunctions[(int) functionId](nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::alloc:
             if (membFunc.alloc)
-                membFunc.alloc(membList.data, membList.pdata, type);
+                membFunc.alloc(membList->data, membList->pdata, type);
             break;
         case Mechanism::ModFunction::currentCapacitance:
             assert(type == CAP);
             assert(membFunc.current != NULL);
-            membFunc.current(nrnThread, &membList, type);
+            membFunc.current(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::current:
             assert(type != CAP);
             if (membFunc.current)
-                membFunc.current(nrnThread, &membList, type);
+                membFunc.current(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)
-                membFunc.state(nrnThread, &membList, type);
+                membFunc.state(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::jacobCapacitance:
             assert(type == CAP);
             assert(membFunc.jacob != NULL);
-            membFunc.jacob(nrnThread, &membList, type);
+            membFunc.jacob(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::jacob:
             assert(type != CAP);
             if (membFunc.jacob)
-                membFunc.jacob(nrnThread, &membList, type);
+                membFunc.jacob(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::initialize:
             if (membFunc.initialize)
-                membFunc.initialize(nrnThread, &membList, type); //TODO Valgrind invalid read/write (why?)
+                membFunc.initialize(nrnThread, membList, type); //TODO Valgrind invalid read/write (why?)
             break;
         case Mechanism::ModFunction::destructor:
             if (membFunc.destructor)
@@ -213,17 +218,17 @@ void Mechanism::callModFunction(const void * branch_ptr,
             break;
         case Mechanism::ModFunction::threadMemInit:
             if (membFunc.thread_mem_init_)
-                membFunc.thread_mem_init_(membList._thread);
+                membFunc.thread_mem_init_(membList->_thread);
             break;
         case Mechanism::ModFunction::threadTableCheck:
             if (membFunc.thread_table_check_)
                 membFunc.thread_table_check_
-                    (0, membList.nodecount, membList.data, membList.pdata,
-                     membList._thread, nrnThread, type);
+                    (0, membList->nodecount, membList->data, membList->pdata,
+                     membList->_thread, nrnThread, type);
             break;
         case Mechanism::ModFunction::threadCleanup:
             if (membFunc.thread_cleanup_)
-                membFunc.thread_cleanup_(membList._thread);
+                membFunc.thread_cleanup_(membList->_thread);
             break;
         default:
             printf("ERROR: Unknown ModFunction with id %d.\n", functionId);

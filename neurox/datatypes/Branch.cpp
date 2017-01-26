@@ -35,6 +35,7 @@ Branch::Branch(offset_t n,
     NrnThread & nt = this->nt;
 
     //all non usable values
+    nt._ml_list = NULL;
     nt.tml = NULL;
     nt._ml_list = NULL;
     nt.pntprocs = NULL;
@@ -126,11 +127,13 @@ Branch::Branch(offset_t n,
     offset_t instancesOffset=0;
     this->mechsInstances = new Memb_list[mechanismsCount];
 
+    int maxMechId = 0;
     for (offset_t m=0; m<mechanismsCount; m++)
     {
         Memb_list & instance = this->mechsInstances[m];
         Mechanism * mech = mechanisms[m];
         instance.nodecount = instancesCount[m];
+        maxMechId = max(maxMechId, mech->type);
 
         //data, pdata, and nodesIndices arrays
         instance.data = mech->dataSize ==0 ? nullptr : this->nt._data+dataOffset;
@@ -186,6 +189,19 @@ Branch::Branch(offset_t n,
     assert(pdataOffset == pdataCount);
     assert(vdataOffset == vdataCount);
     assert(instancesOffset == nodesIndicesCount);
+
+    //nt->_ml_list
+    nt._ml_list = new Memb_list*[maxMechId+1];
+    for (int i=0; i<maxMechId; i++)
+        nt._ml_list[i] = NULL;
+
+    for (offset_t m=0; m<mechanismsCount; m++)
+    {
+        Mechanism * mech = mechanisms[m];
+        Memb_list & instances = this->mechsInstances[m];
+        this->nt._ml_list[mech->type] = &instances;
+
+    }
 
     //Shadow arrays
     int shadowElemsCount = std::max(
@@ -245,6 +261,7 @@ Branch::~Branch()
         delete [] mechsInstances[m].pdata;
     }
     delete [] mechsInstances;
+    delete [] nt._ml_list;
 }
 
 hpx_action_t Branch::init = 0;
@@ -333,14 +350,16 @@ int Branch::clear_handler()
 
 void Branch::initEventsQueue()
 {
-    hpx_lco_sema_p(this->eventsQueueMutex);
     for (size_t v=0; v<this->nt.n_vecplay; v++)
     {
         VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(this->nt._vecplay[v]);
         eventsQueue.push(make_pair(vecplay->getFirstInstant(),
                                    (Event*) vecplay));
     }
-    hpx_lco_sema_v_sync(this->eventsQueueMutex);
+
+    //nrn_play_init
+    //for (int i = 0; i < nt.n_vecplay; ++i)
+    //    ((PlayRecord*)nt._vecplay[i])->play_init();
 }
 
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
@@ -487,6 +506,7 @@ void Branch::initialize()
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     assert(inputParams->secondorder < sizeof(char));
     initEventsQueue();
+    //TODO nrn_play_init() missing?
     deliverEvents(t);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
@@ -552,27 +572,23 @@ int Branch::finitialize_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
 
-#ifndef NDEBUG
-#ifdef CORENEURON_H
+#if !defined(NDEBUG) && defined(CORENEURON_H)
     if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
     {
         printf("NDEBUG::comparing Coreneuron vs HPX data (before finitialize)...\n");
         neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
+        neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize();
     }
-#endif
 #endif
 
     local->initialize(); //finitialize.c::finitilize()
 
-#ifndef NDEBUG
-#ifdef CORENEURON_H
+#if !defined(NDEBUG) && defined(CORENEURON_H)
     if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
     {
         printf("NDEBUG::comparing Coreneuron vs HPX data (after finitialize)...\n");
-        neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize2();
         neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
     }
-#endif
 #endif
 
     //part of fadvance_core.c::nrn_fixed_step_minimal
