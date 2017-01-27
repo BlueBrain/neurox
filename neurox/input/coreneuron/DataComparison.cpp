@@ -27,8 +27,24 @@ using namespace std;
 using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
-void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch)
+void DataComparison::compareMechanismsFunctionPointers( std::map<int, NrnThreadMembList*> & uniqueMechs)
 {
+    printf("NDEBUG::comparing Mechanisms functions...\n");
+    for (auto & mechs_it : uniqueMechs)
+    {
+        NrnThreadMembList * tml = mechs_it.second;
+        Memb_func & mf_cn = memb_func[tml->index]; //coreneuron
+        Memb_func & mf_nx = mechanisms[mechanismsMap[tml->index]]->membFunc; //neurox
+        assert (mf_cn.alloc == mf_nx.alloc);
+        //TODO
+
+    }
+
+}
+
+void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch, char* infoString)
+{
+    printf("NDEBUG::comparing Coreneuron vs HPX data (%s)...\n", infoString );
     int nrnThreadId = branch->soma->nrnThreadId;
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     assert(branch->soma); //only non-branched neurons

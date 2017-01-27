@@ -338,31 +338,16 @@ void DataLoader::loadData(int argc, char ** argv)
     std::vector<int> mechsSuccessorsId;
     std::vector<char> mechsSym;
 
-    //Different nrn_threads[i] have diff mechanisms sets; we will get the list of unique mechs types
-    //from the neuron that expresses them all
-    set<int> uniqueMechsIds; //list of unique ids
+    //Different nrn_threads[i] have diff mechanisms sets; we'll get the union of all neurons' mechs
+    std::map<int, NrnThreadMembList*> uniqueMechs; //map of unique <mech-ids, Memb_list>
     for (int i=0; i<neuronsCount; i++)
         for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
-            if (uniqueMechsIds.find(tml->index) == uniqueMechsIds.end())
-                uniqueMechsIds.insert(tml->index);
+            if (uniqueMechs.find(tml->index) == uniqueMechs.end())
+                uniqueMechs.insert(tml);
 
-    //get neuron that contains all ids
-    int neuronIdx=-1;
-    for (int i=0; i<neuronsCount; i++)
+    for (auto & mechs_it : uniqueMechs)
     {
-        int count=0;
-        for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
-            count++;
-        if (count == uniqueMechsIds.size())
-        {
-            neuronIdx=i;
-            break;
-        }
-    }
-    assert(neuronIdx!=-1);
-
-    for (NrnThreadMembList* tml = nrn_threads[neuronIdx].tml; tml!=NULL; tml = tml->next)
-    {
+        NrnThreadMembList * tml = mechs_it.second;
         int type = tml->index;
         vector<int> successorsIds;
         int dependenciesCount;
@@ -370,20 +355,19 @@ void DataLoader::loadData(int argc, char ** argv)
         if (inputParams->multiMex)
         {
           std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
-          for (int i=0; i<neuronsCount; i++)
-            for (NrnThreadMembList* tml2 = nrn_threads[i].tml; tml2!=NULL; tml2 = tml2->next) //for every 2nd mechanism
+          for (auto & mechs_it_2 : uniqueMechs)
+          {
+            int otherType = mechs_it_2.first;
+            for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
             {
-              int otherType = tml2->index;
-              for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
-              {
-                int ptype = memb_func[otherType].dparam_semantics[d];
-                if (otherType == type && ptype>0 && ptype<1000)
-                    dependenciesIds.insert(ptype); //this mech depends on another one
-                if (otherType!= type && ptype==type)
-                    if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
-                        successorsIds.push_back(otherType); //other mech depends on this one
-              }
+              int ptype = memb_func[otherType].dparam_semantics[d];
+              if (otherType == type && ptype>0 && ptype<1000)
+                dependenciesIds.insert(ptype); //this mech depends on another one
+              if (otherType!= type && ptype==type)
+                if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
+                  successorsIds.push_back(otherType); //other mech depends on this one
             }
+          }
           dependenciesCount = dependenciesIds.size();
         }
         else
@@ -421,6 +405,11 @@ void DataLoader::loadData(int argc, char ** argv)
                     mechsSym.data(), sizeof(char)*mechsSym.size());
 
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
+
+#if !defined(NDEBUG) && defined(CORENEURON_H)
+    printf("NDEBUG::comparing Mechanisms functions...\n");
+    neurox::Input::Coreneuron::DataComparison::compareMechanismsFunctionPointers(uniqueMechs);
+#endif
 
     if (inputParams->outputMechanismsDot)
     {

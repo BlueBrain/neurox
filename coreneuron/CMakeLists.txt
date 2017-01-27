@@ -129,6 +129,13 @@ endmacro()
 set(STDMODLIBPATH "${CMAKE_CURRENT_SOURCE_DIR}/mech/modfile")
 set(MECH_STDMODS expsyn.mod  hh.mod  netstim.mod  passive.mod  pattern.mod stim.mod)
 
+if (EXPORT_MECHS_FUNCTIONS)
+  # Add 6 standard mechanismsro MOD_PATHS
+  foreach(MOD ${MECH_STDMODS})
+      list(APPEND MOD_PATHS "${STDMODLIBPATH}/${MOD}")
+  endforeach()
+endif()
+
 foreach(MOD ${MECH_STDMODS})
   mod2c_target(STDMECH "${STDMODLIBPATH}/${MOD}")
 endforeach()
@@ -179,12 +186,14 @@ add_custom_command(OUTPUT "${KINDERIV_H}"
     COMMAND python "${KINDERIV_PY}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
-if (EXPORT_MECHS_FUNCTIONS)
+if (EXPORT_MECHS_FUNCTIONS) #create scripts
+
   # Create C file with all "get function pointers" methods
   set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
   set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
 
   # ... pass as argument to the perl script the list of mods full paths;
+  MESSAGE(WARNING "===== ${MOD_PATHS}")
   add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
       DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
       COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD_PATHS} > "${MOD_FUNC_PTRS_C}"

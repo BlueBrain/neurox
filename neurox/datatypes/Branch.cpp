@@ -573,10 +573,9 @@ int Branch::finitialize_handler()
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
+    if (!inputParams->multiSplix)
     {
-        printf("NDEBUG::comparing Coreneuron vs HPX data (before finitialize)...\n");
-        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
+        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after data load");
         neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize();
     }
 #endif
@@ -584,10 +583,9 @@ int Branch::finitialize_handler()
     local->initialize(); //finitialize.c::finitilize()
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!inputParams->multiSplix && local->soma->nrnThreadId==0)
+    if (!inputParams->multiSplix)
     {
-        printf("NDEBUG::comparing Coreneuron vs HPX data (after finitialize)...\n");
-        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local);
+        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after finitialize");
     }
 #endif
 

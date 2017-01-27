@@ -22,7 +22,8 @@ class DataComparison
     ~DataComparison()=delete;
 
     static void coreNeuronFinitialize();
-    static void compareDataStructuresWithCoreNeuron(Branch * branch);
+    static void compareMechanismsFunctionPointers( std::map<int, NrnThreadMembList*> & uniqueMechs);
+    static void compareDataStructuresWithCoreNeuron(Branch * branch, char* infoString);
 
   private:
 };
