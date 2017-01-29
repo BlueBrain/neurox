@@ -35,9 +35,19 @@ void DataComparison::compareMechanismsFunctionPointers( std::map<int, NrnThreadM
         NrnThreadMembList * tml = mechs_it.second;
         Memb_func & mf_cn = memb_func[tml->index]; //coreneuron
         Memb_func & mf_nx = mechanisms[mechanismsMap[tml->index]]->membFunc; //neurox
-        assert (mf_cn.alloc == mf_nx.alloc);
-        //TODO
-
+        if (tml->index != CAP)
+        { //we call MechFunctions::jacobCapacitance and currentCapacitance
+          //so value is set. Coreneuron sets to null and calls nrn_cur_capacitance instead
+          assert (mf_cn.jacob == mf_nx.jacob);
+          assert (mf_cn.current == mf_nx.current);
+        }
+        //assert (mf_cn.alloc == mf_nx.alloc); //TODO never used?
+        assert (mf_cn.destructor == mf_nx.destructor);
+        assert (mf_cn.initialize == mf_nx.initialize);
+        assert (mf_cn.state == mf_nx.state);
+        assert (mf_cn.thread_cleanup_ == mf_nx.thread_cleanup_);
+        assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
+        assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
     }
 
 }

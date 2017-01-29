@@ -162,6 +162,7 @@ static void update(NrnThread* _nt) {
 
     // update_matrix_to_gpu(_nt);
 
+    assert (_nt->tml); //TODO: added by bruno to test
     if (_nt->tml) {
         assert(_nt->tml->index == CAP);
         nrn_cur_capacitance(_nt, _nt->tml->ml, _nt->tml->index);

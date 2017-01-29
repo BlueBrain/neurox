@@ -343,7 +343,7 @@ void DataLoader::loadData(int argc, char ** argv)
     for (int i=0; i<neuronsCount; i++)
         for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
             if (uniqueMechs.find(tml->index) == uniqueMechs.end())
-                uniqueMechs.insert(tml);
+                uniqueMechs[tml->index] = tml;
 
     for (auto & mechs_it : uniqueMechs)
     {
@@ -407,7 +407,6 @@ void DataLoader::loadData(int argc, char ** argv)
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    printf("NDEBUG::comparing Mechanisms functions...\n");
     neurox::Input::Coreneuron::DataComparison::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
 

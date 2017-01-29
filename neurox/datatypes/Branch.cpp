@@ -192,7 +192,7 @@ Branch::Branch(offset_t n,
 
     //nt->_ml_list
     nt._ml_list = new Memb_list*[maxMechId+1];
-    for (int i=0; i<maxMechId; i++)
+    for (int i=0; i<=maxMechId; i++)
         nt._ml_list[i] = NULL;
 
     for (offset_t m=0; m<mechanismsCount; m++)
