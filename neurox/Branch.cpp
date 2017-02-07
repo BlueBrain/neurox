@@ -572,20 +572,14 @@ int Branch::finitialize_handler()
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!inputParams->multiSplix)
-    {
-        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after data load");
-        neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize();
-    }
+    neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after data load");
+    neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize();
 #endif
 
     local->initialize(); //finitialize.c::finitilize()
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!inputParams->multiSplix)
-    {
-        neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after finitialize");
-    }
+    neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after finitialize");
 #endif
 
     //part of fadvance_core.c::nrn_fixed_step_minimal

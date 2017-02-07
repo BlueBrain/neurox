@@ -52,8 +52,10 @@ void DataComparison::compareMechanismsFunctionPointers( std::map<int, NrnThreadM
 
 void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch, char* infoString)
 {
-    printf("NDEBUG::comparing Coreneuron vs HPX data (%s)...\n", infoString );
+    if (inputParams->multiSplix) return;
+
     int nrnThreadId = branch->soma->nrnThreadId;
+    printf("NDEBUG::comparing Coreneuron vs HPX data (%s) on branch %d...\n", infoString, nrnThreadId );
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     assert(branch->soma); //only non-branched neurons
     NrnThread & nt = nrn_threads[nrnThreadId];
@@ -122,5 +124,6 @@ void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch, char* 
 
 void DataComparison::coreNeuronFinitialize()
 {
+    if (inputParams->multiSplix) return;
     nrn_finitialize(inputParams->voltage != 1000., inputParams->voltage);
 }

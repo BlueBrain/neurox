@@ -128,7 +128,6 @@ static void nrn_lhs(NrnThread* _nt) {
     has taken effect
     */
     /* note, the first is CAP */
-    assert (_nt->tml!=NULL); //added by Bruno TODO
     if (_nt->tml) {
         assert(_nt->tml->index == CAP);
         nrn_jacob_capacitance(_nt, _nt->tml->ml, _nt->tml->index);

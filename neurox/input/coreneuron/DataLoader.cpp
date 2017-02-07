@@ -296,9 +296,6 @@ void DataLoader::loadData(int argc, char ** argv)
     cn_input_params input_params;
     nrn_init_and_load_data(argc, argv, input_params);
 
-    //we will walk a bit with coreneuron
-    //coreNeuronFakeSteps();
-
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0,
                                  [](int n, NrnThread & nt){return n+nt.ncell;});
 
@@ -337,15 +334,37 @@ void DataLoader::loadData(int argc, char ** argv)
     std::vector<char> mechsSym;
 
     //Different nrn_threads[i] have diff mechanisms sets; we'll get the union of all neurons' mechs
-    std::map<int, NrnThreadMembList*> uniqueMechs; //map of unique <mech-ids, Memb_list>
-    for (int i=0; i<neuronsCount; i++)
-        for (NrnThreadMembList* tml = nrn_threads[i].tml; tml!=NULL; tml = tml->next)
-            if (uniqueMechs.find(tml->index) == uniqueMechs.end())
-                uniqueMechs[tml->index] = tml;
+    std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
+    std::set<int> uniqueMechIds; //list of unique mechanism ids
 
-    for (auto & mechs_it : uniqueMechs)
+    //insert all mechs of first neuron
+    for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next)
     {
-        NrnThreadMembList * tml = mechs_it.second;
+        uniqueMechs.push_back(tml);
+        uniqueMechIds.insert(tml->index);
+    }
+
+    //insert all mechs from other neurons that do not yet exist
+    for (int i=1; i<neuronsCount; i++)
+        for (NrnThreadMembList* tml = nrn_threads[i].tml; tml->next!=NULL; tml = tml->next)
+            if (uniqueMechIds.find(tml->next->index) == uniqueMechIds.end()) //if next mech does not exist
+            {   //find correct position in list and insert it there:
+                for (auto it = uniqueMechs.begin(); it != uniqueMechs.end(); it++) //...for all existing mechs
+                    if ((*it)->index == tml->index)
+                    {
+                        auto it_next = it; it_next++;
+                        uniqueMechs.insert(it_next,tml->next); //reminder: .insert adds elements in position before iterator
+                        auto it_new = it_next; it_new--;
+                        //we have it -> it_new -> it_next. Now we will set the value of next pointer
+                        (*it)->next = *it_new;
+                        (*it_new)->next = *it_next;
+                        uniqueMechIds.insert(tml->next->index);
+                        break;
+                    }
+            }
+
+    for (auto & tml : uniqueMechs)
+    {
         int type = tml->index;
         vector<int> successorsIds;
         int dependenciesCount;
@@ -353,9 +372,9 @@ void DataLoader::loadData(int argc, char ** argv)
         if (inputParams->multiMex)
         {
           std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
-          for (auto & mechs_it_2 : uniqueMechs)
+          for (auto & tml2 : uniqueMechs)
           {
-            int otherType = mechs_it_2.first;
+            int otherType = tml2->index;
             for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
             {
               int ptype = memb_func[otherType].dparam_semantics[d];
@@ -405,7 +424,7 @@ void DataLoader::loadData(int argc, char ** argv)
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    neurox::Input::Coreneuron::DataComparison::compareMechanismsFunctionPointers(uniqueMechs);
+    //neurox::Input::Coreneuron::DataComparison::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
 
     if (inputParams->outputMechanismsDot)
