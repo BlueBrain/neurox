@@ -5,15 +5,15 @@
 
 //Core datatypes
 #include "neurox/neurox_hpx.h"
-#include "neurox/input/InputParams.h"
-#include "neurox/datatypes/Event.h"
-#include "neurox/datatypes/VecPlayContinuous.h"
-#include "neurox/datatypes/NetCon.h"
-#include "neurox/datatypes/Mechanism.h"
-#include "neurox/datatypes/Branch.h"
-#include "neurox/datatypes/Neuron.h"
+#include "neurox/Event.h"
+#include "neurox/VecPlayContinuous.h"
+#include "neurox/NetCon.h"
+#include "neurox/Mechanism.h"
+#include "neurox/Branch.h"
+#include "neurox/Neuron.h"
 
 //Fixed-step Backward-Euler solver
+#include "neurox/input/InputParams.h"
 #include "neurox/solver/HinesSolver.h"
 
 //CoreNeuron specific data loader

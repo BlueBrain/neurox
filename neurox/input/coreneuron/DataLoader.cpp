@@ -20,8 +20,6 @@
 #include "coreneuron/nrniv/vrecitem.h"
 
 #include "neurox/neurox.h"
-#include "neurox/datatypes/Mechanism.h"
-#include "neurox/datatypes/Branch.h"
 
 using namespace std;
 using namespace neurox::Input;
