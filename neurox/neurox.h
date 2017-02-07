@@ -19,7 +19,7 @@
 //CoreNeuron specific data loader
 #include "neurox/input/coreneuron/Compartment.h"
 #include "neurox/input/coreneuron/DataLoader.h"
-#include "neurox/input/coreneuron/DataComparison.h"
+#include "neurox/input/coreneuron/Debugger.h"
 
 //Miscellaneous
 #include "neurox/misc/Statistics.h"

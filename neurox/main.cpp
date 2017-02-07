@@ -8,12 +8,17 @@ void modl_reg() {} ///No additional mechs, dont register any external
 
 int main(int argc, char** argv)
 {
-    //register HPX actions (must be done before hpx_init)
+    //register HPX actions
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
+#if defined(CORENEURON_H)
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
+#if !defined(NDEBUG)
+    neurox::Input::Coreneuron::Debugger::registerHpxActions();
+#endif
+#endif
 
     //Init HPX
     if (hpx_init(&argc, &argv) != 0)

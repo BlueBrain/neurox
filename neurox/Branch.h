@@ -89,7 +89,7 @@ class Branch
     void deliverEvents(floble_t t);
     void fixedPlayContinuous();
     void setupTreeMatrixMinimal();
-    void initialize();
+    void finitialize_aux();
     void backwardEulerStep();
 
   private:

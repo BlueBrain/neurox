@@ -497,7 +497,7 @@ int Branch::initNeuronTreeLCO_handler()
     neurox_hpx_unpin;
 }
 
-void Branch::initialize()
+void Branch::finitialize_aux()
 {
     floble_t *& v = this->nt._actual_v;
     double t = this->nt._t;
@@ -570,22 +570,7 @@ int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
-
-#if !defined(NDEBUG) && defined(CORENEURON_H)
-    neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after data load");
-    neurox::Input::Coreneuron::DataComparison::coreNeuronFinitialize();
-#endif
-
-    local->initialize(); //finitialize.c::finitilize()
-
-#if !defined(NDEBUG) && defined(CORENEURON_H)
-    neurox::Input::Coreneuron::DataComparison::compareDataStructuresWithCoreNeuron(local, "after finitialize");
-#endif
-
-    //part of fadvance_core.c::nrn_fixed_step_minimal
-    //multicore.c::nrn_thread_table_check()
-    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
-
+    local->finitialize_aux(); //finitialize.c::finitilize()
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -595,6 +580,11 @@ int Branch::backwardEuler_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
+
+    //part of fadvance_core.c::nrn_fixed_step_minimal
+    //multicore.c::nrn_thread_table_check()
+    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
+
     int i=0;
     double & t = local->nt._t;
     while (t <= inputParams->tstop)

@@ -25,12 +25,11 @@ using namespace std;
 using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
-void DataComparison::compareMechanismsFunctionPointers( std::map<int, NrnThreadMembList*> & uniqueMechs)
+void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs)
 {
     printf("NDEBUG::comparing Mechanisms functions...\n");
-    for (auto & mechs_it : uniqueMechs)
+    for (auto & tml : uniqueMechs)
     {
-        NrnThreadMembList * tml = mechs_it.second;
         Memb_func & mf_cn = memb_func[tml->index]; //coreneuron
         Memb_func & mf_nx = mechanisms[mechanismsMap[tml->index]]->membFunc; //neurox
         if (tml->index != CAP)
@@ -50,12 +49,12 @@ void DataComparison::compareMechanismsFunctionPointers( std::map<int, NrnThreadM
 
 }
 
-void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch, char* infoString)
+hpx_action_t Debugger::compareBranch = 0;
+int Debugger::compareBranch_handler()
 {
-    if (inputParams->multiSplix) return;
-
+    neurox_hpx_pin(Branch);
+    Branch * branch = local;
     int nrnThreadId = branch->soma->nrnThreadId;
-    printf("NDEBUG::comparing Coreneuron vs HPX data (%s) on branch %d...\n", infoString, nrnThreadId );
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     assert(branch->soma); //only non-branched neurons
     NrnThread & nt = nrn_threads[nrnThreadId];
@@ -120,10 +119,15 @@ void DataComparison::compareDataStructuresWithCoreNeuron(Branch * branch, char* 
         mechCount++;
     }
     assert(mechCount==mechanismsCount);
+    neurox_hpx_unpin;
 }
 
-void DataComparison::coreNeuronFinitialize()
+void Debugger::coreNeuronFinitialize()
 {
-    if (inputParams->multiSplix) return;
     nrn_finitialize(inputParams->voltage != 1000., inputParams->voltage);
+}
+
+void Debugger::registerHpxActions()
+{
+    neurox_hpx_register_action(0, Debugger::compareBranch);
 }

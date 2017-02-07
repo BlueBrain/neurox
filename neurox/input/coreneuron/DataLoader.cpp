@@ -424,7 +424,7 @@ void DataLoader::loadData(int argc, char ** argv)
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    //neurox::Input::Coreneuron::DataComparison::compareMechanismsFunctionPointers(uniqueMechs);
+    neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
 
     if (inputParams->outputMechanismsDot)
