@@ -1,10 +1,10 @@
 #pragma once
 
 //Coreneuron core datatypes
-#include "coreneuron/coreneuron.h"  //definitions
+#include "coreneuron/coreneuron.h"
 
 //Core datatypes
-#include "neurox/neurox_hpx.h"
+#include "neurox/hpx.h"
 #include "neurox/Event.h"
 #include "neurox/VecPlayContinuous.h"
 #include "neurox/NetCon.h"
@@ -49,7 +49,7 @@ namespace neurox
     extern hpx_action_t setNeurons;      ///> Initialized neurons and neuronsAddr global vars
     extern hpx_action_t setInputParams;  ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	 ///> Initializes Mechanisms
-    extern hpx_action_t setTimeMachine;     ///> Initializes timeLCOs
+    extern hpx_action_t setTimeMachine;  ///> Initializes timeLCOs
 
     hpx_t getNeuronAddr(int i);      ///> get HPX address of i-th neuron
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
