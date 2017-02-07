@@ -37,7 +37,6 @@ Branch::Branch(offset_t n,
     //all non usable values
     nt._ml_list = NULL;
     nt.tml = NULL;
-    nt._ml_list = NULL;
     nt.pntprocs = NULL;
     nt.presyns = NULL;
     nt.presyns_helper = NULL;
