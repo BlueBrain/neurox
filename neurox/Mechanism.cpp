@@ -165,9 +165,8 @@ void Mechanism::callModFunction(const void * branch_ptr,
     assert(nrnThread);
     Memb_list * membList = &branch->mechsInstances[mechanismsMap[this->type]];
     assert(membList);
-    assert(membList->data);
-    assert(membList->nodeindices);
 
+    if (membList->nodecount>0)
     switch(functionId)
     {
         case Mechanism::before_initialize:
@@ -208,7 +207,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
             break;
         case Mechanism::ModFunction::initialize:
             if (membFunc.initialize)
-                membFunc.initialize(nrnThread, membList, type); //TODO Valgrind invalid read/write (why?)
+                membFunc.initialize(nrnThread, membList, type);
             break;
         case Mechanism::ModFunction::destructor:
             if (membFunc.destructor)

@@ -947,7 +947,6 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
         tml->ml->_permute = NULL;
         tml->next = NULL;
         tml->index = F.read_int();
-        printf("========== %d\n", tml->index);
         if (memb_func[tml->index].alloc == NULL) {
             hoc_execerror(memb_func[tml->index].sym, "mechanism does not exist");
         }

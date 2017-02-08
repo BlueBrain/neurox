@@ -352,19 +352,20 @@ void DataLoader::loadData(int argc, char ** argv)
                 for (auto it = uniqueMechs.begin(); it != uniqueMechs.end(); it++) //...for all existing mechs
                     if ((*it)->index == tml->index)
                     {
-                        auto it_next = it; it_next++;
+                        auto it_next = std::next(it,1);
                         uniqueMechs.insert(it_next,tml->next); //reminder: .insert adds elements in position before iterator
-                        auto it_new = it_next; it_new--;
                         //we have it -> it_new -> it_next. Now we will set the value of next pointer
-                        (*it)->next = *it_new;
-                        (*it_new)->next = *it_next;
+                        //auto it_new = std::prev(it_next,1);
+                        //(*it)->next = *it_new; //Do not change next pointers or neuron is incorrect
+                        //(*it_new)->next = *it_next;
                         uniqueMechIds.insert(tml->next->index);
                         break;
                     }
             }
 
-    for (auto & tml : uniqueMechs)
+    for (auto tml_it = uniqueMechs.begin(); tml_it != uniqueMechs.end(); tml_it++)
     {
+        auto & tml = *tml_it;
         int type = tml->index;
         vector<int> successorsIds;
         int dependenciesCount;
@@ -391,8 +392,11 @@ void DataLoader::loadData(int argc, char ** argv)
         {
           //all except second element (the one after capacitance) have 1 dependency
           dependenciesCount = type==CAP ? 0 : 1;
-          if (tml->next!=NULL)
-              successorsIds.push_back(tml->next->index);
+          if (tml->index != uniqueMechs.back()->index)
+          {
+              auto tml_next_it = std::next(tml_it,1);
+              successorsIds.push_back((*tml_next_it)->index);
+          }
         }
 
         int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
@@ -475,8 +479,7 @@ void DataLoader::loadData(int argc, char ** argv)
 
     printf("neurox::createNeurons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron,
-                            NULL, 0, &i, sizeof(i) );
+    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i) );
     }, 0, neuronsCount, NULL);
 
     //all neurons have been created, every branch will inform pre-syn ids that they are connected

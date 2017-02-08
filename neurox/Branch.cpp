@@ -135,11 +135,13 @@ Branch::Branch(offset_t n,
         maxMechId = max(maxMechId, mech->type);
 
         //data, pdata, and nodesIndices arrays
-        instance.data = mech->dataSize ==0 ? nullptr : this->nt._data+dataOffset;
-        instance.pdata = mech->pdataSize==0 ? nullptr : new offset_t[mech->pdataSize * instance.nodecount];
-        memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.nodecount));
+        instance.data  = mech->dataSize ==0 || instance.nodecount==0 ? nullptr : this->nt._data+dataOffset;
+        instance.pdata = mech->pdataSize==0 || instance.nodecount==0 ? nullptr : new offset_t[mech->pdataSize * instance.nodecount];
+        if (instance.pdata)
+            memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.nodecount));
         instance.nodeindices = instance.nodecount>0 ? new offset_t[instance.nodecount] : nullptr;
-        memcpy(instance.nodeindices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.nodecount);
+        if (instance.nodeindices)
+            memcpy(instance.nodeindices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.nodecount);
 
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])

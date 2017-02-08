@@ -78,7 +78,6 @@ int Debugger::compareBranch_handler()
         {  assert(nt._v_parent_index[i] == branch->nt._v_parent_index[i]); }
     }
 
-    int mechCount=0;
     int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
     {
@@ -116,9 +115,7 @@ int Debugger::compareBranch_handler()
             }
             */
         }
-        mechCount++;
     }
-    assert(mechCount==mechanismsCount);
     neurox_hpx_unpin;
 }
 

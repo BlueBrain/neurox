@@ -24,7 +24,7 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-//#define NDEBUG //(if active, disables assertions and debug output)
+//#define NDEBUG //(if active, compares data output with coreneuron and enables assertions)
 
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
