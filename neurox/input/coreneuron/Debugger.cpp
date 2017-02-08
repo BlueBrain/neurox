@@ -61,21 +61,21 @@ int Debugger::compareBranch_handler()
 
     //make sure all morphology and mechs data is correct
     for (int i=0; i<nt._ndata; i++)
-    {   assert(nt._data[i] == branch->nt._data[i]); }
+    {   assert(nt._data[i] == branch->nt->_data[i]); }
 
-    for (int i=0; i<6*branch->nt.end; i++)
-    {   assert(nt._data[i] == branch->nt._data[i]); }
+    for (int i=0; i<6*branch->nt->end; i++)
+    {   assert(nt._data[i] == branch->nt->_data[i]); }
 
-    for (offset_t i=0; i<branch->nt.end; i++)
+    for (offset_t i=0; i<branch->nt->end; i++)
     {
-        assert(nt._actual_a[i] == branch->nt._actual_a[i]);
-        assert(nt._actual_b[i] == branch->nt._actual_b[i]);
-        assert(nt._actual_d[i] == branch->nt._actual_d[i]);
-        assert(nt._actual_v[i] == branch->nt._actual_v[i]);
-        assert(nt._actual_rhs[i] == branch->nt._actual_rhs[i]);
-        assert(nt._actual_area[i] == branch->nt._actual_area[i]);
-        if (branch->nt._v_parent_index)
-        {  assert(nt._v_parent_index[i] == branch->nt._v_parent_index[i]); }
+        assert(nt._actual_a[i] == branch->nt->_actual_a[i]);
+        assert(nt._actual_b[i] == branch->nt->_actual_b[i]);
+        assert(nt._actual_d[i] == branch->nt->_actual_d[i]);
+        assert(nt._actual_v[i] == branch->nt->_actual_v[i]);
+        assert(nt._actual_rhs[i] == branch->nt->_actual_rhs[i]);
+        assert(nt._actual_area[i] == branch->nt->_actual_area[i]);
+        if (branch->nt->_v_parent_index)
+        {  assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
     }
 
     int vdataOffset=0;

@@ -44,7 +44,7 @@ class Branch
            void** vdata, size_t vdataCount);
     ~Branch();
 
-    NrnThread nt;              ///> compartments metadata
+    NrnThread *nt;             ///> compartments metadata
     Memb_list *mechsInstances; ///> Arrays of mechanism instances (size neurox::mechanismsCount)
     Neuron * soma;             ///> if top branch, it's populated, otherwise is NULL
 

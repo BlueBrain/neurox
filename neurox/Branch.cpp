@@ -30,64 +30,65 @@ Branch::Branch(offset_t n,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *netConsWeights, size_t netConsWeightsCount,
                void** vdata, size_t vdataCount):
-    soma(nullptr)
+    soma(nullptr),nt(nullptr)
 {
-    NrnThread & nt = this->nt;
+    this->nt = (NrnThread*) malloc(sizeof(NrnThread));
+    NrnThread * nt = this->nt;
 
     //all non usable values
-    nt._ml_list = NULL;
-    nt.tml = NULL;
-    nt.pntprocs = NULL;
-    nt.presyns = NULL;
-    nt.presyns_helper = NULL;
-    nt.pnt2presyn_ix = NULL;
-    nt.netcons = NULL;
-    nt.n_pntproc=-1;
-    nt.n_presyn=-1;
-    nt.n_input_presyn = -1;
-    nt.n_netcon = -1;
-    nt.ncell=-1;
-    nt.id = this->soma ? this->soma->id : -1;
-    nt._stop_stepping = -1;
-    nt._permute = NULL;
-    nt._sp13mat = NULL;
-    nt._ecell_memb_list = NULL;
-    nt._ctime = -1;
+    nt->_ml_list = NULL;
+    nt->tml = NULL;
+    nt->pntprocs = NULL;
+    nt->presyns = NULL;
+    nt->presyns_helper = NULL;
+    nt->pnt2presyn_ix = NULL;
+    nt->netcons = NULL;
+    nt->n_pntproc=-1;
+    nt->n_presyn=-1;
+    nt->n_input_presyn = -1;
+    nt->n_netcon = -1;
+    nt->ncell=-1;
+    nt->id = this->soma ? this->soma->id : -1;
+    nt->_stop_stepping = -1;
+    nt->_permute = NULL;
+    nt->_sp13mat = NULL;
+    nt->_ecell_memb_list = NULL;
+    nt->_ctime = -1;
     for (int i=0; i<BEFORE_AFTER_SIZE; i++)
-      nt.tbl[i] = NULL;
-    nt.shadow_rhs_cnt=-1;
-    nt.compute_gpu=0;
-    nt._net_send_buffer_size=-1;
-    nt._net_send_buffer_cnt=-1;
-    nt._net_send_buffer = NULL;
-    nt.mapping = NULL;
-    nt._idata = NULL;
-    nt._nidata = -1;
+      nt->tbl[i] = NULL;
+    nt->shadow_rhs_cnt=-1;
+    nt->compute_gpu=0;
+    nt->_net_send_buffer_size=-1;
+    nt->_net_send_buffer_cnt=-1;
+    nt->_net_send_buffer = NULL;
+    nt->mapping = NULL;
+    nt->_idata = NULL;
+    nt->_nidata = -1;
 
     //assignemnts start here
-    nt._t = inputParams->t;
-    nt._dt = inputParams->dt;
-    nt.cj = (inputParams->secondorder ? 2.0 : 1.0 ) / inputParams->dt;
-    nt.end = n;
+    nt->_dt = inputParams->dt;
+    nt->_t  = inputParams->tstart;
+    nt->cj = (inputParams->secondorder ? 2.0 : 1.0 ) / inputParams->dt;
+    nt->end = n;
 
-    nt._data = dataCount==0 ? nullptr : new floble_t[dataCount];
-    memcpy(nt._data, data, dataCount*sizeof(floble_t));
-    nt._ndata = dataCount;
+    nt->_data = dataCount==0 ? nullptr : new floble_t[dataCount];
+    memcpy(nt->_data, data, dataCount*sizeof(floble_t));
+    nt->_ndata = dataCount;
 
-    nt._vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
-    memcpy(nt._vdata, vdata, vdataCount*sizeof(void*));
-    nt._nvdata = vdataCount;
+    nt->_vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
+    memcpy(nt->_vdata, vdata, vdataCount*sizeof(void*));
+    nt->_nvdata = vdataCount;
 
-    nt.weights = netConsWeightsCount==0 ? nullptr : new floble_t[netConsWeightsCount];
-    memcpy(nt.weights, netConsWeights, sizeof(floble_t)*netConsWeightsCount);
-    nt.n_weight = netConsWeightsCount;
+    nt->weights = netConsWeightsCount==0 ? nullptr : new floble_t[netConsWeightsCount];
+    memcpy(nt->weights, netConsWeights, sizeof(floble_t)*netConsWeightsCount);
+    nt->n_weight = netConsWeightsCount;
 
-    nt._actual_rhs  = nt._data + n*0;
-    nt._actual_d    = nt._data + n*1;
-    nt._actual_a    = nt._data + n*2;
-    nt._actual_b    = nt._data + n*3;
-    nt._actual_v    = nt._data + n*4;
-    nt._actual_area = nt._data + n*5;
+    nt->_actual_rhs  = nt->_data + n*0;
+    nt->_actual_d    = nt->_data + n*1;
+    nt->_actual_a    = nt->_data + n*2;
+    nt->_actual_b    = nt->_data + n*3;
+    nt->_actual_v    = nt->_data + n*4;
+    nt->_actual_area = nt->_data + n*5;
 
     this->eventsQueueMutex = hpx_lco_sema_new(1);
     this->initMechanismsGraph(branchHpxAddr);
@@ -96,25 +97,25 @@ Branch::Branch(offset_t n,
     if (pCount>0)
     {
         assert(pCount==n);
-        nt._v_parent_index = new offset_t[pCount];
-        memcpy(nt._v_parent_index, p, n*sizeof(offset_t));
+        this->nt->_v_parent_index = new offset_t[pCount];
+        memcpy(this->nt->_v_parent_index, p, n*sizeof(offset_t));
     }
     else
     {
-        this->nt._v_parent_index = nullptr;
+        this->nt->_v_parent_index = nullptr;
     }
 
     //vecplay
-    nt.n_vecplay = vecplayCount;
-    nt._vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
+    nt->n_vecplay = vecplayCount;
+    nt->_vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
 
     offset_t vOffset=0;
-    for (size_t v=0; v < nt.n_vecplay; v++)
+    for (size_t v=0; v < nt->n_vecplay; v++)
     {
         int m = mechanismsMap[ppis[v].mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
-        nt._vecplay[v] = new VecPlayContinuouX(pd, &vecplayT[vOffset], &vecplayY[vOffset], ppis[v].size);
+        nt->_vecplay[v] = new VecPlayContinuouX(pd, &vecplayT[vOffset], &vecplayY[vOffset], ppis[v].size);
         vOffset += ppis[v].size;
     }
 
@@ -135,7 +136,7 @@ Branch::Branch(offset_t n,
         maxMechId = max(maxMechId, mech->type);
 
         //data, pdata, and nodesIndices arrays
-        instance.data  = mech->dataSize ==0 || instance.nodecount==0 ? nullptr : this->nt._data+dataOffset;
+        instance.data  = mech->dataSize ==0 || instance.nodecount==0 ? nullptr : this->nt->_data+dataOffset;
         instance.pdata = mech->pdataSize==0 || instance.nodecount==0 ? nullptr : new offset_t[mech->pdataSize * instance.nodecount];
         if (instance.pdata)
             memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.nodecount));
@@ -150,7 +151,7 @@ Branch::Branch(offset_t n,
             //point pdata to the correct offset, and allocate vdata
             assert(dataOffset  <= dataCount);
             assert(vdataOffset <= vdataCount);
-            floble_t * instanceData  = (floble_t*) &this->nt._data[dataOffset ];
+            floble_t * instanceData  = (floble_t*) &this->nt->_data[dataOffset ];
             floble_t * instanceData2 = (floble_t*) &instance.data [i*mech->dataSize];
             offset_t * instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
             assert (instanceData = instanceData2); //Make sure data offsets are good so far
@@ -160,7 +161,7 @@ Branch::Branch(offset_t n,
                     || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
                         && mech->vdataSize == 2 && mech->pdataSize == 3));
 
-                void** instanceVdata = (void**) &this->nt._vdata[vdataOffset];
+                void** instanceVdata = (void**) &this->nt->_vdata[vdataOffset];
                 Point_process * pp = (Point_process *) instanceVdata[0];
                 (void) pp;
                 (void) instanceVdata;
@@ -192,15 +193,15 @@ Branch::Branch(offset_t n,
     assert(instancesOffset == nodesIndicesCount);
 
     //nt->_ml_list
-    nt._ml_list = new Memb_list*[maxMechId+1];
+    nt->_ml_list = new Memb_list*[maxMechId+1];
     for (int i=0; i<=maxMechId; i++)
-        nt._ml_list[i] = NULL;
+        nt->_ml_list[i] = NULL;
 
     for (offset_t m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
         Memb_list & instances = this->mechsInstances[m];
-        this->nt._ml_list[mech->type] = &instances;
+        this->nt->_ml_list[mech->type] = &instances;
 
     }
 
@@ -209,8 +210,8 @@ Branch::Branch(offset_t n,
                 mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
                 mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
             );
-    this->nt._shadow_rhs = new double[shadowElemsCount];
-    this->nt._shadow_d   = new double[shadowElemsCount];
+    this->nt->_shadow_rhs = new double[shadowElemsCount];
+    this->nt->_shadow_d   = new double[shadowElemsCount];
 
     //reconstructs parents or branching
     if (inputParams->multiSplix)
@@ -246,9 +247,11 @@ Branch::Branch(offset_t n,
 
 Branch::~Branch()
 {
-    delete [] nt._v_parent_index;
-    delete [] nt._actual_area;
-    delete [] this->nt._data;
+    delete [] this->nt->_v_parent_index;
+    delete [] this->nt->_actual_area;
+    delete [] this->nt->_data;
+    delete [] this->nt->_ml_list;
+    free(this->nt);
 
     if (neuronTree)
     {
@@ -262,7 +265,6 @@ Branch::~Branch()
         delete [] mechsInstances[m].pdata;
     }
     delete [] mechsInstances;
-    delete [] nt._ml_list;
 }
 
 hpx_action_t Branch::init = 0;
@@ -281,7 +283,7 @@ int Branch::init_handler( const int nargs, const void *args[],
         (hpx_t*) args[6], sizes[6]/sizeof(hpx_t), //branches
         (offset_t*) args[7], sizes[7]/sizeof(offset_t), //parent index
         (floble_t*) args[8], sizes[8]/sizeof(floble_t), //vecplay T data
-        (floble_t*) args[9], sizes[8]/sizeof(floble_t), //vecplay Y data
+        (floble_t*) args[9], sizes[9]/sizeof(floble_t), //vecplay Y data
         (PointProcInfo*) args[10], sizes[10]/sizeof(PointProcInfo), //point processes info
         (NetConX*) args[11], sizes[11]/sizeof(NetConX), //netcons
         (neuron_id_t *) args[12], sizes[12]/sizeof(neuron_id_t), //netcons preneuron ids
@@ -351,16 +353,16 @@ int Branch::clear_handler()
 
 void Branch::initEventsQueue()
 {
-    for (size_t v=0; v<this->nt.n_vecplay; v++)
+    for (size_t v=0; v<this->nt->n_vecplay; v++)
     {
-        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(this->nt._vecplay[v]);
+        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(this->nt->_vecplay[v]);
         eventsQueue.push(make_pair(vecplay->getFirstInstant(),
                                    (Event*) vecplay));
     }
 
     //nrn_play_init
-    //for (int i = 0; i < nt.n_vecplay; ++i)
-    //    ((PlayRecord*)nt._vecplay[i])->play_init();
+    //for (int i = 0; i < nt->n_vecplay; ++i)
+    //    ((PlayRecord*)nt->_vecplay[i])->play_init();
 }
 
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
@@ -397,7 +399,9 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
                       || functionId == Mechanism::ModFunction::jacob))
                     continue;
                 else
+                {
                     mechanisms[m]->callModFunction(this, functionId);
+                }
         }
     }
 }
@@ -501,8 +505,8 @@ int Branch::initNeuronTreeLCO_handler()
 
 void Branch::finitialize_aux()
 {
-    floble_t *& v = this->nt._actual_v;
-    double t = this->nt._t;
+    floble_t * v = this->nt->_actual_v;
+    double t = this->nt->_t;
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     assert(inputParams->secondorder < sizeof(char));
@@ -511,7 +515,7 @@ void Branch::finitialize_aux()
     deliverEvents(t);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
-    for (int n=0; n<this->nt.end; n++)
+    for (int n=0; n<this->nt->end; n++)
         v[n]=inputParams->voltage;
 
     // the INITIAL blocks are ordered so that mechanisms that write
@@ -528,10 +532,10 @@ void Branch::finitialize_aux()
 
 void Branch::backwardEulerStep()
 {
-    floble_t *& v = this->nt._actual_v;
-    floble_t *& rhs = this->nt._actual_rhs;
-    double & t = this->nt._t;
-    double & dt = this->nt._dt;
+    floble_t *& v = this->nt->_actual_v;
+    floble_t *& rhs = this->nt->_actual_rhs;
+    double & t = this->nt->_t;
+    double & dt = this->nt->_dt;
 
     //2. fadvance_core.c::nrn_fixed_step_thread()
     bool reachedThresold = soma && v[0] >= soma->APthreshold;
@@ -544,10 +548,10 @@ void Branch::backwardEulerStep()
 
     //eion.c : second_order_cur()
     if (inputParams->secondorder)
-        second_order_cur(&this->nt, inputParams->secondorder );
+        second_order_cur(this->nt, inputParams->secondorder );
 
     //fadvance_core.c : update() / Branch::updateV
-    for (int i=0; i<this->nt.end; i++)
+    for (int i=0; i<this->nt->end; i++)
         v[i] += (inputParams->secondorder ? 2 : 1) * rhs[i];
 
     callModFunction(Mechanism::ModFunction::jacob);
@@ -588,7 +592,7 @@ int Branch::backwardEuler_handler()
     local->callModFunction(Mechanism::ModFunction::threadTableCheck);
 
     int i=0;
-    double & t = local->nt._t;
+    double & t = local->nt->_t;
     while (t <= inputParams->tstop)
     {
         if (local->soma) //neuron
@@ -612,10 +616,10 @@ int Branch::backwardEuler_handler()
 
 void Branch::setupTreeMatrixMinimal()
 {
-    floble_t *& d = this->nt._actual_d;
-    floble_t *& rhs = this->nt._actual_rhs;
+    floble_t *& d = this->nt->_actual_d;
+    floble_t *& rhs = this->nt->_actual_rhs;
 
-    for (int i=0; i<this->nt.end; i++)
+    for (int i=0; i<this->nt->end; i++)
     {
         rhs[i]=0;
         d[i]=0;
@@ -656,10 +660,10 @@ void Branch::deliverEvents(floble_t t)
 
 void Branch::fixedPlayContinuous()
 {
-    double t = this->nt._t;
-    for (int v=0; v<this->nt.n_vecplay; v++)
+    double t = this->nt->_t;
+    for (int v=0; v<this->nt->n_vecplay; v++)
     {
-        void * vecplay_void = this->nt._vecplay[v];
+        void * vecplay_void = this->nt->_vecplay[v];
         VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(vecplay_void);
         vecplay->continuous(t);
     }

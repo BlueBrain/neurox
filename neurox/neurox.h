@@ -16,7 +16,7 @@
 #include "neurox/input/InputParams.h"
 #include "neurox/solver/HinesSolver.h"
 
-//CoreNeuron specific data loader
+//CoreNeuron Input
 #include "neurox/input/coreneuron/Compartment.h"
 #include "neurox/input/coreneuron/DataLoader.h"
 #include "neurox/input/coreneuron/Debugger.h"

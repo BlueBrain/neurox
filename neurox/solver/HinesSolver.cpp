@@ -10,12 +10,12 @@ HinesSolver::~HinesSolver(){}
 
 void HinesSolver::forwardTriangulation(Branch * local)
 {
-    const offset_t n = local->nt.end;
-    const floble_t *a   = local->nt._actual_a;
-    const floble_t *b   = local->nt._actual_b;
-    const floble_t *v   = local->nt._actual_v;
-    const offset_t *p = local->nt._v_parent_index;
-    floble_t *rhs = local->nt._actual_rhs;
+    const offset_t n = local->nt->end;
+    const floble_t *a   = local->nt->_actual_a;
+    const floble_t *b   = local->nt->_actual_b;
+    const floble_t *v   = local->nt->_actual_v;
+    const offset_t *p = local->nt->_v_parent_index;
+    floble_t *rhs = local->nt->_actual_rhs;
     const Branch::NeuronTree * neuronTree = local->neuronTree;
 
     /* now the internal axial currents.
@@ -26,7 +26,7 @@ void HinesSolver::forwardTriangulation(Branch * local)
     floble_t dv=0;
     if (neuronTree==NULL)
     {
-      assert(local->nt._v_parent_index);
+      assert(local->nt->_v_parent_index);
       for (offset_t i=1; i<n; i++)
       {
           dv = v[p[i]] - v[i];  //reads from parent
@@ -77,11 +77,11 @@ void HinesSolver::forwardTriangulation(Branch * local)
 
 void HinesSolver::backSubstitution(Branch * local)
 {
-    const offset_t n = local->nt.end;
-    const floble_t *a   = local->nt._actual_a;
-    const floble_t *b   = local->nt._actual_b;
-    const offset_t *p = local->nt._v_parent_index;
-    floble_t *d = local->nt._actual_d;
+    const offset_t n = local->nt->end;
+    const floble_t *a   = local->nt->_actual_a;
+    const floble_t *b   = local->nt->_actual_b;
+    const offset_t *p = local->nt->_v_parent_index;
+    floble_t *d = local->nt->_actual_d;
     const Branch::NeuronTree * neuronTree = local->neuronTree;
 
     if (neuronTree==NULL)

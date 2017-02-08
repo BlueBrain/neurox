@@ -186,8 +186,7 @@ add_custom_command(OUTPUT "${KINDERIV_H}"
     COMMAND python "${KINDERIV_PY}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
-if (EXPORT_MECHS_FUNCTIONS) #create scripts
-
+if (EXPORT_MECHS_FUNCTIONS)
   # Create C file with all "get function pointers" methods
   set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
   set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")

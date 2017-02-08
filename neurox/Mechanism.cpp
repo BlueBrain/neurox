@@ -161,7 +161,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
 {
     Branch * branch = (Branch*) branch_ptr;
     assert(branch);
-    NrnThread * nrnThread = &branch->nt;
+    NrnThread * nrnThread = branch->nt;
     assert(nrnThread);
     Memb_list * membList = &branch->mechsInstances[mechanismsMap[this->type]];
     assert(membList);
@@ -239,14 +239,14 @@ void Mechanism::callNetReceiveFunction(
 {
     Branch * branch = (Branch*) branch_ptr;
     //Memb_list & membList = branch->mechsInstances[mechanismsMap];
-    NrnThread * nrnThread = &branch->nt;
+    NrnThread * nt = branch->nt;
 
     Point_process pp;
     pp._i_instance = netcon->mechInstance;
     pp._tid = -1;
 
     pp._type = netcon->mechType;
-    nrnThread->_t = nrnThread->_dt + netcon->delay; //delivery time
+    nt->_t = nt->_dt + netcon->delay; //delivery time
     //see netcvode.cpp:433 (NetCon::deliver)
     //We have to pass NrnThread, MembList, and deliveryTime instead
     if (callNetReceiveInit)

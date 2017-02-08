@@ -90,9 +90,9 @@ hpx_action_t Statistics::getNeuronSize=0;
 int Statistics::getNeuronSize_handler()
 {
     neurox_hpx_pin(Branch);
-    assert(local->nt.end>0);
+    assert(local->nt->end>0);
     SizeInfo branchSize;
-    int n = local->nt.end;
+    int n = local->nt->end;
     if (local->soma)
     {
         branchSize.neuronId += local->soma->id;
@@ -102,7 +102,7 @@ int Statistics::getNeuronSize_handler()
     branchSize.branchesCount++;
     branchSize.compartmentsCount += n;
     branchSize.morphologies += (double) (n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
-    branchSize.morphologies += local->nt._v_parent_index ? (double) (n* sizeof(offset_t))/1024 : 0;
+    branchSize.morphologies += local->nt->_v_parent_index ? (double) (n* sizeof(offset_t))/1024 : 0;
     if (local->neuronTree)
         branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
