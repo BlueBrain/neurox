@@ -46,18 +46,23 @@ void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> 
         assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
         assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
     }
-
 }
 
-hpx_action_t Debugger::compareBranch = 0;
-int Debugger::compareBranch_handler()
+void Debugger::fixed_step_minimal()
 {
-    neurox_hpx_pin(Branch);
-    Branch * branch = local;
+    nrn_fixed_step_minimal(); //from fadvance_core.c
+    //nrn_fixed_step_group_minimal(); //from fadvance_core.c
+    //both call fadvance_core.c::nrn_fixed_step_thread(NrnThread*)
+}
+
+void Debugger::compareBranch2(Branch * branch)
+{
     int nrnThreadId = branch->soma->nrnThreadId;
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     assert(branch->soma); //only non-branched neurons
     NrnThread & nt = nrn_threads[nrnThreadId];
+
+    assert(branch->nt->_t == nt._t);
 
     //make sure all morphology and mechs data is correct
     for (int i=0; i<nt._ndata; i++)
@@ -116,6 +121,13 @@ int Debugger::compareBranch_handler()
             */
         }
     }
+}
+
+hpx_action_t Debugger::compareBranch = 0;
+int Debugger::compareBranch_handler()
+{
+    neurox_hpx_pin(Branch);
+    compareBranch2(local);
     neurox_hpx_unpin;
 }
 

@@ -311,7 +311,7 @@ void Branch::initMechanismsGraph(hpx_t target)
                     Mechanism::reduceModFunction);
         if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
             terminalMechanismsCount++;
-        hpx_call(target,  Branch::MechanismsGraphLCO::nodeFunction,
+        hpx_call(target, Branch::MechanismsGraphLCO::nodeFunction,
                  this->mechsGraph->graphLCO, &mechanisms[m]->type, sizeof(int));
       }
       this->mechsGraph->endLCO = hpx_lco_and_new(terminalMechanismsCount);
@@ -503,7 +503,7 @@ int Branch::initNeuronTreeLCO_handler()
     neurox_hpx_unpin;
 }
 
-void Branch::finitialize_aux()
+void Branch::finitialize2()
 {
     floble_t * v = this->nt->_actual_v;
     double t = this->nt->_t;
@@ -525,17 +525,21 @@ void Branch::finitialize_aux()
     callModFunction(Mechanism::ModFunction::initialize);
     callModFunction(Mechanism::ModFunction::after_initialize);
 
+    //initEvents(t); //TODO (see _net_init in ProbAmpd modc files)
     deliverEvents(t);
     setupTreeMatrixMinimal();
     deliverEvents(t);
 }
 
-void Branch::backwardEulerStep()
+void Branch::backwardEulerStep2()
 {
     floble_t *& v = this->nt->_actual_v;
     floble_t *& rhs = this->nt->_actual_rhs;
     double & t = this->nt->_t;
     double & dt = this->nt->_dt;
+
+    //multicore.c::nrn_thread_table_check()
+    callModFunction(Mechanism::ModFunction::threadTableCheck);
 
     //2. fadvance_core.c::nrn_fixed_step_thread()
     bool reachedThresold = soma && v[0] >= soma->APthreshold;
@@ -571,29 +575,40 @@ void Branch::backwardEulerStep()
     //>waitForSynapsesDelivery(stepsCountPerComm);
 }
 
+hpx_action_t Branch::backwardEulerStep = 0;
+int Branch::backwardEulerStep_handler(const int * minDelayStepsCount, const size_t size)
+{
+    //fadvance_core.c::nrn_fixed_step_minimal()
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::backwardEulerStep, minDelayStepsCount, size);
+    for (int step=0; step<*minDelayStepsCount; step++)
+        local->backwardEulerStep2();
+
+    ////synaptic_exchange //communication
+
+    neurox_hpx_recursive_branch_async_wait;
+    neurox_hpx_unpin;
+}
+
 hpx_action_t Branch::finitialize = 0;
 int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
-    local->finitialize_aux(); //finitialize.c::finitilize()
+    local->finitialize2(); //finitialize.c::finitilize()
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
+//fadvance_core.c::nrn_fixed_step_minimal
 hpx_action_t Branch::backwardEuler = 0;
 int Branch::backwardEuler_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
-
-    //part of fadvance_core.c::nrn_fixed_step_minimal
-    //multicore.c::nrn_thread_table_check()
-    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
-
-    int i=0;
+    //fadvance_core.c::nrn_fixed_step_thread(NrnThread*)
     double & t = local->nt->_t;
-    while (t <= inputParams->tstop)
+    //for (int step = 0; step < n; step++)
     {
         if (local->soma) //neuron
         { //docs: last argument should be 0 for and-lco
@@ -601,14 +616,14 @@ int Branch::backwardEuler_handler()
           //hpx_lco_set(step, 0, NULL, HPX_NULL, HPX_NULL);
         }
 
-        local->backwardEulerStep();
-        if (local->soma && i>=4)
+        local->backwardEulerStep2();
+
+        //if (local->soma && step>=4)
         {
             //TODO use lco_gencount maybe?
             //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
             //hpx_lco_wait(step);
         }
-        i++;
     }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -677,6 +692,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(0, Branch::backwardEuler);
+    neurox_hpx_register_action(1, Branch::backwardEulerStep);
     neurox_hpx_register_action(0, Branch::initNeuronTreeLCO);
     neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
 }

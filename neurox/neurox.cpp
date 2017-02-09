@@ -153,23 +153,39 @@ static int main_handler(char **argv, size_t argc)
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(getNeuronAddr(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
-#if !defined(NDEBUG) && defined(CORENEURON_H)
-    Input::Coreneuron::Debugger::coreNeuronFinitialize();
-#endif
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
+    Input::Coreneuron::Debugger::coreNeuronFinitialize();
     printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(getNeuronAddr(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 #endif
 
+    //For debugging purposes: old way, a la coreneuron (one step at the time)
     printf("neurox::BackwardEuler::solve...\n");
-    hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t now = hpx_time_now();
-    for (int i=0; i<neuronsCount;i++)
-        hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO);
-    hpx_lco_wait(mainLCO);
+
+    int stepsPerMinDelay = 1; //4;
+    int step=0;
+    hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
+    for (double t=0;
+         t < inputParams->tstop - inputParams->dt;
+         t+= inputParams->dt, step++)
+    {
+      for (int i=0; i<neuronsCount; i++)
+        hpx_call(getNeuronAddr(i), Branch::backwardEulerStep, mainLCO, &stepsPerMinDelay, sizeof(int));
+      hpx_lco_wait(mainLCO);
+      hpx_lco_reset_sync(mainLCO);
+
+#if !defined(NDEBUG) && defined(CORENEURON_H)
+      Input::Coreneuron::Debugger::fixed_step_minimal();
+      hpx_par_for_sync( [&] (int i, void*) -> int
+      {  return hpx_call_sync(getNeuronAddr(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
+      }, 0, neuronsCount, NULL);
+#endif
+    }
+
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
     printf("neurox::end (solver time: %.2f secs).\n", elapsed);
 

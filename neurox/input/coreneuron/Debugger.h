@@ -26,7 +26,11 @@ class Debugger
 
     static void registerHpxActions();  ///> Register all HPX actions
     static hpx_action_t compareBranch; ///> compares a branch to CoreNeuron data structures
+    static void compareBranch2(Branch * branch); ///compares a branch to Coreneuron data structures
+
+    //Interfaces to CoreNeuron methods
     static void finitialize();   ///> calls Coreneuron's finitialize
+    static void fixed_step_minimal(); ///> calls fadvance_core.c::nrn_fixed_step_thread()
 
   private:
     static int compareBranch_handler();
