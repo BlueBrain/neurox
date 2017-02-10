@@ -531,34 +531,43 @@ void Branch::finitialize2()
     deliverEvents(t);
 }
 
-void Branch::backwardEulerStep2()
+//fadvance_core.c::nrn_fixed_step_minimal()
+void Branch::backwardEulerStep()
 {
-    floble_t *& v = this->nt->_actual_v;
+    if (this->soma) //neuron
+    { //docs: last argument should be 0 for and-lco
+      //hpx_t step = hpx_lco_array_at(timeMachine, i, 0);
+      //hpx_lco_set(step, 0, NULL, HPX_NULL, HPX_NULL);
+    }
+
+    floble_t *& v   = this->nt->_actual_v;
     floble_t *& rhs = this->nt->_actual_rhs;
-    double & t = this->nt->_t;
+    double & t  = this->nt->_t;
     double & dt = this->nt->_dt;
 
-    //multicore.c::nrn_thread_table_check()
+    //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
 
     //2. fadvance_core.c::nrn_fixed_step_thread()
-    bool reachedThresold = soma && v[0] >= soma->APthreshold;
-    if (reachedThresold) soma->fireActionPotential(t);
-    deliverEvents(t);
+    /* check thresholds and deliver all (including binqueue) events up to t+dt/2 */
+    deliverNetEvents();
     t += .5*dt;
     fixedPlayContinuous();
     setupTreeMatrixMinimal();
-    deliverEvents(t);
+    second_order_cur(this->nt, inputParams->secondorder );
 
-    //eion.c : second_order_cur()
+    ////// fadvance_core.c : update() / Branch::updateV
     if (inputParams->secondorder)
-        second_order_cur(this->nt, inputParams->secondorder );
+      for (int i=0; i<this->nt->end; i++)
+        v[i] += 2 * rhs[i];
+    else
+      for (int i=0; i<this->nt->end; i++)
+        v[i] += rhs[i];
 
-    //fadvance_core.c : update() / Branch::updateV
-    for (int i=0; i<this->nt->end; i++)
-        v[i] += (inputParams->secondorder ? 2 : 1) * rhs[i];
+    callModFunction(Mechanism::ModFunction::currentCapacitance);
 
-    callModFunction(Mechanism::ModFunction::jacob);
+    ////// fadvance_core.::nrn_fixed_step_lastpart()
+    //callModFunction(Mechanism::ModFunction::jacob);
     t += .5*dt;
     fixedPlayContinuous();
     callModFunction(Mechanism::ModFunction::state);
@@ -573,19 +582,23 @@ void Branch::backwardEulerStep2()
     //make sure all synapses from N steps before were delivered
     //(thus other neurons wait for this neuron one before stepping)
     //>waitForSynapsesDelivery(stepsCountPerComm);
+
+    //if (this->soma && step>=4)
+    {
+        //TODO use lco_gencount maybe?
+        //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
+        //hpx_lco_wait(step);
+    }
 }
 
-hpx_action_t Branch::backwardEulerStep = 0;
-int Branch::backwardEulerStep_handler(const int * minDelayStepsCount, const size_t size)
+//fadvance_core.c::nrn_fixed_step_minimal
+hpx_action_t Branch::backwardEuler = 0;
+int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 {
-    //fadvance_core.c::nrn_fixed_step_minimal()
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::backwardEulerStep, minDelayStepsCount, size);
-    for (int step=0; step<*minDelayStepsCount; step++)
-        local->backwardEulerStep2();
-
-    ////synaptic_exchange //communication
-
+    neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
+    for (int step=0; step<*steps_ptr; step++)
+        local->backwardEulerStep();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -596,35 +609,6 @@ int Branch::finitialize_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->finitialize2(); //finitialize.c::finitilize()
-    neurox_hpx_recursive_branch_async_wait;
-    neurox_hpx_unpin;
-}
-
-//fadvance_core.c::nrn_fixed_step_minimal
-hpx_action_t Branch::backwardEuler = 0;
-int Branch::backwardEuler_handler()
-{
-    neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(Branch::backwardEuler);
-    //fadvance_core.c::nrn_fixed_step_thread(NrnThread*)
-    double & t = local->nt->_t;
-    //for (int step = 0; step < n; step++)
-    {
-        if (local->soma) //neuron
-        { //docs: last argument should be 0 for and-lco
-          //hpx_t step = hpx_lco_array_at(timeMachine, i, 0);
-          //hpx_lco_set(step, 0, NULL, HPX_NULL, HPX_NULL);
-        }
-
-        local->backwardEulerStep2();
-
-        //if (local->soma && step>=4)
-        {
-            //TODO use lco_gencount maybe?
-            //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
-            //hpx_lco_wait(step);
-        }
-    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -673,6 +657,19 @@ void Branch::deliverEvents(floble_t t)
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
+//cvodestb.cpp::deliver_net_events()
+void Branch::deliverNetEvents()
+{
+    //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
+    floble_t *& v = this->nt->_actual_v;
+    bool reachedThresold = this->soma && v[0] >= soma->APthreshold;
+    if (reachedThresold) soma->fireActionPotential(t);
+
+    //netcvode.cpp::NetCvode::deliver_net_events()
+    double tm = nt->_t + 0.5*nt->_dt;
+    deliverEvents(tm);
+}
+
 void Branch::fixedPlayContinuous()
 {
     double t = this->nt->_t;
@@ -691,8 +688,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(0, Branch::clear);
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(0, Branch::finitialize);
-    neurox_hpx_register_action(0, Branch::backwardEuler);
-    neurox_hpx_register_action(1, Branch::backwardEulerStep);
+    neurox_hpx_register_action(1, Branch::backwardEuler);
     neurox_hpx_register_action(0, Branch::initNeuronTreeLCO);
     neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
 }

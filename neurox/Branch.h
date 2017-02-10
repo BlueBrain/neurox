@@ -83,15 +83,15 @@ class Branch
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
     static hpx_action_t finitialize;
     static hpx_action_t backwardEuler;
-    static hpx_action_t backwardEulerStep;
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
     void deliverEvents(floble_t t);
+    void deliverNetEvents();
     void fixedPlayContinuous();
     void setupTreeMatrixMinimal();
     void finitialize2();
-    void backwardEulerStep2();
+    void backwardEulerStep();
 
   private:
     static int init_handler(const int, const void *[], const size_t[]);
@@ -100,8 +100,7 @@ class Branch
     static int clear_handler();
     static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();
-    static int backwardEuler_handler();
-    static int backwardEulerStep_handler(const int*, const size_t);
+    static int backwardEuler_handler(const int*, const size_t);
 };
 
 }; //namespace

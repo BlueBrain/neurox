@@ -162,19 +162,19 @@ static int main_handler(char **argv, size_t argc)
     }, 0, neuronsCount, NULL);
 #endif
 
-    //For debugging purposes: old way, a la coreneuron (one step at the time)
-    printf("neurox::BackwardEuler::solve...\n");
+    //Coreneuron Backward Euler
+    //for debugging purpuses, we are doing 1 step and comparing straight away
     hpx_time_t now = hpx_time_now();
 
-    int stepsPerMinDelay = 1; //4;
-    int step=0;
+    int steps = 1; //4;
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
-    for (double t=0;
-         t < inputParams->tstop - inputParams->dt;
-         t+= inputParams->dt, step++)
+    for (double t = inputParams->tstart;
+         t < inputParams->tstop - inputParams->dt*0.5;
+         t += inputParams->dt)
     {
+      printf("neurox::Branch::backwardEuler (t=%.03f ms)...\n",t);
       for (int i=0; i<neuronsCount; i++)
-        hpx_call(getNeuronAddr(i), Branch::backwardEulerStep, mainLCO, &stepsPerMinDelay, sizeof(int));
+        hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO, &steps, sizeof(int));
       hpx_lco_wait(mainLCO);
       hpx_lco_reset_sync(mainLCO);
 
