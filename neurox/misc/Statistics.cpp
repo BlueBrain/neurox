@@ -95,7 +95,7 @@ int Statistics::getNeuronSize_handler()
     int n = local->nt->end;
     if (local->soma)
     {
-        branchSize.neuronId += local->soma->id;
+        branchSize.neuronId += local->soma->gid;
         branchSize.metadata += (double) sizeof(Neuron) / 1024;
         branchSize.synapses += (double) (local->soma->getNetConsCount()*sizeof(hpx_t)) /1024;
     }

@@ -11,27 +11,38 @@ namespace neurox
  * Equivalent to Coreneuron's VecPlayContinuous in nrniv/vrecitem.h
  * Includes/stores (?) information about continuous events
  */
-class VecPlayContinuouX : Event
+class VecPlayContinuousX : Event
 {
   public:
-    VecPlayContinuouX() = delete;
-    VecPlayContinuouX(floble_t *pd, const floble_t *t,
-                      const floble_t *y, const size_t size);
-    ~VecPlayContinuouX();
+    VecPlayContinuousX() = delete;
+    VecPlayContinuousX(double*, IvocVect* yvec, IvocVect* tvec, IvocVect* discon);
+    ~VecPlayContinuousX();
 
-    void deliver(floble_t t, Branch* branch) override;
-    void continuous(floble_t tt);
-    floble_t getFirstInstant();
-    int type() override { return VecPlayContinuousType; }
+    void deliver(floble_t t, Branch* branch); ///> at associated DiscreteEvent
+    void continuous(floble_t tt); ///> play - every f(y, t) or res(y', y, t); record - advance_tn and initialize flag
+    void play_init(Branch * branch); ///> called near beginning of finitialize
 
-    floble_t *pd; ///>index to last value pointed by function continuous()
+    //methods from VectPlayContinuos (nrniv/vrecitem.h)
+    double interpolate(double tt);
+    double interp(double th, double x0, double x1) {
+        return x0 + (x1 - x0) * th;
+    }
+    void search(double tt);
 
-  private:
-    floble_t * y; ///> array of values
-    floble_t * t; ///> array of times instantes
-    size_t size; ///> size of t and y arrays
-    size_t uBoundIndex;
-    size_t lastIndex;
+    virtual int type() {
+        return VecPlayContinuousType;
+    }
+
+    //PlayRecord vars:
+    floble_t *pd_; ///>index to last value pointed by function continuous()
+
+    //VecPlayContinuoys vars
+    IvocVect* y_;
+    IvocVect* t_;
+    IvocVect* discon_indices_;
+    size_t last_index_;
+    size_t discon_index_;
+    size_t ubound_index_;
 };
 
 }

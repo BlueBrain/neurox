@@ -70,7 +70,7 @@ class Branch
         hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
     } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
-    std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic id
+    std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
 
     std::priority_queue< std::pair<floble_t,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
@@ -86,6 +86,7 @@ class Branch
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
+    void addEventToQueue(floble_t t, Event * e);
     void deliverEvents(floble_t t);
     void deliverNetEvents();
     void fixedPlayContinuous();

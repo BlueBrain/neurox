@@ -11,6 +11,7 @@
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrniv/netcon.h"
+#include "coreneuron/nrniv/ivocvect.h"
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/nrn_assert.h"
@@ -57,12 +58,40 @@ void Debugger::fixed_step_minimal()
 
 void Debugger::compareBranch2(Branch * branch)
 {
+    assert(branch->soma); //only non-branched neurons
     int nrnThreadId = branch->soma->nrnThreadId;
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
-    assert(branch->soma); //only non-branched neurons
     NrnThread & nt = nrn_threads[nrnThreadId];
 
     assert(branch->nt->_t == nt._t);
+    assert(branch->soma->threshold   == nt.presyns[0].threshold_);
+    assert(branch->soma->thvar_index == nt.presyns[0].thvar_index_);
+    assert(branch->soma->gid == nt.presyns[0].gid_);
+
+    //vecplay
+    assert(branch->nt->n_vecplay == nt.n_vecplay);
+    for (int i=0; i<nt.n_vecplay;i++)
+    {
+        void * vpx_ptr = branch->nt->_vecplay[i];
+        VecPlayContinuousX * vpx = reinterpret_cast<VecPlayContinuousX*>(vpx_ptr);
+
+        void * vcn_ptr= nt._vecplay[i];
+        PlayRecord * prc = (PlayRecord*) nt._vecplay[i];
+        VecPlayContinuous * vpc = (VecPlayContinuous*) prc;
+
+        assert(prc->ith_ == 0); //single neuron per NrnThread
+        assert(vpx->last_index_ == vpc->last_index_);
+        assert(vpx->discon_index_ == vpc->discon_index_);
+        assert(vpx->y_->size()  == vpc->y_->size());
+        assert(vpx->t_->size()  == vpc->t_->size());
+        assert(*(vpx->pd_) == *(vpc->pd_));
+        for (size_t j=0; j<vpx->y_->size(); j++)
+        {
+            assert(vpx->y_->data()[j] == vpc->y_->data()[j]);
+            assert(vpx->t_->data()[j] == vpc->t_->data()[j]);
+            assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);
+        }
+    }
 
     //make sure all morphology and mechs data is correct
     for (int i=0; i<nt._ndata; i++)

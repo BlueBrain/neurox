@@ -39,6 +39,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <math.h>
 
+#include "coreneuron/nrniv/ivocvect.h"
 #include "coreneuron/scopmath_core/newton_struct.h"  //Newton Struct
 #include "coreneuron/nrnoc/membdef.h"                //static definitions
 #include "coreneuron/nrnoc/nrnoc_ml.h"               //Memb_list and mechs info

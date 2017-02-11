@@ -48,7 +48,7 @@ Branch::Branch(offset_t n,
     nt->n_input_presyn = -1;
     nt->n_netcon = -1;
     nt->ncell=-1;
-    nt->id = this->soma ? this->soma->id : -1;
+    nt->id = this->soma ? this->soma->gid : -1;
     nt->_stop_stepping = -1;
     nt->_permute = NULL;
     nt->_sp13mat = NULL;
@@ -113,9 +113,17 @@ Branch::Branch(offset_t n,
     for (size_t v=0; v < nt->n_vecplay; v++)
     {
         int m = mechanismsMap[ppis[v].mechType];
+        size_t size =  ppis[v].size;
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
-        nt->_vecplay[v] = new VecPlayContinuouX(pd, &vecplayT[vOffset], &vecplayY[vOffset], ppis[v].size);
+        IvocVect * yvec = new IvocVect(size);
+        IvocVect * tvec = new IvocVect(size);
+        for (size_t i=0; i<size; i++)
+        {
+            yvec[i] = vecplayY[vOffset+i];
+            tvec[i] = vecplayT[vOffset+i];
+        }
+        nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
         vOffset += ppis[v].size;
     }
 
@@ -327,14 +335,15 @@ int Branch::initSoma_handler(const int nargs,
                              const void *args[], const size_t[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2 || nargs==3);
-    const neuron_id_t neuronId = *(const neuron_id_t*)    args[0];
+    assert(nargs==3 || nargs==4);
+    const neuron_id_t neuronId = *(const neuron_id_t*) args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
+    const int thvar_index = *(const int*) args[2];
 #ifdef CORENEURON_H
-    const int nrnThreadId = *(const int*) args[2];
-    local->soma=new Neuron(neuronId, APthreshold, nrnThreadId);
+    const int nrnThreadId = *(const int*) args[3];
+    local->soma=new Neuron(neuronId, APthreshold, thvar_index, nrnThreadId);
 #else
-    local->soma=new Neuron(neuronId, APthreshold);
+    local->soma=new Neuron(neuronId, APthreshold, thvar_index);
 #endif
     neurox_hpx_unpin;
 }
@@ -353,16 +362,19 @@ int Branch::clear_handler()
 
 void Branch::initEventsQueue()
 {
+    //nrn_play_init
     for (size_t v=0; v<this->nt->n_vecplay; v++)
     {
-        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(this->nt->_vecplay[v]);
-        eventsQueue.push(make_pair(vecplay->getFirstInstant(),
-                                   (Event*) vecplay));
+        VecPlayContinuousX * vecplay = reinterpret_cast<VecPlayContinuousX*>(this->nt->_vecplay[v]);
+        vecplay->play_init(this);
     }
+}
 
-    //nrn_play_init
-    //for (int i = 0; i < nt->n_vecplay; ++i)
-    //    ((PlayRecord*)nt->_vecplay[i])->play_init();
+void Branch::addEventToQueue(floble_t t, Event * e)
+{
+    hpx_lco_sema_p(this->eventsQueueMutex);
+    this->eventsQueue.push(make_pair(t, e));
+    hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
@@ -439,19 +451,25 @@ int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr,
     neurox_hpx_unpin;
 }
 
+//netcvode.cpp::PreSyn::send() --> NetCvode::bin_event.cpp
 hpx_action_t Branch::addSpikeEvent = 0;
 int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
     assert(nargs==2);
-    const int * preNeuronId = (const int *) args[0];
-    const floble_t * deliveryTime = (const floble_t*) args[1];
 
-    //netcvode::PreSyn::send()
+    //auto source = libhpx_parcel_get_source(p);
+    const neuron_id_t *preNeuronId = (const neuron_id_t *) args[0];
+    const spike_time_t *spikeTime  = (const spike_time_t*) args[1];
+
+    auto & netcons = local->netcons.at(*preNeuronId);
     hpx_lco_sema_p(local->eventsQueueMutex);
-    for (auto nc : local->netcons.at(*preNeuronId))
-        local->eventsQueue.push( make_pair(*deliveryTime, (Event*) nc) );
+    for (auto nc : netcons)
+    {
+        floble_t deliveryTime = *spikeTime+nc->delay;
+        local->eventsQueue.push( make_pair(deliveryTime, (Event*) nc) );
+    }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
     neurox_hpx_unpin;
 }
@@ -511,7 +529,6 @@ void Branch::finitialize2()
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     assert(inputParams->secondorder < sizeof(char));
     initEventsQueue();
-    //TODO nrn_play_init() missing?
     deliverEvents(t);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
@@ -589,6 +606,8 @@ void Branch::backwardEulerStep()
         //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
         //hpx_lco_wait(step);
     }
+
+
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -644,14 +663,16 @@ void Branch::setupTreeMatrixMinimal()
     Solver::HinesSolver::backSubstitution(this);
 }
 
-void Branch::deliverEvents(floble_t t)
+void Branch::deliverEvents(floble_t til)
 {
     hpx_lco_sema_p(this->eventsQueueMutex);
     while (!this->eventsQueue.empty() &&
-           this->eventsQueue.top().first <= t)
+           this->eventsQueue.top().first <= til)
     {
-        Event * e = this->eventsQueue.top().second;
-        e->deliver(t, this);
+        auto event_it = this->eventsQueue.top();
+        Event *& e = event_it.second;
+        floble_t & tt = event_it.first;
+        e->deliver(tt, this);
         this->eventsQueue.pop();
     }
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
@@ -661,9 +682,13 @@ void Branch::deliverEvents(floble_t t)
 void Branch::deliverNetEvents()
 {
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
-    floble_t *& v = this->nt->_actual_v;
-    bool reachedThresold = this->soma && v[0] >= soma->APthreshold;
-    if (reachedThresold) soma->fireActionPotential(t);
+    if (this->soma)
+    {
+      int thidx = this->soma->thvar_index;
+      floble_t v = this->nt->_actual_v[thidx];
+      if (v >= soma->threshold)
+          soma->fireActionPotential( (spike_time_t) (t+1e-10) );
+    }
 
     //netcvode.cpp::NetCvode::deliver_net_events()
     double tm = nt->_t + 0.5*nt->_dt;
@@ -676,7 +701,7 @@ void Branch::fixedPlayContinuous()
     for (int v=0; v<this->nt->n_vecplay; v++)
     {
         void * vecplay_void = this->nt->_vecplay[v];
-        VecPlayContinuouX * vecplay = reinterpret_cast<VecPlayContinuouX*>(vecplay_void);
+        VecPlayContinuousX * vecplay = reinterpret_cast<VecPlayContinuousX*>(vecplay_void);
         vecplay->continuous(t);
     }
 }

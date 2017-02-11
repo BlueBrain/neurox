@@ -4,81 +4,80 @@
 
 using namespace neurox;
 
-VecPlayContinuouX::VecPlayContinuouX(floble_t * const pd, const floble_t *t,
-                                     const floble_t *y, const size_t size)
-    :size(size), uBoundIndex(0), lastIndex(0), pd(pd)
-{
-    assert(size>0);
-    this->t = new floble_t[size];
-    this->y = new floble_t[size];
-    for (size_t i=0; i<size; i++)
-    {
-        this->t[i] = (floble_t) t[i];
-        this->y[i] = (floble_t) y[i];
-    }
+VecPlayContinuousX::VecPlayContinuousX(double* pd, IvocVect* yvec, IvocVect* tvec, IvocVect* discon)
+    :pd_(pd), y_(yvec), t_(tvec), last_index_(0), discon_index_(0)
+{}
 
-}
-
-VecPlayContinuouX::~VecPlayContinuouX()
-{
-    delete [] t;
-    delete [] y;
-};
-
-void VecPlayContinuouX::continuous(floble_t tt)
-{
-    //vrecord.cpp::VecPlayContinuous::interpolate()
-    if (tt >= this->t[uBoundIndex])
-    {
-        lastIndex = uBoundIndex;
-        if (uBoundIndex==0)
-            *pd = this->y[0];
-    }
-    else if (tt <= this->t[0])
-    {
-        *pd = this->y[0];
-    }
-    else
-    {
-        //search
-        while (tt <  this->t[lastIndex]) lastIndex--;
-        while (tt >= this->t[lastIndex]) lastIndex++;
-
-        const floble_t x0 = y[lastIndex-1];
-        const floble_t x1 = y[lastIndex];
-        const floble_t t0 = t[lastIndex - 1];
-        const floble_t t1 = t[lastIndex];
-
-        /*** alternative
-        auto iter = lower_bound(t.begin(), t.end(), tt);
-        int index = std::distance(t.begin(), iter);
-        floble_t x0 = y[index];
-        floble_t x1 = y[index+1];
-        floble_t t0 = t[index];
-        floble_t t1 = t[index+1];
-        ***/
-
-        if (t0 == t1)
-            *pd = (x0 + x1)/2.;
-        else //interp(...)
-            *pd = x0 + (x1 - x0)*(tt - t0)/(t1 - t0);
+void VecPlayContinuousX::play_init(Branch * branch) {
+    last_index_ = 0;
+    discon_index_ = 0;
+    if (discon_indices_) {
+        if (discon_indices_->size() > 0) {
+            ubound_index_ = (int)(*discon_indices_)[discon_index_++];
+            branch->addEventToQueue( (*t_)[ubound_index_], (Event*) this);
+        } else {
+            ubound_index_ = t_->size() - 1;
+        }
+    } else {
+        ubound_index_ = 0;
+        branch->addEventToQueue((*t_)[ubound_index_], (Event*) this);
     }
 }
 
-floble_t VecPlayContinuouX::getFirstInstant()
-{
-    return this->t[0];
+VecPlayContinuousX::~VecPlayContinuousX()
+{};
+
+void VecPlayContinuousX::continuous(double tt) {
+    *pd_ = interpolate(tt);
 }
 
-void VecPlayContinuouX::deliver(floble_t t, Branch* branch)
-{
-    if (uBoundIndex < this->size-1)
-    {
-        floble_t nextDeliveryTime = this->t[++uBoundIndex];
-        hpx_lco_sema_p(branch->eventsQueueMutex);
-        branch->eventsQueue.push(make_pair(nextDeliveryTime, (Event*) this));
-        hpx_lco_sema_v_sync(branch->eventsQueueMutex);
+double VecPlayContinuousX::interpolate(double tt) {
+    if (tt >= (*t_)[ubound_index_]) {
+        last_index_ = ubound_index_;
+        if (last_index_ == 0) {
+            return (*y_)[last_index_];
+        }
+    } else if (tt <= (*t_)[0]) {
+        last_index_ = 0;
+        return (*y_)[0];
+    } else {
+        search(tt);
     }
-    continuous(t);
+    double x0 = (*y_)[last_index_ - 1];
+    double x1 = (*y_)[last_index_];
+    double t0 = (*t_)[last_index_ - 1];
+    double t1 = (*t_)[last_index_];
+    if (t0 == t1) {
+        return (x0 + x1) / 2.;
+    }
+    return interp((tt - t0) / (t1 - t0), x0, x1);
+}
+
+void VecPlayContinuousX::search(double tt) {
+    while (tt < (*t_)[last_index_]) {
+        --last_index_;
+    }
+    while (tt >= (*t_)[last_index_]) {
+        ++last_index_;
+    }
+}
+
+void VecPlayContinuousX::deliver(floble_t tt, Branch* branch)
+{
+    last_index_ = ubound_index_;
+    if (discon_indices_) {
+        if (discon_index_ < discon_indices_->size()) {
+            ubound_index_ = (int)(*discon_indices_)[discon_index_++];
+            branch->addEventToQueue((*t_)[ubound_index_], (Event*) this);
+        } else {
+            ubound_index_ = t_->size() - 1;
+        }
+    } else {
+        if (ubound_index_ < t_->size() - 1) {
+            ubound_index_++;
+            branch->addEventToQueue((*t_)[ubound_index_], (Event*) this);
+        }
+    }
+    continuous(tt);
 }
 

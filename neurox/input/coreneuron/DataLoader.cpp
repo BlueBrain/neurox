@@ -40,14 +40,19 @@ void DataLoader::addNetConsForThisNeuron(
     for (size_t s = 0; s<netconsCount; s++)
     {
       NetCon* nc = netcon_in_presyn_order_[netconsOffset + s];
-      neuron_id_t postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
+
+      //if synapse is not active
+      if (!nc->active_) continue;
 
       //if synapse is not for this neuron...
+      neuron_id_t postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
       if (postNeuronId!=neuronId) continue;
 
       int mechType = nc->target_->_type;
       int argsCount = pnt_receive_size[mechType];
       vector<floble_t> args;
+
+
 /*TODO
       for (int i=0; i<argsCount; i++)
           args.push_back( (floble_t) nc->weight_[i]);
@@ -266,12 +271,13 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         //======= 5 - recursively create branches tree ===========
 
         floble_t APthreshold = (floble_t) nrn_threads[i].presyns[0].threshold_;
+        int thvar_index = nrn_threads[i].presyns[0].thvar_index_;
         createBranch(target, compartments, compartments.at(0), netcons,
                      (size_t) compartments.size(), offsetToInstance);
 #ifdef CORENEURON_H
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t),
-                      &i, sizeof(i));
+                      &thvar_index, sizeof(thvar_index), &i, sizeof(i));
 #else
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
@@ -780,7 +786,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
                   multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
-                  vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(floble_t)*vecPlayInfo.size(),
+                  vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
                   branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetCon)*branchNetCons.size(),
                   branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
                   branchNetConsArgs.size() > 0 ? branchNetConsArgs.data() : nullptr, sizeof(floble_t)*branchNetConsArgs.size(),

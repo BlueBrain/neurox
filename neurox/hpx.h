@@ -13,6 +13,7 @@
 //typedefs
 typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming)
 typedef double floble_t;    ///> float or double (v, matrix values and mechanisms)
+typedef float spike_time_t; ///> spikes timing unit
 typedef int offset_t;       ///> ushort or uint (p vector, nodes indices)
 typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by types.h)
                             // (neuron id is past as -1 on input params parcelgid argument)

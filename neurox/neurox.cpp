@@ -166,7 +166,7 @@ static int main_handler(char **argv, size_t argc)
     //for debugging purpuses, we are doing 1 step and comparing straight away
     hpx_time_t now = hpx_time_now();
 
-    int steps = 1; //4;
+    int steps = 1;
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     for (double t = inputParams->tstart;
          t < inputParams->tstop - inputParams->dt*0.5;

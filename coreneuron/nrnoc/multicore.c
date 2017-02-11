@@ -428,6 +428,7 @@ void nrn_mk_table_check() {
 }
 
 void nrn_thread_table_check() {
+    assert(table_check_cnt_ == 0); //TODO added by Bruno
     int i;
     for (i = 0; i < table_check_cnt_; i += 2) {
         NrnThread* nt = nrn_threads + table_check_[i].i;

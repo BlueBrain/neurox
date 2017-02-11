@@ -6,12 +6,12 @@ using namespace neurox;
 using namespace neurox::Solver;
 
 #ifdef CORENEURON_H
-Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int nrnThreadId):
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index, int nrnThreadId):
     nrnThreadId(nrnThreadId),
 #else
-Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
 #endif
-    id(neuronId), APthreshold(APthreshold)
+    gid(neuronId), threshold(APthreshold), thvar_index(thvar_index)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->synapsesLCO = std::deque<hpx_t> ();
@@ -43,17 +43,19 @@ void Neuron::addSynapseTarget(hpx_t target)
 }
 
 
-void Neuron::fireActionPotential(floble_t t)
+void Neuron::fireActionPotential(spike_time_t t)
 {
     //netcvode.cpp::PreSyn::send()
     if (synapses.size()>0)
     {
+      //we dont have Netcon->active flag, we only add active
+      //synapses to our model.
       hpx_t spikesLco = hpx_lco_and_new(synapses.size());
       for (int s=0; s<synapses.size(); s++)
       {
-        double tt = t +  1e-10;
-        hpx_call(synapses[s], Branch::addSpikeEvent, spikesLco,
-                 &id, sizeof(id), &tt, sizeof(tt) );
+          //deliveryTime (t+delay) is handled on post-syn side
+          hpx_call(synapses[s], Branch::addSpikeEvent, spikesLco,
+                 &gid, sizeof(gid), &t, sizeof(t));
       }
       this->synapsesLCO.push_front(spikesLco);
     }
