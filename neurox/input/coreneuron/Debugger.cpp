@@ -84,11 +84,13 @@ void Debugger::compareBranch2(Branch * branch)
         assert(vpx->y_->size()  == vpc->y_->size());
         assert(vpx->t_->size()  == vpc->t_->size());
         assert(*(vpx->pd_) == *(vpc->pd_));
+        assert((vpx->discon_indices_==NULL) == (vpc->discon_indices_==NULL));
         for (size_t j=0; j<vpx->y_->size(); j++)
         {
             assert(vpx->y_->data()[j] == vpc->y_->data()[j]);
             assert(vpx->t_->data()[j] == vpc->t_->data()[j]);
-            assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);
+            if (vpx->discon_indices_ != NULL)
+              {assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);}
         }
     }
 

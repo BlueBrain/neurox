@@ -207,8 +207,8 @@ Branch::Branch(offset_t n,
         IvocVect * tvec = new IvocVect(size);
         for (size_t i=0; i<size; i++)
         {
-            yvec[i] = vecplayY[vOffset+i];
-            tvec[i] = vecplayT[vOffset+i];
+            (*yvec)[i] = vecplayY[vOffset+i];
+            (*tvec)[i] = vecplayT[vOffset+i];
         }
         nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
         vOffset += ppis[v].size;
