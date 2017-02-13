@@ -105,28 +105,6 @@ Branch::Branch(offset_t n,
         this->nt->_v_parent_index = nullptr;
     }
 
-    //vecplay
-    nt->n_vecplay = vecplayCount;
-    nt->_vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
-
-    offset_t vOffset=0;
-    for (size_t v=0; v < nt->n_vecplay; v++)
-    {
-        int m = mechanismsMap[ppis[v].mechType];
-        size_t size =  ppis[v].size;
-        floble_t *instancesData = this->mechsInstances[m].data;
-        floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
-        IvocVect * yvec = new IvocVect(size);
-        IvocVect * tvec = new IvocVect(size);
-        for (size_t i=0; i<size; i++)
-        {
-            yvec[i] = vecplayY[vOffset+i];
-            tvec[i] = vecplayT[vOffset+i];
-        }
-        nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
-        vOffset += ppis[v].size;
-    }
-
     // reconstruct mechanisms
     assert (recvMechanismsCount == mechanismsCount);
     offset_t dataOffset=6*n;
@@ -211,6 +189,29 @@ Branch::Branch(offset_t n,
         Memb_list & instances = this->mechsInstances[m];
         this->nt->_ml_list[mech->type] = &instances;
 
+    }
+
+
+    //vecplay
+    nt->n_vecplay = vecplayCount;
+    nt->_vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
+
+    offset_t vOffset=0;
+    for (size_t v=0; v < nt->n_vecplay; v++)
+    {
+        int m = mechanismsMap[ppis[v].mechType];
+        size_t size =  ppis[v].size;
+        floble_t *instancesData = this->mechsInstances[m].data;
+        floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
+        IvocVect * yvec = new IvocVect(size);
+        IvocVect * tvec = new IvocVect(size);
+        for (size_t i=0; i<size; i++)
+        {
+            yvec[i] = vecplayY[vOffset+i];
+            tvec[i] = vecplayT[vOffset+i];
+        }
+        nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
+        vOffset += ppis[v].size;
     }
 
     //Shadow arrays

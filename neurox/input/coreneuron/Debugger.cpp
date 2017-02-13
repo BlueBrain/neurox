@@ -75,7 +75,6 @@ void Debugger::compareBranch2(Branch * branch)
         void * vpx_ptr = branch->nt->_vecplay[i];
         VecPlayContinuousX * vpx = reinterpret_cast<VecPlayContinuousX*>(vpx_ptr);
 
-        void * vcn_ptr= nt._vecplay[i];
         PlayRecord * prc = (PlayRecord*) nt._vecplay[i];
         VecPlayContinuous * vpc = (VecPlayContinuous*) prc;
 

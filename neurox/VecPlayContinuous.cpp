@@ -5,7 +5,7 @@
 using namespace neurox;
 
 VecPlayContinuousX::VecPlayContinuousX(double* pd, IvocVect* yvec, IvocVect* tvec, IvocVect* discon)
-    :pd_(pd), y_(yvec), t_(tvec), last_index_(0), discon_index_(0)
+    :pd_(pd), y_(yvec), t_(tvec), discon_indices_(discon), last_index_(0), discon_index_(0), ubound_index_(0)
 {}
 
 void VecPlayContinuousX::play_init(Branch * branch) {
