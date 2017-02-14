@@ -31,7 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "coreneuron/nrniv/tqueue.h"
 
-#define PRINT_EVENT 0
+#define PRINT_EVENT 1
 
 /// QTYPE options include: spltree, pq_que
 /// STL priority queue is used instead of the splay tree by default.

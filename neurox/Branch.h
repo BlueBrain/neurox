@@ -4,7 +4,7 @@
 #include <queue>
 #include <map>
 #include <vector>
-#include <set>
+#include <functional> //std::greater_equal
 #include <new>  //placement new
 
 using namespace neurox;
@@ -72,7 +72,8 @@ class Branch
 
     std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
 
-    std::priority_queue< std::pair<floble_t,Event*> > eventsQueue;  ///>queue of incoming events sorted per delivery time
+    /// priority queue of incoming events sorted per delivery time
+    std::priority_queue< TimedEvent, std::vector<TimedEvent>, std::greater_equal<TimedEvent> > eventsQueue;
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
     static void registerHpxActions(); ///> Register all HPX actions
@@ -85,7 +86,7 @@ class Branch
     static hpx_action_t backwardEuler;
 
     void callModFunction(const Mechanism::ModFunction functionId);
-    void initEventsQueue(); ///> start NetEvents and PlayVect on events queue
+    void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
     void addEventToQueue(floble_t t, Event * e);
     void deliverEvents(floble_t t);
     void deliverNetEvents();

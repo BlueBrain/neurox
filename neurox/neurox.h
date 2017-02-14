@@ -24,11 +24,12 @@
 //Miscellaneous
 #include "neurox/misc/Statistics.h"
 
-//#define NDEBUG //(if active, compares data output with coreneuron and enables assertions)
-
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
+
+#define PRINT_EVENT
+//#define NDEBUG //(if active, compares data output with coreneuron and enables assertions)
 
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox

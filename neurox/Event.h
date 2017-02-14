@@ -1,6 +1,7 @@
 #pragma once
 
 #include "neurox/neurox.h"
+#include <utility> //std::pair
 
 #define DiscreteEventType 0
 #define TstopEventType 1
@@ -28,3 +29,5 @@ public:
 };
 
 }
+
+typedef std::pair<floble_t, neurox::Event*> TimedEvent;

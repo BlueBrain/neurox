@@ -361,7 +361,7 @@ int Branch::clear_handler()
     neurox_hpx_unpin;
 }
 
-void Branch::initEventsQueue()
+void Branch::initVecPlayContinous()
 {
     //nrn_play_init
     for (size_t v=0; v<this->nt->n_vecplay; v++)
@@ -373,9 +373,10 @@ void Branch::initEventsQueue()
 
 void Branch::addEventToQueue(floble_t t, Event * e)
 {
-    hpx_lco_sema_p(this->eventsQueueMutex);
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+    printf("Branch::addEventToQueue at %.3f\n", t);
+#endif
     this->eventsQueue.push(make_pair(t, e));
-    hpx_lco_sema_v_sync(this->eventsQueueMutex);
 }
 
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
@@ -468,7 +469,7 @@ int Branch::addSpikeEvent_handler(
     hpx_lco_sema_p(local->eventsQueueMutex);
     for (auto nc : netcons)
     {
-        floble_t deliveryTime = *spikeTime+nc->delay;
+        floble_t deliveryTime = (*spikeTime)+nc->delay;
         local->eventsQueue.push( make_pair(deliveryTime, (Event*) nc) );
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
@@ -529,7 +530,7 @@ void Branch::finitialize2()
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     assert(inputParams->secondorder < sizeof(char));
-    initEventsQueue();
+    initVecPlayContinous();
     deliverEvents(t);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
@@ -666,17 +667,23 @@ void Branch::setupTreeMatrixMinimal()
 
 void Branch::deliverEvents(floble_t til)
 {
+    floble_t tsav = this->nt->_t; //copying cvodestb.cpp logic
     hpx_lco_sema_p(this->eventsQueueMutex);
-    while (!this->eventsQueue.empty() &&
-           this->eventsQueue.top().first <= til)
+    while (!this->eventsQueue.empty())
     {
         auto event_it = this->eventsQueue.top();
-        Event *& e = event_it.second;
         floble_t & tt = event_it.first;
+        if (tt > til) break;
+
+        Event * e = event_it.second;
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+        printf("Branch::deliverEvents at %.3f\n", tt);
+#endif
         e->deliver(tt, this);
         this->eventsQueue.pop();
     }
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
+    this->nt->_t = tsav;
 }
 
 //cvodestb.cpp::deliver_net_events()

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "neurox/neurox.h"
-#include <vector>
+#include <array>
 
 namespace neurox
 {
