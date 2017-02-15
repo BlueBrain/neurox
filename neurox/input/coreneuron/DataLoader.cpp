@@ -83,6 +83,38 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
   }
 }
 
+PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double *pd)
+{
+    PointProcInfo ppi;
+    ppi.nodeId=-1;
+    ppi.size = -1; //will be set outside this function
+    bool found=false;
+    for (NrnThreadMembList* tml = nt->tml; !found && tml!=NULL; tml = tml->next) //For every mechanism
+    {
+        int type = tml->index;
+        Mechanism * mech = getMechanismFromType(type);
+        Memb_list * ml = tml->ml;
+        unsigned dataOffset=0;
+        for (int n=0; n<ml->nodecount; n++)
+        {
+           // if is this mechanism and this instance
+           if (&ml->data[dataOffset] <= pd && pd < &ml->data[dataOffset+mech->dataSize])
+           {
+               assert(n < 2^sizeof(offset_t));
+               ppi.nodeId = ml->nodeindices[n];
+               ppi.mechType = type;
+               ppi.mechInstance = (offset_t) n;
+               ppi.instanceDataOffset = (offset_t) (pd - &ml->data[dataOffset]);
+               found=true;
+               break;
+           }
+           dataOffset += (unsigned) mech->dataSize;
+        }
+    }
+    assert(found);
+    return ppi;
+}
+
 hpx_action_t DataLoader::createNeuron = 0;
 int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 {
@@ -238,33 +270,8 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         {
             VecPlayContinuous *vec = (VecPlayContinuous*) nt._vecplay[v];
             //discover node, mechanism and data offset id that *pd points to
-            double *pd = vec->pd_;
-            PointProcInfo ppi;
-            ppi.nodeId=-1;
-            for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
-            {
-                int type = tml->index;
-                Mechanism * mech = getMechanismFromType(type);
-                Memb_list * ml = tml->ml;
-                unsigned dataOffset=0;
-                for (int n=0; n<ml->nodecount; n++)
-                {
-                   // if is this mechanism and this instance
-                   if (&ml->data[dataOffset] <= pd && pd < &ml->data[dataOffset+mech->dataSize])
-                   {
-                       assert(n < 2^sizeof(offset_t));
-                       ppi.nodeId = ml->nodeindices[n];
-                       ppi.mechType = type;
-                       ppi.mechInstance = (offset_t) n;
-                       ppi.instanceDataOffset = (offset_t) (pd - &ml->data[dataOffset]);
-                       ppi.size = vec->t_->size();
-                       continue;
-                   }
-                   dataOffset += (unsigned) mech->dataSize;
-                }
-                if (ppi.nodeId!=-1) continue;
-            }
-            assert(ppi.nodeId != -1);
+            PointProcInfo ppi = getPointProcInfoFromDataPointer(&nt, vec->pd_);
+            ppi.size = vec->y_->size();
             compartments.at(ppi.nodeId)->addVecPlay(vec->t_->data(), vec->y_->data(), ppi);
         }
 

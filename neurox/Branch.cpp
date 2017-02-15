@@ -191,7 +191,6 @@ Branch::Branch(offset_t n,
 
     }
 
-
     //vecplay
     nt->n_vecplay = vecplayCount;
     nt->_vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
@@ -199,10 +198,11 @@ Branch::Branch(offset_t n,
     offset_t vOffset=0;
     for (size_t v=0; v < nt->n_vecplay; v++)
     {
-        int m = mechanismsMap[ppis[v].mechType];
-        size_t size =  ppis[v].size;
+        PointProcInfo & ppi = ppis[v];
+        size_t size =  ppi.size;
+        int m = mechanismsMap[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
-        floble_t *pd = &(instancesData[ppis->mechInstance*mechanisms[m]->dataSize+ppis->instanceDataOffset]);
+        floble_t *pd = &(instancesData[ppi.mechInstance*mechanisms[m]->dataSize + ppi.instanceDataOffset]);
         IvocVect * yvec = new IvocVect(size);
         IvocVect * tvec = new IvocVect(size);
         for (size_t i=0; i<size; i++)
@@ -211,7 +211,7 @@ Branch::Branch(offset_t n,
             (*tvec)[i] = vecplayT[vOffset+i];
         }
         nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
-        vOffset += ppis[v].size;
+        vOffset += size;
     }
 
     //Shadow arrays

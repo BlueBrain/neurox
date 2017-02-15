@@ -68,6 +68,8 @@ class DataLoader
     static void printSubClustersToFile(
             FILE * fileCompartments, Compartment *topCompartment);
 
+    static PointProcInfo getPointProcInfoFromDataPointer(NrnThread * nt, double *pd);
+
     static hpx_action_t createNeuron;
     static hpx_action_t broadcastNetCons;
     static hpx_action_t addSynapseTarget;
