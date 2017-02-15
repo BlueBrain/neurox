@@ -20,8 +20,11 @@ class HinesSolver
     HinesSolver()=delete;
     ~HinesSolver();
 
-    static void forwardTriangulation(Branch * local);
-    static void backSubstitution(Branch * local);
+    static void setupMatrixRHS(Branch * local);
+    static void setupMatrixDiagonal(Branch * local);
+    static void backwardTriangulation(Branch *local);
+    static void forwardSubstituion(Branch *local);
+
   private:
 };
 

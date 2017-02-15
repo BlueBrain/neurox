@@ -91,7 +91,8 @@ class Branch
     void deliverEvents(floble_t t);
     void deliverNetEvents();
     void fixedPlayContinuous();
-    void setupTreeMatrixMinimal();
+    void setupTreeMatrix();
+    void solveTreeMatrix();
     void finitialize2();
     void backwardEulerStep();
 

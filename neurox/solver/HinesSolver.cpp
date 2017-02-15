@@ -8,7 +8,7 @@ using namespace neurox::Solver;
 
 HinesSolver::~HinesSolver(){}
 
-void HinesSolver::forwardTriangulation(Branch * local)
+void HinesSolver::setupMatrixRHS(Branch * local)
 {
     const offset_t n = local->nt->end;
     const floble_t *a   = local->nt->_actual_a;
@@ -37,7 +37,6 @@ void HinesSolver::forwardTriangulation(Branch * local)
     else
     {
         //we use first local future for V, and second for RHS
-
         if (!local->soma) //all branches except top
         {
             floble_t fromParentV; //get 'v[p[i]]' from parent
@@ -75,7 +74,7 @@ void HinesSolver::forwardTriangulation(Branch * local)
     }
 }
 
-void HinesSolver::backSubstitution(Branch * local)
+void HinesSolver::setupMatrixDiagonal(Branch * local)
 {
     const offset_t n = local->nt->end;
     const floble_t *a   = local->nt->_actual_a;
@@ -121,4 +120,14 @@ void HinesSolver::backSubstitution(Branch * local)
             d[n-1] -= fromChildrenA;
         }
     }
+}
+
+void HinesSolver::backwardTriangulation(Branch *local)
+{
+    assert(0);
+}
+
+void HinesSolver::forwardSubstituion(Branch *local)
+{
+    assert(0);
 }

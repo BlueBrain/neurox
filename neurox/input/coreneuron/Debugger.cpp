@@ -94,9 +94,6 @@ void Debugger::compareBranch2(Branch * branch)
         }
     }
 
-    //events queue
-    //assert(this->eventsQueue.size()== netcv)
-
     //make sure all morphology and mechs data is correct
     for (int i=0; i<nt._ndata; i++)
     {   assert(nt._data[i] == branch->nt->_data[i]); }

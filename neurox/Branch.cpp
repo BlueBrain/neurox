@@ -546,7 +546,7 @@ void Branch::finitialize2()
 
     //initEvents(t); //TODO (see _net_init in ProbAmpd modc files)
     deliverEvents(t);
-    setupTreeMatrixMinimal();
+    setupTreeMatrix();
     deliverEvents(t);
 }
 
@@ -572,7 +572,8 @@ void Branch::backwardEulerStep()
     deliverNetEvents();
     t += .5*dt;
     fixedPlayContinuous();
-    setupTreeMatrixMinimal();
+    setupTreeMatrix();
+    solveTreeMatrix();
     second_order_cur(this->nt, inputParams->secondorder );
 
     ////// fadvance_core.c : update() / Branch::updateV
@@ -634,8 +635,9 @@ int Branch::finitialize_handler()
     neurox_hpx_unpin;
 }
 
-void Branch::setupTreeMatrixMinimal()
+void Branch::setupTreeMatrix()
 {
+    //treeset_core.c::nrn_rhs: Set up Right-Hand-Side of Matrix-Vector multiplication
     floble_t *& d = this->nt->_actual_d;
     floble_t *& rhs = this->nt->_actual_rhs;
 
@@ -647,8 +649,9 @@ void Branch::setupTreeMatrixMinimal()
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
     this->callModFunction(Mechanism::ModFunction::current);
 
-    Solver::HinesSolver::forwardTriangulation(this);
+    Solver::HinesSolver::setupMatrixRHS(this);
 
+    //treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector multiplication
     // calculate left hand side of
     //cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
     //cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
@@ -662,7 +665,13 @@ void Branch::setupTreeMatrixMinimal()
     //by another model has taken effect.
     this->callModFunction(Mechanism::ModFunction::jacobCapacitance);
 
-    Solver::HinesSolver::backSubstitution(this);
+    Solver::HinesSolver::setupMatrixDiagonal(this);
+}
+
+void Branch::solveTreeMatrix()
+{
+    Solver::HinesSolver::backwardTriangulation(this);
+    Solver::HinesSolver::forwardSubstituion(this);
 }
 
 void Branch::deliverEvents(floble_t til)
