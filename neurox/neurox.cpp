@@ -117,7 +117,7 @@ static int main_handler(char **argv, size_t argc)
     assert(neurox::inputParams != nullptr);
 
     // many steps with large dt so that cells start at their resting potential
-    assert(neurox::inputParams->forwardSkip == 0); //not supported yet
+    assert(neurox::inputParams->forwardSkip <= 0); //not supported yet
 
     //reads morphology data
     printf("neurox::Input::Coreneuron::DataLoader::loadData...\n");

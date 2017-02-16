@@ -125,6 +125,11 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         NrnThread & nt = nrn_threads[i];
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
 
+        #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
+        if (inputParams->outputNetconsDot)
+            fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", neuronId);
+        #endif
+
         //======= 1 - reconstructs matrix (solver) values =======
 
         deque<Compartment*> compartments;
@@ -244,10 +249,6 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         if (inputParams->outputNetconsDot)
         {
-          #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
-            for (auto gid : allNeuronsIdsSet)
-                fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", gid);
-          #endif
           int netConsFromOthers=0;
           for (auto nc : netcons)
           {

@@ -87,7 +87,7 @@ void Debugger::compareBranch2(Branch * branch)
         PlayRecord * prc = (PlayRecord*) nt._vecplay[i];
         VecPlayContinuous * vpc = (VecPlayContinuous*) prc;
 
-        assert(prc->ith_ == 0); //single neuron per NrnThread
+        assert(prc->ith_ == branch->soma->nrnThreadId); //single neuron per NrnThread
         assert(vpx->last_index_ == vpc->last_index_);
         assert(vpx->discon_index_ == vpc->discon_index_);
         assert(vpx->y_->size()  == vpc->y_->size());
