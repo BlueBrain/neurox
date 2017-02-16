@@ -641,11 +641,8 @@ void Branch::setupTreeMatrix()
     floble_t *& d = this->nt->_actual_d;
     floble_t *& rhs = this->nt->_actual_rhs;
 
-    for (int i=0; i<this->nt->end; i++)
-    {
-        rhs[i]=0;
-        d[i]=0;
-    }
+    Solver::HinesSolver::resetMatrixRHSandD(this);
+
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
     this->callModFunction(Mechanism::ModFunction::current);
 
