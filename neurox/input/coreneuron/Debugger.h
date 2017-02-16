@@ -21,6 +21,8 @@ class Debugger
     Debugger()=delete;
     ~Debugger()=delete;
 
+    static bool isEqual(floble_t a, floble_t b, bool roughlyEqual = false);
+
     static void coreNeuronFinitialize();
     static void compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs);
 

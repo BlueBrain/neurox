@@ -398,7 +398,7 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
           for (int m=0; m<mechanismsCount;m++)
           {
             if (mechanisms[m]->type == CAP)   continue; //not capacitance
-            if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branche
+            if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branch
             hpx_lco_set(this->mechsGraph->mechsLCOs[m],
                         sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
           }

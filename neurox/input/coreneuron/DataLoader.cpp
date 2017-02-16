@@ -144,7 +144,7 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         if (inputParams->outputCompartmentsDot)
         {
-          FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+".dot").c_str(), "wt");
+          FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+".dot").c_str(), "wt");
           fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;  node [shape=cylinder];\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
           printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
           for (auto c : compartments) //draw edges
@@ -244,6 +244,10 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         if (inputParams->outputNetconsDot)
         {
+          #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
+            for (auto gid : allNeuronsIdsSet)
+                fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", gid);
+          #endif
           int netConsFromOthers=0;
           for (auto nc : netcons)
           {
@@ -259,9 +263,9 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                         gid , neuronId, nc.second.size(), minDelay);
             }
           }
-          #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
+          #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
             if (netConsFromOthers>0)
-              fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
+              fprintf(fileNetcons, "%d -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
           #endif
         }
 
@@ -324,7 +328,7 @@ void DataLoader::loadData(int argc, char ** argv)
       for (int i=0; i<neuronsCount; i++)
       {
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
-        FILE *fileCompartments = fopen(string("compartment"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
+        FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
         //for all nodes in this NrnThread
@@ -483,9 +487,9 @@ void DataLoader::loadData(int argc, char ** argv)
     {
       assert(HPX_LOCALITIES == 1);
       fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-      //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
-      #if OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS==true
+      //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+      #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
         fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
       #endif
     }

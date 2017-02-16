@@ -6,9 +6,9 @@
 #include <vector>
 #include <memory>
 
-#define OUTPUT_COMPARTMENTS_NRNTHREAD_DOT_FILE false
-#define DOT_PNG_BACKGROUND_COLOR "white" //"transparent"
-#define OUTPUT_NETCONS_DOT_FILE_INCLUDE_OTHERS false
+#define DOT_PNG_BACKGROUND_COLOR "transparent" //"white"
+#define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS true
+#define NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS  true
 
 using namespace std;
 

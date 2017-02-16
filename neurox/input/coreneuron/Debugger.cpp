@@ -22,9 +22,16 @@
 
 #include "neurox/neurox.h"
 
+#define EPSILON_EQ_FLOAT 0.000001
+
 using namespace std;
 using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
+
+bool Debugger::isEqual(floble_t a, floble_t b, bool roughlyEqual)
+{
+    return roughlyEqual ? fabs(a-b) < EPSILON_EQ_FLOAT : a==b;
+}
 
 void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs)
 {
@@ -63,6 +70,8 @@ void Debugger::compareBranch2(Branch * branch)
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     NrnThread & nt = nrn_threads[nrnThreadId];
 
+    bool multiMex = branch->mechsGraph != NULL;
+
     assert(branch->nt->_t == nt._t);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
     assert(branch->soma->thvar_index == nt.presyns[0].thvar_index_);
@@ -83,32 +92,33 @@ void Debugger::compareBranch2(Branch * branch)
         assert(vpx->discon_index_ == vpc->discon_index_);
         assert(vpx->y_->size()  == vpc->y_->size());
         assert(vpx->t_->size()  == vpc->t_->size());
-        assert(*(vpx->pd_) == *(vpc->pd_));
+        assert(isEqual(*(vpx->pd_), *(vpc->pd_), multiMex));
         assert((vpx->discon_indices_==NULL) == (vpc->discon_indices_==NULL));
         for (size_t j=0; j<vpx->y_->size(); j++)
         {
-            assert(vpx->y_->data()[j] == vpc->y_->data()[j]);
-            assert(vpx->t_->data()[j] == vpc->t_->data()[j]);
+            assert(vpx->y_->data()[j] == vpc->y_->data()[j]); //constants
+            assert(vpx->t_->data()[j] == vpc->t_->data()[j]); //constants
             if (vpx->discon_indices_ != NULL)
-              {assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);}
+              {assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);} //constants
         }
     }
 
-    //make sure all morphology and mechs data is correct
-    for (int i=0; i<nt._ndata; i++)
-    {   assert(nt._data[i] == branch->nt->_data[i]); }
-
+    //make sure morphology is correct
     for (int i=0; i<6*branch->nt->end; i++)
-    {   assert(nt._data[i] == branch->nt->_data[i]); }
+    {   assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex)); }
+
+    //make sure mechs data is correct
+    for (int i=0; i<nt._ndata; i++)
+    {   assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex)); }
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {
-        assert(nt._actual_a[i] == branch->nt->_actual_a[i]);
-        assert(nt._actual_b[i] == branch->nt->_actual_b[i]);
-        assert(nt._actual_d[i] == branch->nt->_actual_d[i]);
-        assert(nt._actual_v[i] == branch->nt->_actual_v[i]);
-        assert(nt._actual_rhs[i] == branch->nt->_actual_rhs[i]);
-        assert(nt._actual_area[i] == branch->nt->_actual_area[i]);
+        assert(nt._actual_a[i] == branch->nt->_actual_a[i]); //constants
+        assert(nt._actual_b[i] == branch->nt->_actual_b[i]); //constants
+        assert(nt._actual_area[i] == branch->nt->_actual_area[i]); //constants
+        assert(isEqual(nt._actual_d[i], branch->nt->_actual_d[i], multiMex));
+        assert(isEqual(nt._actual_v[i], branch->nt->_actual_v[i], multiMex));
+        assert(isEqual(nt._actual_rhs[i], branch->nt->_actual_rhs[i], multiMex));
         if (branch->nt->_v_parent_index)
         {  assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
     }
@@ -128,12 +138,12 @@ void Debugger::compareBranch2(Branch * branch)
         {
             assert(ml->nodeindices[n]==instances.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
-            {   assert(ml->data[n*dataSize+i]==instances.data[n*dataSize+i]); }
+            {   assert(isEqual(ml->data[n*dataSize+i], instances.data[n*dataSize+i], multiMex)); }
 
             for (int i=0; i<pdataSize; i++)
             {
                 int ptype = memb_func[type].dparam_semantics[i];
-                assert(ml->pdata[n*pdataSize+i] == instances.pdata[n*pdataSize+i]);
+                assert(isEqual(ml->pdata[n*pdataSize+i], instances.pdata[n*pdataSize+i], multiMex));
             }
 
             /* We comment this because it runs for NULL presyn
