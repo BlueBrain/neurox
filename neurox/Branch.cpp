@@ -249,8 +249,8 @@ Branch::Branch(offset_t n,
     {
         this->netcons[ netConsPreId[nc] ].push_back(
                     new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
-                    &netConsWeights[argsOffset], netcons[nc].argsCount, netcons[nc].active));
-        argsOffset += netcons[nc].argsCount;
+                    &netConsWeights[argsOffset], netcons[nc].weightsCount, netcons[nc].active));
+        argsOffset += netcons[nc].weightsCount;
     }
 }
 

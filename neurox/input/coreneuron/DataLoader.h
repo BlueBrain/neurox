@@ -9,6 +9,7 @@
 #define DOT_PNG_BACKGROUND_COLOR "transparent" //"white"
 #define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS true
 #define NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS  true
+#define COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE false
 
 using namespace std;
 
@@ -33,9 +34,6 @@ class DataLoader
     static void registerHpxActions();
 
   private:
-    static void addNetConsForThisNeuron(
-            neuron_id_t neuronId, neuron_id_t preNeuronId, int netconsCount,
-            offset_t netconsOffset, map< neuron_id_t, vector<NetConX*>> & netcons);
 
     static hpx_t createBranch(
             hpx_t target, deque<Compartment*> & compartments,

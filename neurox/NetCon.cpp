@@ -6,14 +6,14 @@ using namespace neurox;
 NetConX::NetConX(){}
 
 NetConX::NetConX(int mechType, offset_t mechInstance, floble_t delay,
-                 floble_t * args, unsigned short argsCount, bool active)
-    :mechType(mechType), argsCount(argsCount), mechInstance(mechInstance),
-      delay(delay), active(active), args(nullptr)
+                 floble_t * weights, unsigned short weightsCount, bool active)
+    :mechType(mechType), weightsCount(weightsCount), mechInstance(mechInstance),
+      delay(delay), active(active), weights(nullptr)
 {
-    if (argsCount>0)
+    if (weightsCount>0)
     {
-        this->args=new floble_t[argsCount];
-        memcpy(this->args, args, sizeof(floble_t)*argsCount);
+        this->weights=new floble_t[weightsCount];
+        memcpy(this->weights, weights, sizeof(floble_t)*weightsCount);
     }
 }
 
@@ -25,5 +25,5 @@ void NetConX::deliver(floble_t t, Branch* branch)
 
 NetConX::~NetConX()
 {
-    delete [] args;
+    delete [] weights;
 }

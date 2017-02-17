@@ -33,37 +33,6 @@ neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
     return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
 }
 
-void DataLoader::addNetConsForThisNeuron(
-        neuron_id_t neuronId, neuron_id_t preNeuronId, int netconsCount,
-        offset_t netconsOffset, map< neuron_id_t, vector<NetConX*> > & netcons)
-{
-    for (size_t s = 0; s<netconsCount; s++)
-    {
-      NetCon* nc = netcon_in_presyn_order_[netconsOffset + s];
-
-      //if synapse is not active
-      if (!nc->active_) continue;
-
-      //if synapse is not for this neuron...
-      neuron_id_t postNeuronId = getNeuronIdFromNrnThreadId(nc->target_->_tid);
-      if (postNeuronId!=neuronId) continue;
-
-      int mechType = nc->target_->_type;
-      int argsCount = pnt_receive_size[mechType];
-      vector<floble_t> args;
-
-
-/*TODO
-      for (int i=0; i<argsCount; i++)
-          args.push_back( (floble_t) nc->weight_[i]);
-
-      netcons[preNeuronId].push_back(
-          new NetConX(mechType, (offset_t) nc->target_->_i_instance,
-                   (floble_t) nc->delay_, args.data(), argsCount, nc->active_));
-*/
-    }
-}
-
 void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
 {
   if (inputParams->outputCompartmentsDot)
@@ -116,14 +85,12 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
 }
 
 hpx_action_t DataLoader::createNeuron = 0;
-int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
+int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
 {
         neurox_hpx_pin(Branch);
-        int i=*i_ptr;
-
-        //reconstructs neurons
-        NrnThread & nt = nrn_threads[i];
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
+        NrnThread & nt = nrn_threads[*nrnThreadId_ptr];
+        assert(nt.id == *nrnThreadId_ptr);
+        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt.id);
 
         #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
         if (inputParams->outputNetconsDot)
@@ -225,26 +192,21 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
         //======= 3 - reconstruct NetCons =====================
 
         map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron offset (not id)
-
-        //get all incoming synapses from neurons in other MPI ranks (or NrnThread?)
-        for (std::map<int, InputPreSyn*>::iterator syn_it = gid2in.begin();
-             syn_it!=gid2in.end(); syn_it++)
-        {
-            neuron_id_t preNeuronId = (neuron_id_t) syn_it->first;
-            //we can also get it from netcon_srcgid[nrn_thread_it][netcon_it]
-            InputPreSyn * ips = syn_it->second;
-            addNetConsForThisNeuron( neuronId, preNeuronId, ips->nc_cnt_,
-                                     (offset_t) ips->nc_index_, netcons);
-        }
-
-        //get all incoming synapses from neurons in the same MPI rank (or NrnThread?)
-        for (std::map<int, PreSyn*>::iterator syn_it = gid2out.begin();
-             syn_it!=gid2out.end(); syn_it++)
-        {
-            neuron_id_t preNeuronId = (neuron_id_t) syn_it->first;
-            PreSyn * ps = syn_it->second;
-            addNetConsForThisNeuron( neuronId, preNeuronId, ps->nc_cnt_,
-                                     (offset_t) ps->nc_index_, netcons);
+        for (int n = 0; n < nt.n_netcon; ++n) {
+            NetCon* nc = nt.netcons + n;
+            assert(netcon_srcgid.size()>0); //if size==0, then setup_cleanup() in nrn_setup.cpp was called
+            assert(nt.id < netcon_srcgid.size());
+            assert(netcon_srcgid.at(nt.id)!=NULL);
+            int srcGid = netcon_srcgid[nt.id][n];
+            assert(srcGid>=0); //gids can be negativ!
+            int mechType = nc->target_->_type;
+            int weightsCount = pnt_receive_size[mechType];
+            size_t weightsOffset = nc->u.weight_index_;
+            assert(weightsOffset < nt.n_weight);
+            floble_t * weights = &(nt.weights[weightsOffset]);
+            netcons[srcGid].push_back(
+                new NetConX(mechType, (offset_t) nc->target_->_i_instance,
+                         (floble_t) nc->delay_, weights, weightsCount, nc->active_));
         }
 
         if (inputParams->outputNetconsDot)
@@ -252,8 +214,8 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
           int netConsFromOthers=0;
           for (auto nc : netcons)
           {
-            int gid = nc.first;
-            if (allNeuronsIdsSet.find(gid) == allNeuronsIdsSet.end())
+            int srcGid = nc.first;
+            if (allNeuronsIdsSet.find(srcGid) == allNeuronsIdsSet.end())
                 netConsFromOthers++;
             else
             {
@@ -261,12 +223,12 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
                 for (auto ncv : nc.second) //get minimum delay between neurons
                     minDelay = std::min(minDelay, ncv->delay);
                 fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n",
-                        gid , neuronId, nc.second.size(), minDelay);
+                        srcGid , neuronId, nc.second.size(), minDelay);
             }
           }
           #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
             if (netConsFromOthers>0)
-              fprintf(fileNetcons, "%d -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "others", neuronId, netConsFromOthers);
+              fprintf(fileNetcons, "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee fontsize=12];\n", "external", neuronId, netConsFromOthers);
           #endif
         }
 
@@ -282,14 +244,14 @@ int DataLoader::createNeuron_handler(const int *i_ptr, const size_t)
 
         //======= 5 - recursively create branches tree ===========
 
-        floble_t APthreshold = (floble_t) nrn_threads[i].presyns[0].threshold_;
-        int thvar_index = nrn_threads[i].presyns[0].thvar_index_;
+        floble_t APthreshold = (floble_t) nrn_threads[nt.id].presyns[0].threshold_;
+        int thvar_index = nrn_threads[nt.id].presyns[0].thvar_index_;
         createBranch(target, compartments, compartments.at(0), netcons,
                      (size_t) compartments.size(), offsetToInstance);
 #ifdef CORENEURON_H
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t),
-                      &thvar_index, sizeof(thvar_index), &i, sizeof(i));
+                      &thvar_index, sizeof(thvar_index), &nt.id, sizeof(nt.id));
 #else
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
@@ -312,7 +274,7 @@ void DataLoader::loadData(int argc, char ** argv)
     assert (neurox::inputParams!=nullptr); //TODO mem corruption
 
     cn_input_params input_params;
-    nrn_init_and_load_data(argc, argv, input_params);
+    nrn_init_and_load_data(argc, argv, input_params, false);
 
     int neuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0,
                                  [](int n, NrnThread & nt){return n+nt.ncell;});
@@ -324,6 +286,7 @@ void DataLoader::loadData(int argc, char ** argv)
         allNeuronsIdsSet.insert(getNeuronIdFromNrnThreadId(i));
     }
 
+    #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
     if (inputParams->outputCompartmentsDot)
     {
       for (int i=0; i<neuronsCount; i++)
@@ -340,6 +303,7 @@ void DataLoader::loadData(int argc, char ** argv)
         fclose(fileCompartments);
       }
     }
+    #endif
 
     /** Reconstructs unique data related to each mechanism*
      * nargs=3 where:
@@ -491,7 +455,7 @@ void DataLoader::loadData(int argc, char ** argv)
       //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
       fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
       #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
-        fprintf(fileNetcons, "others [color=gray fontcolor=gray];\n");
+        fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
       #endif
     }
 
@@ -524,6 +488,8 @@ void DataLoader::loadData(int argc, char ** argv)
       fprintf(fileNetcons, "}\n");
       fclose(fileNetcons);
     }
+
+    nrn_setup_cleanup();
 }
 
 void DataLoader::getNetConsBranchData(
@@ -532,12 +498,12 @@ void DataLoader::getNetConsBranchData(
         vector<floble_t> & branchNetConsArgs)
 {
     //get size and allocate it
-    int ncCount=0, argsCount=0;
+    int ncCount=0, weightsCount=0;
     for (auto nc : netcons)
         for (auto nc2 : nc.second)
         {
             ncCount++;
-            argsCount += nc2->argsCount;
+            weightsCount += nc2->weightsCount;
         }
 
     branchNetCons = vector<NetConX> (ncCount);
@@ -549,11 +515,11 @@ void DataLoader::getNetConsBranchData(
         for (auto nc2 : nc.second)
         {
            assert(nc2!=NULL);
-           assert(nc2->args != NULL);
+           assert(nc2->weights != NULL);
            memcpy(&branchNetCons.at(i), nc2, sizeof(NetConX)); //push_back will call destructor!
            memcpy(&branchNetConsPreId.at(i), &nc.first, sizeof(int));
-           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->args, nc2->args + nc2->argsCount);
-           branchNetCons[i].args=NULL; //needed or will be pointing to original netcons data and will call destructor
+           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->weights, nc2->weights + nc2->weightsCount);
+           branchNetCons[i].weights=NULL; //needed or will be pointing to original netcons data and will call destructor
            i++;
         }
 }
