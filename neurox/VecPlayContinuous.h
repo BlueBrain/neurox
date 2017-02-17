@@ -15,7 +15,7 @@ class VecPlayContinuousX : Event
 {
   public:
     VecPlayContinuousX() = delete;
-    VecPlayContinuousX(double*, IvocVect* yvec, IvocVect* tvec, IvocVect* discon);
+    VecPlayContinuousX(double*, size_t size_, floble_t * yvec, floble_t * tvec, floble_t * discon);
     ~VecPlayContinuousX();
 
     void deliver(floble_t t, Branch* branch); ///> at associated DiscreteEvent
@@ -37,9 +37,10 @@ class VecPlayContinuousX : Event
     floble_t *pd_; ///>index to last value pointed by function continuous()
 
     //VecPlayContinuoys vars
-    IvocVect* y_;
-    IvocVect* t_;
-    IvocVect* discon_indices_;
+    floble_t  * y_;
+    floble_t * t_;
+    floble_t* discon_indices_;
+    size_t size_; ///> size of arrays t_, y_
     size_t last_index_;
     size_t discon_index_;
     size_t ubound_index_;

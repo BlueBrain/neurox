@@ -198,7 +198,7 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
             assert(nt.id < netcon_srcgid.size());
             assert(netcon_srcgid.at(nt.id)!=NULL);
             int srcGid = netcon_srcgid[nt.id][n];
-            assert(srcGid>=0); //gids can be negativ!
+            assert(srcGid>=0); //gids can be negative! This is a reminder that I should double-check when they happen
             int mechType = nc->target_->_type;
             int weightsCount = pnt_receive_size[mechType];
             size_t weightsOffset = nc->u.weight_index_;

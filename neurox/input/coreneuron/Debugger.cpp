@@ -90,16 +90,16 @@ void Debugger::compareBranch2(Branch * branch)
         assert(prc->ith_ == branch->soma->nrnThreadId); //single neuron per NrnThread
         assert(vpx->last_index_ == vpc->last_index_);
         assert(vpx->discon_index_ == vpc->discon_index_);
-        assert(vpx->y_->size()  == vpc->y_->size());
-        assert(vpx->t_->size()  == vpc->t_->size());
+        assert(vpx->size_  == vpc->y_->size());
+        assert(vpx->size_  == vpc->t_->size());
         assert(isEqual(*(vpx->pd_), *(vpc->pd_), multiMex));
         assert((vpx->discon_indices_==NULL) == (vpc->discon_indices_==NULL));
-        for (size_t j=0; j<vpx->y_->size(); j++)
+        for (size_t j=0; j<vpx->size_; j++)
         {
-            assert(vpx->y_->data()[j] == vpc->y_->data()[j]); //constants
-            assert(vpx->t_->data()[j] == vpc->t_->data()[j]); //constants
+            assert(vpx->y_[j] == vpc->y_->data()[j]); //constants
+            assert(vpx->t_[j] == vpc->t_->data()[j]); //constants
             if (vpx->discon_indices_ != NULL)
-              {assert(vpx->discon_indices_->data()[j] == vpc->discon_indices_->data()[j]);} //constants
+              {assert(vpx->discon_indices_[j] == vpc->discon_indices_->data()[j]);} //constants
         }
     }
 

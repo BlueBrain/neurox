@@ -203,14 +203,14 @@ Branch::Branch(offset_t n,
         int m = mechanismsMap[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppi.mechInstance*mechanisms[m]->dataSize + ppi.instanceDataOffset]);
-        IvocVect * yvec = new IvocVect(size);
-        IvocVect * tvec = new IvocVect(size);
+        floble_t * yvec = new floble_t[size];
+        floble_t * tvec = new floble_t[size];
         for (size_t i=0; i<size; i++)
         {
-            (*yvec)[i] = vecplayY[vOffset+i];
-            (*tvec)[i] = vecplayT[vOffset+i];
+            yvec[i] = vecplayY[vOffset+i];
+            tvec[i] = vecplayT[vOffset+i];
         }
-        nt->_vecplay[v] = new VecPlayContinuousX(pd,yvec,tvec, NULL);
+        nt->_vecplay[v] = new VecPlayContinuousX(pd,size, yvec,tvec, NULL);
         vOffset += size;
     }
 
