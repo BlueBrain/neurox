@@ -547,6 +547,7 @@ void Branch::finitialize2()
     //initEvents(t); //TODO (see _net_init in ProbAmpd modc files)
     deliverEvents(t);
     setupTreeMatrix();
+    callModFunction(Mechanism::ModFunction::before_step);
     deliverEvents(t);
 }
 
@@ -592,6 +593,7 @@ void Branch::backwardEulerStep()
     fixedPlayContinuous();
     callModFunction(Mechanism::ModFunction::state);
     callModFunction(Mechanism::ModFunction::after_solve);
+    callModFunction(Mechanism::ModFunction::before_step);
     deliverEvents(t);
 
     //if we are at the output time instant output to file

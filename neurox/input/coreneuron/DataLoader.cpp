@@ -352,6 +352,8 @@ void DataLoader::loadData(int argc, char ** argv)
         vector<int> successorsIds;
         int dependenciesCount;
 
+        assert(nrn_watch_check[type] == NULL); //not supported yet
+
         if (inputParams->multiMex)
         {
           std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
@@ -660,6 +662,9 @@ int DataLoader::getBranchData(
         case -6: //"pntproc"
         case -7: //"bbcorepointer"
             pdata[i] = (offset_t) vdataOffset++;
+            break;
+        case -8: //"bbcorepointer"
+            assert(0); //watch condition, not supported
             break;
         default:
             if (ptype>0 && ptype<1000) //name preffixed by '#'

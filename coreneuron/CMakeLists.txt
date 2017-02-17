@@ -130,7 +130,7 @@ set(STDMODLIBPATH "${CMAKE_CURRENT_SOURCE_DIR}/mech/modfile")
 set(MECH_STDMODS expsyn.mod  hh.mod  netstim.mod  passive.mod  pattern.mod stim.mod)
 
 if (EXPORT_MECHS_FUNCTIONS)
-  # Add 6 standard mechanismsro MOD_PATHS
+  # Add 6 standard mechanisms to MOD_PATHS
   foreach(MOD ${MECH_STDMODS})
       list(APPEND MOD_PATHS "${STDMODLIBPATH}/${MOD}")
   endforeach()
