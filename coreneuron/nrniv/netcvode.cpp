@@ -575,6 +575,7 @@ void SelfEvent::pr(const char* s, double tt, NetCvode*) {
 void ncs2nrn_integrate(double tstop) {
     double ts;
     int n = (int)((tstop - nrn_threads->_t) / dt + 1e-9);
+
     if (n > 3 && !nrn_have_gaps) {
         nrn_fixed_step_group_minimal(n);
     } else {
