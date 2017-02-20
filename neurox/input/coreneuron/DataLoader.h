@@ -35,7 +35,7 @@ class DataLoader
 
   private:
 
-    static hpx_t createBranch(
+    static hpx_t createBranch( int nrnThreadId,
             hpx_t target, deque<Compartment*> & compartments,
             Compartment * topCompartment,
             map< neuron_id_t, vector<NetConX*>> & netcons,

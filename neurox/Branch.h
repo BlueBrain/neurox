@@ -28,6 +28,7 @@ class Branch
     static void  operator delete(void* worker);
 
     Branch(offset_t n,
+           int nrnThreadId,
            hpx_t branchHpxAddr,
            floble_t * data, size_t dataCount,
            offset_t *pdata, size_t pdataCount,

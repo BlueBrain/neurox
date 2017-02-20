@@ -246,16 +246,15 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
 
         floble_t APthreshold = (floble_t) nrn_threads[nt.id].presyns[0].threshold_;
         int thvar_index = nrn_threads[nt.id].presyns[0].thvar_index_;
-        createBranch(target, compartments, compartments.at(0), netcons,
+
+        createBranch(nt.id, target, compartments, compartments.at(0), netcons,
                      (size_t) compartments.size(), offsetToInstance);
-#ifdef CORENEURON_H
+
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
-                      &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t),
-                      &thvar_index, sizeof(thvar_index), &nt.id, sizeof(nt.id));
-#else
-        hpx_call_sync(target, Branch::initSoma, NULL, 0,
-                      &neuronId, sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
-#endif
+                      &neuronId, sizeof(neuron_id_t),
+                      &APthreshold, sizeof(floble_t),
+                      &thvar_index, sizeof(thvar_index));
+
         for (auto c : compartments)
             delete c;
         for (auto nc: netcons)
@@ -700,7 +699,7 @@ int DataLoader::getBranchData(
     return n;
 }
 
-hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
+hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
                                map< neuron_id_t, vector<NetConX*> > & netcons, int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
@@ -744,7 +743,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
 
         //recursively create children branches
         for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {
@@ -760,7 +759,7 @@ hpx_t DataLoader::createBranch(hpx_t target, deque<Compartment*> & compartments,
     //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(offset_t),
-                  HPX_NULL, 0, //NOT USED
+                  &nrnThreadId, sizeof(int),
                   data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),

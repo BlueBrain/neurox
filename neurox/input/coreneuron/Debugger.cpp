@@ -66,7 +66,7 @@ void Debugger::fixed_step_minimal()
 void Debugger::compareBranch2(Branch * branch)
 {
     assert(branch->soma); //only non-branched neurons
-    int nrnThreadId = branch->soma->nrnThreadId;
+    int nrnThreadId = branch->nt->id;
     assert(sizeof(floble_t) == sizeof(double)); //only works with doubles!
     NrnThread & nt = nrn_threads[nrnThreadId];
 
@@ -87,7 +87,7 @@ void Debugger::compareBranch2(Branch * branch)
         PlayRecord * prc = (PlayRecord*) nt._vecplay[i];
         VecPlayContinuous * vpc = (VecPlayContinuous*) prc;
 
-        assert(prc->ith_ == branch->soma->nrnThreadId); //single neuron per NrnThread
+        assert(prc->ith_ == branch->nt->id); //single neuron per NrnThread
         assert(vpx->last_index_ == vpc->last_index_);
         assert(vpx->discon_index_ == vpc->discon_index_);
         assert(vpx->size_  == vpc->y_->size());
@@ -121,6 +121,17 @@ void Debugger::compareBranch2(Branch * branch)
         assert(isEqual(nt._actual_rhs[i], branch->nt->_actual_rhs[i], multiMex));
         if (branch->nt->_v_parent_index)
         {  assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
+    }
+
+    //make sure netcons are correct
+    size_t netconsCount =0;
+    for (auto nc_it : branch->netcons)
+        netconsCount += nc_it.second.size();
+
+    assert(nt.n_netcon == netconsCount);
+    for (int n = 0; n< nt.n_netcon; n++)
+    {
+        //TODO
     }
 
     int vdataOffset=0;

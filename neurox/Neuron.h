@@ -15,12 +15,7 @@ class Neuron
     Neuron() = delete;
     ~Neuron();
 
-#ifdef CORENEURON_H
-    Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index, int nrnThreadId=-1);
-    int nrnThreadId;
-#else
     Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index);
-#endif
 
     neuron_id_t gid;     ///> neuron global id
     floble_t threshold;  ///> Action Potential threshold (PreSyn -> _threshold)

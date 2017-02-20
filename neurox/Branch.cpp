@@ -16,6 +16,7 @@ void Branch::operator delete(void* worker) {
 }
 
 Branch::Branch(offset_t n,
+               int nrnThreadId,
                hpx_t branchHpxAddr,
                floble_t * data, size_t dataCount,
                offset_t *pdata, size_t pdataCount,
@@ -48,7 +49,7 @@ Branch::Branch(offset_t n,
     nt->n_input_presyn = -1;
     nt->n_netcon = -1;
     nt->ncell=-1;
-    nt->id = this->soma ? this->soma->gid : -1;
+    nt->id = nrnThreadId;
     nt->_stop_stepping = -1;
     nt->_permute = NULL;
     nt->_sp13mat = NULL;
@@ -284,7 +285,8 @@ int Branch::init_handler( const int nargs, const void *args[],
     assert(nargs==14 || nargs==15);
     new(local) Branch(
         *(offset_t*) args[0], //number of compartments
-        target, //current branch HPX addres
+        *(int*) args[1], //nrnThreadId (nt.id)
+        target, //current branch HPX address
         (floble_t*) args[2], sizes[2]/sizeof(floble_t), //data (RHS, D, A, V, B, area, and mechs...)
         (offset_t*) args[3], sizes[3]/sizeof(offset_t), //pdata
         (offset_t*) args[4], sizes[4]/sizeof(offset_t), //instances count per mechanism
@@ -340,12 +342,7 @@ int Branch::initSoma_handler(const int nargs,
     const neuron_id_t neuronId = *(const neuron_id_t*) args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
     const int thvar_index = *(const int*) args[2];
-#ifdef CORENEURON_H
-    const int nrnThreadId = *(const int*) args[3];
-    local->soma=new Neuron(neuronId, APthreshold, thvar_index, nrnThreadId);
-#else
     local->soma=new Neuron(neuronId, APthreshold, thvar_index);
-#endif
     neurox_hpx_unpin;
 }
 
