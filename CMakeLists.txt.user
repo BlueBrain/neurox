@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.5.1, 2017-02-20T10:50:49. -->
+<!-- Written by QtCreator 3.5.1, 2017-02-20T11:19:27. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -66,7 +66,7 @@
    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">{0ab9f068-3807-43a7-95a4-7fea4fec9a25}</value>
    <value type="int" key="ProjectExplorer.Target.ActiveBuildConfiguration">0</value>
    <value type="int" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
-   <value type="int" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
+   <value type="int" key="ProjectExplorer.Target.ActiveRunConfiguration">1</value>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
     <value type="bool" key="CMakeProjectManager.CMakeBuildConfiguration.UseNinja">false</value>
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/bmagalha/Workspace/neurox/build-qt</value>
@@ -210,7 +210,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">coreneuron_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/1/data -o /home/bmagalha/Workspace/PCP_circuits/1/data -e 5 -t 0.025 -k 0</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/10/data -o /home/bmagalha/Workspace/PCP_circuits/10/data -e 5 -t 0.025 -k 0</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"></value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>

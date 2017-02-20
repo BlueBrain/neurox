@@ -11,6 +11,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->synapsesLCO = std::deque<hpx_t> ();
     this->synapses = std::vector<hpx_t> ();
+    this->synapsesTransmissionFlag = false;
 }
 
 Neuron::~Neuron() {
@@ -37,8 +38,14 @@ void Neuron::addSynapseTarget(hpx_t target)
     hpx_lco_sema_v_sync(synapsesMutex);
 }
 
+bool Neuron::checkAPthreshold(floble_t v)
+{
+    //can only spike if AP threshold has been reach and I havent transmitted them already
+    synapsesTransmissionFlag = v>=threshold && synapsesTransmissionFlag ==false;
+    return synapsesTransmissionFlag;
+}
 
-void Neuron::fireActionPotential(spike_time_t t)
+void Neuron::sendSpikes(spike_time_t t)
 {
     //netcvode.cpp::PreSyn::send()
     if (synapses.size()>0)
