@@ -37,8 +37,8 @@ class Mechanism
     //from memb_func.h (before after functions not used on BBP models)
     Memb_func membFunc;
     mod_f_t BAfunctions[BEFORE_AFTER_SIZE]; ///>mechanism functions (with mod_f_t type)
-    pnt_receive_t pnt_receive;
-    pnt_receive_t pnt_receive_init;
+    pnt_receive2_t pnt_receive;
+    pnt_receive2_t pnt_receive_init;
     bbcore_read_t nrn_bbcore_read;
 
     enum ModFunction

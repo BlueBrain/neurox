@@ -28,6 +28,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
                     ("Unknown vdataSize for mech type (FLAG2).");
         }
         assert(vdataSize == pdataSize -1); //always?
+        pnt_receive = get_net_receive_function(sym);
     }
 
     if (successors != nullptr){
@@ -235,29 +236,24 @@ void Mechanism::callModFunction(const void * branch_ptr,
 
 void Mechanism::callNetReceiveFunction(
         const void * branch_ptr, const NetConX * netcon,
-        const floble_t t, const char callNetReceiveInit)
+        const floble_t tt, const char callNetReceiveInit)
 {
     Branch * branch = (Branch*) branch_ptr;
-    //Memb_list & membList = branch->mechsInstances[mechanismsMap];
     NrnThread * nt = branch->nt;
-
-    Point_process pp;
-    pp._i_instance = netcon->mechInstance;
-    pp._tid = -1;
+    Memb_list * ml = branch->mechsInstances[mechanismsMap[netcon->mechType]];
+    int iml = netcon->mechInstance;
+    double lflag = 0;
 
     pp._type = netcon->mechType;
-    nt->_t = nt->_dt + netcon->delay; //delivery time
-    //see netcvode.cpp:433 (NetCon::deliver)
-    //We have to pass NrnThread, MembList, and deliveryTime instead
+    nt->_t += tt; //as seen in etcvode.cpp:479 (NetCon::deliver)
+
     if (callNetReceiveInit)
-    {   //Not possible to pass all arguments, will fail!
-        //getMechanismFromType(netcon->mechType)->pnt_receive_init
-                //(&nrnThread, &membList, &pp, netcon->args, 0);
+    {
+        assert(0); //N/A
     }
     else
     {
-        //getMechanismFromType(netcon->mechType)->pnt_receive
-               // (&nrnThread, &membList, &pp, netcon->args, 0);
+        pnt_receive(nt,ml,iml, weightIndex, lflag);
     }
 }
 

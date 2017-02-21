@@ -93,30 +93,20 @@ mod_f_t get_${f}_function(const char * sym)
 __eof
 }
 
+# output of net_receive function pointers
+@mechs_with_net_receive=('ProbAMPANMDA_EMS','ProbGABAAB_EMS','NetStim','ExpSyn','PatternStim','InhPoissonStim');
+
 print <<"__eof";
-extern void
-  _net_receive2__ProbAMPANMDA_EMS(NrnThread*, Memb_list*, int, int, double),
-  _net_receive2__ProbGABAAB_EMS(NrnThread*, Memb_list*, int, int, double);
+
+extern void \n  @{[join ",\n  ", map {"_net_receive2__${_}(NrnThread*, Memb_list*, int, int, double)"} @mechs_with_net_receive]};
 
 mod_f_t get_net_receive_function(const char * sym)
 {
-  if (strcmp(sym, "ProbAMPANMDA_EMS") == 0)  return _net_receive2__ProbAMPANMDA_EMS;
-  if (strcmp(sym, "ProbGABAAB_EMS") == 0)  return _net_receive2__ProbGABAAB_EMS;
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _net_receive2__${_};"} @mechs_with_net_receive]}
   return NULL;
 }
 
 __eof
-
-#output net_receive2 functions
-#print <<"__eof";
-#extern void \n  @{[join ",\n  ", map {"_nrn_net_receive2__${_}(_NrnThread*, _Memb_list*, int, int, double, double)"} @suffixes_all]};
-#
-#mod_f_t get_net_receive_function(const char * sym)
-#{
-#@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_net_receive2__${_};"} @suffixes_all]}
-#  return NULL;
-#
-#__eof
 
 #output BA functions (not available yet)
 print <<"__eof";
