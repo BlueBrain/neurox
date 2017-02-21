@@ -1,6 +1,7 @@
 #pragma once
 
 //Coreneuron core datatypes
+//#define NET_RECEIVE_BUFFERING 0 //disables buffering on net_receive functions. TODO past on CMake, should be put here instead
 #include "coreneuron/coreneuron.h"
 
 //Core datatypes

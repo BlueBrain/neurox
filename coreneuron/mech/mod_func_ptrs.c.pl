@@ -26,7 +26,7 @@ s/\.mod$// foreach @mods;
 @mods=sort @mods;
 
 @funcs=('init','cur','state');
-#@funcs=('init','cur','jacob','state');
+#@funcs=('init','cur','jacob', 'state');
 
 print <<"__eof";
 #include <stdio.h>
@@ -89,12 +89,37 @@ mod_f_t get_${f}_function(const char * sym)
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_${f}__${_};"} @suffixes_with_this_func]}
   return NULL;
 }
-__eof
 
+__eof
 }
 
 print <<"__eof";
+extern void
+  _net_receive2__ProbAMPANMDA_EMS(NrnThread*, Memb_list*, int, int, double),
+  _net_receive2__ProbGABAAB_EMS(NrnThread*, Memb_list*, int, int, double);
 
+mod_f_t get_net_receive_function(const char * sym)
+{
+  if (strcmp(sym, "ProbAMPANMDA_EMS") == 0)  return _net_receive2__ProbAMPANMDA_EMS;
+  if (strcmp(sym, "ProbGABAAB_EMS") == 0)  return _net_receive2__ProbGABAAB_EMS;
+  return NULL;
+}
+
+__eof
+
+#output net_receive2 functions
+#print <<"__eof";
+#extern void \n  @{[join ",\n  ", map {"_nrn_net_receive2__${_}(_NrnThread*, _Memb_list*, int, int, double, double)"} @suffixes_all]};
+#
+#mod_f_t get_net_receive_function(const char * sym)
+#{
+#@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_net_receive2__${_};"} @suffixes_all]}
+#  return NULL;
+#
+#__eof
+
+#output BA functions (not available yet)
+print <<"__eof";
 mod_f_t get_BA_function(const char * sym, int BA_func_id)
 {
   return NULL;

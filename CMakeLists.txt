@@ -275,6 +275,7 @@ ELSE()
 ENDIF()
 
 # Core library
+add_definitions("-DNET_RECEIVE_BUFFERING=0")
 add_subdirectory(coreneuron)
 add_subdirectory(neurox)
 
