@@ -158,15 +158,34 @@ Mechanism::~Mechanism(){
 };
 
 void Mechanism::callModFunction(const void * branch_ptr,
-                                const Mechanism::ModFunction functionId)
+                                const Mechanism::ModFunction functionId,
+                                const NetConX * netcon , //for net_receive only
+                                const floble_t tt        //for net_receive only
+        )
 {
     Branch * branch = (Branch*) branch_ptr;
     assert(branch);
     NrnThread * nrnThread = branch->nt;
     assert(nrnThread);
+
+
+    if (functionId == Mechanism::ModFunction::netReceive
+     || functionId == Mechanism::ModFunction::netReceiveInit)
+    {
+        assert(functionId != Mechanism::ModFunction::netReceiveInit); //N/A yet
+
+        Memb_list * membList = &branch->mechsInstances[mechanismsMap[netcon->mechType]];
+        assert(membList);
+        int iml = netcon->mechInstance;
+        double lflag = 0;
+        int weightIndex=0;
+        nrnThread->_t += tt; //as seen in netcvode.cpp:479 (NetCon::deliver)
+        this->pnt_receive(nrnThread, membList, iml, weightIndex, lflag);
+        return;
+    }
+
     Memb_list * membList = &branch->mechsInstances[mechanismsMap[this->type]];
     assert(membList);
-
     if (membList->nodecount>0)
     switch(functionId)
     {
@@ -177,11 +196,11 @@ void Mechanism::callModFunction(const void * branch_ptr,
         case Mechanism::before_step:
                if (BAfunctions[(int) functionId])
                    BAfunctions[(int) functionId](nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::alloc:
             if (membFunc.alloc)
                 membFunc.alloc(membList->data, membList->pdata, type);
-            break;
+        break;
         case Mechanism::ModFunction::currentCapacitance:
             assert(type == CAP);
             assert(membFunc.current != NULL);
@@ -191,69 +210,46 @@ void Mechanism::callModFunction(const void * branch_ptr,
             assert(type != CAP);
             if (membFunc.current)
                 membFunc.current(nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)
                 membFunc.state(nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::jacobCapacitance:
             assert(type == CAP);
             assert(membFunc.jacob != NULL);
             membFunc.jacob(nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::jacob:
             assert(type != CAP);
             if (membFunc.jacob)
                 membFunc.jacob(nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::initialize:
             if (membFunc.initialize)
                 membFunc.initialize(nrnThread, membList, type);
-            break;
+        break;
         case Mechanism::ModFunction::destructor:
             if (membFunc.destructor)
                 membFunc.destructor();
-            break;
+        break;
         case Mechanism::ModFunction::threadMemInit:
             if (membFunc.thread_mem_init_)
                 membFunc.thread_mem_init_(membList->_thread);
-            break;
+        break;
         case Mechanism::ModFunction::threadTableCheck:
             if (membFunc.thread_table_check_)
                 membFunc.thread_table_check_
                     (0, membList->nodecount, membList->data, membList->pdata,
                      membList->_thread, nrnThread, type);
-            break;
+        break;
         case Mechanism::ModFunction::threadCleanup:
             if (membFunc.thread_cleanup_)
                 membFunc.thread_cleanup_(membList->_thread);
-            break;
+        break;
         default:
             printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
             exit(1);
-    }
-}
-
-void Mechanism::callNetReceiveFunction(
-        const void * branch_ptr, const NetConX * netcon,
-        const floble_t tt, const char callNetReceiveInit)
-{
-    Branch * branch = (Branch*) branch_ptr;
-    NrnThread * nt = branch->nt;
-    Memb_list * ml = branch->mechsInstances[mechanismsMap[netcon->mechType]];
-    int iml = netcon->mechInstance;
-    double lflag = 0;
-
-    pp._type = netcon->mechType;
-    nt->_t += tt; //as seen in etcvode.cpp:479 (NetCon::deliver)
-
-    if (callNetReceiveInit)
-    {
-        assert(0); //N/A
-    }
-    else
-    {
-        pnt_receive(nt,ml,iml, weightIndex, lflag);
     }
 }
 

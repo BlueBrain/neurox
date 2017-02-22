@@ -100,7 +100,7 @@ print <<"__eof";
 
 extern void \n  @{[join ",\n  ", map {"_net_receive2__${_}(NrnThread*, Memb_list*, int, int, double)"} @mechs_with_net_receive]};
 
-mod_f_t get_net_receive_function(const char * sym)
+pnt_receive2_t get_net_receive_function(const char * sym)
 {
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _net_receive2__${_};"} @mechs_with_net_receive]}
   return NULL;

@@ -63,15 +63,15 @@ class Mechanism
         //capacitance functions start here
         currentCapacitance=15, //not in mod files, it's in capac.c
         jacobCapacitance=16,
+        //net_receive
+        netReceive = 17,
+        netReceiveInit = 18
     };
 
-    ///Call the NetReceive functions on the mod file, for synapses handling
-    void callNetReceiveFunction(
-            const void * branch, const NetConX * netcon,
-            const floble_t t, const char callNetReceive = 0);
-
     void callModFunction(const void * branch,
-                         const Mechanism::ModFunction functionId);
+                         const Mechanism::ModFunction functionId,
+                         const NetConX * netcon = NULL, //for net_receive only
+                         const floble_t tt = 0 );       //for net_receive only
 
     static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t initModFunction; ///> init function for hpx_reduce of mechanisms graphs

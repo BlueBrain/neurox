@@ -42,7 +42,7 @@ struct NrnThread;
 typedef void (*mod_alloc_t)(double*, Datum*, int);
 typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
 typedef void (*pnt_receive_t)(Point_process*, int, double);
-typedef void (*pnt_receive2_t)(NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
+typedef void (*pnt_receive2_t)(struct NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
 
 typedef struct Memb_func {
     mod_alloc_t alloc;

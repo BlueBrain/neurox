@@ -17,10 +17,10 @@ NetConX::NetConX(int mechType, offset_t mechInstance, floble_t delay,
     }
 }
 
-void NetConX::deliver(floble_t t, Branch* branch)
+void NetConX::deliver(floble_t tt, Branch* branch)
 {
     if (!this->active) return
-    getMechanismFromType(mechType)->callNetReceiveFunction(branch, this, t, 0);
+    getMechanismFromType(mechType)->callModFunction(branch, Mechanism::ModFunction::netReceive, this, tt);
 }
 
 NetConX::~NetConX()
