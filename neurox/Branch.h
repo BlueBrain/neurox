@@ -41,7 +41,7 @@ class Branch
            PointProcInfo * vecplayInfo, size_t vecplayCount,
            NetConX * netcons, size_t netconsCount,
            neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
-           floble_t *netConsArgs, size_t netConsArgsCount,
+           floble_t *branchWeights, size_t branchWeightsCount,
            void** vdata, size_t vdataCount);
     ~Branch();
 

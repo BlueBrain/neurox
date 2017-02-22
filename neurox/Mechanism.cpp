@@ -177,10 +177,9 @@ void Mechanism::callModFunction(const void * branch_ptr,
         Memb_list * membList = &branch->mechsInstances[mechanismsMap[netcon->mechType]];
         assert(membList);
         int iml = netcon->mechInstance;
-        double lflag = 0;
-        int weightIndex=0;
+        int weightIndex = netcon->weightIndex;
         nrnThread->_t += tt; //as seen in netcvode.cpp:479 (NetCon::deliver)
-        this->pnt_receive(nrnThread, membList, iml, weightIndex, lflag);
+        this->pnt_receive(nrnThread, membList, iml, weightIndex, 0);
         return;
     }
 

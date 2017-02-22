@@ -123,6 +123,11 @@ void Debugger::compareBranch2(Branch * branch)
         {  assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
     }
 
+    //make sure weights are correct
+    assert(nt.n_weight == branch->nt->n_weight);
+    for (int n=0; n< nt.n_weight; n++)
+    {   assert(nt.weights[n] == branch->nt->weights[n]); }
+
     //make sure netcons are correct
     size_t netconsCount =0;
     for (auto nc_it : branch->netcons)
@@ -131,7 +136,13 @@ void Debugger::compareBranch2(Branch * branch)
     assert(nt.n_netcon == netconsCount);
     for (int n = 0; n< nt.n_netcon; n++)
     {
-        //TODO
+        //TODO how to compare?
+        //NetConX * nx = branch->net
+        //assert(nt.netcons[n].active_ == branch->nt->netcons[n].active_);
+        //assert(nt.netcons[n].delay_ == branch->nt->netcons[n].delay_);
+        //assert(nt.netcons[n].u.weight_index_ == branch->nt->netcons[n].delay_);
+        //assert(nt.netcons[n].target_->_i_instance == branch->nt->netcons[n].delay_);
+        //assert(nt.netcons[n].target_->_type == branch->nt->netcons[n].delay_);
     }
 
     int vdataOffset=0;

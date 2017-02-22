@@ -4,10 +4,13 @@
 
 #include <memory>
 #include <vector>
+#include <utility>
 
 using namespace std;
 using namespace neurox;
 using namespace neurox::Input::Coreneuron;
+
+class neurox::NetConX;
 
 Compartment::~Compartment(){};
 
@@ -43,4 +46,14 @@ void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
         this->vecPlayTdata.push_back((floble_t) t[i]);
         this->vecPlayYdata.push_back((floble_t) y[i]);
     }
+}
+
+void Compartment::addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights)
+{
+    this->netconsPreSynIds.push_back(preSynNrnThreadId);
+    this->netcons.push_back(NetConX(nc->mechType, nc->mechInstance, nc->delay,
+                                   nc->weightIndex, nc->weightsCount, nc->active));
+    for (int i=0; i<nc->weightsCount; i++)
+        this->netconsWeights.push_back(weights[i]);
+
 }

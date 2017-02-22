@@ -27,6 +27,8 @@ class Compartment
                               Datum * pdata, int pdataSize);
     void addVecPlay(double * t, double *y, PointProcInfo & ppi);
 
+    void addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
+
     offset_t id;
     vector<Compartment*> branches;
     floble_t a,b,d,v,rhs,area;
@@ -42,6 +44,11 @@ class Compartment
 
     //vdata
     vector<void*> vdata;
+
+    //netcons
+    vector< NetConX > netcons ;
+    vector<floble_t> netconsWeights;
+    vector<neuron_id_t> netconsPreSynIds;
   private:
 };
 

@@ -29,7 +29,7 @@ Branch::Branch(offset_t n,
                PointProcInfo * ppis, size_t vecplayCount,
                NetConX * netcons, size_t netconsCount,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
-               floble_t *netConsWeights, size_t netConsWeightsCount,
+               floble_t *weights, size_t weightsCount,
                void** vdata, size_t vdataCount):
     soma(nullptr),nt(nullptr)
 {
@@ -80,9 +80,9 @@ Branch::Branch(offset_t n,
     memcpy(nt->_vdata, vdata, vdataCount*sizeof(void*));
     nt->_nvdata = vdataCount;
 
-    nt->weights = netConsWeightsCount==0 ? nullptr : new floble_t[netConsWeightsCount];
-    memcpy(nt->weights, netConsWeights, sizeof(floble_t)*netConsWeightsCount);
-    nt->n_weight = netConsWeightsCount;
+    nt->weights = weightsCount==0 ? nullptr : new floble_t[weightsCount];
+    memcpy(nt->weights, weights, sizeof(floble_t)*weightsCount);
+    nt->n_weight = weightsCount;
 
     nt->_actual_rhs  = nt->_data + n*0;
     nt->_actual_d    = nt->_data + n*1;
@@ -245,14 +245,16 @@ Branch::Branch(offset_t n,
     }
 
     //reconstructs netcons
-    offset_t argsOffset=0;
+    offset_t weightsOffset=0;
     for (offset_t nc=0; nc<netconsCount; nc++)
     {
         this->netcons[ netConsPreId[nc] ].push_back(
                     new NetConX(netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
-                    &netConsWeights[argsOffset], netcons[nc].weightsCount, netcons[nc].active));
-        argsOffset += netcons[nc].weightsCount;
+                    netcons[nc].weightIndex, netcons[nc].weightsCount, netcons[nc].active));
+        assert(weightsOffset == netcons[nc].weightIndex);
+        weightsOffset += netcons[nc].weightsCount;
     }
+    assert(weightsCount == weightsOffset);
 }
 
 Branch::~Branch()
@@ -298,7 +300,7 @@ int Branch::init_handler( const int nargs, const void *args[],
         (PointProcInfo*) args[10], sizes[10]/sizeof(PointProcInfo), //point processes info
         (NetConX*) args[11], sizes[11]/sizeof(NetConX), //netcons
         (neuron_id_t *) args[12], sizes[12]/sizeof(neuron_id_t), //netcons preneuron ids
-        (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons args
+        (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons weights
         (void**) args[14], sizes[14]/sizeof(void*));
     neurox_hpx_unpin;
 }

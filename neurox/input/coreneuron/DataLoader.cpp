@@ -197,16 +197,20 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
             assert(netcon_srcgid.size()>0); //if size==0, then setup_cleanup() in nrn_setup.cpp was called
             assert(nt.id < netcon_srcgid.size());
             assert(netcon_srcgid.at(nt.id)!=NULL);
-            int srcGid = netcon_srcgid[nt.id][n];
-            assert(srcGid>=0); //gids can be negative! This is a reminder that I should double-check when they happen
-            int mechType = nc->target_->_type;
-            int weightsCount = pnt_receive_size[mechType];
+            int srcgid = netcon_srcgid[nt.id][n];
+            assert(srcgid>=0); //gids can be negative! this is a reminder that i should double-check when they happen
+            int mechtype = nc->target_->_type;
+            int weightscount = pnt_receive_size[mechtype];
             size_t weightsOffset = nc->u.weight_index_;
             assert(weightsOffset < nt.n_weight);
-            floble_t * weights = &(nt.weights[weightsOffset]);
-            netcons[srcGid].push_back(
-                new NetConX(mechType, (offset_t) nc->target_->_i_instance,
-                         (floble_t) nc->delay_, weights, weightsCount, nc->active_));
+
+            int nodeid = nrn_threads[nc->target_->_tid]._ml_list[mechtype]->nodeindices[nc->target_->_i_instance];
+            Compartment * comp = compartments.at(nodeid);
+            NetConX * nx = new NetConX(mechtype, (offset_t) nc->target_->_i_instance,
+                                       (floble_t) nc->delay_, weightsOffset, weightscount, nc->active_);
+            double * weights = &nt.weights[weightsOffset];
+            comp->addNetCon(srcgid, nx, weights);
+            netcons[srcgid].push_back(nx);
         }
 
         if (inputParams->outputNetconsDot)
@@ -232,6 +236,14 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
           #endif
         }
 
+        for (auto nc : netcons)
+        {
+            for (auto ncv : nc.second)
+                delete ncv;
+            nc.second.clear();
+        }
+        netcons.clear();
+
         //======= 4 - reconstruct VecPlayContinuous events =======
         for (int v=0; v<nt.n_vecplay; v++)
         {
@@ -247,7 +259,7 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
         floble_t APthreshold = (floble_t) nrn_threads[nt.id].presyns[0].threshold_;
         int thvar_index = nrn_threads[nt.id].presyns[0].thvar_index_;
 
-        createBranch(nt.id, target, compartments, compartments.at(0), netcons,
+        createBranch(nt.id, target, compartments, compartments.at(0),
                      (size_t) compartments.size(), offsetToInstance);
 
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
@@ -494,35 +506,23 @@ void DataLoader::loadData(int argc, char ** argv)
 }
 
 void DataLoader::getNetConsBranchData(
-        deque<Compartment*> & compartments, map<neuron_id_t, vector<NetConX*> > & netcons,
-        vector<NetConX> & branchNetCons, vector<neuron_id_t> & branchNetConsPreId,
-        vector<floble_t> & branchNetConsArgs)
+        deque<Compartment*> & compartments, vector<NetConX> & branchNetCons,
+        vector<neuron_id_t> & branchNetConsPreId, vector<floble_t> & branchWeights)
 {
-    //get size and allocate it
-    int ncCount=0, weightsCount=0;
-    for (auto nc : netcons)
-        for (auto nc2 : nc.second)
-        {
-            ncCount++;
-            weightsCount += nc2->weightsCount;
-        }
+    for (auto & comp : compartments)
+    {
+        branchNetCons.insert(branchNetCons.end(), comp->netcons.begin(), comp->netcons.end());
+        branchNetConsPreId.insert(branchNetConsPreId.end(), comp->netconsPreSynIds.begin(), comp->netconsPreSynIds.end());
+        branchWeights.insert(branchWeights.end(), comp->netconsWeights.begin(), comp->netconsWeights.end());
+    }
 
-    branchNetCons = vector<NetConX> (ncCount);
-    branchNetConsPreId = vector<neuron_id_t> (ncCount);
-    branchNetConsArgs = vector<floble_t> (ncCount);
-
-    int i=0;
-    for (auto nc : netcons)
-        for (auto nc2 : nc.second)
-        {
-           assert(nc2!=NULL);
-           assert(nc2->weights != NULL);
-           memcpy(&branchNetCons.at(i), nc2, sizeof(NetConX)); //push_back will call destructor!
-           memcpy(&branchNetConsPreId.at(i), &nc.first, sizeof(int));
-           branchNetConsArgs.insert(branchNetConsArgs.end(), nc2->weights, nc2->weights + nc2->weightsCount);
-           branchNetCons[i].weights=NULL; //needed or will be pointing to original netcons data and will call destructor
-           i++;
-        }
+    //correct weighIndex variables
+    int weightOffset=0;
+    for (auto & nc : branchNetCons)
+    {
+        nc.weightIndex = weightOffset;
+        weightOffset += nc.weightsCount;
+    }
 }
 
 void DataLoader::getVecPlayBranchData(
@@ -700,7 +700,7 @@ int DataLoader::getBranchData(
 }
 
 hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               map< neuron_id_t, vector<NetConX*> > & netcons, int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance)
+                               int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance)
 {
     assert(topCompartment!=NULL);
     offset_t n; //number of compartments in branch
@@ -720,10 +720,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     //branch NetCons
     vector<NetConX> branchNetCons;
     vector<neuron_id_t> branchNetConsPreId;
-    vector<floble_t> branchNetConsArgs;
+    vector<floble_t> branchWeights;
 
     if (inputParams->multiSplix)
     {
+        assert(0);//N/A: broken until we manage to translate mechId+instance in neuron to branch!
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
         for (comp = topCompartment;
@@ -737,19 +738,18 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
-        //TODO broken until we manage to translate mechId+instance in neuron to branch!
-        //getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
-        //getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
+        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo);
+        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights);
 
         //recursively create children branches
         for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], netcons, totalN, offsetToInstance));
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, offsetToInstance));
     }
     else //Flat a la Coreneuron
     {
         n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
         getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
-        getNetConsBranchData(compartments, netcons, branchNetCons, branchNetConsPreId, branchNetConsArgs);
+        getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights);
     }
 
     //Allocate HPX Branch (top has already been created on main neurons array)
@@ -771,7 +771,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
                   branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetCon)*branchNetCons.size(),
                   branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
-                  branchNetConsArgs.size() > 0 ? branchNetConsArgs.data() : nullptr, sizeof(floble_t)*branchNetConsArgs.size(),
+                  branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()
                   );
 

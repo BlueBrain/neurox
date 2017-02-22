@@ -15,7 +15,7 @@ class NetConX : Event
   public:
     NetConX();
     NetConX(int mechType, offset_t mechInstance, floble_t delay,
-            floble_t * weights, unsigned short weightsCount, bool active);
+            offset_t weightIndex, unsigned short weightsCount, bool active);
     ~NetConX();
 
     void deliver(floble_t t, Branch* branch) override; //event method (inherited)
@@ -24,7 +24,7 @@ class NetConX : Event
     unsigned short weightsCount;  ///> size of variable args
     bool active;          ///> decides whether NetCon is active (or not)
     floble_t delay;       ///> synaptic (soma-bouton distance + transmitters release delay)
-    floble_t * weights;      ///> net_receive arguments (equivalent to weights in Coreneuron's NetCon)
+    offset_t weightIndex;      ///> net_receive arguments (equivalent to weights in Coreneuron's NetCon)
     offset_t mechInstance;     ///> mechanism instance, from the mechanism type
 
   private:
