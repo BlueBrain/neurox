@@ -156,26 +156,37 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
 
                 if (mech->pntMap > 0) //vdata
                 {
-                    assert((type==IClamp && mech->pdataSize==2)
-                        ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3));
+                    assert((type==IClamp && mech->pdataSize==2 && mech->vdataSize==1)
+                        ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3 && mech->vdataSize==2));
 
-                    //Offsets in pdata: 0: data (area), 1: point proc in nt._vdata, [2: rng in nt._vdata]
-                    for (int v=0; v<mech->vdataSize; v++)
-                        compartment->vdata.push_back(vdata[v]);
-#ifndef NDEBUG
-                    Point_process * pp = &nt.pntprocs[pointProcTotalOffset++];
-                    assert(nt._vdata[pdata[1]] == pp);
-                    if (mech->pdataSize > 2)
+                    //pdata[0]: offset in data (area)
+                    //pdata[1]: offset for point proc in vdata[0]
+                    //pdata[2]: offset for RNG in vdata[1]
+
+                    //for (int v=0; v<mech->vdataSize; v++)
+                    //    compartment->vdata.push_back(vdata[v]);
+
+                    //position vdata[0]: Point_proc
+                    Point_process * ppn = &nt.pntprocs[pointProcTotalOffset++];
+                    assert(nt._vdata[pdata[1]] == ppn);
+                    Point_process * ppnn = (Point_process*) vdata[0];
+                    Point_process * ppx = new Point_process;
+                    memcpy(ppx, ppn, sizeof(Point_process));
+                    compartment->vdata.push_back(ppx);
+
+                    //position vdata[1]: RNG (if any)
+                    if (mech->vdataSize==2)
                     {
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
-                        void * RNG = nt._vdata[pdata[2]];
-                        (void) RNG;
+                        nrnran123_State * RNGn = (nrnran123_State*) nt._vdata[pdata[2]];
+                        nrnran123_State * RNGx = new nrnran123_State;
+                        memcpy(RNGx, RNGn, sizeof(nrnran123_State));
+                        compartment->vdata.push_back(RNGx);
                     }
                 }
                 else
                 {
                     assert(mech->vdataSize==0);
-#endif
                 }
                 compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataOffset       += (unsigned) mech->dataSize;
