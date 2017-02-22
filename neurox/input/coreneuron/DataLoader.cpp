@@ -769,7 +769,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
-                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetCon)*branchNetCons.size(),
+                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
                   branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
                   branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()

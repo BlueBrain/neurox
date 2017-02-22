@@ -28,7 +28,6 @@ Mechanism::Mechanism(const int type, const short int dataSize,
                     ("Unknown vdataSize for mech type (FLAG2).");
         }
         assert(vdataSize == pdataSize -1); //always?
-        pnt_receive = get_net_receive_function(sym);
     }
 
     if (successors != nullptr){
@@ -56,7 +55,10 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     else //general mechanism: mod file
         registerModFunctions(this->type);
 
-    //registerBeforeAfterFunctions();
+    if (pntMap>0)
+        pnt_receive = get_net_receive_function(sym);
+
+    registerBeforeAfterFunctions();
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
