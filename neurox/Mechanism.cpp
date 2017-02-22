@@ -56,7 +56,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         registerModFunctions(this->type);
 
     if (pntMap>0)
-        pnt_receive = get_net_receive_function(sym);
+        pnt_receive = get_net_receive_function(this->sym);
 
     registerBeforeAfterFunctions();
 
@@ -175,12 +175,13 @@ void Mechanism::callModFunction(const void * branch_ptr,
      || functionId == Mechanism::ModFunction::netReceiveInit)
     {
         assert(functionId != Mechanism::ModFunction::netReceiveInit); //N/A yet
+        assert(this->pnt_receive);
 
         Memb_list * membList = &branch->mechsInstances[mechanismsMap[netcon->mechType]];
         assert(membList);
         int iml = netcon->mechInstance;
         int weightIndex = netcon->weightIndex;
-        nrnThread->_t += tt; //as seen in netcvode.cpp:479 (NetCon::deliver)
+        nrnThread->_t = tt; //as seen in netcvode.cpp:479 (NetCon::deliver)
         this->pnt_receive(nrnThread, membList, iml, weightIndex, 0);
         return;
     }
