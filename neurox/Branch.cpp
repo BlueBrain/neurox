@@ -699,10 +699,11 @@ void Branch::deliverNetEvents()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
     if (this->soma)
     {
+      static const double teps = 1e-10;
       int & thidx = this->soma->thvar_index;
       floble_t v = this->nt->_actual_v[thidx];
       if (soma->checkAPthresholdAndTransmissionFlag(v))
-          soma->sendSpikes( (spike_time_t) (t+1e-10) );
+          soma->sendSpikes( (spike_time_t) (nt->_t+teps) );
     }
 
     //netcvode.cpp::NetCvode::deliver_net_events()
