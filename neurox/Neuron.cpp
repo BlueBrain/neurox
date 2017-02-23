@@ -73,6 +73,7 @@ void Neuron::sendSpikes(spike_time_t t)
       }
       this->synapsesLCO.push_front(spikesLco);
     }
+    this->synapsesLCO.push_front(HPX_NULL);
 }
 
 void Neuron::waitForSynapsesDelivery(int commStepSize)

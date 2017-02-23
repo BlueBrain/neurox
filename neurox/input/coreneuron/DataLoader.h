@@ -7,7 +7,7 @@
 #include <memory>
 
 #define DOT_PNG_BACKGROUND_COLOR "transparent" //"white"
-#define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS true
+#define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS false
 #define NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS  true
 #define COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE false
 
@@ -71,7 +71,7 @@ class DataLoader
     static hpx_action_t addSynapseTarget;
 
     static int createNeuron_handler(const int * i, const size_t);
-    static int broadcastNetCons_handler(const int, const void *[],const size_t[]);
+    static int broadcastNetCons_handler();
     static int addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t);
 };
 

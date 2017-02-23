@@ -202,7 +202,7 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
 
         //======= 3 - reconstruct NetCons =====================
 
-        map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron offset (not id)
+        map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron id)
         for (int n = 0; n < nt.n_netcon; ++n) {
             NetCon* nc = nt.netcons + n;
             assert(netcon_srcgid.size()>0); //if size==0, then setup_cleanup() in nrn_setup.cpp was called
@@ -476,8 +476,8 @@ void DataLoader::loadData(int argc, char ** argv)
     {
       assert(HPX_LOCALITIES == 1);
       fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-      //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
+      //fprintf(fileNetcons, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
       #if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS==true
         fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
       #endif
@@ -488,24 +488,20 @@ void DataLoader::loadData(int argc, char ** argv)
     {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i) );
     }, 0, neuronsCount, NULL);
 
-    //all neurons have been created, every branch will inform pre-syn ids that they are connected
-    assert(allNeuronsIdsSet.size() == neuronsCount);
-    std::vector<neuron_id_t> allNeuronsIdsVec  (neuronsCount);
-    std::vector<hpx_t> allNeuronsAddrVec (neuronsCount);
-    for (int i=0; i<neuronsCount; i++)
+    if (inputParams->outputNetconsDot)
     {
-        allNeuronsIdsVec[i]  = getNeuronIdFromNrnThreadId(i);
-        allNeuronsAddrVec[i] = getNeuronAddr(i);
+      fprintf(fileNetcons, "}\n");
+      fclose(fileNetcons);
+      fileNetcons = fopen(string("netcons_neurox.dot").c_str(), "wt");
+      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
     }
 
+    //all neurons have been created, every branch will inform pre-syn ids that they are connected
+    assert(allNeuronsIdsSet.size() == neuronsCount);
     printf("neurox::Neuron::broadcastNetCons...\n", neuronsCount);
-    hpx_t lco_neurons = hpx_lco_and_new(neuronsCount);
-    for (int i=0; i<neuronsCount; i++)
-        hpx_call(getNeuronAddr(i), DataLoader::broadcastNetCons, lco_neurons,
-                 allNeuronsIdsVec.data(),  allNeuronsIdsVec.size() *sizeof(neuron_id_t),
-                 allNeuronsAddrVec.data(), allNeuronsAddrVec.size()*sizeof(hpx_t));
-    hpx_lco_wait(lco_neurons);
-    hpx_lco_delete(lco_neurons, NULL);
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::broadcastNetCons, NULL, 0 );
+    }, 0, neuronsCount, NULL);
 
     if (inputParams->outputNetconsDot)
     {
@@ -790,26 +786,39 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 }
 
 hpx_action_t DataLoader::broadcastNetCons = 0;
-int DataLoader::broadcastNetCons_handler(const int nargs, const void *args[], const size_t sizes[])
+int DataLoader::broadcastNetCons_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::broadcastNetCons, args[0], sizes[0], args[1], sizes[1]);
-    assert(nargs==2);
+    neurox_hpx_recursive_branch_async_call(DataLoader::broadcastNetCons);
+    assert(local->netcons.size()>0);
 
-    const neuron_id_t * neuronsIds = (const neuron_id_t*) args[0]; //list of all existing neurons ids
-    const hpx_t * neuronsAddr = (const hpx_t*) args[1]; //list of all existing neurons addrs (same order as ids)
+#if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
+    if (inputParams->outputNetconsDot)
+        fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
+#endif
 
-    //create index of unique pre-neurons ids
-    std::set<neuron_id_t> netconsPreNeuronIds;
-    for (auto nc : local->netcons)
-        netconsPreNeuronIds.insert(nc.first);
+    //iterate through all real (not artificial) neurons
+    for (int i=0; i < neurox::neuronsCount; i++)
+    {
+        neuron_id_t srcGid = getNeuronIdFromNrnThreadId(i);
 
-    //inform pre-synaptic neurons (once) that we connect
-    for (int i=0; i<sizes[0]/sizeof(neuron_id_t); i++) //for all existing neurons
-        //if I'm connected to it (ie is not artificial)
-        if (netconsPreNeuronIds.find(neuronsIds[i]) != netconsPreNeuronIds.end())
-            //tell the neuron to add the synapse to this branch
-            hpx_call_sync(neuronsAddr[i], DataLoader::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
+        //if I'm connected to it (ie is not artificial or non-existent)
+        if (local->netcons.find(srcGid) != local->netcons.end())
+        {
+            hpx_t srcAddr = neurox::getNeuronAddr(i);
+            if (inputParams->outputNetconsDot)
+            {
+                floble_t minDelay = 99999999;
+                for (auto & nc : local->netcons.at(srcGid))
+                    minDelay = min(minDelay, nc->delay);
+                fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n",
+                        srcGid, local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
+            }
+
+            //tell the neuron to add a synapse to this branch
+            hpx_call_sync(srcAddr, DataLoader::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
+        }
+    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -827,5 +836,5 @@ void DataLoader::registerHpxActions()
 {
     neurox_hpx_register_action(1, DataLoader::createNeuron);
     neurox_hpx_register_action(1, DataLoader::addSynapseTarget);
-    neurox_hpx_register_action(2, DataLoader::broadcastNetCons);
+    neurox_hpx_register_action(0, DataLoader::broadcastNetCons);
 }

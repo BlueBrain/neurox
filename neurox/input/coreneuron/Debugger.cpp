@@ -120,7 +120,7 @@ void Debugger::compareBranch2(Branch * branch)
         assert(isEqual(nt._actual_v[i], branch->nt->_actual_v[i], multiMex));
         assert(isEqual(nt._actual_rhs[i], branch->nt->_actual_rhs[i], multiMex));
         if (branch->nt->_v_parent_index)
-        {  assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
+        {    assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]); }
     }
 
     //make sure weights are correct
@@ -128,12 +128,17 @@ void Debugger::compareBranch2(Branch * branch)
     //for (int n=0; n< nt.n_weight; n++)
     //{   assert(nt.weights[n] == branch->nt->weights[n]); } //order is changed!
 
+
     //make sure netcons are correct
     size_t netconsCount =0;
     for (auto nc_it : branch->netcons)
+    {
+        int srcGid = nc_it.first;
         netconsCount += nc_it.second.size();
-
+    }
     assert(nt.n_netcon == netconsCount);
+
+    //make sure number of output synapses per neuron is correct;
     for (int n = 0; n< nt.n_netcon; n++)
     {
         //TODO how to compare?
