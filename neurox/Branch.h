@@ -49,28 +49,39 @@ class Branch
     Memb_list *mechsInstances; ///> Arrays of mechanism instances (size neurox::mechanismsCount)
     Neuron * soma;             ///> if top branch, it's populated, otherwise is NULL
 
-    class MechanismsGraphLCO
+    class MechanismsGraph
     {
       public:
+        MechanismsGraph(); ///> creates mechanisms instance graph based on global var 'mechanisms'
+        ~MechanismsGraph();
+        void initMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
+
         hpx_t * mechsLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
         hpx_t endLCO; ///> represents the bottom of the graph
         hpx_t graphLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
 
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
+
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
-    void initMechanismsGraph(hpx_t target); ///> creates mechanisms instance graph based on global var 'mechanisms'
 
     class NeuronTree
     {
       public:
+        NeuronTree()=delete;
+        NeuronTree(size_t branchesCount);
+        ~NeuronTree();
+
         size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
 
         static const size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
         hpx_t localLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
         hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
+
+        static hpx_action_t initLCOs; ///> Initializes neuronTree
+        static int initLCOs_handler();
     } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
     std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
@@ -81,7 +92,6 @@ class Branch
 
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
-    static hpx_action_t initNeuronTreeLCO; ///> Initializes neuronTree
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
     static hpx_action_t finitialize;
@@ -103,7 +113,6 @@ class Branch
   private:
     static int init_handler(const int, const void *[], const size_t[]);
     static int initSoma_handler(const int, const void *[], const size_t[]);
-    static int initNeuronTreeLCO_handler();
     static int clear_handler();
     static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();

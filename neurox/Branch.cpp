@@ -92,7 +92,6 @@ Branch::Branch(offset_t n,
     nt->_actual_area = nt->_data + n*5;
 
     this->eventsQueueMutex = hpx_lco_sema_new(1);
-    this->initMechanismsGraph(branchHpxAddr);
 
     //parent index
     if (pCount>0)
@@ -189,7 +188,6 @@ Branch::Branch(offset_t n,
         Mechanism * mech = mechanisms[m];
         Memb_list & instances = this->mechsInstances[m];
         this->nt->_ml_list[mech->type] = &instances;
-
     }
 
     //vecplay
@@ -223,27 +221,6 @@ Branch::Branch(offset_t n,
     this->nt->_shadow_rhs = new double[shadowElemsCount];
     this->nt->_shadow_d   = new double[shadowElemsCount];
 
-    //reconstructs parents or branching
-    if (inputParams->multiSplix)
-    {
-      this->neuronTree = new Branch::NeuronTree;
-      if (branchesCount>0)
-      {
-        this->neuronTree->branchesCount = branchesCount;
-        this->neuronTree->branches = new hpx_t[branchesCount];
-        memcpy(this->neuronTree->branches, branches, branchesCount*sizeof(hpx_t));
-      }
-      else
-      {
-        this->neuronTree->branchesCount = 0;
-        this->neuronTree->branches = nullptr;
-      }
-    }
-    else
-    {
-        this->neuronTree = nullptr;
-    }
-
     //reconstructs netcons
     offset_t weightsOffset=0;
     for (offset_t nc=0; nc<netconsCount; nc++)
@@ -254,6 +231,12 @@ Branch::Branch(offset_t n,
         assert(weightsOffset == netcons[nc].weightIndex);
         weightsOffset += netcons[nc].weightsCount;
     }
+
+    //create neuronTree and MechsGraph
+    this->neuronTree = inputParams->multiSplix ? new Branch::NeuronTree(branchesCount) : nullptr;
+    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph()         : nullptr;
+    if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
+
     assert(weightsCount == weightsOffset);
 }
 
@@ -265,18 +248,15 @@ Branch::~Branch()
     delete [] this->nt->_ml_list;
     free(this->nt);
 
-    if (neuronTree)
-    {
-      delete [] neuronTree->branches;
-      delete [] neuronTree->branchesLCOs;
-    }
-
     for (int m=0; m<mechanismsCount; m++)
     {
         delete [] mechsInstances[m].nodeindices;
         delete [] mechsInstances[m].pdata;
     }
     delete [] mechsInstances;
+
+    delete neuronTree;
+    delete mechsGraph;
 }
 
 hpx_action_t Branch::init = 0;
@@ -303,36 +283,6 @@ int Branch::init_handler( const int nargs, const void *args[],
         (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons weights
         (void**) args[14], sizes[14]/sizeof(void*));
     neurox_hpx_unpin;
-}
-
-void Branch::initMechanismsGraph(hpx_t target)
-{
-    //initializes mechanisms graphs (capacitance is excluded from graph)
-    if (inputParams->multiMex)
-    {
-      this->mechsGraph = new MechanismsGraphLCO;
-      this->mechsGraph->graphLCO = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
-      this->mechsGraph->mechsLCOs = new hpx_t[mechanismsCount];
-      this->mechsGraph->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
-      size_t terminalMechanismsCount=0;
-      for (size_t m=0; m<mechanismsCount; m++)
-      {
-        if (mechanisms[m]->type == CAP) continue; //exclude capacitance
-        this->mechsGraph->mechsLCOs[m] = hpx_lco_reduce_new(
-                    max((short) 1,mechanisms[m]->dependenciesCount),
-                    sizeof(Mechanism::ModFunction), Mechanism::initModFunction,
-                    Mechanism::reduceModFunction);
-        if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
-            terminalMechanismsCount++;
-        hpx_call(target, Branch::MechanismsGraphLCO::nodeFunction,
-                 this->mechsGraph->graphLCO, &mechanisms[m]->type, sizeof(int));
-      }
-      this->mechsGraph->endLCO = hpx_lco_and_new(terminalMechanismsCount);
-    }
-    else
-    {
-      this->mechsGraph = NULL;
-    }
 }
 
 hpx_action_t Branch::initSoma = 0;
@@ -419,39 +369,6 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
     }
 }
 
-hpx_action_t Branch::MechanismsGraphLCO::nodeFunction = 0;
-int Branch::MechanismsGraphLCO::nodeFunction_handler(const int * mechType_ptr,
-                                                     const size_t)
-{
-    neurox_hpx_pin(Branch);
-    int type = *mechType_ptr;
-    assert(type!=CAP); //capacitance should be outside mechanisms graph
-    assert(local->mechsGraph->mechsLCOs[mechanismsMap[type]] != HPX_NULL);
-    Mechanism * mech = getMechanismFromType(type);
-
-    Mechanism::ModFunction functionId;
-    while (local->mechsGraph->graphLCO != HPX_NULL)
-    {
-      //wait until all dependencies have completed, and get the argument
-      //(function id) from the hpx_lco_set
-      hpx_lco_get_reset(
-              local->mechsGraph->mechsLCOs[mechanismsMap[type]],
-              sizeof(Mechanism::ModFunction), &functionId);
-      assert(functionId!=Mechanism::ModFunction::jacobCapacitance);
-      assert(functionId!=Mechanism::ModFunction::currentCapacitance);
-      mech->callModFunction(local, functionId);
-
-      if (mech->successorsCount==0) //bottom mechanism
-        hpx_lco_set(local->mechsGraph->endLCO, 0, NULL, HPX_NULL, HPX_NULL);
-      else
-        for (int c=0; c<mech->successorsCount; c++)
-          hpx_lco_set(
-              local->mechsGraph->mechsLCOs[mechanismsMap[mech->successors[c]]],
-              sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
-    }
-    neurox_hpx_unpin;
-}
-
 //netcvode.cpp::PreSyn::send() --> NetCvode::bin_event.cpp
 hpx_action_t Branch::addSpikeEvent = 0;
 int Branch::addSpikeEvent_handler(
@@ -472,53 +389,6 @@ int Branch::addSpikeEvent_handler(
         local->eventsQueue.push( make_pair(deliveryTime, (Event*) nc) );
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
-    neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::initNeuronTreeLCO = 0;
-int Branch::initNeuronTreeLCO_handler()
-{
-    neurox_hpx_pin(Branch);
-    if (!inputParams->multiSplix)
-    {
-      local->neuronTree = nullptr;
-    }
-    else
-    {
-      assert(local->neuronTree);
-      offset_t branchesCount = local->neuronTree->branchesCount;
-      for (int i=0; i<NeuronTree::futuresSize; i++)
-          local->neuronTree->localLCO[i] =
-                  local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
-      local->neuronTree->branchesLCOs = branchesCount ?
-                  new hpx_t[branchesCount][NeuronTree::futuresSize] : nullptr;
-
-      //send my LCOs to children, and receive theirs
-      if (branchesCount>0)
-      {
-        hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
-        void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
-        size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
-        for (offset_t c = 0; c < branchesCount; c++)
-        {
-          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*NeuronTree::futuresSize);
-          addrs[c]   = &local->neuronTree->branchesLCOs[c];
-          sizes[c]   = sizeof(hpx_t)*NeuronTree::futuresSize;
-          hpx_call(local->neuronTree->branches[c], Branch::initNeuronTreeLCO,
-                   futures[c], local->neuronTree->localLCO,
-                   sizeof(hpx_t)*NeuronTree::futuresSize); //pass my LCO down
-        }
-        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-        hpx_lco_delete_all(branchesCount, futures, NULL);
-
-        delete [] futures;
-        delete [] addrs;
-        delete [] sizes;
-      }
-
-      if (!local->soma) //send my LCO to parent
-          neurox_hpx_unpin_continue(local->neuronTree->localLCO);
-    }
     neurox_hpx_unpin;
 }
 
@@ -722,6 +592,144 @@ void Branch::fixedPlayContinuous()
     }
 }
 
+
+//////////////////// Branch::NeuronTree ///////////////////////
+
+Branch::NeuronTree::NeuronTree(size_t branchesCount)
+    : branchesCount(branchesCount)
+{
+    if (branchesCount>0)
+    {
+      this->branches = new hpx_t[branchesCount];
+      memcpy(this->branches, branches, branchesCount*sizeof(hpx_t));
+    }
+    else
+    {
+      this->branchesCount = 0;
+      this->branches = nullptr;
+    }
+}
+
+Branch::NeuronTree::~NeuronTree()
+{
+    delete [] branches;
+    delete [] branchesLCOs;
+}
+
+hpx_action_t Branch::NeuronTree::initLCOs = 0;
+int Branch::NeuronTree::initLCOs_handler()
+{
+    neurox_hpx_pin(Branch);
+    if (local->neuronTree)
+    {
+      offset_t branchesCount = local->neuronTree->branchesCount;
+      for (int i=0; i<NeuronTree::futuresSize; i++)
+          local->neuronTree->localLCO[i] =
+                  local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
+      local->neuronTree->branchesLCOs = branchesCount ?
+                  new hpx_t[branchesCount][NeuronTree::futuresSize] : nullptr;
+
+      //send my LCOs to children, and receive theirs
+      if (branchesCount>0)
+      {
+        hpx_t * futures = branchesCount ? new hpx_t[branchesCount]  : nullptr;
+        void ** addrs   = branchesCount ? new void*[branchesCount]  : nullptr;
+        size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
+        for (offset_t c = 0; c < branchesCount; c++)
+        {
+          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*NeuronTree::futuresSize);
+          addrs[c]   = &local->neuronTree->branchesLCOs[c];
+          sizes[c]   = sizeof(hpx_t)*NeuronTree::futuresSize;
+          hpx_call(local->neuronTree->branches[c], Branch::NeuronTree::initLCOs,
+                   futures[c], local->neuronTree->localLCO,
+                   sizeof(hpx_t)*NeuronTree::futuresSize); //pass my LCO down
+        }
+        hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
+        hpx_lco_delete_all(branchesCount, futures, NULL);
+
+        delete [] futures;
+        delete [] addrs;
+        delete [] sizes;
+      }
+
+      if (!local->soma) //send my LCO to parent
+          neurox_hpx_unpin_continue(local->neuronTree->localLCO);
+    }
+    neurox_hpx_unpin;
+}
+
+//////////////////// Branch::MechanismsGraph ///////////////////////
+
+Branch::MechanismsGraph::MechanismsGraph()
+{
+    //initializes mechanisms graphs (capacitance is excluded from graph)
+      this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
+      this->mechsLCOs = new hpx_t[mechanismsCount];
+      this->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
+      size_t terminalMechanismsCount=0;
+      for (size_t m=0; m<mechanismsCount; m++)
+      {
+        if (mechanisms[m]->type == CAP) continue; //exclude capacitance
+        this->mechsLCOs[m] = hpx_lco_reduce_new(
+                    max((short) 1,mechanisms[m]->dependenciesCount),
+                    sizeof(Mechanism::ModFunction), Mechanism::initModFunction,
+                    Mechanism::reduceModFunction);
+        if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
+            terminalMechanismsCount++;
+      }
+      this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
+}
+
+void Branch::MechanismsGraph::initMechsGraph(hpx_t branchHpxAddr)
+{
+    for (size_t m=0; m<mechanismsCount; m++)
+      if (mechanisms[m]->type != CAP) //exclude capacitance
+        hpx_call(branchHpxAddr, Branch::MechanismsGraph::nodeFunction,
+               this->graphLCO, &mechanisms[m]->type, sizeof(int));
+}
+
+Branch::MechanismsGraph::~MechanismsGraph()
+{
+    hpx_lco_delete_sync(endLCO);
+    hpx_lco_delete_sync(graphLCO);
+    for (int i=0; i<mechanismsCount; i++)
+        hpx_lco_delete_sync(mechsLCOs[i]);
+    delete [] mechsLCOs;
+}
+
+hpx_action_t Branch::MechanismsGraph::nodeFunction = 0;
+int Branch::MechanismsGraph::nodeFunction_handler(
+        const int * mechType_ptr, const size_t)
+{
+    neurox_hpx_pin(Branch);
+    int type = *mechType_ptr;
+    assert(type!=CAP); //capacitance should be outside mechanisms graph
+    assert(local->mechsGraph->mechsLCOs[mechanismsMap[type]] != HPX_NULL);
+    Mechanism * mech = getMechanismFromType(type);
+
+    Mechanism::ModFunction functionId;
+    while (local->mechsGraph->graphLCO != HPX_NULL)
+    {
+      //wait until all dependencies have completed, and get the argument
+      //(function id) from the hpx_lco_set
+      hpx_lco_get_reset(
+              local->mechsGraph->mechsLCOs[mechanismsMap[type]],
+              sizeof(Mechanism::ModFunction), &functionId);
+      assert(functionId!=Mechanism::ModFunction::jacobCapacitance);
+      assert(functionId!=Mechanism::ModFunction::currentCapacitance);
+      mech->callModFunction(local, functionId);
+
+      if (mech->successorsCount==0) //bottom mechanism
+        hpx_lco_set(local->mechsGraph->endLCO, 0, NULL, HPX_NULL, HPX_NULL);
+      else
+        for (int c=0; c<mech->successorsCount; c++)
+          hpx_lco_set(
+              local->mechsGraph->mechsLCOs[mechanismsMap[mech->successors[c]]],
+              sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
+    }
+    neurox_hpx_unpin;
+}
+
 void Branch::registerHpxActions()
 {
     neurox_hpx_register_action(2, Branch::init);
@@ -730,6 +738,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
-    neurox_hpx_register_action(0, Branch::initNeuronTreeLCO);
-    neurox_hpx_register_action(1, Branch::MechanismsGraphLCO::nodeFunction);
+    neurox_hpx_register_action(0, Branch::NeuronTree::initLCOs);
+    neurox_hpx_register_action(1, Branch::MechanismsGraph::nodeFunction);
 }

@@ -28,7 +28,7 @@ void HinesSolver::setupMatrixRHS(Branch * local)
     const floble_t *v   = local->nt->_actual_v;
     const offset_t *p = local->nt->_v_parent_index;
     floble_t *rhs = local->nt->_actual_rhs;
-    const Branch::NeuronTree * neuronTree = local->neuronTree;
+    const Branch::BranchTree * neuronTree = local->branchTree;
 
     /* now the internal axial currents.
       The extracellular mechanism contribution is already done.
@@ -94,7 +94,7 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
     const floble_t *b   = local->nt->_actual_b;
     const offset_t *p = local->nt->_v_parent_index;
     floble_t *d = local->nt->_actual_d;
-    const Branch::NeuronTree * neuronTree = local->neuronTree;
+    const Branch::BranchTree * neuronTree = local->branchTree;
 
     if (neuronTree==NULL)
     {
@@ -143,7 +143,7 @@ void HinesSolver::backwardTriangulation(Branch *local)
     const offset_t *p = local->nt->_v_parent_index;
     floble_t *rhs = local->nt->_actual_rhs;
     floble_t *d = local->nt->_actual_d;
-    const Branch::NeuronTree * neuronTree = local->neuronTree;
+    const Branch::BranchTree * neuronTree = local->branchTree;
 
     floble_t pp=0;
     if (neuronTree==NULL)
@@ -169,7 +169,7 @@ void HinesSolver::forwardSubstituion(Branch *local)
     const floble_t *d   = local->nt->_actual_d;
     const offset_t *p = local->nt->_v_parent_index;
     floble_t *rhs = local->nt->_actual_rhs;
-    const Branch::NeuronTree * neuronTree = local->neuronTree;
+    const Branch::BranchTree * neuronTree = local->branchTree;
 
     if (neuronTree==NULL)
     {
