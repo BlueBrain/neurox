@@ -33,6 +33,9 @@
 //#define NDEBUG //(if active, compares data output with coreneuron and enables assertions)
 
 ///neurox namespace: contains global information that is copied to all localities
+
+#define MIN_DELAY_IN_INTERVALS 4
+
 namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system

@@ -49,8 +49,9 @@ class Branch
     Memb_list *mechsInstances; ///> Arrays of mechanism instances (size neurox::mechanismsCount)
     Neuron * soma;             ///> if top branch, it's populated, otherwise is NULL
 
-    struct MechanismsGraphLCO
+    class MechanismsGraphLCO
     {
+      public:
         hpx_t * mechsLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
         hpx_t endLCO; ///> represents the bottom of the graph
         hpx_t graphLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
@@ -61,8 +62,9 @@ class Branch
 
     void initMechanismsGraph(hpx_t target); ///> creates mechanisms instance graph based on global var 'mechanisms'
 
-    struct NeuronTree
+    class NeuronTree
     {
+      public:
         size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
 
@@ -77,7 +79,6 @@ class Branch
     std::priority_queue< TimedEvent, std::vector<TimedEvent>, std::greater_equal<TimedEvent> > eventsQueue;
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
-    static void registerHpxActions(); ///> Register all HPX actions
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t initNeuronTreeLCO; ///> Initializes neuronTree
@@ -96,6 +97,8 @@ class Branch
     void solveTreeMatrix();
     void finitialize2();
     void backwardEulerStep();
+
+    static void registerHpxActions(); ///> Register all HPX actions
 
   private:
     static int init_handler(const int, const void *[], const size_t[]);

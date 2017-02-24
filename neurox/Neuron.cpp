@@ -9,7 +9,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     gid(neuronId), threshold(APthreshold), thvar_index(thvar_index)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);
-    this->synapsesLCO = std::deque<hpx_t> ();
+    this->slidingTimeWindow = new SlidingTimeWindow(MIN_DELAY_IN_INTERVALS);
     this->synapsesTargets = std::vector<hpx_t> ();
     this->synapsesTransmissionFlag = false;
 }
@@ -51,10 +51,6 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
         synapsesTransmissionFlag = false;
     }
     return false;
-
-//    bool prevFlag = synapsesTransmissionFlag;
-//    synapsesTransmissionFlag = v>=threshold && synapsesTransmissionFlag==false;
-//    return synapsesTransmissionFlag;
 }
 
 void Neuron::sendSpikes(spike_time_t t)
@@ -62,26 +58,40 @@ void Neuron::sendSpikes(spike_time_t t)
     //netcvode.cpp::PreSyn::send()
     if (synapsesTargets.size()>0)
     {
-      //we dont have Netcon->active flag, we only add active
-      //synapses to our model.
       hpx_t spikesLco = hpx_lco_and_new(synapsesTargets.size());
-      for (int s=0; s<synapsesTargets.size(); s++)
+      for (hpx_t & destinationAddr : synapsesTargets)
       {
           //deliveryTime (t+delay) is handled on post-syn side
-          hpx_call(synapsesTargets[s], Branch::addSpikeEvent, spikesLco,
-                 &gid, sizeof(gid), &t, sizeof(t));
+          //hpx_call(destinationAddr, Branch::addSpikeEvent, spikesLco,
+          //       &gid, sizeof(gid), &t, sizeof(t));
+
+          hpx_call_sync(destinationAddr, Branch::addSpikeEvent,
+                 NULL, 0, &gid, sizeof(gid), &t, sizeof(t));
       }
-      this->synapsesLCO.push_front(spikesLco);
+      this->slidingTimeWindow->lcos.push_front(spikesLco);
     }
-    this->synapsesLCO.push_front(HPX_NULL);
+    //TODO this else is never hit i think!
+    else
+      this->slidingTimeWindow->lcos.push_front(HPX_NULL);
 }
 
-void Neuron::waitForSynapsesDelivery(int commStepSize)
+
+Neuron::SlidingTimeWindow::SlidingTimeWindow (size_t windowSize)
 {
-    assert(this->synapsesLCO.size()<=commStepSize);
-    if (this->synapsesLCO.size()==commStepSize)
+    for (int i=0; i<windowSize-1; i++)
+        this->lcos.push_front(HPX_NULL);
+}
+
+
+void Neuron::SlidingTimeWindow::waitForSlidingTimeWindow()
+{
+    assert(lcos.size() == MIN_DELAY_IN_INTERVALS);
+    hpx_t lastWindow = lcos.back();
+    lcos.pop_back();
+
+    if (lastWindow != HPX_NULL) //ie if it spiked
     {
-        hpx_lco_wait(this->synapsesLCO.back());
-        this->synapsesLCO.pop_back();
+      hpx_lco_wait(lastWindow);
+      hpx_lco_delete_sync(lastWindow);
     }
 }
