@@ -232,8 +232,8 @@ Branch::Branch(offset_t n,
         weightsOffset += netcons[nc].weightsCount;
     }
 
-    //create neuronTree and MechsGraph
-    this->neuronTree = inputParams->multiSplix ? new Branch::NeuronTree(branchesCount) : nullptr;
+    //create branchTree and MechsGraph
+    this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branchesCount) : nullptr;
     this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph()         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
 
@@ -255,7 +255,7 @@ Branch::~Branch()
     }
     delete [] mechsInstances;
 
-    delete neuronTree;
+    delete branchTree;
     delete mechsGraph;
 }
 
@@ -595,7 +595,7 @@ void Branch::fixedPlayContinuous()
 
 //////////////////// Branch::NeuronTree ///////////////////////
 
-Branch::NeuronTree::NeuronTree(size_t branchesCount)
+Branch::BranchTree::BranchTree(size_t branchesCount)
     : branchesCount(branchesCount)
 {
     if (branchesCount>0)
@@ -610,24 +610,24 @@ Branch::NeuronTree::NeuronTree(size_t branchesCount)
     }
 }
 
-Branch::NeuronTree::~NeuronTree()
+Branch::BranchTree::~BranchTree()
 {
     delete [] branches;
     delete [] branchesLCOs;
 }
 
-hpx_action_t Branch::NeuronTree::initLCOs = 0;
-int Branch::NeuronTree::initLCOs_handler()
+hpx_action_t Branch::BranchTree::initLCOs = 0;
+int Branch::BranchTree::initLCOs_handler()
 {
     neurox_hpx_pin(Branch);
-    if (local->neuronTree)
+    BranchTree * branchTree = local->branchTree;
+    if (branchTree)
     {
-      offset_t branchesCount = local->neuronTree->branchesCount;
-      for (int i=0; i<NeuronTree::futuresSize; i++)
-          local->neuronTree->localLCO[i] =
-                  local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
-      local->neuronTree->branchesLCOs = branchesCount ?
-                  new hpx_t[branchesCount][NeuronTree::futuresSize] : nullptr;
+      offset_t branchesCount = branchTree->branchesCount;
+      for (int i=0; i<BranchTree::futuresSize; i++)
+          branchTree->localLCO[i] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
+      branchTree->branchesLCOs = branchesCount ?
+              new hpx_t[branchesCount][BranchTree::futuresSize] : nullptr;
 
       //send my LCOs to children, and receive theirs
       if (branchesCount>0)
@@ -637,12 +637,12 @@ int Branch::NeuronTree::initLCOs_handler()
         size_t* sizes   = branchesCount ? new size_t[branchesCount] : nullptr;
         for (offset_t c = 0; c < branchesCount; c++)
         {
-          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*NeuronTree::futuresSize);
-          addrs[c]   = &local->neuronTree->branchesLCOs[c];
-          sizes[c]   = sizeof(hpx_t)*NeuronTree::futuresSize;
-          hpx_call(local->neuronTree->branches[c], Branch::NeuronTree::initLCOs,
-                   futures[c], local->neuronTree->localLCO,
-                   sizeof(hpx_t)*NeuronTree::futuresSize); //pass my LCO down
+          futures[c] = hpx_lco_future_new(sizeof (hpx_t)*BranchTree::futuresSize);
+          addrs[c]   = &branchTree->branchesLCOs[c];
+          sizes[c]   = sizeof(hpx_t)*BranchTree::futuresSize;
+          hpx_call(branchTree->branches[c], Branch::BranchTree::initLCOs,
+                   futures[c], branchTree->localLCO,
+                   sizeof(hpx_t)*BranchTree::futuresSize); //pass my LCO down
         }
         hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
         hpx_lco_delete_all(branchesCount, futures, NULL);
@@ -653,7 +653,7 @@ int Branch::NeuronTree::initLCOs_handler()
       }
 
       if (!local->soma) //send my LCO to parent
-          neurox_hpx_unpin_continue(local->neuronTree->localLCO);
+          neurox_hpx_unpin_continue(branchTree->localLCO);
     }
     neurox_hpx_unpin;
 }
@@ -738,6 +738,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
-    neurox_hpx_register_action(0, Branch::NeuronTree::initLCOs);
+    neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);
     neurox_hpx_register_action(1, Branch::MechanismsGraph::nodeFunction);
 }

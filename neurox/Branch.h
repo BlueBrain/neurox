@@ -66,12 +66,12 @@ class Branch
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
 
-    class NeuronTree
+    class BranchTree
     {
       public:
-        NeuronTree()=delete;
-        NeuronTree(size_t branchesCount);
-        ~NeuronTree();
+        BranchTree()=delete;
+        BranchTree(size_t branchesCount);
+        ~BranchTree();
 
         size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
@@ -82,7 +82,7 @@ class Branch
 
         static hpx_action_t initLCOs; ///> Initializes neuronTree
         static int initLCOs_handler();
-    } * neuronTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
+    } * branchTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
     std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
 

@@ -103,8 +103,8 @@ int Statistics::getNeuronSize_handler()
     branchSize.compartmentsCount += n;
     branchSize.morphologies += (double) (n*(sizeof(floble_t)*6))/1024; //a,b,d,v,rhs,area
     branchSize.morphologies += local->nt->_v_parent_index ? (double) (n* sizeof(offset_t))/1024 : 0;
-    if (local->neuronTree)
-        branchSize.morphologies += local->neuronTree->branches ? (double) (local->neuronTree->branchesCount*sizeof(hpx_t))/1024 : 0;
+    if (local->branchTree)
+        branchSize.morphologies += local->branchTree->branches ? (double) (local->branchTree->branchesCount*sizeof(hpx_t))/1024 : 0;
     branchSize.metadata += (double) sizeof(Branch)/1024;
     branchSize.metadata += (double) sizeof(Memb_list)*mechanismsCount/1024;
 
@@ -130,9 +130,9 @@ int Statistics::getNeuronSize_handler()
     }
 
     //call the print function in children branches, pass their size to parent branch
-    if (local->neuronTree && local->neuronTree->branchesCount>0)
+    if (local->branchTree && local->branchTree->branchesCount>0)
     {
-      int branchesCount = local->neuronTree->branchesCount;
+      int branchesCount = local->branchTree->branchesCount;
       SizeInfo * subBranchSizes = new SizeInfo[branchesCount];
 
       hpx_t * futures = new hpx_t[branchesCount];
@@ -143,7 +143,7 @@ int Statistics::getNeuronSize_handler()
           futures[c] = hpx_lco_future_new(sizeof(SizeInfo));
           addrs[c]   = &subBranchSizes[c];
           sizes[c]   = sizeof(SizeInfo);
-          hpx_call(local->neuronTree->branches[c],
+          hpx_call(local->branchTree->branches[c],
                    Statistics::getNeuronSize, futures[c]);
       }
       hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
@@ -203,9 +203,9 @@ int Statistics::getNeuronMechanismsDistribution_handler()
         mechsCountPerType[m] = local->mechsInstances[m].nodecount;
 
     //call the function on children branches, pass their size to parent branch
-    if (local->neuronTree && local->neuronTree->branchesCount>0)
+    if (local->branchTree && local->branchTree->branchesCount>0)
     {
-      int branchesCount = local->neuronTree->branchesCount;
+      int branchesCount = local->branchTree->branchesCount;
 
       unsigned ** mechsCountPerTypeChild = new unsigned *[branchesCount];
       for (int c=0; c<branchesCount; c++)
@@ -219,7 +219,7 @@ int Statistics::getNeuronMechanismsDistribution_handler()
           futures[c] = hpx_lco_future_new(sizeof(unsigned[mechanismsCount]));
           addrs[c]   = mechsCountPerTypeChild[c];
           sizes[c]   = sizeof(unsigned[mechanismsCount]);
-          hpx_call(local->neuronTree->branches[c],
+          hpx_call(local->branchTree->branches[c],
                    Statistics::getNeuronMechanismsDistribution, futures[c]);
       }
       hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);

@@ -134,7 +134,7 @@ static int main_handler(char **argv, size_t argc)
 
     printf("neurox::Branch::NeuronTree::initLCOs...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), Branch::NeuronTree::initLCOs, HPX_NULL, 0);
+    {  return hpx_call_sync(getNeuronAddr(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
     printf("neurox::setTimeMachine...");

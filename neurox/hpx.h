@@ -45,14 +45,14 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 
 ///hpx wrappers for async call a function to all children branches (phase 1 - launch threads)
 #define neurox_hpx_recursive_branch_async_call(Func, ...) \
-    hpx_addr_t lco_branches = local->neuronTree && local->neuronTree->branchesCount ? hpx_lco_and_new(local->neuronTree->branchesCount) : HPX_NULL; \
-    if (local->neuronTree) \
-    for (int c=0; c<local->neuronTree->branchesCount; c++) \
-       {_hpx_call(local->neuronTree->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__);}
+    hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL; \
+    if (local->branchTree) \
+    for (int c=0; c<local->branchTree->branchesCount; c++) \
+       {_hpx_call(local->branchTree->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__);}
 
 ///hpx wrappers for async call a function to all children branches (phase 2 - wait for threads)
 #define neurox_hpx_recursive_branch_async_wait \
-    if (local->neuronTree && local->neuronTree->branchesCount) \
+    if (local->branchTree && local->branchTree->branchesCount) \
     { \
         hpx_lco_wait(lco_branches); \
         hpx_lco_delete(lco_branches, HPX_NULL); \
