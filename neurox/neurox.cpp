@@ -16,8 +16,6 @@ extern int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
 
-hpx_t timeMachine = HPX_NULL;
-
 hpx_t getNeuronAddr(int i) {
     return hpx_addr_add(neuronsAddr, sizeof(Branch)*i, sizeof(Branch));
 }
@@ -97,14 +95,6 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     neurox_hpx_unpin;
 }
 
-hpx_action_t setTimeMachine = 0;
-int setTimeMachine_handler(hpx_t * timeMachine_ptr, size_t)
-{
-    neurox_hpx_pin(uint64_t);
-    timeMachine = *timeMachine_ptr;
-    neurox_hpx_unpin;
-}
-
 hpx_action_t main = 0;
 static int main_handler(char **argv, size_t argc)
 {
@@ -137,10 +127,10 @@ static int main_handler(char **argv, size_t argc)
     {  return hpx_call_sync(getNeuronAddr(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
-    printf("neurox::setTimeMachine...");
-    int totalStepsCount = inputParams->tstop/inputParams->dt;
-    hpx_t timeMachine = hpx_lco_and_local_array_new(totalStepsCount, neurox::neuronsCount);
-    hpx_bcast_rsync(neurox::setTimeMachine, &timeMachine, sizeof(hpx_t));
+    printf("neurox::Neuron::SlidingTimeWindow::init");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(getNeuronAddr(i), Neuron::SlidingTimeWindow::initDependencies, HPX_NULL, 0);
+    }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
@@ -206,6 +196,5 @@ void registerHpxActions()
     neurox_hpx_register_action(2,neurox::setNeurons);
     neurox_hpx_register_action(1,neurox::setInputParams);
     neurox_hpx_register_action(2,neurox::setMechanisms);
-    neurox_hpx_register_action(1,neurox::setTimeMachine);
 }
 };

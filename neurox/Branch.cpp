@@ -236,7 +236,6 @@ Branch::Branch(offset_t n,
     this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branchesCount) : nullptr;
     this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph()         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
-
     assert(weightsCount == weightsOffset);
 }
 
@@ -413,7 +412,7 @@ void Branch::finitialize2()
     callModFunction(Mechanism::ModFunction::initialize);
     callModFunction(Mechanism::ModFunction::after_initialize);
 
-    //initEvents(t); //TODO (see _net_init in ProbAmpd modc files)
+    //initEvents(t); //not needed because we copy the status and weights of events
     deliverEvents(t);
     setupTreeMatrix();
     callModFunction(Mechanism::ModFunction::before_step);
@@ -423,16 +422,13 @@ void Branch::finitialize2()
 //fadvance_core.c::nrn_fixed_step_minimal()
 void Branch::backwardEulerStep()
 {
-    if (this->soma) //neuron
-    { //docs: last argument should be 0 for and-lco
-      //hpx_t step = hpx_lco_array_at(timeMachine, i, 0);
-      //hpx_lco_set(step, 0, NULL, HPX_NULL, HPX_NULL);
-    }
-
     floble_t *& v   = this->nt->_actual_v;
     floble_t *& rhs = this->nt->_actual_rhs;
-    double & t  = this->nt->_t;
+    double t  = this->nt->_t;
     double & dt = this->nt->_dt;
+
+    if (soma)
+        soma->slidingTimeWindow->informTimeDependants(t);
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
@@ -466,22 +462,10 @@ void Branch::backwardEulerStep()
     deliverEvents(t);
 
     //if we are at the output time instant output to file
-    if (fmod(t, inputParams->dt_io) == 0)
-    {
-        //output
-    }
-    //make sure all synapses from N steps before were delivered
-    //(thus other neurons wait for this neuron one before stepping)
-    //>waitForSynapsesDelivery(stepsCountPerComm);
+    if (fmod(t, inputParams->dt_io) == 0) {} //TODO
 
-    //if (this->soma && step>=4)
-    {
-        //TODO use lco_gencount maybe?
-        //hpx_t step = hpx_lco_array_at(timeMachine, i-4, 0);
-        //hpx_lco_wait(step);
-    }
-
-
+    if (this->soma)
+        this->soma->slidingTimeWindow->waitForTimeDependencies(t);
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -663,21 +647,21 @@ int Branch::BranchTree::initLCOs_handler()
 Branch::MechanismsGraph::MechanismsGraph()
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
-      this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
-      this->mechsLCOs = new hpx_t[mechanismsCount];
-      this->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
-      size_t terminalMechanismsCount=0;
-      for (size_t m=0; m<mechanismsCount; m++)
-      {
-        if (mechanisms[m]->type == CAP) continue; //exclude capacitance
-        this->mechsLCOs[m] = hpx_lco_reduce_new(
-                    max((short) 1,mechanisms[m]->dependenciesCount),
-                    sizeof(Mechanism::ModFunction), Mechanism::initModFunction,
-                    Mechanism::reduceModFunction);
-        if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
-            terminalMechanismsCount++;
-      }
-      this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
+    this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
+    this->mechsLCOs = new hpx_t[mechanismsCount];
+    this->mechsLCOs[mechanismsMap[CAP]] = HPX_NULL;
+    size_t terminalMechanismsCount=0;
+    for (size_t m=0; m<mechanismsCount; m++)
+    {
+      if (mechanisms[m]->type == CAP) continue; //exclude capacitance
+      this->mechsLCOs[m] = hpx_lco_reduce_new(
+                  max((short) 1,mechanisms[m]->dependenciesCount),
+                  sizeof(Mechanism::ModFunction), Mechanism::initModFunction,
+                  Mechanism::reduceModFunction);
+      if (mechanisms[m]->successorsCount==0) //bottom of mechs graph
+          terminalMechanismsCount++;
+    }
+    this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 }
 
 void Branch::MechanismsGraph::initMechsGraph(hpx_t branchHpxAddr)

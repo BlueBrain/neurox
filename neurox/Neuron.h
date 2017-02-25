@@ -30,10 +30,25 @@ class Neuron
     {
       public:
         SlidingTimeWindow()=delete;
-        SlidingTimeWindow(size_t windowSize);
-        std::deque<hpx_t> lcos; ///> LCO for every AP sent
-        void waitForSlidingTimeWindow();
+        SlidingTimeWindow(floble_t windowSize);
+        ~SlidingTimeWindow();
+
+        hpx_t dependant_lco; ///> lco of my dependant
+        hpx_t dependencies_lco; ///> lco of my dependencies
+        floble_t dependencies_t; ///> last-known time of my dependencies
+        floble_t windowSize;
+
+        void informTimeDependants(floble_t t);
+        void waitForTimeDependencies(floble_t t);
+
+        static hpx_action_t initDependencies; ///> Initializes dependencies
+        static hpx_action_t setDependant;
+
+        static int initDependencies_handler();
+        static int setDependant_handler(const hpx_t * dependant_ptr, const size_t);
     } * slidingTimeWindow;
+
+    static void registerHpxActions();
 
   private:
     hpx_t synapsesMutex;   ///> mutex to protect variable 'synapses'
