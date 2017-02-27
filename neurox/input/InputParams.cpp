@@ -59,6 +59,8 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         cmd.add(inputPath);
         TCLAP::ValueArg<std::string> outputPath("o","outputpath","Path to output directory. The default value is ./output",false,"./output","string");
         cmd.add(outputPath);
+        TCLAP::ValueArg<int> algorithm("y","algorithm","BackwardEuler with SlidingWindow [0], Debug BackwardEuler [1]",false, 1, "int");
+        cmd.add(algorithm);
 
         //parse command line arguments
         cmd.parse( argc, argv );
@@ -85,6 +87,8 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->outputCompartmentsDot = outputCompartmentsDot.getValue();
         this->multiMex = multiMex.getValue();
         this->multiSplix = multiSplix.getValue();
+
+        this->algorithm = (Algorithm) algorithm.getValue();
     }
     catch (TCLAP::ArgException & e)
     {

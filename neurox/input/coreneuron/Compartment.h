@@ -46,7 +46,7 @@ class Compartment
     vector<void*> vdata;
 
     //netcons
-    vector< NetConX > netcons ;
+    vector<NetConX > netcons ;
     vector<floble_t> netconsWeights;
     vector<neuron_id_t> netconsPreSynIds;
   private:

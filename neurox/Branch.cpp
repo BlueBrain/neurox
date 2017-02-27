@@ -391,6 +391,22 @@ int Branch::addSpikeEvent_handler(
     neurox_hpx_unpin;
 }
 
+hpx_action_t Branch::updateTimeDependencyTime = 0;
+int Branch::updateTimeDependencyTime_handler(
+        const int nargs, const void *args[], const size_t[] )
+{
+    neurox_hpx_pin(Branch);
+    assert(nargs==2);
+
+    //auto source = libhpx_parcel_get_source(p);
+    const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
+    const floble_t maxTime  = *(const floble_t*) args[1];
+
+    assert(local->soma);
+    local->soma->updateTimeDependencyTime(preNeuronId, maxTime);
+    neurox_hpx_unpin;
+}
+
 void Branch::finitialize2()
 {
     floble_t * v = this->nt->_actual_v;
@@ -424,11 +440,12 @@ void Branch::backwardEulerStep()
 {
     floble_t *& v   = this->nt->_actual_v;
     floble_t *& rhs = this->nt->_actual_rhs;
-    double t  = this->nt->_t;
-    double & dt = this->nt->_dt;
+    double & t  = this->nt->_t;
+    double dt = this->nt->_dt;
 
-    if (soma)
-        soma->slidingTimeWindow->informTimeDependants(t);
+    //wait until Im sure I can start thist step at t and finalize at t+dt
+    if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
+        soma->waitForTimeDependencyNeurons(t+dt);
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
@@ -464,8 +481,9 @@ void Branch::backwardEulerStep()
     //if we are at the output time instant output to file
     if (fmod(t, inputParams->dt_io) == 0) {} //TODO
 
-    if (this->soma)
-        this->soma->slidingTimeWindow->waitForTimeDependencies(t);
+    //TODO if did not spike this turn
+    if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
+        soma->informTimeDependantNeurons(t);
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -720,6 +738,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::initSoma);
     neurox_hpx_register_action(0, Branch::clear);
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
+    neurox_hpx_register_action(2, Branch::updateTimeDependencyTime);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
     neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);

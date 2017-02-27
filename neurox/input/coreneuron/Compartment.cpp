@@ -1,5 +1,3 @@
-#pragma once
-
 #include "neurox/neurox.h"
 
 #include <memory>
@@ -21,7 +19,7 @@ Compartment::Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
 void Compartment::addChild(Compartment * child)
 {
     branches.push_back(child);
-};
+}
 
 void Compartment::addMechanismInstance(int mechType,
                                        double *  data, int dataSize,
@@ -35,7 +33,7 @@ void Compartment::addMechanismInstance(int mechType,
     if (pdataSize>0)
         for (int i=0; i<pdataSize; i++)
             this->pdata.push_back((offset_t) pdata[i]);
-};
+}
 
 void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
 {

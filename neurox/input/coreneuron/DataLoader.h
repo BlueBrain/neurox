@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <deque>
 
 #define DOT_PNG_BACKGROUND_COLOR "transparent" //"white"
 #define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS false
@@ -69,11 +70,11 @@ class DataLoader
 
     static hpx_action_t createNeuron;
     static hpx_action_t broadcastNetCons;
-    static hpx_action_t addSynapseTarget;
+    static hpx_action_t addSynapse;
 
     static int createNeuron_handler(const int * i, const size_t);
     static int broadcastNetCons_handler();
-    static int addSynapseTarget_handler(const hpx_t * synapseTarget, const size_t);
+    static int addSynapse_handler(const int, const void *[], const size_t[]) ;
 };
 
 }; //Coreneuron

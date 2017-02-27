@@ -11,7 +11,6 @@ int main(int argc, char** argv)
     //register HPX actions
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
-    neurox::Neuron::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
 #if defined(CORENEURON_H)

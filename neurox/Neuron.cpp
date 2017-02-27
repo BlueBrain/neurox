@@ -10,33 +10,30 @@ Neuron::Neuron(neuron_id_t neuronId,
     gid(neuronId), threshold(APthreshold), thvar_index(thvar_index)
 {
     this->synapsesMutex = hpx_lco_sema_new(1);
-    this->synapsesTargets = std::vector<hpx_t> ();
+    this->timeDependenciesMutex = hpx_lco_sema_new(1);
     this->synapsesTransmissionFlag = false;
-    this->slidingTimeWindow = new SlidingTimeWindow(
-        MIN_DELAY_IN_INTERVALS*inputParams->dt);
 }
 
 Neuron::~Neuron() {
     hpx_lco_delete_sync(synapsesMutex);
+    hpx_lco_delete_sync(timeDependenciesMutex);
 }
+
+Neuron::Synapse::Synapse(hpx_t addr, floble_t nextTime, floble_t delay)
+    :addr(addr), nextNotificationTime(nextTime), minDelay(delay){}
 
 size_t Neuron::getSynapsesCount()
 {
     hpx_lco_sema_p(synapsesMutex);
-    return synapsesTargets.size();
+    return synapses.size();
     hpx_lco_sema_v_sync(synapsesMutex);
 }
 
-void Neuron::addSynapseTarget(hpx_t target)
+void Neuron::addSynapse(Synapse syn)
 {
     hpx_lco_sema_p(synapsesMutex);
-    if (std::find(synapsesTargets.begin(), synapsesTargets.end(), target) == synapsesTargets.end())
-    {
-        synapsesTargets.push_back(target);
-        synapsesTargets.shrink_to_fit();
-    }
-    else
-    { assert(0);} //should be filtered by the branch
+    synapses.push_back(syn);
+    synapses.shrink_to_fit();
     hpx_lco_sema_v_sync(synapsesMutex);
 }
 
@@ -58,75 +55,56 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
 void Neuron::sendSpikes(spike_time_t t)
 {
     //netcvode.cpp::PreSyn::send()
-    if (synapsesTargets.size()>0)
-      for (hpx_t & destinationAddr : synapsesTargets)
+    if (synapses.size()>0)
+      for (Synapse & s : synapses)
         //deliveryTime (t+delay) is handled on post-syn side
-        hpx_call(destinationAddr, Branch::addSpikeEvent, HPX_NULL,
-                 &gid, sizeof(gid), &t, sizeof(t));
-
-        //hpx_call_sync(destinationAddr, Branch::addSpikeEvent,
-        //       NULL, 0, &gid, sizeof(gid), &t, sizeof(t));
+        if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebug)
+          hpx_call_sync(s.addr, Branch::addSpikeEvent, NULL, 0,
+              &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
+        else
+          hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL,
+              &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
 }
 
-Neuron::SlidingTimeWindow::SlidingTimeWindow (floble_t windowSize)
-    :windowSize(windowSize)
+void Neuron::informTimeDependantNeurons(floble_t t)
 {
-    //initial time of all dependencis
-    dependencies_t = inputParams->tstart;
-
-    //depedent_lco is the hpx_addr of someone else's dependancy_lco
-    //(others will share with me)
-    dependant_lco = HPX_NULL;
-
-    //dependancy_lco is stored locally so dependency neurons write in it;
-    //(to be shared with others)
-    dependencies_lco = hpx_lco_and_new(1);
-}
-
-Neuron::SlidingTimeWindow::~SlidingTimeWindow()
-{} //TODO
-
-void Neuron::SlidingTimeWindow::informTimeDependants(floble_t t)
-{
-    //inform whoever is dependant on my that i started a new step
+    //inform all dependants that need to be notified in this step
     static const double teps = 1e-10;
-    floble_t time = t+teps;
-    hpx_lco_set(dependant_lco, sizeof(time), &time, HPX_NULL, HPX_NULL);
+    for (Synapse & s : synapses)
+        if (s.nextNotificationTime<t) //time step just finished
+        {
+            //next time allowed by post-syn neuron is also the time I have to notify him
+            s.nextNotificationTime = t+s.minDelay-teps;
+
+            //tell post-syn neuron how long he can proceed to until he has to wait
+            hpx_call(s.addr, Branch::updateTimeDependencyTime, HPX_NULL,
+                 &this->gid, sizeof(neuron_id_t), &s.nextNotificationTime, sizeof(floble_t));
+        }
 }
 
-void Neuron::SlidingTimeWindow::waitForTimeDependencies(floble_t t)
+void Neuron::updateTimeDependenciesMinTimeChached()
 {
-    //wait for my dependency to be at least a 'min delay' behind me
-    while (dependencies_t < t-windowSize);
-        hpx_lco_get_reset(dependencies_lco , sizeof(floble_t), &dependencies_t);
+    floble_t minTime = inputParams->tstop;
+    hpx_lco_sema_p(timeDependenciesMutex);
+    for (auto & it : timeDependencies)
+        minTime = std::min(minTime,it.second);
+    hpx_lco_sema_v_sync(timeDependenciesMutex);
+    timeDependenciesMinTimeCached = minTime;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::initDependencies = 0;
-int Neuron::SlidingTimeWindow::initDependencies_handler()
+void Neuron::updateTimeDependencyTime(neuron_id_t srcGid, floble_t maxTimeAllowed)
 {
-    neurox_hpx_pin(Branch);
-    assert(local->soma);
-
-    //share HPX resources
-    int nrnThreadId = local->nt->id;
-    hpx_t addr = getNeuronAddr(nrnThreadId==0 ? neurox::neuronsCount-1 : nrnThreadId-1);
-    hpx_call_sync(addr, Neuron::SlidingTimeWindow::setDependant, HPX_NULL, 0,
-                  &local->soma->slidingTimeWindow->dependencies_lco, sizeof(hpx_t));
-
-    neurox_hpx_unpin;
+    assert(maxTimeAllowed > timeDependenciesMinTimeCached);
+    hpx_lco_sema_p(timeDependenciesMutex);
+    assert(timeDependencies.find(srcGid)!= timeDependencies.end());
+    timeDependencies.at(srcGid) = maxTimeAllowed;
+    hpx_lco_sema_v_sync(timeDependenciesMutex);
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::setDependant = 0;
-int Neuron::SlidingTimeWindow::setDependant_handler(const hpx_t * dependant_ptr, const size_t)
+void Neuron::waitForTimeDependencyNeurons(floble_t waitUntilTime)
 {
-    neurox_hpx_pin(Branch);
-    assert(local->soma);
-    local->soma->slidingTimeWindow->dependant_lco = *dependant_ptr;
-    neurox_hpx_unpin;
-}
-
-void Neuron::registerHpxActions()
-{
-    neurox_hpx_register_action(0, Neuron::SlidingTimeWindow::initDependencies);
-    neurox_hpx_register_action(1, Neuron::SlidingTimeWindow::setDependant);
+    //if my knowledge of max-time allowed is too small for me to step,
+    //iterate the latest information from dependencies to recompute it;
+    while(waitUntilTime > timeDependenciesMinTimeCached)
+        updateTimeDependenciesMinTimeChached();
 }

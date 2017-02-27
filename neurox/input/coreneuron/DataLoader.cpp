@@ -801,6 +801,7 @@ int DataLoader::broadcastNetCons_handler()
 #endif
 
     //iterate through all real (not artificial) neurons
+    const floble_t impossiblyLargeDelay = 99999999;
     for (int i=0; i < neurox::neuronsCount; i++)
     {
         neuron_id_t srcGid = getNeuronIdFromNrnThreadId(i);
@@ -809,38 +810,44 @@ int DataLoader::broadcastNetCons_handler()
         if (local->netcons.find(srcGid) != local->netcons.end())
         {
             hpx_t srcAddr = neurox::getNeuronAddr(i);
+            floble_t minDelay = impossiblyLargeDelay;
+            for (NetConX *& nc : local->netcons.at(srcGid))
+                if (nc->active)
+                   minDelay = min(minDelay, nc->delay);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE==true
-            if (inputParams->outputNetconsDot)
-            {
-                floble_t minDelay = 99999999;
-                for (auto & nc : local->netcons.at(srcGid))
-                    minDelay = min(minDelay, nc->delay);
+            if (inputParams->outputNetconsDot && minDelay!=impossiblyLargeDelay)
                 fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n",
-                        srcGid, local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
-            }
+                    srcGid, local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
 #endif
 
             //tell the neuron to add a synapse to this branch
-            hpx_call_sync(srcAddr, DataLoader::addSynapseTarget, NULL, 0, &target, sizeof(target)) ;
+            //and inform him of the fastest netcon we have (if any active synapse)
+            if (minDelay != impossiblyLargeDelay)
+                hpx_call_sync(srcAddr, DataLoader::addSynapse, NULL, 0,
+                    &target, sizeof(target), &minDelay, sizeof(minDelay) );
         }
     }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::addSynapseTarget = 0;
-int DataLoader::addSynapseTarget_handler(const hpx_t * synapseTarget_ptr, const size_t)
+hpx_action_t DataLoader::addSynapse = 0;
+int DataLoader::addSynapse_handler(
+        const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
     assert(local->soma);
-    local->soma->addSynapseTarget(*synapseTarget_ptr);
+    assert(nargs==2);
+    hpx_t addr = *(const hpx_t*) args[0];
+    floble_t minDelay = *(const floble_t*) args[1];
+    local->soma->addSynapse(Neuron::Synapse(addr,minDelay,minDelay));
     neurox_hpx_unpin;
 }
 
 void DataLoader::registerHpxActions()
 {
     neurox_hpx_register_action(1, DataLoader::createNeuron);
-    neurox_hpx_register_action(1, DataLoader::addSynapseTarget);
+    neurox_hpx_register_action(2, DataLoader::addSynapse);
     neurox_hpx_register_action(0, DataLoader::broadcastNetCons);
 }

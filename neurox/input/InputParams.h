@@ -3,6 +3,12 @@
 
 namespace neurox
 {
+
+enum Algorithm {
+    BackwardEulerWithSlidingWindow=0,
+    BackwardEulerDebug=1
+};
+
 namespace Input
 {
 /**
@@ -41,6 +47,8 @@ class InputParams
     bool outputCompartmentsDot; ///> outputs compartments*.dot files
     bool multiMex;              ///> graph-based parallelism of mechanisms
     bool multiSplix;            ///> tree-based parallelism of morphologies
+
+    neurox::Algorithm algorithm;
 
   private:
     /// Parses command line arguments and populates structure
