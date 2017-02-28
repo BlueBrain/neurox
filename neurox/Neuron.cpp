@@ -121,13 +121,28 @@ Neuron::TimeDependencies::~TimeDependencies() {
     libhpx_mutex_destroy(&this->dependenciesLock);
 }
 
+size_t Neuron::TimeDependencies::getDependenciesCount()
+{
+    size_t size = -1;
+    libhpx_mutex_lock(&this->dependenciesLock);
+    size = dependenciesMap.size();
+    libhpx_mutex_unlock(&this->dependenciesLock);
+    return size;
+}
+
 void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 {
-    assert(dependenciesVector.size()>0);
-    dependenciesMinTimeCached = (*std::min_element(
-        dependenciesVector.begin(), dependenciesVector.end(),
-        [] (pair<neuron_id_t, floble_t> const& lhs, pair<neuron_id_t, floble_t> const& rhs)
-            {return lhs.second < rhs.second;} )).second;
+    assert(dependenciesMap.size()>0);
+    floble_t minValue = inputParams->tstop+99999;
+    for (auto & key_value : dependenciesMap)
+        if (minValue < key_value.second)
+            minValue = key_value.second;
+    dependenciesMinTimeCached = minValue;
+    /* //TODO most efficient way to calculate this!!
+    dependenciesMinTimeCached = *std::min_element(
+        dependenciesMap.begin(), dependenciesMap.end(),
+        [] (floble_t const& lhs, floble_t const& rhs)
+            {return lhs < rhs;} );*/
 }
 
 void Neuron::TimeDependencies::updateTimeDependency(
@@ -137,14 +152,13 @@ void Neuron::TimeDependencies::updateTimeDependency(
     if (initializationPhase)
     {
         assert(dependenciesMap.find(srcGid) == dependenciesMap.end());
-        dependenciesVector.push_back(std::make_pair(srcGid, dependencyNotificationTime)); //time-value
-        dependenciesMap[srcGid] = &(dependenciesVector.back().second); //pointer to time-value
+        dependenciesMap[srcGid] = dependencyNotificationTime;
     }
     else
     {
         assert(dependenciesMap.find(srcGid) != dependenciesMap.end());
-        if (*dependenciesMap.at(srcGid) < dependencyNotificationTime) //order of msgs is not guaranteed so take only last update (highest time value)
-            *dependenciesMap.at(srcGid) = dependencyNotificationTime; //set time-value in vector
+        if (dependenciesMap.at(srcGid) < dependencyNotificationTime) //order of msgs is not guaranteed so take only last update (highest time value)
+            dependenciesMap.at(srcGid) = dependencyNotificationTime; //set time-value in vector
 
         if (neuronWaitingFlag) //if neuron is waiting, tell him there was an update
             libhpx_cond_broadcast(&this->dependenciesWaitCondition);
@@ -155,7 +169,7 @@ void Neuron::TimeDependencies::updateTimeDependency(
 void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTime, int gid)
 {
     //if I have no dependencies... I'm free to go!
-    if (dependenciesVector.size()==0) return;
+    if (dependenciesMap.size()==0) return;
 
     libhpx_mutex_lock(&this->dependenciesLock);
     assert(dependenciesMinTimeCached>0);
@@ -168,17 +182,17 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
         if (!neuronWaitingFlag) neuronWaitingFlag = true;
 
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-        printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
+        printf("Neuron::waitForTimeDependencyNeurons: gid %d WAITING to update t>%.8f (dependenciesMinTimeCached=%.8f)\n",
                gid, waitUntilTime, dependenciesMinTimeCached);
 #endif
 
         libhpx_cond_wait(&this->dependenciesWaitCondition, &this->dependenciesLock);
+        updateDependenciesMinTimeCached(); //recompute min value from existing table
 
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-        printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
-               gid, waitUntilTime, dependenciesMinTimeCached);
+        printf("Neuron::waitForTimeDependencyNeurons: gid %d woke up (dependenciesMinTimeCached=%.8f)\n",
+               gid, dependenciesMinTimeCached);
 #endif
-        updateDependenciesMinTimeCached(); //recompute min value from existing table
     }
     neuronWaitingFlag = false;
     libhpx_mutex_unlock(&this->dependenciesLock);

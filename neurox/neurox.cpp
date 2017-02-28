@@ -185,6 +185,7 @@ static int main_handler(char ***argv, size_t argc)
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         //compare final result
+        printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
         for (int s=0; s<totalSteps; s++)
           Input::Coreneuron::Debugger::fixed_step_minimal();
         hpx_par_for_sync( [&] (int i, void*) -> int

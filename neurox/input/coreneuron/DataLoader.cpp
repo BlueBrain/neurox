@@ -838,8 +838,9 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
             }
         }
     }
-    if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
-        local->soma->timeDependencies->updateDependenciesMinTimeCached();
+    if (inputParams->algorithm != Algorithm::BackwardEulerDebug
+        && local->soma->timeDependencies->getDependenciesCount()>0)
+           local->soma->timeDependencies->updateDependenciesMinTimeCached();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

@@ -56,9 +56,9 @@ class Neuron
         void waitForTimeDependencyNeurons(floble_t t, int gid); //TODO remove 2nd gid parameter
         void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
         void updateDependenciesMinTimeCached();
+        size_t getDependenciesCount();
       private:
-        std::vector<std::pair<neuron_id_t, floble_t>> dependenciesVector; ///> pairs of <dependency-neuron-id, max-time-allowed> for pre-syn neurons
-        std::map<neuron_id_t, floble_t*> dependenciesMap; ///> map to previous structure (pointing to vector values)
+        std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
         floble_t dependenciesMinTimeCached; ///> last known minimal value of timeDependencies
 
         bool neuronWaitingFlag;
