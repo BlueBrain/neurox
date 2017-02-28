@@ -96,12 +96,12 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
 }
 
 hpx_action_t main = 0;
-static int main_handler(char **argv, size_t argc)
+static int main_handler(char ***argv, size_t argc)
 {
     printf("neurox started (localities: %d, threads/locality: %d)\n", HPX_LOCALITIES, HPX_THREADS);
 
     //parse command line arguments and broadcasts it to other localities
-    Input::InputParams * inputParams_local = new Input::InputParams(argc, argv);
+    Input::InputParams * inputParams_local = new Input::InputParams(argc, *argv);
     hpx_bcast_rsync(neurox::setInputParams, inputParams_local, sizeof (Input::InputParams));
     delete inputParams_local; inputParams_local = nullptr;
     assert(neurox::inputParams != nullptr);
@@ -111,7 +111,7 @@ static int main_handler(char **argv, size_t argc)
 
     //reads morphology data
     printf("neurox::Input::Coreneuron::DataLoader::loadData...\n");
-    neurox::Input::Coreneuron::DataLoader::loadData(argc, argv);
+    neurox::Input::Coreneuron::DataLoader::loadData(argc, *argv);
 
     if (neurox::inputParams->outputStatistics)
     {

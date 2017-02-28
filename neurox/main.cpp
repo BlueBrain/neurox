@@ -26,8 +26,7 @@ int main(int argc, char** argv)
         printf("HPX failed to initialize!\n");
         return 1;
     }
-
-    int e = hpx_run(&neurox::main, argv, argc);
+    int e = hpx_run(&neurox::main, NULL, &argv, argc);
     hpx_finalize();
     return e;
 }

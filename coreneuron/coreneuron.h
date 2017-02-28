@@ -64,7 +64,6 @@ extern pnt_receive2_t get_net_receive_function(const char* sym);
 
 // from nrnoc/capac.c
 extern void nrn_init_capacitance(struct NrnThread*, struct Memb_list*, int);
-;
 extern void nrn_cur_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type);
 extern void nrn_alloc_capacitance(double* data, Datum* pdata, int type);
 

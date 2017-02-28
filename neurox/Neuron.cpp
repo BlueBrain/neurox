@@ -110,20 +110,20 @@ void Neuron::sendSteppingNotification(floble_t t)
 
 Neuron::TimeDependencies::TimeDependencies()
 {
-    this->dependenciesMutex = hpx_lco_sema_new(1);
     this->dependenciesMinTimeCached = -1; //to be set by Neuron::updateTimeDependenciesMinTimeCached;
-    this->neuronWaitingLco = hpx_lco_and_new(1); //wait for one update at a time
     this->neuronWaitingFlag = false;
+    libhpx_cond_init(&this->dependenciesWaitCondition);
+    libhpx_mutex_init(&this->dependenciesLock);
 }
 
 Neuron::TimeDependencies::~TimeDependencies() {
-    hpx_lco_delete_sync(dependenciesMutex);
-    hpx_lco_delete_sync(neuronWaitingLco);
+    libhpx_cond_destroy(&this->dependenciesWaitCondition);
+    libhpx_mutex_destroy(&this->dependenciesLock);
 }
 
 void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 {
-    if (dependenciesVector.size()==0) return;
+    assert(dependenciesVector.size()>0);
     dependenciesMinTimeCached = (*std::min_element(
         dependenciesVector.begin(), dependenciesVector.end(),
         [] (pair<neuron_id_t, floble_t> const& lhs, pair<neuron_id_t, floble_t> const& rhs)
@@ -133,7 +133,7 @@ void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 void Neuron::TimeDependencies::updateTimeDependency(
         neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initializationPhase)
 {
-    hpx_lco_sema_p(dependenciesMutex);
+    libhpx_mutex_lock(&this->dependenciesLock);
     if (initializationPhase)
     {
         assert(dependenciesMap.find(srcGid) == dependenciesMap.end());
@@ -142,14 +142,14 @@ void Neuron::TimeDependencies::updateTimeDependency(
     }
     else
     {
-        assert(dependenciesMap.find(srcGid)!= dependenciesMap.end());
+        assert(dependenciesMap.find(srcGid) != dependenciesMap.end());
         if (*dependenciesMap.at(srcGid) < dependencyNotificationTime) //order of msgs is not guaranteed so take only last update (highest time value)
             *dependenciesMap.at(srcGid) = dependencyNotificationTime; //set time-value in vector
 
         if (neuronWaitingFlag) //if neuron is waiting, tell him there was an update
-            hpx_lco_set(neuronWaitingLco, 0, NULL, HPX_NULL, HPX_NULL);
+            libhpx_cond_broadcast(&this->dependenciesWaitCondition);
     }
-    hpx_lco_sema_v_sync(dependenciesMutex);
+    libhpx_mutex_unlock(&this->dependenciesLock);
 }
 
 void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTime, int gid)
@@ -157,7 +157,7 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
     //if I have no dependencies... I'm free to go!
     if (dependenciesVector.size()==0) return;
 
-    hpx_lco_sema_p(dependenciesMutex);
+    libhpx_mutex_lock(&this->dependenciesLock);
     assert(dependenciesMinTimeCached>0);
 
     if (waitUntilTime > dependenciesMinTimeCached) //if last min-value cached does not cover my full step
@@ -166,19 +166,20 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
     while (waitUntilTime > dependenciesMinTimeCached) //if I still cant proceed
     {
         if (!neuronWaitingFlag) neuronWaitingFlag = true;
-        hpx_lco_sema_v_sync(dependenciesMutex); //unlock to allow thread to run 'updateTimeDependencyTime'
+
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-            printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
-                   gid, waitUntilTime, dependenciesMinTimeCached);
+        printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
+               gid, waitUntilTime, dependenciesMinTimeCached);
 #endif
-        hpx_lco_wait_reset(this->neuronWaitingLco); //sleep and wait for thread to wake me up
+
+        libhpx_cond_wait(&this->dependenciesWaitCondition, &this->dependenciesLock);
+
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-            printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
-                   gid, waitUntilTime, dependenciesMinTimeCached);
+        printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
+               gid, waitUntilTime, dependenciesMinTimeCached);
 #endif
-        hpx_lco_sema_p(dependenciesMutex);
         updateDependenciesMinTimeCached(); //recompute min value from existing table
     }
     neuronWaitingFlag = false;
-    hpx_lco_sema_v_sync(dependenciesMutex);
+    libhpx_mutex_unlock(&this->dependenciesLock);
 }

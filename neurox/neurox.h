@@ -54,7 +54,7 @@ namespace neurox
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void registerHpxActions(); ///> Register all HPX actions
 
-    static int main_handler(char **argv, size_t argc);
+    static int main_handler(char ***argv, size_t argc);
     static int clear_handler();
     static int setNeurons_handler(const int nargs, const void *args[], const size_t []);
     static int setInputParams_handler(const Input::InputParams * data, const size_t);

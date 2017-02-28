@@ -434,7 +434,8 @@ void DataLoader::loadData(int argc, char ** argv)
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
+    //TODO why this stopped working after HPX update? repair
+    //neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
 
     if (inputParams->outputMechanismsDot)
@@ -832,11 +833,13 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
-                local->soma->timeDependencies->updateTimeDependency(srcGid, inputParams->tstart+minDelay, true);
+                if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
+                  local->soma->timeDependencies->updateTimeDependency(srcGid, inputParams->tstart+minDelay, true);
             }
         }
     }
-    local->soma->timeDependencies->updateDependenciesMinTimeCached();
+    if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
+        local->soma->timeDependencies->updateDependenciesMinTimeCached();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "neurox/neurox.h"
-
+#include "libhpx/libhpx.h"
 
 namespace neurox
 {
@@ -60,10 +60,11 @@ class Neuron
         std::vector<std::pair<neuron_id_t, floble_t>> dependenciesVector; ///> pairs of <dependency-neuron-id, max-time-allowed> for pre-syn neurons
         std::map<neuron_id_t, floble_t*> dependenciesMap; ///> map to previous structure (pointing to vector values)
         floble_t dependenciesMinTimeCached; ///> last known minimal value of timeDependencies
-        hpx_t dependenciesMutex; ///> protects dependenciesVector and dependenciesMinTimeCached
 
-        hpx_t neuronWaitingLco;
         bool neuronWaitingFlag;
+        libhpx_cond_t dependenciesWaitCondition;
+        libhpx_mutex_t dependenciesLock;
+
     } * timeDependencies;
 
   private:
