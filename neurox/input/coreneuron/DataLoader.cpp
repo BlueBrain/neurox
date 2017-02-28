@@ -831,7 +831,7 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
-                local->soma->timeDependencies->updateTimeDependency(srcGid, minDelay, true);
+                local->soma->timeDependencies->updateTimeDependency(srcGid, inputParams->tstart+minDelay, true);
             }
         }
     }

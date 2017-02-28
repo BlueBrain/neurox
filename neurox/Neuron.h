@@ -54,7 +54,7 @@ class Neuron
         void updateTimeDependency(neuron_id_t srcGid, floble_t maxTimeAllowed, bool initialization = false);
         void updateDependenciesMinTimeCached();
       private:
-        std::vector<std::pair<neuron_id_t, floble_t>> dependenciesVector; ///> pairs of <dependenci-neuron-ir, max-time-allowed> for pre-syn neurons
+        std::vector<std::pair<neuron_id_t, floble_t>> dependenciesVector; ///> pairs of <dependency-neuron-id, max-time-allowed> for pre-syn neurons
         std::map<neuron_id_t, floble_t*> dependenciesMap; ///> map to previous structure (pointing to vector values)
         floble_t dependenciesMinTimeCached; ///> last known minimal value of timeDependencies
         hpx_t dependenciesMutex; ///> protects dependenciesVector and dependenciesMinTimeCached

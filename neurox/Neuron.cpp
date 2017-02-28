@@ -61,6 +61,7 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
 void Neuron::sendSpikes(spike_time_t t)
 {
     //netcvode.cpp::PreSyn::send()
+    const double teps = 1e-6;
     if (synapses.size()>0)
       for (Synapse & s : synapses)
         //deliveryTime (t+delay) is handled on post-syn side
@@ -69,23 +70,25 @@ void Neuron::sendSpikes(spike_time_t t)
               &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
         else
         {
-            s.nextNotificationTime = t+s.minDelay+this->refractoryPeriod;
+            spike_time_t nextNotifTime = (spike_time_t) t+s.minDelay+refractoryPeriod-teps;
+            s.nextNotificationTime = (floble_t ) nextNotifTime;
             hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL,
                 &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t),
-                &s.nextNotificationTime, sizeof(floble_t));
+                &nextNotifTime, sizeof(spike_time_t));
         }
 }
 
 void Neuron::sendSteppingNotification(floble_t t)
 {
-    //inform all dependants that need to be notified in this step
-    static const double teps = 1e-10;
+    //inform all dependants that need to be notified in this step (t is the 'end of step time')
+    const double teps = 1e-6;
     for (Synapse & s : synapses)
-        if (s.nextNotificationTime<t) //time step just finished
+        if (s.nextNotificationTime<=t) //time step just finished
         {
+            assert(s.nextNotificationTime >= t-inputParams->dt);
             //next time allowed by post-syn neuron is also the time I have to notify him
-            s.nextNotificationTime = t+s.minDelay-teps;
-            spike_time_t nextNotifTime = (spike_time_t) s.nextNotificationTime;
+            spike_time_t nextNotifTime = (spike_time_t)  t+s.minDelay-teps;
+            s.nextNotificationTime = (floble_t) nextNotifTime;
 #ifdef PRINT_EVENT
             printf("Notification of step: gid %d at time %.3f: informs %llu of next notif time %.3f\n",
                    this->gid, t, s.addr, s.addr, s.nextNotificationTime);
@@ -100,7 +103,7 @@ void Neuron::sendSteppingNotification(floble_t t)
 Neuron::TimeDependencies::TimeDependencies()
 {
     this->dependenciesMutex = hpx_lco_sema_new(1);
-    this->dependenciesMinTimeCached=-1; //to be set by Neuron::updateTimeDependenciesMinTimeCached;
+    this->dependenciesMinTimeCached = -1; //to be set by Neuron::updateTimeDependenciesMinTimeCached;
     this->neuronWaitingLco = hpx_lco_and_new(1); //wait for one update at a time
     this->neuronWaitingFlag = false;
 }
@@ -110,15 +113,13 @@ Neuron::TimeDependencies::~TimeDependencies() {
     hpx_lco_delete_sync(neuronWaitingLco);
 }
 
-
 void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 {
-    if (dependenciesMap.size()==0) return;
-    floble_t minTime = inputParams->tstop+99999;
-    for (auto & id_time : dependenciesVector)
-        minTime = std::min(minTime,id_time.second);
-    assert(minTime >= dependenciesMinTimeCached);
-    dependenciesMinTimeCached = minTime;
+    if (dependenciesVector.size()==0) return;
+    dependenciesMinTimeCached = (*std::min_element(
+        dependenciesVector.begin(), dependenciesVector.end(),
+        [] (pair<neuron_id_t, floble_t> const& lhs, pair<neuron_id_t, floble_t> const& rhs)
+            {return lhs.second < rhs.second;} )).second;
 }
 
 void Neuron::TimeDependencies::updateTimeDependency(
@@ -129,13 +130,15 @@ void Neuron::TimeDependencies::updateTimeDependency(
 
     if (initializationPhase)
     {
+        assert(dependenciesMap.find(srcGid) == dependenciesMap.end());
         dependenciesVector.push_back(std::make_pair(srcGid, maxTimeAllowed)); //time-value
         dependenciesMap[srcGid] = &(dependenciesVector.back().second); //pointer to time-value
     }
     else
     {
         assert(dependenciesMap.find(srcGid)!= dependenciesMap.end());
-        *dependenciesMap.at(srcGid) = maxTimeAllowed; //set time-value in vector
+        if (*dependenciesMap.at(srcGid) < maxTimeAllowed) //order of msgs is not guaranteed so take only last update (highest time value)
+            *dependenciesMap.at(srcGid) = maxTimeAllowed; //set time-value in vector
     }
 
     if (neuronWaitingFlag) //if neuron is waiting, tell him there was an update
@@ -158,7 +161,7 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
     while (waitUntilTime > dependenciesMinTimeCached) //if I still cant proceed
     {
         if (!neuronWaitingFlag) neuronWaitingFlag = true;
-        hpx_lco_sema_v_sync(dependenciesMutex); //allows thread to run 'updateTimeDependencyTime'
+        hpx_lco_sema_v_sync(dependenciesMutex); //unlock to allow thread to run 'updateTimeDependencyTime'
         hpx_lco_wait_reset(this->neuronWaitingLco); //sleep and wait for thread to wake me up
         hpx_lco_sema_p(dependenciesMutex);
         updateDependenciesMinTimeCached(); //recompute min value from existing table

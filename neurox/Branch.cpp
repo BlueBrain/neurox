@@ -407,10 +407,10 @@ int Branch::updateTimeDependencyValue_handler(
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
-    const floble_t maxTime  = *(const floble_t*) args[1];
+    const spike_time_t maxTime  = *(const spike_time_t*) args[1];
 
     assert(local->soma);
-    local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTime);
+    local->soma->timeDependencies->updateTimeDependency(preNeuronId, (floble_t) maxTime);
     neurox_hpx_unpin;
 }
 
