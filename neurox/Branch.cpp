@@ -374,25 +374,32 @@ int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2);
+    assert((inputParams->algorithm == Algorithm::BackwardEulerDebug && nargs==2)
+         ||(inputParams->algorithm != Algorithm::BackwardEulerDebug && nargs==3));
 
     //auto source = libhpx_parcel_get_source(p);
-    const neuron_id_t *preNeuronId = (const neuron_id_t *) args[0];
-    const spike_time_t *spikeTime  = (const spike_time_t*) args[1];
+    const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
+    const spike_time_t spikeTime  = *(const spike_time_t*) args[1];
 
-    auto & netcons = local->netcons.at(*preNeuronId);
+    auto & netcons = local->netcons.at(preNeuronId);
     hpx_lco_sema_p(local->eventsQueueMutex);
     for (auto nc : netcons)
     {
-        floble_t deliveryTime = (*spikeTime)+nc->delay;
+        floble_t deliveryTime = spikeTime+nc->delay;
         local->eventsQueue.push( make_pair(deliveryTime, (Event*) nc) );
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
+
+    if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
+    {
+        spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
+        local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+    }
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::updateTimeDependencyTime = 0;
-int Branch::updateTimeDependencyTime_handler(
+hpx_action_t Branch::updateTimeDependencyValue = 0;
+int Branch::updateTimeDependencyValue_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
@@ -403,7 +410,7 @@ int Branch::updateTimeDependencyTime_handler(
     const floble_t maxTime  = *(const floble_t*) args[1];
 
     assert(local->soma);
-    local->soma->updateTimeDependencyTime(preNeuronId, maxTime);
+    local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTime);
     neurox_hpx_unpin;
 }
 
@@ -445,7 +452,7 @@ void Branch::backwardEulerStep()
 
     //wait until Im sure I can start thist step at t and finalize at t+dt
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
-        soma->waitForTimeDependencyNeurons(t+dt);
+        soma->timeDependencies->waitForTimeDependencyNeurons(t+dt);
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
@@ -481,9 +488,9 @@ void Branch::backwardEulerStep()
     //if we are at the output time instant output to file
     if (fmod(t, inputParams->dt_io) == 0) {} //TODO
 
-    //TODO if did not spike this turn
+    //inform time dependants (when necessary)
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
-        soma->informTimeDependantNeurons(t);
+        soma->sendSteppingNotification(t);
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -738,7 +745,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::initSoma);
     neurox_hpx_register_action(0, Branch::clear);
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
-    neurox_hpx_register_action(2, Branch::updateTimeDependencyTime);
+    neurox_hpx_register_action(2, Branch::updateTimeDependencyValue);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
     neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);

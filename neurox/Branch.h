@@ -93,7 +93,7 @@ class Branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
-    static hpx_action_t updateTimeDependencyTime; ///>update maximum time allowed based on received dependency info
+    static hpx_action_t updateTimeDependencyValue; ///>update maximum time allowed based on received dependency info
     static hpx_action_t finitialize; ///> finitialize.c::finitialize()
     static hpx_action_t backwardEuler;
 
@@ -115,7 +115,7 @@ class Branch
     static int initSoma_handler(const int, const void *[], const size_t[]);
     static int clear_handler();
     static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
-    static int updateTimeDependencyTime_handler(const int, const void *[], const size_t[]);
+    static int updateTimeDependencyValue_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();
     static int backwardEuler_handler(const int*, const size_t);
 };

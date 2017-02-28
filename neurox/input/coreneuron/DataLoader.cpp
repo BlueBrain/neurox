@@ -483,7 +483,7 @@ void DataLoader::loadData(int argc, char ** argv)
       #endif
     }
 
-    printf("neurox::createNeurons...\n");
+    printf("neurox::DataLoader::createNeurons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i) );
     }, 0, neuronsCount, NULL);
@@ -500,9 +500,9 @@ void DataLoader::loadData(int argc, char ** argv)
 
     //all neurons have been created, every branch will inform pre-syn ids that they are connected
     assert(allNeuronsIdsSet.size() == neuronsCount);
-    printf("neurox::Neuron::broadcastNetCons...\n", neuronsCount);
+    printf("neurox::DataLoader::initSynapsesAndTimeDependencies...\n", neuronsCount);
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::broadcastNetCons, NULL, 0 );
+    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::initSynapsesAndTimeDependencies, NULL, 0 );
     }, 0, neuronsCount, NULL);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE==true
@@ -789,11 +789,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     return branchAddr;
 }
 
-hpx_action_t DataLoader::broadcastNetCons = 0;
-int DataLoader::broadcastNetCons_handler()
+hpx_action_t DataLoader::initSynapsesAndTimeDependencies = 0;
+int DataLoader::initSynapsesAndTimeDependencies_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::broadcastNetCons);
+    neurox_hpx_recursive_branch_async_call(DataLoader::initSynapsesAndTimeDependencies);
 
 #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
     if (inputParams->outputNetconsDot)
@@ -822,12 +822,20 @@ int DataLoader::broadcastNetCons_handler()
 #endif
 
             //tell the neuron to add a synapse to this branch
-            //and inform him of the fastest netcon we have (if any active synapse)
-            if (minDelay != impossiblyLargeDelay)
+            //and inform him of the fastest netcon we have
+            if (minDelay != impossiblyLargeDelay) //if any active synapse
+            {
+                //inform pre-syn neuron that he connects to me
                 hpx_call_sync(srcAddr, DataLoader::addSynapse, NULL, 0,
                     &target, sizeof(target), &minDelay, sizeof(minDelay) );
+
+                //add this pre-syn neuron as my time-dependency
+                assert(local->soma);
+                local->soma->timeDependencies->updateTimeDependency(srcGid, minDelay, true);
+            }
         }
     }
+    local->soma->timeDependencies->updateDependenciesMinTimeCached();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -849,5 +857,5 @@ void DataLoader::registerHpxActions()
 {
     neurox_hpx_register_action(1, DataLoader::createNeuron);
     neurox_hpx_register_action(2, DataLoader::addSynapse);
-    neurox_hpx_register_action(0, DataLoader::broadcastNetCons);
+    neurox_hpx_register_action(0, DataLoader::initSynapsesAndTimeDependencies);
 }

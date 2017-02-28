@@ -29,13 +29,10 @@
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
 
-//#define PRINT_EVENT
 //#define NDEBUG //(if active, compares data output with coreneuron and enables assertions)
+#define PRINT_EVENT
 
 ///neurox namespace: contains global information that is copied to all localities
-
-#define MIN_DELAY_IN_INTERVALS 4
-
 namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system

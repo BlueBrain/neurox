@@ -69,11 +69,11 @@ class DataLoader
     static PointProcInfo getPointProcInfoFromDataPointer(NrnThread * nt, double *pd);
 
     static hpx_action_t createNeuron;
-    static hpx_action_t broadcastNetCons;
+    static hpx_action_t initSynapsesAndTimeDependencies;
     static hpx_action_t addSynapse;
 
     static int createNeuron_handler(const int * i, const size_t);
-    static int broadcastNetCons_handler();
+    static int initSynapsesAndTimeDependencies_handler();
     static int addSynapse_handler(const int, const void *[], const size_t[]) ;
 };
 
