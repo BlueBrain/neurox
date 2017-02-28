@@ -452,7 +452,7 @@ void Branch::backwardEulerStep()
 
     //wait until Im sure I can start thist step at t and finalize at t+dt
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
-        soma->timeDependencies->waitForTimeDependencyNeurons(t+dt);
+        soma->timeDependencies->waitForTimeDependencyNeurons(t+dt, this->soma->gid);
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);

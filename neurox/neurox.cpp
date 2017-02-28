@@ -197,7 +197,7 @@ static int main_handler(char **argv, size_t argc)
     printf("neurox::end (solver time: %.2f secs).\n", elapsed);
 
     neurox::Input::Coreneuron::DataLoader::cleanData();
-    hpx_exit(HPX_SUCCESS);
+    hpx_exit(0,NULL);
 }
 
 hpx_action_t clear = 0;

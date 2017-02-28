@@ -31,8 +31,11 @@ class Neuron
     {
       public:
         Synapse()=delete;
-        Synapse(hpx_t, floble_t, floble_t);
+        Synapse(hpx_t, floble_t, floble_t, int destinationGid=-1);
         hpx_t addr;        ///>address of destination
+#ifndef NDEBUG
+        int destinationGid;
+#endif
         floble_t nextNotificationTime; ///> next time this post-syn neuron needs to be informed of my actual time
         floble_t minDelay; ///>interval of notification in case of no spykes
                            ///(fastest Netcon from current neuron to dependant-neuron)
@@ -50,8 +53,8 @@ class Neuron
         ~TimeDependencies();
 
         //time dependency methods
-        void waitForTimeDependencyNeurons(floble_t t);
-        void updateTimeDependency(neuron_id_t srcGid, floble_t maxTimeAllowed, bool initialization = false);
+        void waitForTimeDependencyNeurons(floble_t t, int gid); //TODO remove 2nd gid parameter
+        void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
         void updateDependenciesMinTimeCached();
       private:
         std::vector<std::pair<neuron_id_t, floble_t>> dependenciesVector; ///> pairs of <dependency-neuron-id, max-time-allowed> for pre-syn neurons

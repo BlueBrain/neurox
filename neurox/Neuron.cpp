@@ -23,8 +23,13 @@ Neuron::~Neuron()
     delete timeDependencies;
 }
 
-Neuron::Synapse::Synapse(hpx_t addr, floble_t nextTime, floble_t delay)
-    :addr(addr), nextNotificationTime(nextTime), minDelay(delay){}
+Neuron::Synapse::Synapse(hpx_t addr, floble_t nextTime, floble_t delay, int destinationGid)
+    :addr(addr), nextNotificationTime(nextTime), minDelay(delay)
+{
+#ifndef NDEBUG
+    this->destinationGid=destinationGid;
+#endif
+}
 
 size_t Neuron::getSynapseCount()
 {
@@ -75,6 +80,10 @@ void Neuron::sendSpikes(spike_time_t t)
             hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL,
                 &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t),
                 &nextNotifTime, sizeof(spike_time_t));
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+            printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d (%llu) of next notif time %.3f\n",
+                   this->gid, t, s.destinationGid, s.addr, s.addr, s.nextNotificationTime);
+#endif
         }
 }
 
@@ -89,11 +98,10 @@ void Neuron::sendSteppingNotification(floble_t t)
             //next time allowed by post-syn neuron is also the time I have to notify him
             spike_time_t nextNotifTime = (spike_time_t)  t+s.minDelay-teps;
             s.nextNotificationTime = (floble_t) nextNotifTime;
-#ifdef PRINT_EVENT
-            printf("Notification of step: gid %d at time %.3f: informs %llu of next notif time %.3f\n",
-                   this->gid, t, s.addr, s.addr, s.nextNotificationTime);
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+            printf("Neuron::sendSteppingNotification: gid %d at time %.3f, informs gid %d (%llu) of next notif time %.3f\n",
+                   this->gid, t, s.destinationGid, s.addr, s.addr, s.nextNotificationTime);
 #endif
-
             //tell post-syn neuron how long he can proceed to until he has to wait
             hpx_call(s.addr, Branch::updateTimeDependencyValue, HPX_NULL,
                  &this->gid, sizeof(neuron_id_t), &nextNotifTime, sizeof(spike_time_t));
@@ -123,31 +131,28 @@ void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 }
 
 void Neuron::TimeDependencies::updateTimeDependency(
-        neuron_id_t srcGid, floble_t maxTimeAllowed, bool initializationPhase)
+        neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initializationPhase)
 {
     hpx_lco_sema_p(dependenciesMutex);
-    assert(maxTimeAllowed > dependenciesMinTimeCached);
-
     if (initializationPhase)
     {
         assert(dependenciesMap.find(srcGid) == dependenciesMap.end());
-        dependenciesVector.push_back(std::make_pair(srcGid, maxTimeAllowed)); //time-value
+        dependenciesVector.push_back(std::make_pair(srcGid, dependencyNotificationTime)); //time-value
         dependenciesMap[srcGid] = &(dependenciesVector.back().second); //pointer to time-value
     }
     else
     {
         assert(dependenciesMap.find(srcGid)!= dependenciesMap.end());
-        if (*dependenciesMap.at(srcGid) < maxTimeAllowed) //order of msgs is not guaranteed so take only last update (highest time value)
-            *dependenciesMap.at(srcGid) = maxTimeAllowed; //set time-value in vector
+        if (*dependenciesMap.at(srcGid) < dependencyNotificationTime) //order of msgs is not guaranteed so take only last update (highest time value)
+            *dependenciesMap.at(srcGid) = dependencyNotificationTime; //set time-value in vector
+
+        if (neuronWaitingFlag) //if neuron is waiting, tell him there was an update
+            hpx_lco_set(neuronWaitingLco, 0, NULL, HPX_NULL, HPX_NULL);
     }
-
-    if (neuronWaitingFlag) //if neuron is waiting, tell him there was an update
-        hpx_lco_set(neuronWaitingLco, 0, NULL, HPX_NULL, HPX_NULL);
-
     hpx_lco_sema_v_sync(dependenciesMutex);
 }
 
-void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTime)
+void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTime, int gid)
 {
     //if I have no dependencies... I'm free to go!
     if (dependenciesVector.size()==0) return;
@@ -162,7 +167,15 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
     {
         if (!neuronWaitingFlag) neuronWaitingFlag = true;
         hpx_lco_sema_v_sync(dependenciesMutex); //unlock to allow thread to run 'updateTimeDependencyTime'
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+            printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
+                   gid, waitUntilTime, dependenciesMinTimeCached);
+#endif
         hpx_lco_wait_reset(this->neuronWaitingLco); //sleep and wait for thread to wake me up
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+            printf("Neuron::waitForTimeDependencyNeurons: gid %d waiting to update t>%.6f (dependenciesMinTimeCached=%.6f)\n",
+                   gid, waitUntilTime, dependenciesMinTimeCached);
+#endif
         hpx_lco_sema_p(dependenciesMutex);
         updateDependenciesMinTimeCached(); //recompute min value from existing table
     }

@@ -827,7 +827,8 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
             {
                 //inform pre-syn neuron that he connects to me
                 hpx_call_sync(srcAddr, DataLoader::addSynapse, NULL, 0,
-                    &target, sizeof(target), &minDelay, sizeof(minDelay) );
+                    &target, sizeof(target), &minDelay, sizeof(minDelay),
+                    &local->soma->gid, sizeof(int));
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
@@ -846,10 +847,11 @@ int DataLoader::addSynapse_handler(
 {
     neurox_hpx_pin(Branch);
     assert(local->soma);
-    assert(nargs==2);
+    assert(nargs==3);
     hpx_t addr = *(const hpx_t*) args[0];
     floble_t minDelay = *(const floble_t*) args[1];
-    local->soma->addSynapse(Neuron::Synapse(addr,minDelay,minDelay));
+    int destinationGid = *(const int*) args[2];
+    local->soma->addSynapse(Neuron::Synapse(addr,minDelay,minDelay,destinationGid));
     neurox_hpx_unpin;
 }
 
