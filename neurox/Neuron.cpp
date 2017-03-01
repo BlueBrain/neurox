@@ -66,41 +66,44 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
 void Neuron::sendSpikes(spike_time_t t)
 {
     //netcvode.cpp::PreSyn::send()
-    const double teps = 1e-6;
     if (synapses.size()>0)
       for (Synapse & s : synapses)
-        //deliveryTime (t+delay) is handled on post-syn side
         if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebug)
-          hpx_call_sync(s.addr, Branch::addSpikeEvent, NULL, 0,
-              &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
+        {
+            //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
+            hpx_call_sync(s.addr, Branch::addSpikeEvent, NULL, 0,
+                &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
+        }
         else
         {
+            //s.minDelay is the min delay accross all Netcons on the post-syn neuron
+            const double teps = 1e-6;
             spike_time_t nextNotifTime = (spike_time_t) t+s.minDelay+refractoryPeriod-teps;
-            s.nextNotificationTime = (floble_t ) nextNotifTime;
+            //TODO s.nextNotificationTime = (floble_t ) nextNotifTime;
             hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL,
                 &this->gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t),
                 &nextNotifTime, sizeof(spike_time_t));
-#if !defined(NDEBUG) && defined(PRINT_EVENT)
-            printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d (%llu) of next notif time %.3f\n",
-                   this->gid, t, s.destinationGid, s.addr, s.addr, s.nextNotificationTime);
-#endif
+//#if !defined(NDEBUG) && defined(PRINT_EVENT)
+//            printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif time %.3f+%.3f+%.3f=%.3f\n",
+//                   this->gid, t, s.destinationGid, t, s.minDelay, refractoryPeriod, s.nextNotificationTime);
+//#endif
         }
 }
 
-void Neuron::sendSteppingNotification(floble_t t)
+void Neuron::sendSteppingNotification(floble_t timeEndStep)
 {
     //inform all dependants that need to be notified in this step (t is the 'end of step time')
     const double teps = 1e-6;
     for (Synapse & s : synapses)
-        if (s.nextNotificationTime<=t) //time step just finished
+        if (s.nextNotificationTime<=timeEndStep) //time step just finished
         {
-            assert(s.nextNotificationTime >= t-inputParams->dt);
+            assert(s.nextNotificationTime >= timeEndStep-inputParams->dt); //must have been covered by previous steps
             //next time allowed by post-syn neuron is also the time I have to notify him
-            spike_time_t nextNotifTime = (spike_time_t)  t+s.minDelay-teps;
+            spike_time_t nextNotifTime = (spike_time_t)  timeEndStep+s.minDelay-teps;
             s.nextNotificationTime = (floble_t) nextNotifTime;
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-            printf("Neuron::sendSteppingNotification: gid %d at time %.3f, informs gid %d (%llu) of next notif time %.3f\n",
-                   this->gid, t, s.destinationGid, s.addr, s.addr, s.nextNotificationTime);
+            printf("Neuron::sendSteppingNotification: gid %d at time %.3f, informs gid %d of next notif time %.3f+%.3f=%.8f\n",
+                   this->gid, timeEndStep, s.destinationGid, timeEndStep, s.minDelay, s.nextNotificationTime);
 #endif
             //tell post-syn neuron how long he can proceed to until he has to wait
             hpx_call(s.addr, Branch::updateTimeDependencyValue, HPX_NULL,
@@ -130,19 +133,14 @@ size_t Neuron::TimeDependencies::getDependenciesCount()
     return size;
 }
 
+
 void Neuron::TimeDependencies::updateDependenciesMinTimeCached()
 {
     assert(dependenciesMap.size()>0);
-    floble_t minValue = inputParams->tstop+99999;
-    for (auto & key_value : dependenciesMap)
-        if (minValue < key_value.second)
-            minValue = key_value.second;
-    dependenciesMinTimeCached = minValue;
-    /* //TODO most efficient way to calculate this!!
-    dependenciesMinTimeCached = *std::min_element(
+    dependenciesMinTimeCached = std::min_element(
         dependenciesMap.begin(), dependenciesMap.end(),
-        [] (floble_t const& lhs, floble_t const& rhs)
-            {return lhs < rhs;} );*/
+        [] (pair<neuron_id_t, floble_t> const& lhs, pair<neuron_id_t, floble_t> const& rhs)
+            {return lhs.second < rhs.second;} )->second;
 }
 
 void Neuron::TimeDependencies::updateTimeDependency(
@@ -179,21 +177,20 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t waitUntilTi
 
     while (waitUntilTime > dependenciesMinTimeCached) //if I still cant proceed
     {
-        if (!neuronWaitingFlag) neuronWaitingFlag = true;
-
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
         printf("Neuron::waitForTimeDependencyNeurons: gid %d WAITING to update t>%.8f (dependenciesMinTimeCached=%.8f)\n",
                gid, waitUntilTime, dependenciesMinTimeCached);
 #endif
 
+        if (!neuronWaitingFlag) neuronWaitingFlag = true;
+        //release dependenciesLock until triggered by dependenciesWaitCondition
         libhpx_cond_wait(&this->dependenciesWaitCondition, &this->dependenciesLock);
         updateDependenciesMinTimeCached(); //recompute min value from existing table
-
-#if !defined(NDEBUG) && defined(PRINT_EVENT)
-        printf("Neuron::waitForTimeDependencyNeurons: gid %d woke up (dependenciesMinTimeCached=%.8f)\n",
-               gid, dependenciesMinTimeCached);
-#endif
     }
+#if !defined(NDEBUG) && defined(PRINT_EVENT)
+    printf("Neuron::waitForTimeDependencyNeurons: gid %d proceeds (waitUntilTime=%.8f <= dependenciesMinTimeCached=%.8f)\n",
+           gid, waitUntilTime, dependenciesMinTimeCached);
+#endif
     neuronWaitingFlag = false;
     libhpx_mutex_unlock(&this->dependenciesLock);
 }

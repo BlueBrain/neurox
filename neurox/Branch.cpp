@@ -374,8 +374,7 @@ int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert((inputParams->algorithm == Algorithm::BackwardEulerDebug && nargs==2)
-         ||(inputParams->algorithm != Algorithm::BackwardEulerDebug && nargs==3));
+    assert(nargs == (inputParams->algorithm == Algorithm::BackwardEulerDebug ? 2 : 3));
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
@@ -393,7 +392,8 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
         spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+        //TODO
+        //local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
     }
     neurox_hpx_unpin;
 }
@@ -450,9 +450,13 @@ void Branch::backwardEulerStep()
     double & t  = this->nt->_t;
     double dt = this->nt->_dt;
 
-    //wait until Im sure I can start thist step at t and finalize at t+dt
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
+    {
+        //inform time dependants that must be notified in this step
+        soma->sendSteppingNotification(t+dt);
+        //wait until Im sure I can start and finalize this step at t+dt
         soma->timeDependencies->waitForTimeDependencyNeurons(t+dt, this->soma->gid);
+    }
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
@@ -487,10 +491,6 @@ void Branch::backwardEulerStep()
 
     //if we are at the output time instant output to file
     if (fmod(t, inputParams->dt_io) == 0) {} //TODO
-
-    //inform time dependants (when necessary)
-    if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
-        soma->sendSteppingNotification(t);
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -578,7 +578,7 @@ void Branch::deliverNetEvents()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
     if (this->soma)
     {
-      static const double teps = 1e-10;
+      static const double teps = 1e-10; //do not change (coreneuron logic)
       int & thidx = this->soma->thvar_index;
       floble_t v = this->nt->_actual_v[thidx];
       if (soma->checkAPthresholdAndTransmissionFlag(v))
