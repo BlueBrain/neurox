@@ -293,8 +293,6 @@ void DataLoader::cleanData()
 
 void DataLoader::loadData(int argc, char ** argv)
 {
-    assert (neurox::inputParams!=nullptr); //TODO mem corruption
-
     cn_input_params input_params;
     nrn_init_and_load_data(argc, argv, input_params, false);
 
@@ -434,7 +432,7 @@ void DataLoader::loadData(int argc, char ** argv)
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    //TODO why this stopped working after HPX update? repair
+    //TODO why this stopped working after HPX update? repair!
     //neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
 

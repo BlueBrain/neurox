@@ -40,8 +40,8 @@ class Neuron
         floble_t minDelay; ///>interval of notification in case of no spykes
                            ///(fastest Netcon from current neuron to dependant-neuron)
     };
-    void sendSpikes(spike_time_t t); ///> fires AP, returns LCO for sent synapses
-    void sendSteppingNotification(floble_t t); ///> inform my outgoing-connection neurons that I stepped
+    void sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
+    void sendSteppingNotification(floble_t t, floble_t dt); ///> inform my outgoing-connection neurons that I stepped
     void addSynapse(Synapse target);///> add hpx address of post-synaptic branch
     size_t getSynapseCount(); ///> get size of vector synapse
 
@@ -53,7 +53,7 @@ class Neuron
         ~TimeDependencies();
 
         //time dependency methods
-        void waitForTimeDependencyNeurons(floble_t t, int gid); //TODO remove 2nd gid parameter
+        void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid); //TODO remove gid parameter
         void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();

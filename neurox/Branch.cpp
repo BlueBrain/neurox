@@ -451,10 +451,10 @@ void Branch::backwardEulerStep()
 
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
     {
-        //inform time dependants that must be notified in this step
-        soma->sendSteppingNotification(t+dt);
         //wait until Im sure I can start and finalize this step at t+dt
-        soma->timeDependencies->waitForTimeDependencyNeurons(t+dt, this->soma->gid);
+        soma->timeDependencies->waitForTimeDependencyNeurons(t, dt, this->soma->gid);
+        //inform time dependants that must be notified in this step
+        soma->sendSteppingNotification(t, dt);
     }
 
     //1. multicore.c::nrn_thread_table_check()
@@ -486,10 +486,10 @@ void Branch::backwardEulerStep()
     callModFunction(Mechanism::ModFunction::state);
     callModFunction(Mechanism::ModFunction::after_solve);
     callModFunction(Mechanism::ModFunction::before_step);
-    deliverEvents(t);
+    deliverEvents(t); //delivers events in the second HALF of the step
 
     //if we are at the output time instant output to file
-    if (fmod(t, inputParams->dt_io) == 0) {} //TODO
+    if (fmod(t, inputParams->dt_io) == 0) {}
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal
@@ -583,14 +583,16 @@ void Branch::deliverNetEvents()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
     if (this->soma)
     {
-      static const double teps = 1e-10; //do not change (coreneuron logic)
       int & thidx = this->soma->thvar_index;
       floble_t v = this->nt->_actual_v[thidx];
+
+      //send spikes that occur in this step
       if (soma->checkAPthresholdAndTransmissionFlag(v))
-          soma->sendSpikes( (spike_time_t) (nt->_t+teps) );
+          soma->sendSpikes(nt->_t, nt->_dt);
     }
 
     //netcvode.cpp::NetCvode::deliver_net_events()
+    //delivers events in the first HALF of the step
     double tm = nt->_t + 0.5*nt->_dt;
     deliverEvents(tm);
 }
