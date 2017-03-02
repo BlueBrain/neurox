@@ -186,7 +186,7 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t t, floble_t
     if (dependenciesMap.size()==0) return;
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-    printf("Neuron::waitForTimeDependencyNeurons: gid %d STARTS (t+dt=%.8f)\n", gid, endOfStepTime);
+    printf("Neuron::waitForTimeDependencyNeurons: gid %d STARTS (t+dt=%.8f)\n", gid, t+dt);
 #endif
     libhpx_mutex_lock(&this->dependenciesLock);
 
@@ -194,7 +194,7 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t t, floble_t
     {
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
         printf("Neuron::waitForTimeDependencyNeurons: gid %d WAITS  (t+dt=%.8f > dependenciesMinTime=%.8f)\n",
-               gid, endOfStepTime, getDependenciesMinTime());
+               gid, t+dt, getDependenciesMinTime());
 #endif
         //mark this neuron as asleep waiting for a given min dependencies time
         dependenciesTimeNeuronWaitsFor = t+dt;
