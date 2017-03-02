@@ -20,6 +20,8 @@
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 #include "coreneuron/nrniv/vrecitem.h"
 
+extern void update(NrnThread*);
+
 #include "neurox/neurox.h"
 
 #define EPSILON_EQ_FLOAT 0.000001
@@ -53,6 +55,31 @@ void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> 
         assert (mf_cn.thread_cleanup_ == mf_nx.thread_cleanup_);
         assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
         assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
+    }
+}
+
+//fadvance_core.c::fixed_step_minimal(...)
+void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
+{
+    //fadvance_core.c::dt2thread
+    if (secondorder)
+        nth->cj = 2.0 / nth->_dt;
+    else
+        nth->cj = 1.0 / nth->_dt;
+
+    //fadvance_core.c::nrn_fixed_step_thread(...)
+    deliver_net_events(nth);
+    nth->_t += .5 * nth->_dt;
+    if (nth->ncell)
+    {
+        fixed_play_continuous(nth);
+        setup_tree_matrix_minimal(nth);
+        nrn_solve_minimal(nth);
+        second_order_cur(nth, secondorder);
+        update(nth);
+    }
+    if (!nrn_have_gaps) {
+        nrn_fixed_step_lastpart(nth);
     }
 }
 

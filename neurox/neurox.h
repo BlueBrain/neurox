@@ -30,13 +30,14 @@
 #define ProbGABAAB_EMS 139
 
 //#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
-#define PRINT_EVENT
+//#define PRINT_EVENT
+#define PRINT_TIME_DEPENDENCY
 
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
     extern int neuronsCount; 	///> total neurons count in the system
-    extern hpx_t neuronsAddr; 	///> hpx address of the first position of the neurons array
+    extern hpx_t neuronsAddr; 	///> hpx address of the neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms

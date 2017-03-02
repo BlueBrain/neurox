@@ -838,9 +838,6 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
             }
         }
     }
-    if (inputParams->algorithm != Algorithm::BackwardEulerDebug
-        && local->soma->timeDependencies->getDependenciesCount()>0)
-           local->soma->timeDependencies->updateDependenciesMinTimeCached();
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -855,7 +852,7 @@ int DataLoader::addSynapse_handler(
     hpx_t addr = *(const hpx_t*) args[0];
     floble_t minDelay = *(const floble_t*) args[1];
     int destinationGid = *(const int*) args[2];
-    local->soma->addSynapse(Neuron::Synapse(addr,minDelay,minDelay,destinationGid));
+    local->soma->addSynapse(Neuron::Synapse(addr,minDelay,destinationGid));
     neurox_hpx_unpin;
 }
 

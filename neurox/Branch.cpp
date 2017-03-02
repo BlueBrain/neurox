@@ -392,8 +392,7 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
         spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        //TODO
-        //local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
     }
     neurox_hpx_unpin;
 }
@@ -500,7 +499,13 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
+    {
         local->backwardEulerStep();
+#if !defined(NDEBUG) && defined(CORENEURON_H)
+        Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
+        Input::Coreneuron::Debugger::compareBranch2(local);
+#endif
+    }
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

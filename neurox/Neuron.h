@@ -31,7 +31,7 @@ class Neuron
     {
       public:
         Synapse()=delete;
-        Synapse(hpx_t, floble_t, floble_t, int destinationGid=-1);
+        Synapse(hpx_t addr, floble_t minDelay, int destinationGid=-1);
         hpx_t addr;        ///>address of destination
 #ifndef NDEBUG
         int destinationGid;
@@ -55,15 +55,13 @@ class Neuron
         //time dependency methods
         void waitForTimeDependencyNeurons(floble_t t, int gid); //TODO remove 2nd gid parameter
         void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
-        void updateDependenciesMinTimeCached();
+        floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
       private:
         std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
-        floble_t dependenciesMinTimeCached; ///> last known minimal value of timeDependencies
-
-        bool neuronWaitingFlag;
         libhpx_cond_t dependenciesWaitCondition;
         libhpx_mutex_t dependenciesLock;
+        floble_t dependenciesTimeNeuronWaitsFor;
 
     } * timeDependencies;
 
