@@ -101,7 +101,6 @@ class Branch
     void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
     void addEventToQueue(floble_t t, Event * e);
     void deliverEvents(floble_t t);
-    void deliverNetEvents();
     void fixedPlayContinuous();
     void setupTreeMatrix();
     void solveTreeMatrix();

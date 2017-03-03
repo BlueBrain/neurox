@@ -319,12 +319,12 @@ void Branch::initVecPlayContinous()
     }
 }
 
-void Branch::addEventToQueue(floble_t t, Event * e)
+void Branch::addEventToQueue(floble_t tt, Event * e)
 {
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
-    printf("Branch::addEventToQueue at %.3f\n", t);
+    printf("Branch::addEventToQueue at %.3f\n", tt);
 #endif
-    this->eventsQueue.push(make_pair(t, e));
+    this->eventsQueue.push(make_pair(tt, e));
 }
 
 void Branch::callModFunction(const Mechanism::ModFunction functionId)
@@ -380,6 +380,7 @@ int Branch::addSpikeEvent_handler(
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
     const spike_time_t spikeTime  = *(const spike_time_t*) args[1];
 
+    assert(local->netcons.find(preNeuronId)!=local->netcons.end());
     auto & netcons = local->netcons.at(preNeuronId);
     hpx_lco_sema_p(local->eventsQueueMutex);
     for (auto nc : netcons)
@@ -392,7 +393,7 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
         spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+        local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
     }
     neurox_hpx_unpin;
 }
@@ -451,31 +452,40 @@ void Branch::backwardEulerStep()
 
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
     {
-        //wait until Im sure I can start and finalize this step at t+dt
-        soma->timeDependencies->waitForTimeDependencyNeurons(t, dt, this->soma->gid);
         //inform time dependants that must be notified in this step
         soma->sendSteppingNotification(t, dt);
+        //wait until Im sure I can start and finalize this step at t+dt
+        soma->timeDependencies->waitForTimeDependencyNeurons(t, dt, this->soma->gid);
     }
 
     //1. multicore.c::nrn_thread_table_check()
     callModFunction(Mechanism::ModFunction::threadTableCheck);
 
     //2. fadvance_core.c::nrn_fixed_step_thread()
-    /* check thresholds and deliver all (including binqueue) events up to t+dt/2 */
-    deliverNetEvents();
+    //cvodestb.cpp::deliver_net_events()
+
+    //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
+    if (this->soma)
+    {
+      //send spikes that occur in this step
+      int & thidx = this->soma->thvar_index;
+      floble_t v = this->nt->_actual_v[thidx];
+      if (soma->checkAPthresholdAndTransmissionFlag(v))
+          soma->sendSpikes(nt->_t, nt->_dt);
+    }
+
+    //netcvode.cpp::NetCvode::deliver_net_events()
     t += .5*dt;
+    deliverEvents(t); //delivers events in the first HALF of the step
     fixedPlayContinuous();
     setupTreeMatrix();
     solveTreeMatrix();
     second_order_cur(this->nt, inputParams->secondorder );
 
     ////// fadvance_core.c : update() / Branch::updateV
-    if (inputParams->secondorder)
-      for (int i=0; i<this->nt->end; i++)
-        v[i] += 2 * rhs[i];
-    else
-      for (int i=0; i<this->nt->end; i++)
-        v[i] += rhs[i];
+    floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
+    for (int i=0; i<this->nt->end; i++)
+        v[i] += secondOrderMultiplier * rhs[i];
 
     callModFunction(Mechanism::ModFunction::currentCapacitance);
 
@@ -500,12 +510,15 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
     {
+        if (local->nt->id==neuronsCount/2)
+            printf("--step %d/%d\n", step, *steps_ptr);
         local->backwardEulerStep();
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
         Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
     }
+    printf("========= NEURON nrn_id  %d FINISHED =======\n", local->nt->id);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -556,17 +569,21 @@ void Branch::solveTreeMatrix()
     Solver::HinesSolver::forwardSubstituion(this);
 }
 
-void Branch::deliverEvents(floble_t til)
+void Branch::deliverEvents(floble_t til) //til=t+0.5*dt
 {
+    //delivers events in the preivous half-step
     floble_t tsav = this->nt->_t; //copying cvodestb.cpp logic
     hpx_lco_sema_p(this->eventsQueueMutex);
-    while (!this->eventsQueue.empty())
-    {
+    while (!this->eventsQueue.empty()
+         && this->eventsQueue.top().first <= til)
+     {
         auto event_it = this->eventsQueue.top();
         floble_t & tt = event_it.first;
-        if (tt > til) break;
+        Event *& e = event_it.second;
 
-        Event * e = event_it.second;
+        if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed
+        {   assert(tt >= til-0.5*nt->_dt && tt<=til); } //must be delivered in previous half step (not earlier, or it's been missed)
+
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
         printf("Branch::deliverEvents at %.3f\n", tt);
 #endif
@@ -575,26 +592,6 @@ void Branch::deliverEvents(floble_t til)
     }
     hpx_lco_sema_v_sync(this->eventsQueueMutex);
     this->nt->_t = tsav;
-}
-
-//cvodestb.cpp::deliver_net_events()
-void Branch::deliverNetEvents()
-{
-    //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
-    if (this->soma)
-    {
-      int & thidx = this->soma->thvar_index;
-      floble_t v = this->nt->_actual_v[thidx];
-
-      //send spikes that occur in this step
-      if (soma->checkAPthresholdAndTransmissionFlag(v))
-          soma->sendSpikes(nt->_t, nt->_dt);
-    }
-
-    //netcvode.cpp::NetCvode::deliver_net_events()
-    //delivers events in the first HALF of the step
-    double tm = nt->_t + 0.5*nt->_dt;
-    deliverEvents(tm);
 }
 
 void Branch::fixedPlayContinuous()

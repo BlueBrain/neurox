@@ -6,7 +6,8 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-static const double teps = 1e-10; //do not change (coreneuron logic)
+const double Neuron::teps = 1e-10; //DO NOT CHANGE (part of coreneuron logic)
+const floble_t Neuron::Synapse::notificationIntervalRatio = 0.99; //ration: (0,1)
 
 Neuron::Neuron(neuron_id_t neuronId,
                floble_t APthreshold, int thvar_index):
@@ -17,6 +18,8 @@ Neuron::Neuron(neuron_id_t neuronId,
     this->refractoryPeriod=0;
     this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerDebug
             ? NULL : new TimeDependencies();
+    //to avoid rounding errors, we send the notifications slighly before (so this should never be 1)
+    assert(Synapse::notificationIntervalRatio>0 && Synapse::notificationIntervalRatio<1);
 }
 
 Neuron::~Neuron()
@@ -28,7 +31,7 @@ Neuron::~Neuron()
 Neuron::Synapse::Synapse(hpx_t addr, floble_t minDelay, int destinationGid)
     :addr(addr), minDelay(minDelay)
 {
-    this->nextNotificationTime=this->minDelay-teps;
+    this->nextNotificationTime=inputParams->tstart+Neuron::teps+minDelay*Synapse::notificationIntervalRatio;
 #ifndef NDEBUG
     this->destinationGid=destinationGid;
 #endif
@@ -68,45 +71,64 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
 
 void Neuron::sendSpikes(floble_t t, floble_t dt)
 {
-    spike_time_t tt = (spike_time_t) t+teps;
+    if (synapses.size() == 0) return;
+    spike_time_t tt = (spike_time_t) t+Neuron::teps;
 
     //netcvode.cpp::PreSyn::send()
-    if (synapses.size()>0)
-      for (Synapse & s : synapses)
-        if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebug)
+    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebug)
+    {
+        hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
+        for (Synapse & s : synapses)
         {
             //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-            hpx_call_sync(s.addr, Branch::addSpikeEvent, NULL, 0,
+            hpx_call(s.addr, Branch::addSpikeEvent, synapsesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
         }
-        else
+        hpx_lco_wait(synapsesLco);
+        hpx_lco_reset_sync(synapsesLco);
+    }
+    else
+    {
+        //hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
+        for (Synapse & s : synapses)
         {
             //max time allowed by post-syn neuron, which is +dt ahead the next time i notify him
-            spike_time_t maxTimeAllowed= t+teps+s.minDelay+refractoryPeriod+dt;
-            //TODO s.nextNotificationTime     = t+teps+s.minDelay+refractoryPeriod;
+            s.nextNotificationTime      = t+Neuron::teps+refractoryPeriod+s.minDelay*Synapse::notificationIntervalRatio;
+            spike_time_t maxTimeAllowed = t+Neuron::teps+refractoryPeriod+s.minDelay+dt;
 
-            hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL,
+            hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL, //TODO synapsesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
                 &maxTimeAllowed, sizeof(spike_time_t));
-
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
             printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif time =%.3f\n",
                    this->gid, tt, s.destinationGid, t, s.nextNotificationTime);
 #endif
         }
+        //TODO
+        //hpx_lco_wait(synapsesLco);
+        //hpx_lco_reset_sync(synapsesLco);
+    }
 }
 
 void Neuron::sendSteppingNotification(floble_t t, floble_t dt)
 {
     //inform all dependants that need to be notified in this step (t is the 'end of step time')
+    size_t countNotificationsThisStep =0;
+    for (Synapse & s : synapses)
+        if (s.nextNotificationTime <= t+dt)
+            countNotificationsThisStep++;
+
+    if (countNotificationsThisStep == 0) return;
+
+    //hpx_t synapsesLco = hpx_lco_and_new(countNotificationsThisStep);
     for (Synapse & s : synapses)
         if (s.nextNotificationTime <= t+dt) //time step just finished
         {
             assert(s.nextNotificationTime >= t); //must have been covered by previous steps
 
             //max time allowed by post-syn neuron, which is +dt ahead the next time i notify him
-            spike_time_t maxTimeAllowed= t+teps+s.minDelay+dt;
-            s.nextNotificationTime     = t+teps+s.minDelay;
+            s.nextNotificationTime      = t+Neuron::teps+s.minDelay*Synapse::notificationIntervalRatio;
+            spike_time_t maxTimeAllowed = t+Neuron::teps+s.minDelay+dt;
 
             //next time allowed by post-syn neuron is also the time I have to notify him
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -114,9 +136,12 @@ void Neuron::sendSteppingNotification(floble_t t, floble_t dt)
                    this->gid, t, s.destinationGid, maxTimeAllowed);
 #endif
             //tell post-syn neuron how long he can proceed to until he has to wait
-            hpx_call(s.addr, Branch::updateTimeDependencyValue, HPX_NULL,
+            hpx_call(s.addr, Branch::updateTimeDependencyValue, HPX_NULL, //synapsesLco,
                  &this->gid, sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
         }
+    //TODO
+    //hpx_lco_wait(synapsesLco);
+    //hpx_lco_reset_sync(synapsesLco);
 }
 
 Neuron::TimeDependencies::TimeDependencies()

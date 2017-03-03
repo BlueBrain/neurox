@@ -7,7 +7,6 @@
 
 namespace neurox
 {
-
 int neuronsCount=-1;
 hpx_t neuronsAddr = HPX_NULL;
 

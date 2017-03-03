@@ -18,6 +18,8 @@ class Neuron
 
     Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index);
 
+    static const double teps; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
+
     neuron_id_t gid;     ///> neuron global id
     floble_t threshold;  ///> Action Potential threshold (PreSyn->_threshold)
     int thvar_index;     ///> index in voltages array og value to be compared against AP threshold (PreSyn->thvar_index_)
@@ -39,6 +41,8 @@ class Neuron
         floble_t nextNotificationTime; ///> next time this post-syn neuron needs to be informed of my actual time
         floble_t minDelay; ///>interval of notification in case of no spykes
                            ///(fastest Netcon from current neuron to dependant-neuron)
+        ///> how often to communicate stepping notification (1: every 'minDelay', 0.5 every half 'minDelay)
+        static const floble_t notificationIntervalRatio;
     };
     void sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
     void sendSteppingNotification(floble_t t, floble_t dt); ///> inform my outgoing-connection neurons that I stepped
@@ -57,6 +61,8 @@ class Neuron
         void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
+
+        ///Time-Epsilon used to correct floating point rounding on delivery of events
       private:
         std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
         libhpx_cond_t dependenciesWaitCondition;
