@@ -393,7 +393,7 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
         spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
     }
     neurox_hpx_unpin;
 }
@@ -581,8 +581,10 @@ void Branch::deliverEvents(floble_t til) //til=t+0.5*dt
         floble_t & tt = event_it.first;
         Event *& e = event_it.second;
 
-        if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed
-        {   assert(tt >= til-0.5*nt->_dt && tt<=til); } //must be delivered in previous half step (not earlier, or it's been missed)
+        //TODO if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed
+        //must be delivered in previous half step (not earlier, or it's been missed)
+        //{   assert(tt >= til-0.5*nt->_dt-Neuron::teps && tt<=til+Neuron::teps); }
+        //{   assert(tt >= til-0.5*nt->_dt && tt<=til); }
 
 #if !defined(NDEBUG) && defined(PRINT_EVENT)
         printf("Branch::deliverEvents at %.3f\n", tt);

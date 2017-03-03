@@ -15,6 +15,7 @@ Neuron::Neuron(neuron_id_t neuronId,
 {
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
+
     this->refractoryPeriod=0;
     this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerDebug
             ? NULL : new TimeDependencies();
@@ -89,14 +90,14 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
     }
     else
     {
-        //hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
+        hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse & s : synapses)
         {
             //max time allowed by post-syn neuron, which is +dt ahead the next time i notify him
-            s.nextNotificationTime      = t+Neuron::teps+refractoryPeriod+s.minDelay*Synapse::notificationIntervalRatio;
+            //TODO s.nextNotificationTime      = t+Neuron::teps+refractoryPeriod+s.minDelay*Synapse::notificationIntervalRatio;
             spike_time_t maxTimeAllowed = t+Neuron::teps+refractoryPeriod+s.minDelay+dt;
 
-            hpx_call(s.addr, Branch::addSpikeEvent, HPX_NULL, //TODO synapsesLco,
+            hpx_call(s.addr, Branch::addSpikeEvent, synapsesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
                 &maxTimeAllowed, sizeof(spike_time_t));
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -104,9 +105,8 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
                    this->gid, tt, s.destinationGid, t, s.nextNotificationTime);
 #endif
         }
-        //TODO
-        //hpx_lco_wait(synapsesLco);
-        //hpx_lco_reset_sync(synapsesLco);
+        hpx_lco_wait(synapsesLco);
+        hpx_lco_reset_sync(synapsesLco);
     }
 }
 

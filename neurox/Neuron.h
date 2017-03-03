@@ -2,6 +2,7 @@
 
 #include "neurox/neurox.h"
 #include "libhpx/libhpx.h"
+#include <deque>
 
 namespace neurox
 {
@@ -41,6 +42,8 @@ class Neuron
         floble_t nextNotificationTime; ///> next time this post-syn neuron needs to be informed of my actual time
         floble_t minDelay; ///>interval of notification in case of no spykes
                            ///(fastest Netcon from current neuron to dependant-neuron)
+        hpx_t previousMessageLco; ///> time to wait for, and LCO of previous message to this sender
+
         ///> how often to communicate stepping notification (1: every 'minDelay', 0.5 every half 'minDelay)
         static const floble_t notificationIntervalRatio;
     };
