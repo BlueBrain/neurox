@@ -96,13 +96,11 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
     }
     else
     {
-        /* TODO here
-        hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
+        //hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
         {
-            //max time allowed by post-syn neuron, which is +dt ahead the next time i notify him
-            //TODO s.nextNotificationTime      = t+Neuron::teps+refractoryPeriod+s.minDelay*Synapse::notificationIntervalRatio;
-            spike_time_t maxTimeAllowed = t+Neuron::teps+refractoryPeriod+s->minDelay+dt;
+            s->nextNotificationTime     = t+s->minDelay*Synapse::notificationIntervalRatio+refractoryPeriod;
+            spike_time_t maxTimeAllowed = t+Neuron::teps+s->minDelay+refractoryPeriod;
 
             //wait for previous spike delivery before sending
             ///hpx_lco_wait_reset(s.previousSpikeLco); //TODO can we make this multi-threaded
@@ -116,7 +114,7 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
                    this->gid, tt, s->destinationGid, t, s->nextNotificationTime);
 #endif
         }
-        hpx_lco_wait_reset(synapsesLco);*/
+        //hpx_lco_wait_reset(synapsesLco);
     }
 }
 

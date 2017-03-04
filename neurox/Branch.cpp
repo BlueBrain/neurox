@@ -392,8 +392,8 @@ int Branch::addSpikeEvent_handler(
 
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
-        spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid maxTimeAllowed);
+        spike_time_t maxTime = *(const spike_time_t*) args[2];
+        local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
     }
     neurox_hpx_unpin;
 }
