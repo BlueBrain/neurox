@@ -799,36 +799,6 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
 #endif
 
-    //TODO for debug only
-    /*
-    //create RANDOM incoming connections i.e. time dependencies
-    std::set<int> alreadyConnectedNeurons;
-    alreadyConnectedNeurons.insert(local->soma->gid);
-    floble_t connectivity=0.1;
-    while (alreadyConnectedNeurons.size() < neuronsCount*connectivity+1)
-    {
-      int nrnId = rand() % (int) (neuronsCount); //random int from 0 to `neuronsCount`
-      if (alreadyConnectedNeurons.find(nrnId) == alreadyConnectedNeurons.end())
-      {
-          neuron_id_t srcGid = getNeuronIdFromNrnThreadId(nrnId);
-          hpx_t srcAddr = getNeuronAddr(nrnId);
-          floble_t minDelay= 4*dt+5*((double) rand() / (double) RAND_MAX); //from 4*dt to 4*dt+5
-          //floble_t minDelay= 2*dt; //start easy
-
-          //inform connected neuron, that I depend on him, telling him to add a synapse to me
-          hpx_call_sync(srcAddr, DataLoader::addSynapse, NULL, 0,
-              &target, sizeof(hpx_t), &minDelay, sizeof(floble_t),
-              &local->soma->gid, sizeof(int));
-
-          //add this pre-syn neuron as my time-dependency
-          local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid, inputParams->tstart+minDelay, true);
-
-          alreadyConnectedNeurons.insert(nrnId);
-      }
-    }
-    assert(alreadyConnectedNeurons.size()>1);
-    */
-
     const floble_t impossiblyLargeDelay = 99999999;
     for (int i=0; i < neurox::neuronsCount; i++)
     {

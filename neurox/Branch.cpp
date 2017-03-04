@@ -515,14 +515,14 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     for (int step=0; step<*steps_ptr; step++)
     {
         if (local->nt->id==neuronsCount/2)
-            printf("--step %d/%d\n", step, *steps_ptr);
+            printf("-- step %d/%d\n", step, *steps_ptr);
         local->backwardEulerStep();
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-        //TODO here Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
-        //Input::Coreneuron::Debugger::compareBranch2(local);
+        Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
+        Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
     }
-    printf("========= NEURON nrn_id  %d FINISHED =======\n", local->nt->id);
+    printf("-- neuron %d finished! \n", local->soma->gid);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

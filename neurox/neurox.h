@@ -30,7 +30,7 @@
 
 //#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 //#define PRINT_EVENT
-#define PRINT_TIME_DEPENDENCY
+//#define PRINT_TIME_DEPENDENCY
 
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox

@@ -99,22 +99,21 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
         //hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
         {
-            s->nextNotificationTime     = t+s->minDelay*Synapse::notificationIntervalRatio+refractoryPeriod;
+            s->nextNotificationTime     = t+(s->minDelay+refractoryPeriod)*Synapse::notificationIntervalRatio;
             spike_time_t maxTimeAllowed = t+Neuron::teps+s->minDelay+refractoryPeriod;
 
-            //wait for previous spike delivery before sending
-            ///hpx_lco_wait_reset(s.previousSpikeLco); //TODO can we make this multi-threaded
+            hpx_lco_wait_reset(s->previousSpikeLco); //reset LCO to be used next
+            //any spike or step notification happening after must wait for this spike delivery
 
-            //hpx_call(s.addr, Branch::addSpikeEvent, s.previousSpikeLco,
-            hpx_call(s->addr, Branch::addSpikeEvent, HPX_NULL,
+            hpx_call(s->addr, Branch::addSpikeEvent, s->previousSpikeLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
                 &maxTimeAllowed, sizeof(spike_time_t));
+
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
             printf("Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif time =%.3f\n",
                    this->gid, tt, s->destinationGid, t, s->nextNotificationTime);
 #endif
         }
-        //hpx_lco_wait_reset(synapsesLco);
     }
 }
 
@@ -128,13 +127,14 @@ void Neuron::sendSteppingNotification(floble_t t, floble_t dt)
             s->nextNotificationTime     = t+s->minDelay*Synapse::notificationIntervalRatio;
             spike_time_t maxTimeAllowed = t+Neuron::teps+s->minDelay;
 
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-            printf("## %d notifies %d he can proceed up to %.6fms\n", this->gid, s->destinationGid, maxTimeAllowed);
-#endif
-            //wait for previous synapse to be delivered before telling post-syn to proceed
+            //wait for previous synapse to be delivered (if any) before telling post-syn to proceed in time
             hpx_lco_wait(s->previousSpikeLco);
             hpx_call(s->addr, Branch::updateTimeDependencyValue, HPX_NULL,
                      &this->gid, sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
+
+#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+            printf("## %d notifies %d he can proceed up to %.6fms\n", this->gid, s->destinationGid, maxTimeAllowed);
+#endif
         }
 }
 
@@ -190,10 +190,12 @@ void Neuron::TimeDependencies::updateTimeDependency(
                    myGid, srcGid, srcGid, dependenciesMap.at(srcGid), dependencyNotificationTime, getDependenciesMinTime());
 #endif
         }else
+        {
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
             printf("-- %d (msg from %d) DOES NOT UPDATE dependenciesMap(%d)=%.11f, notif time=%.11f, getDependenciesMinTime()=%.11f\n",
                    myGid, srcGid, srcGid, dependenciesMap.at(srcGid), dependencyNotificationTime, getDependenciesMinTime());
 #endif
+        }
 
         if (dependenciesTimeNeuronWaitsFor > 0) //if neuron is waiting for a dependencies time update
           if (getDependenciesMinTime() >= dependenciesTimeNeuronWaitsFor) //and new min time allows neuron to proceed
