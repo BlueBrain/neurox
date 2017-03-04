@@ -35,6 +35,7 @@ class Neuron
       public:
         Synapse()=delete;
         Synapse(hpx_t addr, floble_t minDelay, int destinationGid=-1);
+        ~Synapse();
         hpx_t addr;        ///>address of destination
 #ifndef NDEBUG
         int destinationGid;
@@ -42,14 +43,15 @@ class Neuron
         floble_t nextNotificationTime; ///> next time this post-syn neuron needs to be informed of my actual time
         floble_t minDelay; ///>interval of notification in case of no spykes
                            ///(fastest Netcon from current neuron to dependant-neuron)
-        hpx_t previousMessageLco; ///> time to wait for, and LCO of previous message to this sender
+        hpx_t previousSpikeLco; ///>lco controlling spikes delivery
 
         ///> how often to communicate stepping notification (1: every 'minDelay', 0.5 every half 'minDelay)
         static const floble_t notificationIntervalRatio;
     };
+
     void sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
     void sendSteppingNotification(floble_t t, floble_t dt); ///> inform my outgoing-connection neurons that I stepped
-    void addSynapse(Synapse target);///> add hpx address of post-synaptic branch
+    void addSynapse(Synapse * target);///> add hpx address of post-synaptic branch
     size_t getSynapseCount(); ///> get size of vector synapse
 
     //the incoming neuron connections:
@@ -61,7 +63,7 @@ class Neuron
 
         //time dependency methods
         void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid); //TODO remove gid parameter
-        void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, bool initialization = false);
+        void updateTimeDependency(neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
 
@@ -77,7 +79,7 @@ class Neuron
   private:
     //the outgoing neuron connections:
     hpx_t synapsesMutex; ///> protects synapses
-    std::vector<Synapse> synapses; ///> out-going synapse information
+    std::vector<Synapse*> synapses; ///> out-going synapse information
     bool synapsesTransmissionFlag; ///> PreSynHelper* psh -> flag (to flag whether spikes for a given AP have been sent or not
 
 }; //Neuron

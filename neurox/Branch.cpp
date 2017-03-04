@@ -393,7 +393,7 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
     {
         spike_time_t maxTimeAllowed = *(const spike_time_t*) args[2];
-        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTimeAllowed);
+        //TODO local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid maxTimeAllowed);
     }
     neurox_hpx_unpin;
 }
@@ -410,7 +410,7 @@ int Branch::updateTimeDependencyValue_handler(
     const spike_time_t maxTime  = *(const spike_time_t*) args[1];
 
     assert(local->soma);
-    local->soma->timeDependencies->updateTimeDependency(preNeuronId, (floble_t) maxTime);
+    local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
     neurox_hpx_unpin;
 }
 
@@ -449,6 +449,10 @@ void Branch::backwardEulerStep()
     floble_t *& rhs = this->nt->_actual_rhs;
     double & t  = this->nt->_t;
     double dt = this->nt->_dt;
+
+#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+    printf("## %d starts step t=%.11f\n", this->soma->gid, t);
+#endif
 
     if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
     {
@@ -514,8 +518,8 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
             printf("--step %d/%d\n", step, *steps_ptr);
         local->backwardEulerStep();
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-        Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
-        Input::Coreneuron::Debugger::compareBranch2(local);
+        //TODO here Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
+        //Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
     }
     printf("========= NEURON nrn_id  %d FINISHED =======\n", local->nt->id);
