@@ -163,25 +163,19 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
                     //pdata[1]: offset for point proc in vdata[0]
                     //pdata[2]: offset for RNG in vdata[1]
 
-                    //for (int v=0; v<mech->vdataSize; v++)
-                    //    compartment->vdata.push_back(vdata[v]);
-
                     //position vdata[0]: Point_proc
                     Point_process * ppn = &nt.pntprocs[pointProcTotalOffset++];
                     assert(nt._vdata[pdata[1]] == ppn);
-                    Point_process * ppnn = (Point_process*) vdata[0];
-                    Point_process * ppx = new Point_process;
-                    memcpy(ppx, ppn, sizeof(Point_process));
-                    compartment->vdata.push_back(ppx);
+                    Point_process * pp = (Point_process*) vdata[0];
+                    compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
 
                     //position vdata[1]: RNG (if any)
                     if (mech->vdataSize==2)
                     {
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
-                        nrnran123_State * RNGn = (nrnran123_State*) nt._vdata[pdata[2]];
-                        nrnran123_State * RNGx = new nrnran123_State;
-                        memcpy(RNGx, RNGn, sizeof(nrnran123_State));
-                        compartment->vdata.push_back(RNGx);
+                        assert(nt._vdata[pdata[2]] == vdata[1]);
+                        nrnran123_State * RNG = (nrnran123_State*) vdata[1];
+                        compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
                     }
                 }
                 else
@@ -549,7 +543,7 @@ void DataLoader::getVecPlayBranchData(
 
 int DataLoader::getBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & data,
-        vector<offset_t> & pdata, vector<void*> & vdata, vector<offset_t> & p,
+        vector<offset_t> & pdata, vector<unsigned char> & vdata, vector<offset_t> & p,
         vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
         int totalN, map<offset_t, pair<int, offset_t>> & offsetToInstance)
 {
@@ -573,12 +567,14 @@ int DataLoader::getBranchData(
     vector<vector<floble_t>> dataMechs (mechanismsCount);
     vector<vector<offset_t>> pdataMechs (mechanismsCount);
     vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
-    vector<vector<void*>> vdataMechs (mechanismsCount);
+    vector<vector<unsigned char>> vdataMechs (mechanismsCount);
 
     int n=0;
     vector<offset_t> pdataType; //type of pdata offset per pdata entry
     map< pair<int, offset_t>, offset_t> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
     map<offset_t,offset_t> fromNeuronToBranchId; //map of branch id per compartment id
+
+    //merge all instances of all compartments into instances of the branch
     for (auto comp : compartments)
     {
         int compDataOffset=0;
@@ -587,18 +583,25 @@ int DataLoader::getBranchData(
         fromNeuronToBranchId[comp->id] = n;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
-            int mechType = comp->mechsTypes[m];
-            int mechOffset = mechanismsMap[mechType];
+            int type = comp->mechsTypes[m];
+            int mechOffset = mechanismsMap[type];
             assert(mechOffset>=0 && mechOffset<mechanismsCount);
             Mechanism * mech = mechanisms[mechOffset];
             dataMechs[mechOffset].insert(dataMechs[mechOffset].end(), &comp->data[compDataOffset], &comp->data[compDataOffset+mech->dataSize] );
             pdataMechs[mechOffset].insert(pdataMechs[mechOffset].end(), &comp->pdata[compPdataOffset], &comp->pdata[compPdataOffset+mech->pdataSize] );
-            vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+mech->vdataSize] );
             nodesIndicesMechs[mechOffset].push_back(comp->id);
             instancesCount[mechOffset]++;
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
-            compVdataOffset += mech->vdataSize;
+
+            if (mech->pntMap > 0) //vdata
+            {
+                assert((type==IClamp && mech->pdataSize==2 && mech->vdataSize==1)
+                    ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3 && mech->vdataSize==2));
+                size_t totalVdataSize = sizeof(Point_process) + (mech->vdataSize==2 ? sizeof(nrnran123_State) : 0 );
+                vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+totalVdataSize] );
+                compVdataOffset += totalVdataSize;
+            }
         }
         n++;
     }
@@ -623,12 +626,16 @@ int DataLoader::getBranchData(
 
             data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
             pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
-            vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset], &vdataMechs[m][vdataOffset+mech->vdataSize]);
             nodesIndices.push_back(fromNeuronToBranchId[ nodesIndicesMechs[m][i] ]);
-
             dataOffset  += mech->dataSize;
             pdataOffset += mech->pdataSize;
-            vdataOffset += mech->vdataSize;
+
+            if (mech->pntMap > 0) //vdata
+            {
+                size_t totalVdataSize = sizeof(Point_process) + (mech->vdataSize==2 ? sizeof(nrnran123_State) : 0 );
+                vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset], &vdataMechs[m][vdataOffset+totalVdataSize]);
+                vdataOffset += totalVdataSize;
+            }
         }
         dataMechs[m].clear();
         pdataMechs[m].clear();
@@ -720,7 +727,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     vector<offset_t> instancesCount (mechanismsCount);
     vector<offset_t> nodesIndices;
     vector<hpx_t> branches;
-    vector<void*> vdata; //TODO should go away at some point,
+    vector<unsigned char> vdata; //Serialized Point Processes and Random123
 
     //Vector Play instances
     vector<floble_t> vecPlayT;
@@ -782,7 +789,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
                   branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
                   branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
-                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(void*)*vdata.size()
+                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
                   );
 
     return branchAddr;

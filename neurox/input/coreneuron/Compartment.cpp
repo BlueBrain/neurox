@@ -46,6 +46,12 @@ void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
     }
 }
 
+void Compartment::addSerializedVdata(unsigned char * data, size_t size)
+{
+    for (size_t i=0; i<size; i++)
+        this->vdata.push_back(data[i]);
+}
+
 void Compartment::addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights)
 {
     this->netconsPreSynIds.push_back(preSynNrnThreadId);

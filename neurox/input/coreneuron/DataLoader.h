@@ -48,7 +48,7 @@ class DataLoader
 
     static int getBranchData(
             deque<Compartment*> & compartments, vector<floble_t> & data,
-            vector<offset_t> & pdata, vector<void*> & vdata,
+            vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
             vector<offset_t> & nodesIndices, int totalN,
             map<offset_t, pair<int,offset_t>> & offsetToInstance);

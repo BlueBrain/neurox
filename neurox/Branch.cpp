@@ -30,7 +30,7 @@ Branch::Branch(offset_t n,
                NetConX * netcons, size_t netconsCount,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *weights, size_t weightsCount,
-               void** vdata, size_t vdataCount):
+               unsigned char* vdataSerialized, size_t vdataSerializedCount):
     soma(nullptr),nt(nullptr)
 {
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
@@ -76,10 +76,6 @@ Branch::Branch(offset_t n,
     memcpy(nt->_data, data, dataCount*sizeof(floble_t));
     nt->_ndata = dataCount;
 
-    nt->_vdata = vdataCount==0 ? nullptr :  new void*[vdataCount];
-    memcpy(nt->_vdata, vdata, vdataCount*sizeof(void*));
-    nt->_nvdata = vdataCount;
-
     nt->weights = weightsCount==0 ? nullptr : new floble_t[weightsCount];
     memcpy(nt->weights, weights, sizeof(floble_t)*weightsCount);
     nt->n_weight = weightsCount;
@@ -109,11 +105,14 @@ Branch::Branch(offset_t n,
     assert (recvMechanismsCount == mechanismsCount);
     offset_t dataOffset=6*n;
     offset_t pdataOffset=0;
-    offset_t vdataOffset=0;
     offset_t instancesOffset=0;
     this->mechsInstances = new Memb_list[mechanismsCount];
 
     int maxMechId = 0;
+
+    vector<void*> vdataPtrs;
+    offset_t vdataOffset=0;
+
     for (offset_t m=0; m<mechanismsCount; m++)
     {
         Memb_list & instance = this->mechsInstances[m];
@@ -136,7 +135,7 @@ Branch::Branch(offset_t n,
         {
             //point pdata to the correct offset, and allocate vdata
             assert(dataOffset  <= dataCount);
-            assert(vdataOffset <= vdataCount);
+            assert(vdataOffset <= vdataSerializedCount);
             floble_t * instanceData  = (floble_t*) &this->nt->_data[dataOffset ];
             floble_t * instanceData2 = (floble_t*) &instance.data [i*mech->dataSize];
             offset_t * instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
@@ -147,36 +146,47 @@ Branch::Branch(offset_t n,
                     || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
                         && mech->vdataSize == 2 && mech->pdataSize == 3));
 
-                void** instanceVdata = (void**) &this->nt->_vdata[vdataOffset];
-                Point_process * pp = (Point_process *) instanceVdata[0];
-                (void) pp;
-                (void) instanceVdata;
+                //pdata[0]: offset in data (area)
+                //pdata[1]: offset for point proc in vdata[0]
+                //pdata[2]: offset for RNG in vdata[1] (if any)
+
+                Point_process * pp = (Point_process *) (void*) &vdataSerialized[vdataOffset];
+                assert(pp->_i_instance>=0 && pp->_tid>=0 && pp->_type>=0);
+                Point_process * ppcopy = new Point_process;
+                memcpy(ppcopy, pp, sizeof(Point_process));
+                vdataOffset += sizeof(Point_process);
+                instancePdata[1] = vdataPtrs.size();
+                vdataPtrs.push_back(ppcopy);
+
                 if (mech->vdataSize==2)
                 {
-                    offset_t offsetPP  = instancePdata[1];
-                    offset_t offsetRNG = instancePdata[2];
-                    assert(offsetPP  < vdataCount);
-                    assert(offsetRNG < vdataCount);
-                    void * rng = instanceVdata[1];
+                    nrnran123_State * rng = (nrnran123_State*) (void*) &vdataSerialized[vdataOffset];
+                    nrnran123_State * rngcopy = new nrnran123_State;
+                    memcpy(rngcopy, rng, sizeof(nrnran123_State));
+                    vdataOffset += sizeof(nrnran123_State);
+                    instancePdata[2] = vdataPtrs.size();
+                    vdataPtrs.push_back(rngcopy);
                 }
-                //We will call bbcore_red on the correct vdata offset
-                //this->vdata[vdataOffset];
             }
             else
             { assert (mech->vdataSize==0);}
             dataOffset  += mech->dataSize;
             pdataOffset += mech->pdataSize;
-            vdataOffset += mech->vdataSize;
             assert(dataOffset  < 2^sizeof(offset_t));
             assert(pdataOffset < 2^sizeof(offset_t));
             assert(vdataOffset < 2^sizeof(offset_t));
             instancesOffset++;
         }
     }
-    assert( dataOffset == dataCount);
+    assert( dataOffset ==  dataCount);
     assert(pdataOffset == pdataCount);
-    assert(vdataOffset == vdataCount);
     assert(instancesOffset == nodesIndicesCount);
+
+    //vdata pointers
+    nt->_nvdata = vdataPtrs.size();
+    nt->_vdata = vdataSerializedCount==0 ? nullptr :  new void*[vdataPtrs.size()];
+    memcpy(nt->_vdata, vdataPtrs.data(), vdataPtrs.size()*sizeof(void*));
+    vdataPtrs.clear();
 
     //nt->_ml_list
     nt->_ml_list = new Memb_list*[maxMechId+1];
@@ -280,7 +290,7 @@ int Branch::init_handler( const int nargs, const void *args[],
         (NetConX*) args[11], sizes[11]/sizeof(NetConX), //netcons
         (neuron_id_t *) args[12], sizes[12]/sizeof(neuron_id_t), //netcons preneuron ids
         (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons weights
-        (void**) args[14], sizes[14]/sizeof(void*));
+        (unsigned char*) args[14], sizes[14]/sizeof(unsigned char)); //serialized vdata
     neurox_hpx_unpin;
 }
 

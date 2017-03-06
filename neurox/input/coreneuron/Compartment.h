@@ -27,6 +27,8 @@ class Compartment
                               Datum * pdata, int pdataSize);
     void addVecPlay(double * t, double *y, PointProcInfo & ppi);
 
+    void addSerializedVdata(unsigned char * data, size_t size);
+
     void addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
 
     offset_t id;
@@ -42,8 +44,8 @@ class Compartment
     vector<floble_t> vecPlayTdata;
     vector<floble_t> vecPlayYdata;
 
-    //vdata
-    vector<void*> vdata;
+    //vdata (serialized)
+    vector<unsigned char> vdata;
 
     //netcons
     vector<NetConX > netcons ;

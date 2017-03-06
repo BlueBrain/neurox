@@ -41,7 +41,7 @@ class Branch
            NetConX * netcons, size_t netconsCount,
            neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
            floble_t *branchWeights, size_t branchWeightsCount,
-           void** vdata, size_t vdataCount);
+           unsigned char* vdataSerialized, size_t vdataSerializedCount);
     ~Branch();
 
     NrnThread *nt;             ///> compartments metadata
