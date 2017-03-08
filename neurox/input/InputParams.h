@@ -5,8 +5,8 @@ namespace neurox
 {
 
 enum Algorithm {
-    BackwardEulerWithSlidingWindow=0,
-    BackwardEulerDebug=1
+    BackwardEulerWithFixedCommStep =0,
+    BackwardEulerWithPairwiseSteping=1
 };
 
 namespace Input

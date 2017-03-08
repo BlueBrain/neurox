@@ -34,6 +34,7 @@ class Debugger
     static void finitialize();   ///> calls Coreneuron's finitialize
     static void fixed_step_minimal(); ///> calls fadvance_core.c::nrn_fixed_step_thread()
     static void fixed_step_minimal(NrnThread * nth, int secondorder); ///> calls fixed_step_minimal for single NrnThread;
+    static void stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder);
 
   private:
     static int compareBranch_handler();

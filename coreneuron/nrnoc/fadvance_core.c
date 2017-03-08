@@ -35,7 +35,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static void* nrn_fixed_step_thread(NrnThread*);
 static void* nrn_fixed_step_group_thread(NrnThread*);
-static void nonvint(NrnThread*);
 extern void nrn_flush_reports(double);
 
 void dt2thread(double adt) { /* copied from nrnoc/fadvance.c */
@@ -171,7 +170,7 @@ void update(NrnThread* _nt) {
     }
 }
 
-static void nonvint(NrnThread* _nt) {
+void nonvint(NrnThread* _nt) {
     NrnThreadMembList* tml;
     if (nrn_have_gaps) {
         nrnthread_v_transfer(_nt);
@@ -218,7 +217,7 @@ static void* nrn_fixed_step_thread(NrnThread* nth) {
         fixed_play_continuous(nth);
         setup_tree_matrix_minimal(nth);
         nrn_solve_minimal(nth);
-        second_order_cur(nth, secondorder);
+        nrn_second_order_cur(nth, secondorder);
         update(nth);
     }
     if (!nrn_have_gaps) {

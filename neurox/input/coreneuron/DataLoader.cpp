@@ -507,6 +507,10 @@ void DataLoader::loadData(int argc, char ** argv)
 #endif
 
     nrn_setup_cleanup();
+
+#if defined(NDEBUG) && defined(CORENEURON_H)
+    nrn_cleanup(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+#endif
 }
 
 void DataLoader::getNetConsBranchData(
@@ -837,7 +841,7 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
-                if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
+                if (inputParams->algorithm != Algorithm::BackwardEulerWithFixedCommStep)
                   local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
                        inputParams->tstart+minDelay*Neuron::Synapse::notificationIntervalRatio, true);
             }

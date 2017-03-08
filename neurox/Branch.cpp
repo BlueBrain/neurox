@@ -57,7 +57,7 @@ Branch::Branch(offset_t n,
     nt->_ctime = -1;
     for (int i=0; i<BEFORE_AFTER_SIZE; i++)
       nt->tbl[i] = NULL;
-    nt->shadow_rhs_cnt=-1;
+    nt->shadow_rhs_cnt=0;
     nt->compute_gpu=0;
     nt->_net_send_buffer_size=-1;
     nt->_net_send_buffer_cnt=-1;
@@ -384,7 +384,7 @@ int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs == (inputParams->algorithm == Algorithm::BackwardEulerDebug ? 2 : 3));
+    assert(nargs == (inputParams->algorithm == Algorithm::BackwardEulerWithFixedCommStep ? 2 : 3));
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
@@ -400,7 +400,7 @@ int Branch::addSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (inputParams->algorithm != Algorithm::BackwardEulerDebug)
+    if (inputParams->algorithm != Algorithm::BackwardEulerWithFixedCommStep)
     {
         spike_time_t maxTime = *(const spike_time_t*) args[2];
         local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
@@ -464,7 +464,7 @@ void Branch::backwardEulerStep()
     printf("## %d starts step t=%.11f\n", this->soma->gid, t);
 #endif
 
-    if (soma && inputParams->algorithm!=neurox::Algorithm::BackwardEulerDebug)
+    if (soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
     {
         //inform time dependants that must be notified in this step
         soma->sendSteppingNotification(t, dt);
@@ -494,7 +494,7 @@ void Branch::backwardEulerStep()
     fixedPlayContinuous();
     setupTreeMatrix();
     solveTreeMatrix();
-    second_order_cur(this->nt, inputParams->secondorder );
+    nrn_second_order_cur(this->nt, inputParams->secondorder ); //TODO can this be parallelized??
 
     ////// fadvance_core.c : update() / Branch::updateV
     floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
@@ -506,7 +506,7 @@ void Branch::backwardEulerStep()
     ////// fadvance_core.::nrn_fixed_step_lastpart()
     //callModFunction(Mechanism::ModFunction::jacob);
     t += .5*dt;
-    fixedPlayContinuous();
+    fixedPlayContinuous(); //TODO an alternative would be to add all vecplay continuous events to the queue at the beginning
     callModFunction(Mechanism::ModFunction::state);
     callModFunction(Mechanism::ModFunction::after_solve);
     callModFunction(Mechanism::ModFunction::before_step);
@@ -524,13 +524,14 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
     {
-        if (local->nt->id==neuronsCount/2)
-            printf("-- step %d/%d\n", step, *steps_ptr);
-        local->backwardEulerStep();
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
+#endif
+        local->backwardEulerStep();
+#if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
+        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
     }
     printf("-- neuron %d finished! \n", local->soma->gid);
     neurox_hpx_recursive_branch_async_wait;

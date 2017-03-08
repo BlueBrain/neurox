@@ -24,15 +24,17 @@ extern void update(NrnThread*);
 
 #include "neurox/neurox.h"
 
-#define EPSILON_EQ_FLOAT 0.000001
-
 using namespace std;
 using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
 bool Debugger::isEqual(floble_t a, floble_t b, bool roughlyEqual)
 {
-    return roughlyEqual ? fabs(a-b) < EPSILON_EQ_FLOAT : a==b;
+    const double epsilon = inputParams->multiMex ? 5e-4 : 1e-8;
+    //NOTE: current functions for mechs SK_E2 (144) andNap_Et2 (123) depends on
+    //V that change opening vars that change V and so on... after few steps this
+    //causes high difference in results;
+    return roughlyEqual ? fabs(a-b) < epsilon : a==b;
 }
 
 void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs)
@@ -58,6 +60,87 @@ void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> 
     }
 }
 
+void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder)
+{
+    double dt = b->nt->_dt;
+    if (b->soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
+    {
+        b->soma->sendSteppingNotification(b->nt->_t, dt);
+        b->soma->timeDependencies->waitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
+    }
+    b->callModFunction(Mechanism::ModFunction::threadTableCheck);
+    if (b->soma)
+    {
+      int & thidx = b->soma->thvar_index;
+      floble_t v = b->nt->_actual_v[thidx];
+      if (b->soma->checkAPthresholdAndTransmissionFlag(v))
+          b->soma->sendSpikes(b->nt->_t, dt);
+    }
+    b->nt->_t += .5*dt;
+    b->deliverEvents(b->nt->_t);
+
+    //coreneuron
+
+    dt2thread(dt);
+    nrn_thread_table_check();
+    assert(b->nt->cj == nth->cj);
+
+    if (secondorder)
+        nth->cj = 2.0 / nth->_dt;
+    else
+        nth->cj = 1.0 / nth->_dt;
+    deliver_net_events(nth);
+    nth->_t += .5 * nth->_dt;
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->fixedPlayContinuous();
+    b->setupTreeMatrix();
+    b->solveTreeMatrix();
+
+    //coreneuron
+    fixed_play_continuous(nth);
+    setup_tree_matrix_minimal(nth);
+    nrn_solve_minimal(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    nrn_second_order_cur(b->nt, inputParams->secondorder );
+    floble_t secondOrderMultiplier = inputParams->secondorder ? 2.0 : 1.0;
+    for (int i=0; i<b->nt->end; i++)
+        b->nt->_actual_v[i] += secondOrderMultiplier * b->nt->_actual_rhs[i];
+    b->callModFunction(Mechanism::ModFunction::currentCapacitance);
+
+    nrn_second_order_cur(nth, secondorder);
+    update(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->nt->_t += .5*dt;
+    b->fixedPlayContinuous();
+
+    nth->_t += .5 * nth->_dt;//nrn_fixed_step_lastpart(nth);
+    fixed_play_continuous(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::state);
+
+    nonvint(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::after_solve);
+    b->callModFunction(Mechanism::ModFunction::before_step);
+    b->deliverEvents(b->nt->_t);
+
+    nrn_ba(nth, AFTER_SOLVE);
+    nrn_ba(nth, BEFORE_STEP);
+    nrn_deliver_events(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+}
+
 //fadvance_core.c::fixed_step_minimal(...)
 void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
 {
@@ -75,7 +158,7 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
         fixed_play_continuous(nth);
         setup_tree_matrix_minimal(nth);
         nrn_solve_minimal(nth);
-        second_order_cur(nth, secondorder);
+        nrn_second_order_cur(nth, secondorder);
         update(nth);
     }
     if (!nrn_have_gaps) {
@@ -85,9 +168,9 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
 
 void Debugger::fixed_step_minimal()
 {
+    dt2thread(dt);
+    nrn_thread_table_check();
     nrn_fixed_step_minimal(); //from fadvance_core.c
-    //nrn_fixed_step_group_minimal(); //from fadvance_core.c
-    //both call fadvance_core.c::nrn_fixed_step_thread(NrnThread*)
 }
 
 void Debugger::compareBranch2(Branch * branch)
@@ -100,6 +183,7 @@ void Debugger::compareBranch2(Branch * branch)
     bool multiMex = branch->mechsGraph != NULL;
 
     assert(branch->nt->_t == nt._t);
+    assert(secondorder == inputParams->secondorder);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
     assert(branch->soma->thvar_index == nt.presyns[0].thvar_index_);
     assert(branch->soma->gid == nt.presyns[0].gid_);
@@ -136,7 +220,12 @@ void Debugger::compareBranch2(Branch * branch)
 
     //make sure mechs data is correct
     for (int i=0; i<nt._ndata; i++)
-    {   assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex)); }
+    {
+        if (!isEqual(nt._data[i], branch->nt->_data[i], multiMex))
+            printf("ERROR: CN data[%d]=%.15f differs from NX data[%d]=%.15f\n",
+                   i, nt._data[i], i, branch->nt->_data[i]);
+        assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex));
+    }
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {

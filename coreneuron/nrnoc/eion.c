@@ -353,7 +353,7 @@ void nrn_alloc_ion(double* p, Datum* ppvar, int _type) {
     assert(0);
 }
 
-void second_order_cur(NrnThread* _nt, int secondorder) {
+void nrn_second_order_cur(NrnThread* _nt, int secondorder) {
     NrnThreadMembList* tml;
     Memb_list* ml;
     int _iml, _cntml_actual;

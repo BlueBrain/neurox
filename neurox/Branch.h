@@ -61,7 +61,6 @@ class Branch
 
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
-
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
 

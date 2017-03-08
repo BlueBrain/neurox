@@ -57,7 +57,7 @@ option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
 option(DISABLE_NRN_TIMEOUT "Disable nrn_timeout implementation" OFF)
 option(ENABLE_REPORTINGLIB "Enable use of ReportingLib for soma reports" OFF)
 option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" OFF)
-option(ENABLE_MPI "Enable MPI-based execution" ON)
+option(ENABLE_MPI "Enable MPI-based execution" OFF)
 option(ENABLE_SOA "Enable SoA Memory Layout" ON)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
@@ -87,8 +87,8 @@ include(FindPkgConfig)
 include(CTest)
 
 #Find all dependencies
-find_package(MPI REQUIRED) #neurox-based installations always require MPI
 if (ENABLE_MPI)
+    find_package(MPI REQUIRED)
     add_definitions("-DNRNMPI=1")
 else()
     message(STATUS "Use of MPI disabled by user-provided option")

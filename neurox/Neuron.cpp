@@ -17,7 +17,7 @@ Neuron::Neuron(neuron_id_t neuronId,
     this->synapsesMutex = hpx_lco_sema_new(1);
 
     this->refractoryPeriod=0;
-    this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerDebug
+    this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerWithFixedCommStep
             ? NULL : new TimeDependencies();
     //to avoid rounding errors, we send the notifications slighly before (so this should never be 1)
     assert(Synapse::notificationIntervalRatio>0 && Synapse::notificationIntervalRatio<=1);
@@ -85,7 +85,7 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
     spike_time_t tt = (spike_time_t) t+1e-10;
 
     //netcvode.cpp::PreSyn::send()
-    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebug)
+    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithFixedCommStep)
     {
         hpx_t synapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)

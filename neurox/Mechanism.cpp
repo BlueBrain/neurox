@@ -172,7 +172,6 @@ void Mechanism::callModFunction(const void * branch_ptr,
     NrnThread * nrnThread = branch->nt;
     assert(nrnThread);
 
-
     if (functionId == Mechanism::ModFunction::netReceive
      || functionId == Mechanism::ModFunction::netReceiveInit)
     {
@@ -213,7 +212,10 @@ void Mechanism::callModFunction(const void * branch_ptr,
         case Mechanism::ModFunction::current:
             assert(type != CAP);
             if (membFunc.current)
+            {
+                //TODO hold compartments and parent ions mutex
                 membFunc.current(nrnThread, membList, type);
+            }
         break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)

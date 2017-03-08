@@ -151,7 +151,7 @@ static int main_handler(char ***argv, size_t argc)
     hpx_time_t now = hpx_time_now();
 
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
-    if (inputParams->algorithm == Algorithm::BackwardEulerDebug)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithFixedCommStep)
     {
       const int commStepSize = 4;
       for (double t = inputParams->tstart;
@@ -163,7 +163,8 @@ static int main_handler(char ***argv, size_t argc)
           hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
         hpx_lco_wait(mainLCO);
         hpx_lco_reset_sync(mainLCO);
-/*
+
+/* //Uncomment to do all neurons comparison
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         //compare results at every comm step size
         for (int s=0; s<commStepSize; s++)
@@ -175,7 +176,7 @@ static int main_handler(char ***argv, size_t argc)
 */
       }
     }
-    else if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingWindow)
+    else if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
     {
         int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
         printf("neurox::Branch::BackwardEulerWithSlidingWindow (%.2f secs, %d steps)...\n", inputParams->tstop, totalSteps);
@@ -199,7 +200,9 @@ static int main_handler(char ***argv, size_t argc)
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
     printf("neurox::end (solver time: %.2f secs).\n", elapsed);
 
-    neurox::Input::Coreneuron::DataLoader::cleanData();
+#if !defined(NDEBUG) && defined(CORENEURON_H)
+    neurox::Input::Coreneuron::DataLoader::cleanData(); //if Coreneuron+debug, data will be cleaned up only now
+#endif
     hpx_exit(0,NULL);
 }
 

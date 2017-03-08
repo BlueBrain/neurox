@@ -50,9 +50,9 @@ namespace neurox
     extern hpx_action_t setInputParams;  ///> Initializes InputParams
     extern hpx_action_t setMechanisms;	 ///> Initializes Mechanisms
 
-    hpx_t getNeuronAddr(int i);      ///> get HPX address of i-th neuron
+    hpx_t getNeuronAddr(int i);          ///> get HPX address of i-th neuron
+    void registerHpxActions();           ///> Register all HPX actions
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void registerHpxActions(); ///> Register all HPX actions
 
     static int main_handler(char ***argv, size_t argc);
     static int clear_handler();
