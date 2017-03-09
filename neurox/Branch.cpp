@@ -529,7 +529,6 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
     {
-        /*
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
 #endif
@@ -537,8 +536,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
-        */
-        Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
+        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
     }
     if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
         printf("-- neuron %d finished! \n", local->soma->gid);
