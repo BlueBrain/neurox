@@ -174,14 +174,6 @@ void NetCvodeThreadData::interthread_send(double td, DiscreteEvent* db, NrnThrea
     InterThreadEvent ite;
     ite.de_ = db;
     ite.t_ = td;
-    if (db->type() == NetConType)
-    {
-        NetCon * TODO = (NetCon*) db;
-        int tid = TODO->target_->_tid;
-        int type = TODO->target_->_type;
-        int a = 0;
-        type=0; tid=0;
-    }
     inter_thread_events_.push_back(ite);
 
     MUTUNLOCK
@@ -260,14 +252,6 @@ TQItem* NetCvode::bin_event(double td, DiscreteEvent* db, NrnThread* nt) {
             db->pr("send", td, this);
         }
 #endif
-        if (db->type() == NetConType)
-        {
-            NetCon * TODO = (NetCon*) db;
-            int tid = TODO->target_->_tid;
-            int type = TODO->target_->_type;
-            int a = 0;
-            type=0; tid=0;
-        }
         return p[nt->id].tqe_->insert(td, db);
     }
 }
@@ -335,9 +319,11 @@ bool NetCvode::deliver_event(double til, NrnThread* nt) {
         DiscreteEvent* de = (DiscreteEvent*)q->data_;
         double tt = q->t_;
 
-        //if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed (issue 9, CoreNeuron github)
-        //{   assert(tt >= til-0.5*nt->_dt && tt<=til); } //(issue 10, Coreneuron github)
-
+        if (tt>0)
+        {
+           //til = t + 0.5dt
+           assert( tt >= til-0.5*nt->_dt && tt <= til);
+        }
         delete q;
 #if PRINT_EVENT
         if (print_event_) {

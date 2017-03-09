@@ -158,7 +158,7 @@ static int main_handler(char ***argv, size_t argc)
          t < inputParams->tstop - inputParams->dt*0.5;
          t += inputParams->dt*commStepSize)
       {
-        printf("neurox::Branch::BackwardEulerDebug (t=%.03f ms)...\n",t);
+        printf("neurox::Branch::BackwardEulerWithFixedCommStep (t=%.03f ms)...\n",t);
         for (int i=0; i<neuronsCount; i++)
           hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
         hpx_lco_wait(mainLCO);
@@ -179,7 +179,7 @@ static int main_handler(char ***argv, size_t argc)
     else if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
     {
         int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
-        printf("neurox::Branch::BackwardEulerWithSlidingWindow (%.2f secs, %d steps)...\n", inputParams->tstop, totalSteps);
+        printf("neurox::Branch::BackwardEulerWithPairwiseSteping (%.2f secs, %d steps)...\n", inputParams->tstop, totalSteps);
         for (int i=0; i<neuronsCount; i++)
           hpx_call(getNeuronAddr(i), Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
         hpx_lco_wait(mainLCO);

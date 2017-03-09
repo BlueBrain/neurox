@@ -224,12 +224,17 @@ Branch::Branch(offset_t n,
     }
 
     //Shadow arrays
-    int shadowElemsCount = std::max(
+    /* //TODO removed also from mech C file
+    this->nt->shadow_rhs_cnt = std::max(
                 mechsInstances[mechanismsMap[ProbAMPANMDA_EMS]].nodecount,
                 mechsInstances[mechanismsMap[ProbGABAAB_EMS]].nodecount
             );
-    this->nt->_shadow_rhs = new double[shadowElemsCount];
-    this->nt->_shadow_d   = new double[shadowElemsCount];
+    this->nt->_shadow_rhs = new double[this->nt->shadow_rhs_cnt];
+    this->nt->_shadow_d   = new double[this->nt->shadow_rhs_cnt];
+    */
+    this->nt->_shadow_rhs = NULL;
+    this->nt->_shadow_d = NULL;
+    this->nt->shadow_rhs_cnt = 0;
 
     //reconstructs netcons
     offset_t weightsOffset=0;
@@ -244,7 +249,7 @@ Branch::Branch(offset_t n,
 
     //create branchTree and MechsGraph
     this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branchesCount) : nullptr;
-    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph()         : nullptr;
+    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph(n)        : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
 }
@@ -524,6 +529,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
     {
+        /*
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
 #endif
@@ -531,9 +537,11 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::compareBranch2(local);
 #endif
-        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
+        */
+        Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
     }
-    printf("-- neuron %d finished! \n", local->soma->gid);
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
+        printf("-- neuron %d finished! \n", local->soma->gid);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -544,6 +552,7 @@ int Branch::finitialize_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->finitialize2(); //finitialize.c::finitilize()
+    //Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[0]);
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -690,7 +699,7 @@ int Branch::BranchTree::initLCOs_handler()
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
 
-Branch::MechanismsGraph::MechanismsGraph()
+Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
     this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
@@ -708,6 +717,17 @@ Branch::MechanismsGraph::MechanismsGraph()
           terminalMechanismsCount++;
     }
     this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
+
+    mutexMechanismsState = new hpx_t[compartmentsCount];
+    mutexMorphologyData  = new hpx_t[compartmentsCount];
+
+    this->mutexCount = compartmentsCount;
+    for (int i=0; i<this->mutexCount;i++)
+    {
+        mutexMechanismsState[i] = hpx_lco_sema_new(1);
+        mutexMorphologyData[i] = hpx_lco_sema_new(1);
+    }
+
 }
 
 void Branch::MechanismsGraph::initMechsGraph(hpx_t branchHpxAddr)
@@ -725,6 +745,12 @@ Branch::MechanismsGraph::~MechanismsGraph()
     for (int i=0; i<mechanismsCount; i++)
         hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
+
+    for (int i=0; i<mutexCount; i++)
+    {
+        hpx_lco_delete_sync(this->mutexMorphologyData[i]);
+        hpx_lco_delete_sync(this->mutexMechanismsState[i]);
+    }
 }
 
 hpx_action_t Branch::MechanismsGraph::nodeFunction = 0;
@@ -758,6 +784,30 @@ int Branch::MechanismsGraph::nodeFunction_handler(
               sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
     }
     neurox_hpx_unpin;
+}
+
+void Branch::MechanismsGraph::lockMorphologyData(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    hpx_lco_sema_p(mechsGraph->mutexMorphologyData[compartmentId]);
+}
+
+void Branch::MechanismsGraph::unlockMorphologyData(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    hpx_lco_sema_v_sync(mechsGraph->mutexMorphologyData[compartmentId]);
+}
+
+void Branch::MechanismsGraph::lockMechanismsState(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    hpx_lco_sema_p(mechsGraph->mutexMechanismsState[compartmentId]);
+}
+
+void Branch::MechanismsGraph::unlockMechanismsState(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    hpx_lco_sema_v_sync(mechsGraph->mutexMechanismsState[compartmentId]);
 }
 
 void Branch::registerHpxActions()

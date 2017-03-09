@@ -60,6 +60,76 @@ void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> 
     }
 }
 
+void Debugger::stepAfterStepFinitialize(Branch *b, NrnThread *nth)
+{
+    b->initVecPlayContinous();
+
+    //coreneuron
+    t = 0.;
+    dt2thread(-1.);
+    nrn_thread_table_check();
+    clear_event_queue();
+    nrn_spike_exchange_init();
+    nrn_play_init();
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->deliverEvents(b->nt->_t);
+    for (int n=0; n<b->nt->end; n++)
+        b->nt->_actual_v[n]=inputParams->voltage;
+
+    //coreneuron
+    nrn_deliver_events(nth); /* The play events at t=0 */
+
+    for (int i = 0; i < nth->end; ++i)
+        nth->_actual_v[i] = inputParams->voltage;
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::before_initialize);
+
+    nrn_ba(nth, BEFORE_INITIAL);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::initialize);
+
+    NrnThreadMembList* tml;
+    for (tml = nth->tml; tml; tml = tml->next) {
+        mod_f_t s = memb_func[tml->index].initialize;
+        if (s) {
+            (*s)(nth, tml->ml, tml->index);
+            }
+        }
+    init_net_events();
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::after_initialize);
+    b->deliverEvents(b->nt->_t);
+
+    //coreneuron
+
+    nrn_ba(nth, AFTER_INITIAL);
+    nrn_deliver_events(nth); /* The INITIAL sent events at t=0 */
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->setupTreeMatrix();
+
+    setup_tree_matrix_minimal(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+
+    b->callModFunction(Mechanism::ModFunction::before_step);
+    b->deliverEvents(b->nt->_t);
+
+    nrn_ba(nth, BEFORE_STEP);
+    nrn_deliver_events(nth);
+
+    /****************/ compareBranch2(b); /*****************/
+}
+
 void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder)
 {
     double dt = b->nt->_dt;
@@ -218,15 +288,6 @@ void Debugger::compareBranch2(Branch * branch)
     for (int i=0; i<6*branch->nt->end; i++)
     {   assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex)); }
 
-    //make sure mechs data is correct
-    for (int i=0; i<nt._ndata; i++)
-    {
-        if (!isEqual(nt._data[i], branch->nt->_data[i], multiMex))
-            printf("ERROR: CN data[%d]=%.15f differs from NX data[%d]=%.15f\n",
-                   i, nt._data[i], i, branch->nt->_data[i]);
-        assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex));
-    }
-
     for (offset_t i=0; i<branch->nt->end; i++)
     {
         assert(nt._actual_a[i] == branch->nt->_actual_a[i]); //constants
@@ -253,18 +314,6 @@ void Debugger::compareBranch2(Branch * branch)
         netconsCount += nc_it.second.size();
     }
     assert(nt.n_netcon == netconsCount);
-
-    //make sure number of output synapses per neuron is correct;
-    for (int n = 0; n< nt.n_netcon; n++)
-    {
-        //TODO how to compare?
-        //NetConX * nx = branch->net
-        //assert(nt.netcons[n].active_ == branch->nt->netcons[n].active_);
-        //assert(nt.netcons[n].delay_ == branch->nt->netcons[n].delay_);
-        //assert(nt.netcons[n].u.weight_index_ == branch->nt->netcons[n].delay_);
-        //assert(nt.netcons[n].target_->_i_instance == branch->nt->netcons[n].delay_);
-        //assert(nt.netcons[n].target_->_type == branch->nt->netcons[n].delay_);
-    }
 
     int vdataOffset=0;
     for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
@@ -303,6 +352,15 @@ void Debugger::compareBranch2(Branch * branch)
             }
             */
         }
+    }
+
+    //make sure data array is correct
+    for (int i=0; i<nt._ndata; i++)
+    {
+        if (!isEqual(nt._data[i], branch->nt->_data[i], multiMex))
+            printf("ERROR: CN data[%d]=%.15f differs from NX data[%d]=%.15f\n",
+                   i, nt._data[i], i, branch->nt->_data[i]);
+        assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex));
     }
 }
 

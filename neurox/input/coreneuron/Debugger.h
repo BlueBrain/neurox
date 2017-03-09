@@ -35,6 +35,7 @@ class Debugger
     static void fixed_step_minimal(); ///> calls fadvance_core.c::nrn_fixed_step_thread()
     static void fixed_step_minimal(NrnThread * nth, int secondorder); ///> calls fixed_step_minimal for single NrnThread;
     static void stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder);
+    static void stepAfterStepFinitialize(Branch *b, NrnThread *nth);
 
   private:
     static int compareBranch_handler();
