@@ -80,6 +80,7 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__CaDynamics_E2
 #define nrn_cur _nrn_cur__CaDynamics_E2
+#define nrn_cur_lock _nrn_cur_lock__CaDynamics_E2
 #define _nrn_current _nrn_current__CaDynamics_E2
 #define nrn_jacob _nrn_jacob__CaDynamics_E2
 #define nrn_state _nrn_state__CaDynamics_E2
@@ -362,8 +363,14 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
+  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+      nrn_cur_lock(_nt, _ml, _type, NULL, NULL, NULL);
+  }
 
-void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+  void nrn_cur_lock(_NrnThread* _nt, _Memb_list* _ml, int type,
+                    mutex_lock_f_t lock_mechs_state, mutex_lock_f_t unlock_mechs_state,
+                    void * mutex_lock_args)
+  {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;

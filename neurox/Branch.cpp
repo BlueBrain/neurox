@@ -192,12 +192,16 @@ Branch::Branch(offset_t n,
     for (int i=0; i<=maxMechId; i++)
         nt->_ml_list[i] = NULL;
 
+
+    int ionsCount=0;
     for (offset_t m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
         Memb_list & instances = this->mechsInstances[m];
         this->nt->_ml_list[mech->type] = &instances;
+        if (mech->isIon) ionsCount++;
     }
+    assert(ionsCount==MechanismsGraph::IonIndex::size+1); //ttx excluded (no writes to ttx state)
 
     //vecplay
     nt->n_vecplay = vecplayCount;
@@ -257,7 +261,7 @@ Branch::Branch(offset_t n,
 
     //create branchTree and MechsGraph
     this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branchesCount) : nullptr;
-    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph()         : nullptr;
+    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph(n)         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
 }
@@ -401,20 +405,14 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
         Mechanism * mech = mechanisms[m];
         if (mech->type == CAP) continue;
 
-        Memb_list & ml = mechsInstances[m];
+        Memb_list * ml = &mechsInstances[m];
         if (mech->membFunc.current && !mech->isIon)
-            for (int i=0; i<ml.nodecount; i++)
+            for (int i=0; i<ml->nodecount; i++)
             {
-                int & n = ml.nodeindices[i];
-                this->nt->_actual_rhs[n] += ml._shadow_rhs[i];
-                this->nt->_actual_d[n] += ml._shadow_d[i];
+                int & n = ml->nodeindices[i];
+                this->nt->_actual_rhs[n] += ml->_shadow_rhs[i];
+                this->nt->_actual_d[n] += ml->_shadow_d[i];
             }
-
-        //sum ionic contribution to ion mechanisms state
-        if (mech->isIon)
-        {
-            //TODO
-        }
     }
 }
 
@@ -737,7 +735,7 @@ int Branch::BranchTree::initLCOs_handler()
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
 
-Branch::MechanismsGraph::MechanismsGraph()
+Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
     this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
@@ -755,6 +753,11 @@ Branch::MechanismsGraph::MechanismsGraph()
           terminalMechanismsCount++;
     }
     this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
+
+    this->ionsMutex = new hpx_t[compartmentsCount][IonIndex::size];
+    for (int c=0; c<compartmentsCount; c++)
+        for (int i=0; i<IonIndex::size;i++)
+            this->ionsMutex[c][i] = hpx_lco_sema_new(1);
 }
 
 void Branch::MechanismsGraph::initMechsGraph(hpx_t branchHpxAddr)
@@ -772,6 +775,8 @@ Branch::MechanismsGraph::~MechanismsGraph()
     for (int i=0; i<mechanismsCount; i++)
         hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
+
+    //TODO delete ions Mutex
 }
 
 hpx_action_t Branch::MechanismsGraph::nodeFunction = 0;
@@ -805,6 +810,30 @@ int Branch::MechanismsGraph::nodeFunction_handler(
               sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
     }
     neurox_hpx_unpin;
+}
+
+void Branch::MechanismsGraph::lockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    //TODO accept several parents
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    int & m = mechType;
+    int ionIndex = m==123 || m==126 || m==129 ? IonIndex::na
+                : (m==147 || m==74 || m==94 || m==101 || m==144 ? IonIndex::k
+                : (m==45 || m==32 || m==35 || m==44 ? IonIndex::ca : -1));
+    assert(ionIndex!=-1);
+    hpx_lco_sema_p(mechsGraph->ionsMutex[compartmentId][ionIndex]);
+}
+
+void Branch::MechanismsGraph::unlockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
+{
+    //TODO accept several parents
+    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
+    int & m = mechType;
+    int ionIndex = m==123 || m==126 || m==129 ? IonIndex::na
+                : (m==147 || m==74 || m==94 || m==101 || m==144 ? IonIndex::k
+                : (m==45 || m==32 || m==35 || m==44 ? IonIndex::ca : -1));
+    assert(ionIndex!=-1);
+    hpx_lco_sema_v_sync(mechsGraph->ionsMutex[compartmentId][ionIndex]);
 }
 
 void Branch::registerHpxActions()

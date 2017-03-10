@@ -89,8 +89,8 @@ typedef struct Memb_list {
     NetSendBuffer_t* _net_send_buffer;
     int nodecount; /* actual node count */
     int _nodecount_padded;
-    double* _shadow_rhs; //shadow RHS for current and state function updates
-    double* _shadow_d;   //shadow D for current and state function updates
+    double* _shadow_rhs; ///> shadow RHS for current and state function updates
+    double* _shadow_d;   ///> shadow D for current and state function updates
 } Memb_list;
 
 #endif

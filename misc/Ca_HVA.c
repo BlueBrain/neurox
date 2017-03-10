@@ -80,6 +80,7 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__Ca_HVA
 #define nrn_cur _nrn_cur__Ca_HVA
+#define nrn_cur_lock _nrn_cur_lock__Ca_HVA
 #define _nrn_current _nrn_current__Ca_HVA
 #define nrn_jacob _nrn_jacob__Ca_HVA
 #define nrn_state _nrn_state__Ca_HVA
@@ -406,8 +407,14 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
+  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+      nrn_cur_lock(_nt, _ml, _type, NULL, NULL, NULL);
+  }
 
-void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+  void nrn_cur_lock(_NrnThread* _nt, _Memb_list* _ml, int type,
+                    mutex_lock_f_t lock_mechs_state, mutex_lock_f_t unlock_mechs_state,
+                    void * mutex_lock_args)
+  {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -448,10 +455,12 @@ for (;;) { /* help clang-format properly indent */
  	{ double _dica;
   _dica = ica;
  _rhs = _nrn_current(_threadargs_, _v);
+  if (lock_mechs_state) lock_mechs_state(_nd_idx, type, mutex_lock_args);
   _ion_dicadv += (_dica - ica)/.001 ;
- 	}
- _g = (_g - _rhs)/.001;
   _ion_ica += ica ;
+  if (unlock_mechs_state) unlock_mechs_state(_nd_idx, type, mutex_lock_args);
+        }
+ _g = (_g - _rhs)/.001;
  _PRCELLSTATE_G
          _vec_shadow_rhs[_iml] = -_rhs;
          _vec_shadow_d[_iml] = +_g;

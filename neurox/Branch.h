@@ -51,7 +51,7 @@ class Branch
     class MechanismsGraph
     {
       public:
-        MechanismsGraph(); ///> creates mechanisms instance graph based on global var 'mechanisms'
+        MechanismsGraph(int); ///> creates mechanisms instance graph based on global var 'mechanisms'
         ~MechanismsGraph();
         void initMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
 
@@ -61,6 +61,12 @@ class Branch
 
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
+
+        enum IonIndex {na=0, k=1, ca=2, size=3}; //ttx not supported
+        hpx_t (*ionsMutex)[IonIndex::size]; ///> one mutex per ion type per compartment
+
+        static void lockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
+        static void unlockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
 

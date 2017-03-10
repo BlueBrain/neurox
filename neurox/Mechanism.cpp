@@ -98,6 +98,7 @@ void Mechanism::disableMechFunctions()
 
     this->membFunc.alloc = NULL;
     this->membFunc.current = NULL;
+    this->membFunc.current_lock = NULL;
     this->membFunc.state = NULL;
     this->membFunc.jacob = NULL;
     this->membFunc.initialize = NULL;
@@ -119,6 +120,7 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
     this->membFunc.destructor = NULL; // memb_func[type].destructor;
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
+    this->membFunc.current_lock = dependenciesCount>0 ? get_cur_lock_function(this->sym) : NULL;
     this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
@@ -211,8 +213,17 @@ void Mechanism::callModFunction(const void * branch_ptr,
             break;
         case Mechanism::ModFunction::current:
             assert(type != CAP);
-            if (membFunc.current)
-                membFunc.current(nrnThread, membList, type);
+            if (membFunc.current) //has a current function
+            {
+                if (this->dependenciesCount>0  //has an (ion) parent
+                    && branch->mechsGraph) //parallel execution
+                    membFunc.current_lock(nrnThread, membList, type,
+                                          Branch::MechanismsGraph::lockIonState,
+                                          Branch::MechanismsGraph::unlockIonState,
+                                          branch->mechsGraph);
+                else //regular version
+                    membFunc.current(nrnThread, membList, type);
+            }
         break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)
