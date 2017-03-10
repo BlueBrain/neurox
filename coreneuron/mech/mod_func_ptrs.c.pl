@@ -93,19 +93,6 @@ mod_f_t get_${f}_function(const char * sym)
 __eof
 }
 
-# output of locked current function
-print <<"__eof";
-
-extern void \n  @{[join ",\n  ", map {"_nrn_cur_lock__${_}(NrnThread*, Memb_list*, int)"} @suffixes_with_this_func]};
-
-mod_lock_f_t get_cur_lock_function(const char * sym)
-{
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_lock__${_};"} @suffixes_with_this_func]}
-  return NULL;
-}
-
-__eof
-
 # output of net_receive function pointers
 @mechs_with_net_receive=('ProbAMPANMDA_EMS','ProbGABAAB_EMS','NetStim','ExpSyn','PatternStim','InhPoissonStim');
 

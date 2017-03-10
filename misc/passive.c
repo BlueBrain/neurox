@@ -80,7 +80,6 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__pas
 #define nrn_cur _nrn_cur__pas
-#define nrn_cur_lock _nrn_cur_lock__pas
 #define _nrn_current _nrn_current__pas
 #define nrn_jacob _nrn_jacob__pas
 #define nrn_state _nrn_state__pas
@@ -299,15 +298,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 #endif
 
 
-  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
-      nrn_cur_lock(_nt, _ml, _type, NULL, NULL, NULL, NULL, NULL);
-  }
-
-  void nrn_cur_lock(_NrnThread* _nt, _Memb_list* _ml, int type,
-                    mutex_lock_f_t lock_rhs_d, mutex_lock_f_t unlock_rhs_d,
-                    mutex_lock_f_t lock_mechs_state, mutex_lock_f_t unlock_mechs_state,
-                    void * mutex_lock_args)
-  {
+void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -316,6 +307,8 @@ _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
 double * _vec_d = _nt->_actual_d;
+double * _vec_shadow_rhs = _ml->_shadow_rhs;
+double * _vec_shadow_d = _ml->_shadow_d;
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
@@ -348,11 +341,9 @@ for (;;) { /* help clang-format properly indent */
  	}
  _g = (_g - _rhs)/.001;
  _PRCELLSTATE_G
-  if (lock_rhs_d) lock_rhs_d(_nd_idx, type, mutex_lock_args);
-        _vec_rhs[_nd_idx] -= _rhs;
-	_vec_d[_nd_idx] += _g;
-  if (unlock_rhs_d) unlock_rhs_d(_nd_idx, type, mutex_lock_args);
-
+        _vec_shadow_rhs[_iml] = -_rhs;
+        _vec_shadow_d[_iml] = +_g;
+ 
 }
  
 }

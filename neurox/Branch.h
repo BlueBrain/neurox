@@ -51,7 +51,7 @@ class Branch
     class MechanismsGraph
     {
       public:
-        MechanismsGraph(int compartmentsCount); ///> creates mechanisms instance graph based on global var 'mechanisms'
+        MechanismsGraph(); ///> creates mechanisms instance graph based on global var 'mechanisms'
         ~MechanismsGraph();
         void initMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
 
@@ -61,19 +61,8 @@ class Branch
 
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
-
-        //for `current` mechanisms calls
-        static void lockMorphologyData(int, int, void*); ///> locks write-ups to RHS+D for every compartment
-        static void unlockMorphologyData(int, int, void*); ///> unlocks write-ups to RHS+D for every compartment
-        static void lockMechanismsState(int, int, void*); ///> locks write-ups to mechs instances states for every compartment
-        static void unlockMechanismsState(int, int, void*); ///> unlocks write-ups to mechs instances states for every compartment
-
-      private:
-        hpx_t * mutexMorphologyData; ///> protects writes to RHS and D
-        hpx_t * mutexMechanismsState; ///> protects writes to mechanisms state
-        size_t mutexCount;
-
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
+
 
     class BranchTree
     {

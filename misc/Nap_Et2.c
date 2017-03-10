@@ -80,7 +80,6 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__Nap_Et2
 #define nrn_cur _nrn_cur__Nap_Et2
-#define nrn_cur_lock _nrn_cur_lock__Nap_Et2
 #define _nrn_current _nrn_current__Nap_Et2
 #define nrn_jacob _nrn_jacob__Nap_Et2
 #define nrn_state _nrn_state__Nap_Et2
@@ -364,11 +363,6 @@ static int  rates ( _threadargsproto_ ) {
    hAlpha = - 2.88e-6 * ( v + 17.0 ) / ( 1.0 - exp ( ( v + 17.0 ) / 4.63 ) ) ;
    hBeta = 6.94e-6 * ( v + 64.4 ) / ( 1.0 - exp ( - ( v + 64.4 ) / 2.63 ) ) ;
    hTau = ( 1.0 / ( hAlpha + hBeta ) ) / _lqt ;
-   //int is8758 = &hTau == &nrn_threads[0]._data[8758];
-   //int is9058 = &hTau == &nrn_threads[0]._data[9058];
-
-   //printf("%s%s t=%.3f v=%.12f tau=%.12f (lqt=%.18f a=%.18f b=%.18f)\n",
-   //       is8758 ? "THIS8758" : (is9058 ? "THIS9058" : "") , _nt==&nrn_threads[0] ? "CN" : "NX", _nt->_t, v, hTau, _lqt, hAlpha, hBeta); //TODO
      return 0; }
  
 #if 0 /*BBCORE*/
@@ -471,14 +465,6 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 
 
 void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
-    nrn_cur_lock(_nt, _ml, _type, NULL, NULL, NULL, NULL, NULL);
-}
-
-void nrn_cur_lock(_NrnThread* _nt, _Memb_list* _ml, int type,
-                  mutex_lock_f_t lock_rhs_d, mutex_lock_f_t unlock_rhs_d,
-                  mutex_lock_f_t lock_mechs_state, mutex_lock_f_t unlock_mechs_state,
-                  void * mutex_lock_args)
-{
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -487,6 +473,8 @@ _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
 double * _vec_d = _nt->_actual_d;
+double * _vec_shadow_rhs = _ml->_shadow_rhs;
+double * _vec_shadow_d = _ml->_shadow_d;
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
@@ -521,19 +509,14 @@ for (;;) { /* help clang-format properly indent */
  	{ double _dina;
   _dina = ina;
  _rhs = _nrn_current(_threadargs_, _v);
-  if (lock_mechs_state) lock_mechs_state(_nd_idx, type, mutex_lock_args);
   _ion_dinadv += (_dina - ina)/.001 ;
-  if (unlock_mechs_state) unlock_mechs_state(_nd_idx, type, mutex_lock_args);
-        }
+ 	}
  _g = (_g - _rhs)/.001;
-  if (lock_mechs_state) lock_mechs_state(_nd_idx, type, mutex_lock_args);
   _ion_ina += ina ;
-  if (unlock_mechs_state) unlock_mechs_state(_nd_idx, type, mutex_lock_args);
  _PRCELLSTATE_G
-  if (lock_rhs_d) lock_rhs_d(_nd_idx, type, mutex_lock_args);
-        _vec_rhs[_nd_idx] -= _rhs;
-	_vec_d[_nd_idx] += _g;
-  if (unlock_rhs_d) unlock_rhs_d(_nd_idx, type, mutex_lock_args);
+ _vec_shadow_rhs[_iml] = -_rhs;
+ _vec_shadow_d[_iml] = +_g;
+ 
 }
  
 }
@@ -577,13 +560,7 @@ for (;;) { /* help clang-format properly indent */
   ena = _ion_ena;
   ttxo = _ion_ttxo;
   ttxi = _ion_ttxi;
- {
-      double vv = v;
-     //TODO if (_nt != &nrn_threads[0])
-        //printf("#### iml=%d, idx=%d, \tNXv=%.10f vs \tCNv=%.10f;  \tNXrhs=%.10f vs \tCNrhs=%.10f, \n", _iml, _nd_idx,
-        //       v, nrn_threads[0]._actual_v[_nd_idx], _nt->_actual_rhs[_nd_idx], nrn_threads[0]._actual_rhs[_nd_idx]);
-     states(_threadargs_);
-     assert(vv==v);
+ {   states(_threadargs_);
   } }}
 
 }

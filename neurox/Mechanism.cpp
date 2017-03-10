@@ -48,9 +48,9 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         return;
 
     disableMechFunctions();
-    if (this->type == CAP) //capacitance: nrnoc/capac.c
+    if (this->type == CAP) //capacitance: capac.c
         registerCapacitance();
-    else if (this->isIon)  //ion: nrnoc/eion.c
+    else if (this->isIon)  //ion: eion.c
         registerIon();
     else //general mechanism: mod file
         registerModFunctions(this->type);
@@ -98,7 +98,6 @@ void Mechanism::disableMechFunctions()
 
     this->membFunc.alloc = NULL;
     this->membFunc.current = NULL;
-    this->membFunc.current_lock = NULL;
     this->membFunc.state = NULL;
     this->membFunc.jacob = NULL;
     this->membFunc.initialize = NULL;
@@ -120,7 +119,6 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
     this->membFunc.destructor = NULL; // memb_func[type].destructor;
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
-    this->membFunc.current_lock = get_cur_lock_function(this->sym); //memb_func[type].current_lock;
     this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
@@ -214,19 +212,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
         case Mechanism::ModFunction::current:
             assert(type != CAP);
             if (membFunc.current)
-            {
-                if (branch->mechsGraph && //if parallel graph execution
-                    !mechanisms[mechanismsMap[this->type]]->isIon) //and is not an ion
-                        membFunc.current_lock( //run current function with RHS+D+mechs mutex
-                                nrnThread, membList, type,
-                                Branch::MechanismsGraph::lockMorphologyData,
-                                Branch::MechanismsGraph::unlockMorphologyData,
-                                Branch::MechanismsGraph::lockMechanismsState,
-                                Branch::MechanismsGraph::unlockMechanismsState,
-                                branch->mechsGraph);
-                    else //run regular version
-                        membFunc.current(nrnThread, membList, type);
-            }
+                membFunc.current(nrnThread, membList, type);
         break;
         case Mechanism::ModFunction::state:
             if (membFunc.state)

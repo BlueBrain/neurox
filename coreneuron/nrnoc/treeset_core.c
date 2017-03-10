@@ -73,6 +73,17 @@ static void nrn_rhs(NrnThread* _nt) {
 #endif
         }
 
+    //sum RHS+D contributions from current
+    for (tml = _nt->tml; tml; tml = tml->next)
+        if (tml->index != CAP && memb_func[tml->index].current && !nrn_is_ion(tml->index))
+            for (int i=0; i< tml->ml->nodecount; i++)
+            {
+                int n = tml->ml->nodeindices[i];
+                _nt->_actual_rhs[n] += tml->ml->_shadow_rhs[i];
+                _nt->_actual_d[n] += tml->ml->_shadow_d[i];
+            }
+    //TODO sum contribution to parents
+
 /* now the internal axial currents.
 The extracellular mechanism contribution is already done.
         rhs += ai_j*(vi_j - vi)

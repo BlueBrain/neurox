@@ -972,6 +972,14 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
                 shadow_rhs_cnt = tml->ml->nodecount;
             }
         }
+        tml->ml->_shadow_d = new double[tml->ml->nodecount];
+        tml->ml->_shadow_rhs = new double[tml->ml->nodecount];
+        for (int k=0; k<tml->ml->nodecount; k++)
+        {
+            tml->ml->_shadow_d[k] = 0;
+            tml->ml->_shadow_rhs[k] = 0;
+        }
+
         nt._ml_list[tml->index] = tml->ml;
         // printf("index=%d nodecount=%d membfunc=%s\n", tml->index, tml->ml->nodecount,
         // memb_func[tml->index].sym?memb_func[tml->index].sym:"None");
