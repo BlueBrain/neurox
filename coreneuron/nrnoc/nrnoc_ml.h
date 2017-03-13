@@ -91,6 +91,11 @@ typedef struct Memb_list {
     int _nodecount_padded;
     double* _shadow_rhs; ///> shadow RHS for current and state function updates
     double* _shadow_d;   ///> shadow D for current and state function updates
+
+    double *_shadow_i;   ///> shadow I to sum to parent ion's current
+    double *_shadow_didv; ///> shadow dI/dV to sum to parent ion's current derivative
+    int * _shadow_i_offsets; ///> offsets of i in parent's NrnThread data;
+    int * _shadow_didv_offsets; ///> offsets of didv in parent's NrnThread data;
 } Memb_list;
 
 #endif

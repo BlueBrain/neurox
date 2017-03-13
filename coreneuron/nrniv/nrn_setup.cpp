@@ -972,13 +972,6 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
                 shadow_rhs_cnt = tml->ml->nodecount;
             }
         }
-        tml->ml->_shadow_d = new double[tml->ml->nodecount];
-        tml->ml->_shadow_rhs = new double[tml->ml->nodecount];
-        for (int k=0; k<tml->ml->nodecount; k++)
-        {
-            tml->ml->_shadow_d[k] = 0;
-            tml->ml->_shadow_rhs[k] = 0;
-        }
 
         nt._ml_list[tml->index] = tml->ml;
         // printf("index=%d nodecount=%d membfunc=%s\n", tml->index, tml->ml->nodecount,
@@ -1040,6 +1033,23 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
         unpadded_offset += n * sz;
         if (pnt_map[type] > 0) {
             npnt += n;
+        }
+
+        //TODO not needed because CN has no graph parallelism of mechs!
+        ml->_shadow_d = new double[ml->nodecount];
+        ml->_shadow_rhs = new double[ml->nodecount];
+        ml->_shadow_i = new double[ml->nodecount];
+        ml->_shadow_i_offsets = new int[ml->nodecount];
+        ml->_shadow_didv = new double[ml->nodecount];
+        ml->_shadow_didv_offsets = new int[ml->nodecount];
+        for (int k=0; k<tml->ml->nodecount; k++)
+        {
+            ml->_shadow_d[k] = 0;
+            ml->_shadow_rhs[k] = 0;
+            ml->_shadow_i[k] = 0;
+            ml->_shadow_didv[k] = 0;
+            ml->_shadow_i_offsets[k] = -1;
+            ml->_shadow_didv_offsets[k] = -1;
         }
     }
     nt.pntprocs = new Point_process[npnt];  // includes acell with and without gid

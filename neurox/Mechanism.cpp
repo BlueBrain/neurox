@@ -35,6 +35,9 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         this->dependencies = new int[dependenciesCount];
         std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
     }
+    //ion index will be set later when all mechanisms are created
+    dependencyIonIndex = Branch::MechanismsGraph::IonIndex::no_ion;
+
     if (successors != nullptr){
         assert(successorsCount>0);
         this->successors = new int[successorsCount];
@@ -135,7 +138,7 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
     this->membFunc.destructor = NULL; // memb_func[type].destructor;
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
-    this->membFunc.current_parallel = dependenciesCount>0 ? get_cur_parallel_function(this->sym) : NULL;
+    this->membFunc.current_parallel = get_cur_parallel_function(this->sym);
     this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
@@ -152,11 +155,8 @@ void Mechanism::registerCapacitance()
     this->membFunc.alloc = nrn_alloc_capacitance;
     this->membFunc.initialize = nrn_init_capacitance;
     this->membFunc.current = nrn_cur_capacitance;
+    this->membFunc.current_parallel = nrn_cur_parallel_capacitance;
     this->membFunc.jacob = nrn_jacob_capacitance;
-    //this->membFunc.alloc = Capacitance::cap_alloc;
-    //this->membFunc.initialize = Capacitance::cap_init;
-    //this->membFunc.current = Capacitance::nrn_capacity_current;
-    //this->membFunc.jacob = Capacitance::nrn_cap_jacob;
 }
 
 void Mechanism::registerIon()
@@ -171,6 +171,7 @@ void Mechanism::registerIon()
     //this->membFunc.alloc = ion_alloc; //assert(0) should never be called
     this->membFunc.initialize = nrn_init_ion;
     this->membFunc.current = nrn_cur_ion;
+    this->membFunc.current_parallel = nrn_cur_parallel_ion;
 }
 
 Mechanism::~Mechanism(){
@@ -230,12 +231,23 @@ void Mechanism::callModFunction(const void * branch_ptr,
             assert(type != CAP);
             if (membFunc.current) //has a current function
             {
-                if (this->dependenciesCount>0  //has an (ion) parent
-                    && branch->mechsGraph) //parallel execution
-                    membFunc.current_parallel(nrnThread, membList, type,
-                                          Branch::MechanismsGraph::lockIonState,
-                                          Branch::MechanismsGraph::unlockIonState,
-                                          branch->mechsGraph);
+                if (branch->mechsGraph //parallel execution
+                 && strcmp(this->sym, "CaDynamics_E2")!=0 //not CaDynamics_E2 (no updates in cur function)
+                 && !this->isIon) //not ion (updates in nrn_cur_ion function)
+                {
+                    if (this->dependenciesCount>0)
+                        membFunc.current_parallel(
+                                    nrnThread, membList, type,
+                                    Branch::MechanismsGraph::accumulate_rhs_d,
+                                    Branch::MechanismsGraph::accumulate_i_didv,
+                                    branch->mechsGraph);
+                    else
+                        membFunc.current_parallel(
+                                    nrnThread, membList, type,
+                                    Branch::MechanismsGraph::accumulate_rhs_d,
+                                    NULL, //no accummulation of i and di/dv
+                                    branch->mechsGraph);
+                }
                 else //regular version
                     membFunc.current(nrnThread, membList, type);
             }

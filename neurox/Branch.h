@@ -62,15 +62,14 @@ class Branch
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
 
+        //for current function accumulation of shadow arrays
         enum IonIndex {na=0, k=1, ca=2, size_writeable_ions=3, ttx=3, no_ion=4}; //ttx not write-able
-        hpx_t (*ionsMutex)[IonIndex::size_writeable_ions]; ///> one mutex per ion type per compartment
+        hpx_t rhs_d_mutex;
+        hpx_t i_didv_mutex[MechanismsGraph::IonIndex::size_writeable_ions];
+        static void accumulate_rhs_d  (NrnThread* nt, Memb_list * ml, int, void* args);
+        static void accumulate_i_didv (NrnThread* nt, Memb_list * ml, int, void* args);
 
-        static void lockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
-        static void unlockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
-
-    hpx_t rhs_d_mutex;
-    hpx_t ion_mutex[MechanismsGraph::IonIndex::size_writeable_ions];
 
     class BranchTree
     {

@@ -95,6 +95,26 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
         mechanismsMap[i]=-1;
     for (int m=0; m<mechanismsCount; m++)
         mechanismsMap[mechanisms[m]->type]=m;
+
+    //initializes parent ion index
+    for (int m=0; m<mechanismsCount; m++)
+    {
+      Mechanism * mech = mechanisms[m];
+      if (inputParams->multiMex)
+      {
+        for (int d=0; d<mech->dependenciesCount; d++)
+        {
+          Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
+          if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO hard coded exception
+          if (parent->getIonIndex() < Branch::MechanismsGraph::IonIndex::size_writeable_ions)
+              mech->dependencyIonIndex = parent->getIonIndex();
+        }
+      }
+      else //not applicable
+      {
+          mech->dependencyIonIndex = Branch::MechanismsGraph::IonIndex::no_ion;
+      }
+    }
     neurox_hpx_unpin;
 }
 

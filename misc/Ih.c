@@ -80,6 +80,7 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__Ih
 #define nrn_cur _nrn_cur__Ih
+#define nrn_cur_parallel _nrn_cur_parallel__Ih
 #define _nrn_current _nrn_current__Ih
 #define nrn_jacob _nrn_jacob__Ih
 #define nrn_state _nrn_state__Ih
@@ -379,17 +380,19 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 #endif
 
 
-void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+    nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
+  }
+
+  void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
+                        mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+  {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
 _cntml_actual = _ml->_nodecount;
 _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
-double * _vec_rhs = _nt->_actual_rhs;
-double * _vec_d = _nt->_actual_d;
-double * _vec_shadow_rhs = _ml->_shadow_rhs;
-double * _vec_shadow_d = _ml->_shadow_d;
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
@@ -398,8 +401,13 @@ double * _vec_shadow_d = _ml->_shadow_d;
   return;
 #endif
 
-double * _nt_data = _nt->_data;
 double * _vec_v = _nt->_actual_v;
+double * _vec_rhs = _nt->_actual_rhs;
+double * _vec_d =   _nt->_actual_d;
+double * _vec_shadow_rhs = _ml->_shadow_rhs;
+double * _vec_shadow_d = _ml->_shadow_d;
+double * _vec_shadow_i = _ml->_shadow_i;
+double * _vec_shadow_didv = _ml->_shadow_didv;
 int stream_id = _nt->stream_id;
 #if LAYOUT == 1 /*AoS*/
 for (_iml = 0; _iml < _cntml_actual; ++_iml) {
@@ -422,11 +430,20 @@ for (;;) { /* help clang-format properly indent */
  	}
  _g = (_g - _rhs)/.001;
  _PRCELLSTATE_G
-         _vec_shadow_rhs[_iml] = -_rhs;
-         _vec_shadow_d[_iml] = +_g;
- 
+ if (acc_rhs_d)
+ {
+    _vec_shadow_rhs[_iml] = -_rhs;
+    _vec_shadow_d[_iml] = +_g;
+ }
+ else
+ {
+    _vec_rhs[_nd_idx] -= _rhs;
+    _vec_d[_nd_idx] += _g;
+ }
 }
- 
+//accumulation of individual contributions (for parallel executions)
+if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
+if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
 void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {

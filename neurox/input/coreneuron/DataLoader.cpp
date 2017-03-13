@@ -463,6 +463,7 @@ void DataLoader::loadData(int argc, char ** argv)
                     mech->sym, mech->type, successor->sym, successor->type);
         }
 
+        if (inputParams->multiMex)
         for (int d=0; d<mech->dependenciesCount; d++)
         {
             Mechanism * parent = getMechanismFromType(mech->dependencies[d]);

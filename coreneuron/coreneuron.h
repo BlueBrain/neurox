@@ -66,11 +66,15 @@ extern mod_parallel_f_t get_cur_parallel_function(const char* sym);
 // from nrnoc/capac.c
 extern void nrn_init_capacitance(struct NrnThread*, struct Memb_list*, int);
 extern void nrn_cur_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_cur_parallel_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type,
+                                         mod_acc_f_t, mod_acc_f_t, void*);
 extern void nrn_alloc_capacitance(double* data, Datum* pdata, int type);
 
 // from nrnoc/eion.c
 extern void nrn_init_ion(struct NrnThread*, struct Memb_list*, int);
 extern void nrn_cur_ion(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_cur_parallel_ion(struct NrnThread* _nt, struct Memb_list* ml, int type,
+                                 mod_acc_f_t, mod_acc_f_t, void*);
 extern void nrn_alloc_ion(double* data, Datum* pdata, int type);
 extern void nrn_second_order_cur(NrnThread* _nt,int secondorder);
 

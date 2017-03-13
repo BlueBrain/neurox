@@ -72,7 +72,6 @@ extern void hoc_register_prop_size(int, int, int);
 static char* mechanism[] = {/*just a template*/
                             "0", "na_ion", "ena", "nao", "nai", 0, "ina", "dina_dv_", 0, 0};
 
-void nrn_cur_ion(NrnThread*, Memb_list*, int);
 void nrn_init_ion(NrnThread*, Memb_list*, int);
 void nrn_alloc_ion(double*, Datum*, int);
 
@@ -286,6 +285,12 @@ double nrn_nernst_coef(int type) {
 
 /* Must be called prior to any channels which update the currents */
 void nrn_cur_ion(NrnThread* nt, Memb_list* ml, int type) {
+  nrn_cur_parallel_ion(nt, ml, type, NULL, NULL, NULL);
+}
+
+void nrn_cur_parallel_ion(NrnThread* nt, Memb_list* ml, int type,
+                          mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+{
     int _cntml_actual = ml->nodecount;
     int _iml;
     double* pd;
@@ -314,6 +319,9 @@ void nrn_cur_ion(NrnThread* nt, Memb_list* ml, int type) {
             erev = nrn_nernst(conci, conco, charge, celsius);
         }
     };
+//accumulation of individual contributions (for parallel executions)
+if (acc_rhs_d)  (*acc_rhs_d) (nt, ml, type, args);
+if (acc_i_didv) (*acc_i_didv)(nt, ml, type, args);
 }
 
 /* Must be called prior to other models which possibly also initialize

@@ -132,13 +132,19 @@ void nrn_init_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
     }
 }
 
-void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
+void nrn_cur_capacitance(NrnThread* nt, Memb_list* ml, int type) {
+    nrn_cur_parallel_capacitance(nt, ml, type, NULL, NULL, NULL);
+}
+
+void nrn_cur_parallel_capacitance (NrnThread* nt, Memb_list* ml, int type,
+                         mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+{
     (void)type;
     int _cntml_actual = ml->nodecount;
     int _cntml_padded = ml->_nodecount_padded;
     int _iml;
     double* vdata;
-    double cfac = .001 * _nt->cj;
+    double cfac = .001 * nt->cj;
 
     /*@todo: verify cfac is being copied !! */
 
@@ -148,7 +154,7 @@ void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
     /* (nrn_update_2d() replaces dvi by dvi-dvx) */
     /* no need to distinguish secondorder */
     int* ni = ml->nodeindices;
-    double* _vec_rhs = _nt->_actual_rhs;
+    double* _vec_rhs = nt->_actual_rhs;
 #if defined(_OPENACC)
     int stream_id = _nt->stream_id;
 #endif
@@ -163,6 +169,9 @@ void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
 #endif
         i_cap = cfac * cm * _vec_rhs[ni[_iml]];
     }
+    //accumulation of individual contributions (for parallel executions)
+    if (acc_rhs_d)  (*acc_rhs_d) (nt, ml, type, args);
+    if (acc_i_didv) (*acc_i_didv)(nt, ml, type, args);
 }
 
 /* the rest can be constructed automatically from the above info*/

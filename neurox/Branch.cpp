@@ -234,17 +234,32 @@ Branch::Branch(offset_t n,
     for (int m=0; m<mechanismsCount; m++)
     {
         int shadowSize = 0;
-        if (mechanisms[m]->membFunc.current
-         && !mechanisms[m]->isIon) //ions have no updates
+        if (mechanisms[m]->membFunc.current && !mechanisms[m]->isIon) //ions have no updates
             shadowSize = this->mechsInstances[m].nodecount;
 
-        this->mechsInstances[m]._shadow_d   = shadowSize==0 ? nullptr : new double[shadowSize];
-        this->mechsInstances[m]._shadow_rhs = shadowSize==0 ? nullptr : new double[shadowSize];
+        Memb_list * ml = &mechsInstances[m];
+        ml->_shadow_d           = shadowSize==0 ? nullptr : new double[shadowSize];
+        ml->_shadow_rhs         = shadowSize==0 ? nullptr : new double[shadowSize];
 
         for (int i=0; i<shadowSize; i++)
         {
-            this->mechsInstances[m]._shadow_d[i]=0;
-            this->mechsInstances[m]._shadow_rhs[i]=0;
+            ml->_shadow_d[i] = 0;
+            ml->_shadow_rhs[i] = 0;
+        }
+
+        if (mechanisms[m]->dependencyIonIndex >= MechanismsGraph::IonIndex::size_writeable_ions)
+            shadowSize = 0; //> only mechanisms with parent ions update I and DI/DV
+
+        ml->_shadow_i            = shadowSize==0 ? nullptr : new double[shadowSize];
+        ml->_shadow_didv         = shadowSize==0 ? nullptr : new double[shadowSize];
+        ml->_shadow_i_offsets    = shadowSize==0 ? nullptr : new int   [shadowSize];
+        ml->_shadow_didv_offsets = shadowSize==0 ? nullptr : new int   [shadowSize];
+        for (int i=0; i<shadowSize; i++)
+        {
+            ml->_shadow_i[i] = 0;
+            ml->_shadow_didv[i] = 0;
+            ml->_shadow_i_offsets[i] = -1;
+            ml->_shadow_didv_offsets[i] = -1;
         }
     }
 
@@ -394,25 +409,6 @@ void Branch::callModFunction(const Mechanism::ModFunction functionId)
                     mechanisms[m]->callModFunction(this, functionId);
                 }
         }
-    }
-
-    //if we ran 'current' function
-    //TODO 4% of exec time is spent here
-    if (functionId == Mechanism::ModFunction::current)
-    for (int m=0; m<mechanismsCount; m++)
-    {
-        // sum individual RHS+D contributions
-        Mechanism * mech = mechanisms[m];
-        if (mech->type == CAP) continue;
-
-        Memb_list * ml = &mechsInstances[m];
-        if (mech->membFunc.current && !mech->isIon)
-            for (int i=0; i<ml->nodecount; i++)
-            {
-                int & n = ml->nodeindices[i];
-                this->nt->_actual_rhs[n] += ml->_shadow_rhs[i];
-                this->nt->_actual_d[n] += ml->_shadow_d[i];
-            }
     }
 }
 
@@ -754,10 +750,9 @@ Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
     }
     this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 
-    this->ionsMutex = new hpx_t[compartmentsCount][IonIndex::size_writeable_ions];
-    for (int c=0; c<compartmentsCount; c++)
-        for (int i=0; i<IonIndex::size_writeable_ions;i++)
-            this->ionsMutex[c][i] = hpx_lco_sema_new(1);
+    this->rhs_d_mutex = hpx_lco_sema_new(1);
+    for (int i=0; i<IonIndex::size_writeable_ions;i++)
+        this->i_didv_mutex[i] = hpx_lco_sema_new(1);
 }
 
 void Branch::MechanismsGraph::initMechsGraph(hpx_t branchHpxAddr)
@@ -772,11 +767,14 @@ Branch::MechanismsGraph::~MechanismsGraph()
 {
     hpx_lco_delete_sync(endLCO);
     hpx_lco_delete_sync(graphLCO);
+
     for (int i=0; i<mechanismsCount; i++)
         hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
 
-    //TODO delete ions Mutex
+    hpx_lco_delete_sync(rhs_d_mutex);
+    for (int i=0; i<IonIndex::size_writeable_ions; i++)
+        hpx_lco_delete_sync(i_didv_mutex[i]);
 }
 
 hpx_action_t Branch::MechanismsGraph::nodeFunction = 0;
@@ -812,30 +810,34 @@ int Branch::MechanismsGraph::nodeFunction_handler(
     neurox_hpx_unpin;
 }
 
-void Branch::MechanismsGraph::lockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
+void Branch::MechanismsGraph::accumulate_rhs_d( NrnThread* nt, Memb_list * ml, int, void* args)
 {
-    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
-    Mechanism *mech = mechanisms[mechanismsMap[mechType]];
-    Mechanism * parent = NULL;
-    for (int p=0; p<mech->dependenciesCount; p++)
+    MechanismsGraph * mg = (MechanismsGraph*) args;
+    hpx_lco_sema_p(mg->rhs_d_mutex);
+    for (int n=0; n<ml->nodecount; n++)
     {
-        parent = mechanisms[mechanismsMap[mech->dependencies[p]]];
-        if (parent->getIonIndex() < IonIndex::size_writeable_ions)
-            hpx_lco_sema_p(mechsGraph->ionsMutex[compartmentId][parent->getIonIndex()]);
+        int & i = ml->nodeindices[n];
+        nt->_actual_rhs[i] += ml->_shadow_rhs[n];
+        nt->_actual_d[i] += ml->_shadow_d[n];
     }
+    hpx_lco_sema_v_sync(mg->rhs_d_mutex);
 }
 
-void Branch::MechanismsGraph::unlockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
+void Branch::MechanismsGraph::accumulate_i_didv(NrnThread* nt,  Memb_list * ml, int type, void* args)
 {
-    MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
-    Mechanism *mech = mechanisms[mechanismsMap[mechType]];
-    Mechanism * parent = NULL;
-    for (int p=0; p<mech->dependenciesCount; p++)
+    MechanismsGraph * mg = (MechanismsGraph*) args;
+    Mechanism * mech = getMechanismFromType(type);
+    assert(mech->dependencyIonIndex<MechanismsGraph::IonIndex::size_writeable_ions);
+    hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]);
+    for (int n=0; n<ml->nodecount; n++)
     {
-        parent = mechanisms[mechanismsMap[mech->dependencies[p]]];
-        if (parent->getIonIndex() < IonIndex::size_writeable_ions) //ie is writeable
-            hpx_lco_sema_v_sync(mechsGraph->ionsMutex[compartmentId][parent->getIonIndex()]);
+        int & i_offset = ml->_shadow_i_offsets[n];
+        int & didv_offset = ml->_shadow_didv_offsets[n];
+        assert(i_offset>=0 && didv_offset>=0);
+        nt->_data[i_offset] += ml->_shadow_i[n];
+        nt->_data[didv_offset] += ml->_shadow_didv[n];
     }
+    hpx_lco_sema_v_sync(mg->i_didv_mutex[mech->dependencyIonIndex]);
 }
 
 void Branch::registerHpxActions()

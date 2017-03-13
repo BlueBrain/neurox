@@ -109,15 +109,15 @@ pnt_receive2_t get_net_receive_function(const char * sym)
 __eof
 
 # output of locked current function
-@mechs_with_cur_lock=('Nap_Et2','NaTa_t','NaTs2_t','SKv3_1','Im','K_Pst', 'K_Tst', 'SK_E2', 'Ca', 'CaDynamics_E2', 'Ca_HVA', 'Ca_LVAst');
+#ions only: 'Nap_Et2','NaTa_t','NaTs2_t','SKv3_1','Im','K_Pst', 'K_Tst', 'SK_E2', 'Ca', 'CaDynamics_E2', 'Ca_HVA', 'Ca_LVAst';
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_cur_lock__${_}(NrnThread*, Memb_list*, int)"} @mechs_with_cur_lock]};
+extern void \n  @{[join ",\n  ", map {"_nrn_cur_parallel__${_}(NrnThread*, Memb_list*, int)"} @suffixes_with_cur]};
 
 mod_parallel_f_t get_cur_parallel_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_lock__${_};"} @mechs_with_cur_lock]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_parallel__${_};"} @suffixes_with_cur]}
   return NULL;
 }
 __eof
