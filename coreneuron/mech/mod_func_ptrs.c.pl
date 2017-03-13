@@ -115,7 +115,7 @@ print <<"__eof";
 
 extern void \n  @{[join ",\n  ", map {"_nrn_cur_lock__${_}(NrnThread*, Memb_list*, int)"} @mechs_with_cur_lock]};
 
-mod_lock_f_t get_cur_lock_function(const char * sym)
+mod_parallel_f_t get_cur_parallel_function(const char * sym)
 {
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_lock__${_};"} @mechs_with_cur_lock]}
   return NULL;

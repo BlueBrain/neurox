@@ -9,12 +9,12 @@ Mechanism::Mechanism(const int type, const short int dataSize,
                      const short int pdataSize, const char isArtificial,
                      const char pntMap, const char isIon,
                      const short int symLength, const char * sym,
-                     const short int dependenciesCount,
-                     const short int successorsCount, const int * successors):
+                     const short int dependenciesCount, const int *dependencies,
+                     const short int successorsCount,   const int *successors):
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), successors(nullptr), sym(nullptr),
+    isIon(isIon), dependencies(nullptr), successors(nullptr), sym(nullptr),
     conci(-1), conco(-1), charge(-1)
 {
     if (pntMap>0)
@@ -30,6 +30,11 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         assert(vdataSize == pdataSize -1); //always?
     }
 
+    if (dependencies != nullptr){
+        assert(dependenciesCount>0);
+        this->dependencies = new int[dependenciesCount];
+        std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
+    }
     if (successors != nullptr){
         assert(successorsCount>0);
         this->successors = new int[successorsCount];
@@ -73,6 +78,16 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 #endif
 };
 
+int Mechanism::getIonIndex()
+{
+    assert(this->sym);
+    if (strcmp("na_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::na;
+    if (strcmp("k_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::k;
+    if (strcmp("ttx_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::ttx;
+    if (strcmp("ca_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::ca;
+    return Branch::MechanismsGraph::IonIndex::no_ion;
+}
+
 hpx_action_t Mechanism::initModFunction = 0;
 void Mechanism::initModFunction_handler(ModFunction *function_ptr, const size_t)
 {}
@@ -98,7 +113,7 @@ void Mechanism::disableMechFunctions()
 
     this->membFunc.alloc = NULL;
     this->membFunc.current = NULL;
-    this->membFunc.current_lock = NULL;
+    this->membFunc.current_parallel = NULL;
     this->membFunc.state = NULL;
     this->membFunc.jacob = NULL;
     this->membFunc.initialize = NULL;
@@ -120,15 +135,15 @@ void Mechanism::registerModFunctions(int type)
     this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
     this->membFunc.destructor = NULL; // memb_func[type].destructor;
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
-    this->membFunc.current_lock = dependenciesCount>0 ? get_cur_lock_function(this->sym) : NULL;
+    this->membFunc.current_parallel = dependenciesCount>0 ? get_cur_parallel_function(this->sym) : NULL;
     this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
-    this->membFunc.thread_cleanup_ = NULL; //memb_func[type].thread_cleanup_;
-    this->membFunc.thread_mem_init_ = NULL; //TODO memb_func[type].thread_mem_init_;
-    this->membFunc.thread_size_ = 0; //TODO memb_func[type].thread_size_;
-    this->membFunc.thread_table_check_ = NULL; //TODO memb_func[type].thread_table_check_;
-    this->nrn_bbcore_read = NULL; //TODO nrn_bbcore_read_[type];
+    this->membFunc.thread_cleanup_ = NULL; //N/A: memb_func[type].thread_cleanup_;
+    this->membFunc.thread_mem_init_ = NULL; //N/A: memb_func[type].thread_mem_init_;
+    this->membFunc.thread_size_ = NULL; //N/A: memb_func[type].thread_size_;
+    this->membFunc.thread_table_check_ = NULL; //N/A memb_func[type].thread_table_check_;
+    this->nrn_bbcore_read = NULL; //N/A nrn_bbcore_read_[type];
 }
 
 void Mechanism::registerCapacitance()
@@ -217,7 +232,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
             {
                 if (this->dependenciesCount>0  //has an (ion) parent
                     && branch->mechsGraph) //parallel execution
-                    membFunc.current_lock(nrnThread, membList, type,
+                    membFunc.current_parallel(nrnThread, membList, type,
                                           Branch::MechanismsGraph::lockIonState,
                                           Branch::MechanismsGraph::unlockIonState,
                                           branch->mechsGraph);

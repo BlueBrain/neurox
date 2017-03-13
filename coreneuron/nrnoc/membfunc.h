@@ -46,14 +46,14 @@ typedef void (*pnt_receive2_t)(struct NrnThread * _nt, Memb_list* _ml, int _iml,
 
 //for locked calls to `current` functions:
 typedef void (*mutex_lock_f_t) (int, int, void*); //type of function to lock & unlock given a compartment index
-typedef void (*mod_lock_f_t)(struct NrnThread*, Memb_list*, int, //same as mod_f_t
+typedef void (*mod_parallel_f_t)(struct NrnThread*, Memb_list*, int, //same as mod_f_t
                          mutex_lock_f_t, mutex_lock_f_t, //lock & unlock ion state
                          void * args); //argument passed to all lock functions
 
 typedef struct Memb_func {
     mod_alloc_t alloc;
     mod_f_t current;
-    mod_lock_f_t current_lock;
+    mod_parallel_f_t current_parallel;
     mod_f_t jacob;
     mod_f_t state;
     mod_f_t initialize;

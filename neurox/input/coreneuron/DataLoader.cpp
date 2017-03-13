@@ -326,7 +326,7 @@ void DataLoader::loadData(int argc, char ** argv)
      * args[2] = array of all mechanisms names (sym)
      */
     std::vector<Mechanism> mechsData;
-    std::vector<int> mechsSuccessorsId;
+    std::vector<int> mechsSuccessorsId, mechsDependenciesId;
     std::vector<char> mechsSym;
 
     //Different nrn_threads[i] have diff mechanisms sets; we'll get the union of all neurons' mechs
@@ -363,14 +363,11 @@ void DataLoader::loadData(int argc, char ** argv)
     {
         auto & tml = *tml_it;
         int type = tml->index;
-        vector<int> successorsIds;
-        int dependenciesCount;
-
+        vector<int> successorsIds, dependenciesIds;
         assert(nrn_watch_check[type] == NULL); //not supported yet
 
         if (inputParams->multiMex)
         {
-          std::set<int> dependenciesIds ; //set of 'unique' dependencies (ignores several dependencies between same mechs pair)
           for (auto & tml2 : uniqueMechs)
           {
             int otherType = tml2->index;
@@ -378,22 +375,27 @@ void DataLoader::loadData(int argc, char ** argv)
             {
               int ptype = memb_func[otherType].dparam_semantics[d];
               if (otherType == type && ptype>0 && ptype<1000)
-                dependenciesIds.insert(ptype); //this mech depends on another one
+                if (std::find(dependenciesIds.begin(), dependenciesIds.end(), ptype) == dependenciesIds.end())
+                  dependenciesIds.push_back(ptype); //parent on dependency graph
               if (otherType!= type && ptype==type)
                 if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
-                  successorsIds.push_back(otherType); //other mech depends on this one
+                  successorsIds.push_back(otherType); //children on dependency graph
             }
           }
-          dependenciesCount = dependenciesIds.size();
         }
         else
         {
-          //all except second element (the one after capacitance) have 1 dependency
-          dependenciesCount = type==CAP ? 0 : 1;
+          //all except last have one successor
           if (tml->index != uniqueMechs.back()->index)
           {
               auto tml_next_it = std::next(tml_it,1);
               successorsIds.push_back((*tml_next_it)->index);
+          }
+          //all except first have one dependency
+          if (tml->index != CAP)
+          {
+              auto tml_prev_it = std::prev(tml_it,1);
+              dependenciesIds.push_back((*tml_prev_it)->index);
           }
         }
 
@@ -405,9 +407,11 @@ void DataLoader::loadData(int argc, char ** argv)
             Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
                        symLength, nullptr, //sym will be serialized below
-                       dependenciesCount, successorsIds.size(), nullptr)); //children will be serialized below
+                       dependenciesIds.size(), nullptr, //parents will be serialized below
+                       successorsIds.size(), nullptr)); //children will be serialized below
 
         mechsSuccessorsId.insert(mechsSuccessorsId.end(), successorsIds.begin(), successorsIds.end());
+        mechsDependenciesId.insert(mechsDependenciesId.end(), dependenciesIds.begin(), dependenciesIds.end());
         mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
     }
 
@@ -420,6 +424,7 @@ void DataLoader::loadData(int argc, char ** argv)
     printf("neurox::setMechanisms...\n", mechsData.size());
     hpx_bcast_rsync(neurox::setMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
+                    mechsDependenciesId.data(), sizeof(int)* mechsDependenciesId.size(),
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
                     mechsSym.data(), sizeof(char)*mechsSym.size());
 
@@ -441,9 +446,9 @@ void DataLoader::loadData(int argc, char ** argv)
             getMechanismFromType(CAP)->sym, CAP);
       for (int m =0; m< mechanismsCount; m++)
       {
-        Mechanism * mech = mechanisms[m];
+        Mechanism * mech = neurox::mechanisms[m];
         if (mech->pntMap > 0) //if is point process make it dotted
-            fprintf(fileMechs, "\"%s (%d)\" [style=dotted];\n", mech->sym, mech->type);
+            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->sym, mech->type);
 
         if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
             fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
@@ -451,9 +456,21 @@ void DataLoader::loadData(int argc, char ** argv)
         if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
             fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->sym, mech->type, "end");
 
-        for (int d=0; d<mech->successorsCount; d++)
-            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",  mech->sym, mech->type,
-                    getMechanismFromType(mech->successors[d])->sym, getMechanismFromType(mech->successors[d])->type);
+        for (int s=0; s<mech->successorsCount; s++)
+        {
+            Mechanism * successor = getMechanismFromType(mech->successors[s]);
+            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
+                    mech->sym, mech->type, successor->sym, successor->type);
+        }
+
+        for (int d=0; d<mech->dependenciesCount; d++)
+        {
+            Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
+            if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO: hardcoded exception
+            if (parent->getIonIndex() < Branch::MechanismsGraph::IonIndex::size_writeable_ions) //ie is writeable
+                fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
+                        mech->sym, mech->type, parent->sym, parent->type);
+        }
       }
       fprintf(fileMechs, "}\n");
       fclose(fileMechs);

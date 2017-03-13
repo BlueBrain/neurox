@@ -201,7 +201,7 @@ Branch::Branch(offset_t n,
         this->nt->_ml_list[mech->type] = &instances;
         if (mech->isIon) ionsCount++;
     }
-    assert(ionsCount==MechanismsGraph::IonIndex::size+1); //ttx excluded (no writes to ttx state)
+    assert(ionsCount==MechanismsGraph::IonIndex::size_writeable_ions+1); //ttx excluded (no writes to ttx state)
 
     //vecplay
     nt->n_vecplay = vecplayCount;
@@ -532,7 +532,7 @@ void Branch::backwardEulerStep()
     fixedPlayContinuous();
     setupTreeMatrix();
     solveTreeMatrix();
-    nrn_second_order_cur(this->nt, inputParams->secondorder ); //TODO can this be parallelized??
+    nrn_second_order_cur(this->nt, inputParams->secondorder );
 
     ////// fadvance_core.c : update() / Branch::updateV
     floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
@@ -544,7 +544,7 @@ void Branch::backwardEulerStep()
     ////// fadvance_core.::nrn_fixed_step_lastpart()
     //callModFunction(Mechanism::ModFunction::jacob);
     t += .5*dt;
-    fixedPlayContinuous(); //TODO an alternative would be to add all vecplay continuous events to the queue at the beginning
+    fixedPlayContinuous();
     callModFunction(Mechanism::ModFunction::state);
     callModFunction(Mechanism::ModFunction::after_solve);
     callModFunction(Mechanism::ModFunction::before_step);
@@ -754,9 +754,9 @@ Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
     }
     this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 
-    this->ionsMutex = new hpx_t[compartmentsCount][IonIndex::size];
+    this->ionsMutex = new hpx_t[compartmentsCount][IonIndex::size_writeable_ions];
     for (int c=0; c<compartmentsCount; c++)
-        for (int i=0; i<IonIndex::size;i++)
+        for (int i=0; i<IonIndex::size_writeable_ions;i++)
             this->ionsMutex[c][i] = hpx_lco_sema_new(1);
 }
 
@@ -814,26 +814,28 @@ int Branch::MechanismsGraph::nodeFunction_handler(
 
 void Branch::MechanismsGraph::lockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
 {
-    //TODO accept several parents
     MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
-    int & m = mechType;
-    int ionIndex = m==123 || m==126 || m==129 ? IonIndex::na
-                : (m==147 || m==74 || m==94 || m==101 || m==144 ? IonIndex::k
-                : (m==45 || m==32 || m==35 || m==44 ? IonIndex::ca : -1));
-    assert(ionIndex!=-1);
-    hpx_lco_sema_p(mechsGraph->ionsMutex[compartmentId][ionIndex]);
+    Mechanism *mech = mechanisms[mechanismsMap[mechType]];
+    Mechanism * parent = NULL;
+    for (int p=0; p<mech->dependenciesCount; p++)
+    {
+        parent = mechanisms[mechanismsMap[mech->dependencies[p]]];
+        if (parent->getIonIndex() < IonIndex::size_writeable_ions)
+            hpx_lco_sema_p(mechsGraph->ionsMutex[compartmentId][parent->getIonIndex()]);
+    }
 }
 
 void Branch::MechanismsGraph::unlockIonState(int compartmentId, int mechType, void * mechsGraph_ptr)
 {
-    //TODO accept several parents
     MechanismsGraph * mechsGraph = (MechanismsGraph*) (void*) mechsGraph_ptr;
-    int & m = mechType;
-    int ionIndex = m==123 || m==126 || m==129 ? IonIndex::na
-                : (m==147 || m==74 || m==94 || m==101 || m==144 ? IonIndex::k
-                : (m==45 || m==32 || m==35 || m==44 ? IonIndex::ca : -1));
-    assert(ionIndex!=-1);
-    hpx_lco_sema_v_sync(mechsGraph->ionsMutex[compartmentId][ionIndex]);
+    Mechanism *mech = mechanisms[mechanismsMap[mechType]];
+    Mechanism * parent = NULL;
+    for (int p=0; p<mech->dependenciesCount; p++)
+    {
+        parent = mechanisms[mechanismsMap[mech->dependencies[p]]];
+        if (parent->getIonIndex() < IonIndex::size_writeable_ions) //ie is writeable
+            hpx_lco_sema_v_sync(mechsGraph->ionsMutex[compartmentId][parent->getIonIndex()]);
+    }
 }
 
 void Branch::registerHpxActions()

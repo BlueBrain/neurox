@@ -62,7 +62,7 @@ class Neuron
         ~TimeDependencies();
 
         //time dependency methods
-        void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid); //TODO remove gid parameter
+        void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
         void updateTimeDependency(neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();

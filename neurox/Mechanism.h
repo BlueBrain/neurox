@@ -18,7 +18,7 @@ class Mechanism
     Mechanism(const int type, const short dataSize, const short pdataSize,
               const char isArtificial, const char pntMap, const char isIon,
               const short int symLengh=0, const char * sym = nullptr,
-              const short int depedenciesCount=0,
+              const short int depedenciesCount=0, const int *dependencies=nullptr,
               const short int successorsCount=0, const int *successors=nullptr);
 
     int type;
@@ -28,6 +28,7 @@ class Mechanism
     short symLength; ///> length of the name of the mechanism;
     char pntMap, isArtificial	;
     char isIon;
+    int * dependencies; ///> mechanism id for dependency mechanisms
     int * successors; ///> mechanism id for successors mechanisms
 
     //For ionic mechanisms
@@ -67,6 +68,8 @@ class Mechanism
         netReceive = 17,
         netReceiveInit = 18
     };
+
+    int getIonIndex();
 
     void callModFunction(const void * branch,
                          const Mechanism::ModFunction functionId,

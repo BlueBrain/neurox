@@ -62,13 +62,15 @@ class Branch
         static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
         static int nodeFunction_handler(const int * mechType_ptr, const size_t);
 
-        enum IonIndex {na=0, k=1, ca=2, size=3}; //ttx not supported
-        hpx_t (*ionsMutex)[IonIndex::size]; ///> one mutex per ion type per compartment
+        enum IonIndex {na=0, k=1, ca=2, size_writeable_ions=3, ttx=3, no_ion=4}; //ttx not write-able
+        hpx_t (*ionsMutex)[IonIndex::size_writeable_ions]; ///> one mutex per ion type per compartment
 
         static void lockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
         static void unlockIonState(int compartmentId, int ionIndex, void * mechsGraph_ptr);
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
+    hpx_t rhs_d_mutex;
+    hpx_t ion_mutex[MechanismsGraph::IonIndex::size_writeable_ions];
 
     class BranchTree
     {

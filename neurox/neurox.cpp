@@ -57,29 +57,33 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     /**
      * nargs=3 where:
      * args[0] = array of all mechanisms info
-     * args[1] = array of all mechanisms successors (children in mechanisms tree)
-     * args[2] = array of all mechanisms names (sym)
+     * args[1] = array of all mechanisms dependencies (parents in mechanisms tree)
+     * args[2] = array of all mechanisms successors (children in mechanisms tree)
+     * args[3] = array of all mechanisms names (sym)
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==3);
+    assert(nargs==4);
     mechanismsCount = sizes[0]/sizeof(Mechanism);
     mechanisms = new Mechanism*[mechanismsCount];
 
-    int offsetSuccessors=0;
+    int offsetSuccessors=0, offsetDependencies=0;
     int offsetSym=0;
     int maxMechType=-1;
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism & mech = ((Mechanism*) args[0])[m];
-        int * successorsIds = mech.successorsCount == 0 ? nullptr : &((int*) args[1])[offsetSuccessors];
-        char * sym = mech.symLength == 0 ? nullptr : &((char*) args[2])[offsetSym];
+        int * dependenciesIds = mech.dependenciesCount == 0 ? nullptr : &((int*) args[1])[offsetDependencies];
+        int * successorsIds = mech.successorsCount == 0 ? nullptr : &((int*) args[2])[offsetSuccessors];
+        char * sym = mech.symLength == 0 ? nullptr : &((char*) args[3])[offsetSym];
         mechanisms[m] = new Mechanism(
                     mech.type, mech.dataSize, mech.pdataSize,
                     mech.isArtificial, mech.pntMap, mech.isIon,
                     mech.symLength, sym,
-                    mech.dependenciesCount, mech.successorsCount, successorsIds);
+                    mech.dependenciesCount, dependenciesIds,
+                    mech.successorsCount, successorsIds);
         offsetSuccessors +=  mech.successorsCount;
+        offsetDependencies +=  mech.dependenciesCount;
         offsetSym += mech.symLength;
         if (mech.type > maxMechType)
             maxMechType = mech.type;
