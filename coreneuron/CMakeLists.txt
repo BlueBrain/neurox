@@ -34,8 +34,9 @@ FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp")
 FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*")
 file(GLOB_RECURSE coreneuron_cuda_files "*.cu")
 
-# Compile and include MOD files
+set(CMAKE_C_STANDARD 99) #C99
 
+# Compile and include MOD files
 find_program(MOD2C mod2c_core)
 if(MOD2C STREQUAL "MOD2C-NOTFOUND")
 message(FATAL_ERROR "Unable to locate mod2c_core executable")
