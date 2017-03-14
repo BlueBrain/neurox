@@ -135,7 +135,7 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
     double dt = b->nt->_dt;
     if (b->soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
     {
-        b->soma->sendSteppingNotification(b->nt->_t, dt);
+        b->soma->timeDependencies->sendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
         b->soma->timeDependencies->waitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
     }
     b->callModFunction(Mechanism::ModFunction::threadTableCheck);

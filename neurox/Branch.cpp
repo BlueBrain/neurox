@@ -418,7 +418,7 @@ int Branch::addSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs == (inputParams->algorithm == Algorithm::BackwardEulerWithFixedCommStep ? 2 : 3));
+    assert(nargs == (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping ? 3 : 2));
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
@@ -434,7 +434,7 @@ int Branch::addSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (inputParams->algorithm != Algorithm::BackwardEulerWithFixedCommStep)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
     {
         spike_time_t maxTime = *(const spike_time_t*) args[2];
         local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
@@ -501,7 +501,7 @@ void Branch::backwardEulerStep()
     if (soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
     {
         //inform time dependants that must be notified in this step
-        soma->sendSteppingNotification(t, dt);
+        soma->timeDependencies->sendSteppingNotification(t, dt, this->soma->gid, this->soma->synapses);
         //wait until Im sure I can start and finalize this step at t+dt
         soma->timeDependencies->waitForTimeDependencyNeurons(t, dt, this->soma->gid);
     }
@@ -558,20 +558,22 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     for (int step=0; step<*steps_ptr; step++)
     {
+        local->backwardEulerStep();
+
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
-#endif
-        local->backwardEulerStep();
-#if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::compareBranch2(local);
+        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //for step-after-step comparison
 #endif
-
-/* #if !defined(NDEBUG) && defined(CORENEURON_H)
-        Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder);
-#endif */
     }
     if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
         printf("-- neuron %d finished! \n", local->soma->gid);
+
+    //end of communication step, wait for all synapses to be delivered
+    if (inputParams->algorithm == Algorithm::BackwardEulerAsyncFixedCommStep)
+        if (local->soma->commStepAllSpikesLco != HPX_NULL) //was set/used once
+           hpx_lco_wait(local->soma->commStepAllSpikesLco); //wait if needed
+
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }

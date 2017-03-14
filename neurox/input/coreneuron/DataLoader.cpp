@@ -859,9 +859,9 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
-                if (inputParams->algorithm != Algorithm::BackwardEulerWithFixedCommStep)
+                if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
                   local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
-                       inputParams->tstart+minDelay*Neuron::Synapse::notificationIntervalRatio, true);
+                       inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio, true);
             }
         }
     }
