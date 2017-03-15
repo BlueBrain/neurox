@@ -318,10 +318,6 @@ bool NetCvode::deliver_event(double til, NrnThread* nt) {
     if ((q = p[nt->id].tqe_->atomic_dq(til)) != 0) {
         DiscreteEvent* de = (DiscreteEvent*)q->data_;
         double tt = q->t_;
-
-        //if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed (issue 9, CoreNeuron github)
-        //{   assert(tt >= til-0.5*nt->_dt && tt<=til); } //(issue 10, Coreneuron github)
-
         delete q;
 #if PRINT_EVENT
         if (print_event_) {

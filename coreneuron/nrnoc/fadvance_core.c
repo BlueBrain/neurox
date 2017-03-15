@@ -90,10 +90,7 @@ void nrn_fixed_step_group_minimal(int n) {
     step_group_begin = 0;
     step_group_end = 0;
     while (step_group_end < step_group_n) {
-        //nrn_multithread_job(nrn_fixed_step_group_thread);
-        for (int n=0; n<nrn_nthread; n++)
-             nrn_fixed_step_thread(&nrn_threads[n]);
-        //TODO Bruno added this here to make it single-threaded
+        nrn_multithread_job(nrn_fixed_step_group_thread);
 #if NRNMPI
         nrn_spike_exchange(nrn_threads);
 #endif

@@ -1042,7 +1042,8 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
         ml->_shadow_i_offsets = new int[ml->nodecount];
         ml->_shadow_didv = new double[ml->nodecount];
         ml->_shadow_didv_offsets = new int[ml->nodecount];
-        for (int k=0; k<tml->ml->nodecount; k++)
+        int k=-1;
+        for (k=0; k<tml->ml->nodecount; k++)
         {
             ml->_shadow_d[k] = 0;
             ml->_shadow_rhs[k] = 0;
