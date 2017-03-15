@@ -56,9 +56,9 @@ option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
 option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
 option(DISABLE_NRN_TIMEOUT "Disable nrn_timeout implementation" OFF)
 option(ENABLE_REPORTINGLIB "Enable use of ReportingLib for soma reports" OFF)
-option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" OFF)
-option(ENABLE_MPI "Enable MPI-based execution" OFF)
-option(ENABLE_SOA "Enable SoA Memory Layout" ON)
+option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur, pnt_receive2, cur_parallel and BeforeAfter functions of mod-based mechanisms" ON)
+option(ENABLE_MPI "Enable MPI-based execution" ON)
+option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
 option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
@@ -68,7 +68,7 @@ set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mecha
 set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
 
 # test compilations
-option(UNIT_TESTS "Enable unit tests compilation and execution" ON)
+option(UNIT_TESTS "Enable unit tests compilation and execution" OFF)
 option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
