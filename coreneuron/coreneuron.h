@@ -48,10 +48,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif
 
-// TODO add external variables required by mechanisms
-// extern double celsius;
-// extern int nrn_ion_global_map_size;
-// extern double** nrn_ion_global_map;
+// global variables required by mechanisms
+extern double celsius;
+extern int nrn_ion_global_map_size;
+extern double** nrn_ion_global_map;
 
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c

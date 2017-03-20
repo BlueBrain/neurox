@@ -421,7 +421,31 @@ void DataLoader::loadData(int argc, char ** argv)
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
-    printf("neurox::setMechanisms...\n", mechsData.size());
+    printf("neurox::setIonGlobalMap...\n", mechsData.size());
+    vector<unsigned char> mechHasEntryInIonMap;
+    vector<double> mechsMapInfo;
+    for (int type=0; type<nrn_ion_global_map_size; type++)
+    {
+        if (nrn_ion_global_map[type]==NULL)
+            mechHasEntryInIonMap.push_back(0);
+        else
+        {
+            mechHasEntryInIonMap.push_back(1);
+            mechsMapInfo.push_back(nrn_ion_global_map[type][0]);
+            mechsMapInfo.push_back(nrn_ion_global_map[type][1]);
+            mechsMapInfo.push_back(nrn_ion_global_map[type][2]);
+        }
+    }
+
+    printf("neurox::setCoreneuronGlobalVars...\n");
+    hpx_bcast_rsync(neurox::setCoreneuronGlobalVars,
+                    &celsius, sizeof(double),
+                    &nrn_ion_global_map_size, sizeof(int),
+                    mechHasEntryInIonMap.data(), sizeof(unsigned char)*mechHasEntryInIonMap.size(),
+                    mechsMapInfo.data(), sizeof(double)*mechsMapInfo.size());
+    assert(nrn_ion_global_map!= NULL);
+
+    printf("neurox::setMechanisms...\n");
     hpx_bcast_rsync(neurox::setMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                     mechsDependenciesId.data(), sizeof(int)* mechsDependenciesId.size(),

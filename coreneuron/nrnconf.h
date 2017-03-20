@@ -57,7 +57,6 @@ typedef char Symbol;
 extern "C" {
 #endif
 
-extern double celsius;
 extern double t, dt;
 extern int rev_dt;
 extern int secondorder;

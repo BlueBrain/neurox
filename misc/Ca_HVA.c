@@ -7,14 +7,11 @@
 #undef PI
  
 #include "coreneuron/nrnoc/md1redef.h"
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnoc/multicore.h"
+#include "coreneuron/coreneuron.h"
 
 #if defined(_OPENACC) && !defined(DISABLE_OPENACC)
 #include "coreneuron/nrniv/nrn_acc_manager.h"
-
 #endif
-#include "coreneuron/utils/randoms/nrnran123.h"
 
 #include "coreneuron/nrnoc/md2redef.h"
 #if METHOD3

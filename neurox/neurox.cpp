@@ -118,6 +118,68 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     neurox_hpx_unpin;
 }
 
+hpx_action_t setCoreneuronGlobalVars = 0;
+int setCoreneuronGlobalVars_handler(const int nargs, const void *args[], const size_t sizes[])
+{
+    /**
+     * nargs=3 where:
+     * args[0] = celsius
+     * args[1] = nrn_ion_global_map_size
+     * args[2] = flag if types has entry in nrn_ion_global_map, 1 or 0 (ie not null)
+     * args[3] = nrn_ion_global_map
+     */
+
+    neurox_hpx_pin(uint64_t);
+    assert(nargs==4);
+    double new_celsius = *(double*) args[0];
+    int mechsCount = *(int*) args[1];
+    unsigned char * mechHasEntryInIonMap = (unsigned char*) args[2];
+    double * ionGlobalMapInfo = (double*) args[3];
+
+    int mechsOffset=0;
+    if (nrn_ion_global_map!=NULL) //this machine has the data, compare
+    {
+        assert (celsius == new_celsius);
+        assert (mechsCount == nrn_ion_global_map_size);
+        for (int i=0; i<mechsCount; i++)
+        {
+            if (mechHasEntryInIonMap[i]==0)
+            {
+                assert (nrn_ion_global_map[i] == NULL);
+            }
+            else
+            {
+                assert (mechHasEntryInIonMap[i]==1);
+                assert (nrn_ion_global_map[i][0] = ionGlobalMapInfo[mechsOffset+0]);
+                assert (nrn_ion_global_map[i][1] = ionGlobalMapInfo[mechsOffset+1]);
+                assert (nrn_ion_global_map[i][2] = ionGlobalMapInfo[mechsOffset+2]);
+                mechsOffset += 3;
+            }
+        }
+    }
+    else //this machine does not have the data, create it
+    {
+        celsius = new_celsius;
+        nrn_ion_global_map = new double*[mechsCount];
+        for (int i=0; i<mechsCount; i++)
+        {
+            if (!mechHasEntryInIonMap[i])
+            {
+                nrn_ion_global_map[i] = NULL;
+            }
+            else
+            {
+                nrn_ion_global_map[i] = new double[3];
+                nrn_ion_global_map[i][0] = ionGlobalMapInfo[mechsOffset+0];
+                nrn_ion_global_map[i][1] = ionGlobalMapInfo[mechsOffset+1];
+                nrn_ion_global_map[i][2] = ionGlobalMapInfo[mechsOffset+2];
+                mechsOffset+=3;
+            }
+        }
+    }
+    neurox_hpx_unpin;
+}
+
 hpx_action_t main = 0;
 static int main_handler(char ***argv, size_t argc)
 {
@@ -241,6 +303,7 @@ void registerHpxActions()
     neurox_hpx_register_action(2,neurox::setNeurons);
     neurox_hpx_register_action(1,neurox::setInputParams);
     neurox_hpx_register_action(2,neurox::setMechanisms);
+    neurox_hpx_register_action(2,neurox::setCoreneuronGlobalVars);
 }
 
 }; //namespace neurox

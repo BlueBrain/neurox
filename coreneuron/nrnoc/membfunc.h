@@ -92,9 +92,6 @@ typedef struct BAMech {
 } BAMech;
 extern BAMech** bamech_;
 
-extern int nrn_ion_global_map_size;
-extern double** nrn_ion_global_map;
-
 extern Memb_func* memb_func;
 extern int n_memb_func;
 #define NRNPOINTER                                                            \

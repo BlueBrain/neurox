@@ -162,8 +162,8 @@ void Mechanism::registerCapacitance()
 void Mechanism::registerIon()
 {
     assert(this->isIon);
-
     double ** ion_global_map = nrn_ion_global_map; //get_ion_global_map();
+    assert(ion_global_map);
     conci  = (floble_t) ion_global_map[type][0];
     conco  = (floble_t) ion_global_map[type][1];
     charge = (floble_t) ion_global_map[type][2];

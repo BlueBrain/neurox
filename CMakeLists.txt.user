@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.5.1, 2017-03-14T11:44:29. -->
+<!-- Written by QtCreator 3.5.1, 2017-03-20T11:37:55. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -210,7 +210,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">coreneuron_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/10/data -o /home/bmagalha/Workspace/PCP_circuits/10/data -e 5 -t 0.025 -k 0</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/PCP_circuits/10/data -o /home/bmagalha/Workspace/PCP_circuits/10/data -e 5 -t 0.025</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"></value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
