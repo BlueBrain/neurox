@@ -84,35 +84,37 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
     return ppi;
 }
 
-hpx_action_t DataLoader::createNeuron = 0;
-int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
+
+
+int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
 {
-        neurox_hpx_pin(Branch);
-        NrnThread & nt = nrn_threads[*nrnThreadId_ptr];
-        assert(nt.id == *nrnThreadId_ptr);
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt.id);
+        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
 
         #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
         if (inputParams->outputNetconsDot)
             fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", neuronId);
         #endif
 
+
         //======= 1 - reconstructs matrix (solver) values =======
 
+
         deque<Compartment*> compartments;
-        for (int n=0; n<nt.end; n++)
+        for (int n=0; n<nt->end; n++)
             compartments.push_back( new Compartment(
-                (offset_t) n, (floble_t) nt._actual_a[n],
-                (floble_t) nt._actual_b[n], (floble_t) nt._actual_d[n],
-                (floble_t) nt._actual_v[n], (floble_t) nt._actual_rhs[n],
-                (floble_t) nt._actual_area[n],(offset_t) nt._v_parent_index[n]));
+                (offset_t) n, (floble_t) nt->_actual_a[n],
+                (floble_t) nt->_actual_b[n], (floble_t) nt->_actual_d[n],
+                (floble_t) nt->_actual_v[n], (floble_t) nt->_actual_rhs[n],
+                (floble_t) nt->_actual_area[n],(offset_t) nt->_v_parent_index[n]));
+
 
         //reconstructs parents tree
-        for (int n=1; n<nt.end; n++) //exclude top (no parent)
+        for (int n=1; n<nt->end; n++) //exclude top (no parent)
         {
-            Compartment * parentCompartment = compartments.at(nt._v_parent_index[n]);
+            Compartment * parentCompartment = compartments.at(nt->_v_parent_index[n]);
             parentCompartment->addChild(compartments.at(n));
         }
+
 
         if (inputParams->outputCompartmentsDot)
         {
@@ -126,13 +128,15 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
           fclose(fileCompartments);
         }
 
+
         //======= 2 - reconstructs mechanisms instances ========
 
+
         unsigned vdataTotalOffset=0;
-        unsigned dataTotalOffset=nt.end*6;
+        unsigned dataTotalOffset=nt->end*6;
         unsigned pointProcTotalOffset=0;
         map<offset_t, pair<int,offset_t>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
-        for (NrnThreadMembList* tml = nt.tml; tml!=NULL; tml = tml->next) //For every mechanism
+        for (NrnThreadMembList* tml = nt->tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
             int dataOffset  = 0;
@@ -148,32 +152,36 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
                             make_pair(type, (offset_t) ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
-                void ** vdata = &nt._vdata[vdataTotalOffset];
+                void ** vdata = &nt->_vdata[vdataTotalOffset];
                 Compartment * compartment = compartments.at(ml->nodeindices[n]);
                 assert(compartment->id == ml->nodeindices[n]);
                 for (int i=0; i<mech->dataSize; i++)
-                {   assert(data[i]==nt._data[dataTotalOffset+i]); }
+                {   assert(data[i]==nt->_data[dataTotalOffset+i]); }
+
 
                 if (mech->pntMap > 0) //vdata
                 {
                     assert((type==IClamp && mech->pdataSize==2 && mech->vdataSize==1)
                         ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3 && mech->vdataSize==2));
 
+
                     //pdata[0]: offset in data (area)
                     //pdata[1]: offset for point proc in vdata[0]
                     //pdata[2]: offset for RNG in vdata[1]
 
+
                     //position vdata[0]: Point_proc
-                    Point_process * ppn = &nt.pntprocs[pointProcTotalOffset++];
-                    assert(nt._vdata[pdata[1]] == ppn);
+                    Point_process * ppn = &nt->pntprocs[pointProcTotalOffset++];
+                    assert(nt->_vdata[pdata[1]] == ppn);
                     Point_process * pp = (Point_process*) vdata[0];
                     compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
+
 
                     //position vdata[1]: RNG (if any)
                     if (mech->vdataSize==2)
                     {
                         assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
-                        assert(nt._vdata[pdata[2]] == vdata[1]);
+                        assert(nt->_vdata[pdata[2]] == vdata[1]);
                         nrnran123_State * RNG = (nrnran123_State*) vdata[1];
                         compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
                     }
@@ -194,29 +202,33 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
             }
         }
 
+
         //======= 3 - reconstruct NetCons =====================
 
+
         map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron id)
-        for (int n = 0; n < nt.n_netcon; ++n) {
-            NetCon* nc = nt.netcons + n;
+        for (int n = 0; n < nt->n_netcon; ++n) {
+            NetCon* nc = nt->netcons + n;
             assert(netcon_srcgid.size()>0); //if size==0, then setup_cleanup() in nrn_setup.cpp was called
-            assert(nt.id < netcon_srcgid.size());
-            assert(netcon_srcgid.at(nt.id)!=NULL);
-            int srcgid = netcon_srcgid[nt.id][n];
+            assert(nt->id < netcon_srcgid.size());
+            assert(netcon_srcgid.at(nt->id)!=NULL);
+            int srcgid = netcon_srcgid[nt->id][n];
             assert(srcgid>=0); //gids can be negative! this is a reminder that i should double-check when they happen
             int mechtype = nc->target_->_type;
             int weightscount = pnt_receive_size[mechtype];
             size_t weightsOffset = nc->u.weight_index_;
-            assert(weightsOffset < nt.n_weight);
+            assert(weightsOffset < nt->n_weight);
+
 
             int nodeid = nrn_threads[nc->target_->_tid]._ml_list[mechtype]->nodeindices[nc->target_->_i_instance];
             Compartment * comp = compartments.at(nodeid);
             NetConX * nx = new NetConX(mechtype, (offset_t) nc->target_->_i_instance,
                                        (floble_t) nc->delay_, weightsOffset, weightscount, nc->active_);
-            double * weights = &nt.weights[weightsOffset];
+            double * weights = &nt->weights[weightsOffset];
             comp->addNetCon(srcgid, nx, weights);
             netcons[srcgid].push_back(nx);
         }
+
 
         if (inputParams->outputNetconsDot)
         {
@@ -241,6 +253,7 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
           #endif
         }
 
+
         for (auto nc : netcons)
         {
             for (auto ncv : nc.second)
@@ -249,35 +262,40 @@ int DataLoader::createNeuron_handler(const int *nrnThreadId_ptr, const size_t)
         }
         netcons.clear();
 
+
         //======= 4 - reconstruct VecPlayContinuous events =======
-        for (int v=0; v<nt.n_vecplay; v++)
+        for (int v=0; v<nt->n_vecplay; v++)
         {
-            VecPlayContinuous *vec = (VecPlayContinuous*) nt._vecplay[v];
+            VecPlayContinuous *vec = (VecPlayContinuous*) nt->_vecplay[v];
             //discover node, mechanism and data offset id that *pd points to
-            PointProcInfo ppi = getPointProcInfoFromDataPointer(&nt, vec->pd_);
+            PointProcInfo ppi = getPointProcInfoFromDataPointer(nt, vec->pd_);
             ppi.size = vec->y_->size();
             compartments.at(ppi.nodeId)->addVecPlay(vec->t_->data(), vec->y_->data(), ppi);
         }
 
+
         //======= 5 - recursively create branches tree ===========
 
-        floble_t APthreshold = (floble_t) nrn_threads[nt.id].presyns[0].threshold_;
-        int thvar_index = nrn_threads[nt.id].presyns[0].thvar_index_;
 
-        createBranch(nt.id, target, compartments, compartments.at(0),
+        floble_t APthreshold = (floble_t) nrn_threads[nt->id].presyns[0].threshold_;
+        int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
+
+
+        createBranch(nt->id, target, compartments, compartments.at(0),
                      (size_t) compartments.size(), offsetToInstance);
+
 
         hpx_call_sync(target, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
                       &APthreshold, sizeof(floble_t),
                       &thvar_index, sizeof(thvar_index));
 
+
         for (auto c : compartments)
             delete c;
         for (auto nc: netcons)
             for (auto nvc : nc.second)
                 delete nvc;
-    neurox_hpx_unpin;
 }
 
 void DataLoader::cleanData()
@@ -519,9 +537,12 @@ void DataLoader::loadData(int argc, char ** argv)
     }
 
     printf("neurox::DataLoader::createNeurons...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::createNeuron, NULL, 0, &i, sizeof(i) );
-    }, 0, neuronsCount, NULL);
+    for (int n=0; n<neurox::neuronsCount; n++)
+    {
+        NrnThread * nt = &nrn_threads[n];
+        hpx_t target = getNeuronAddr(n);
+        createNeuron(nt, target);
+    }
 
     if (inputParams->outputNetconsDot)
     {
@@ -909,7 +930,6 @@ int DataLoader::addSynapse_handler(
 
 void DataLoader::registerHpxActions()
 {
-    neurox_hpx_register_action(1, DataLoader::createNeuron);
     neurox_hpx_register_action(2, DataLoader::addSynapse);
     neurox_hpx_register_action(0, DataLoader::initSynapsesAndTimeDependencies);
 }

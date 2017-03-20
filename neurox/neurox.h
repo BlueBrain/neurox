@@ -3,6 +3,13 @@
 //Coreneuron core datatypes
 #include "coreneuron/coreneuron.h"
 
+//typedefs
+typedef double floble_t;    ///> float or double (v, matrix values and mechanisms)
+typedef double spike_time_t;///> spikes timing unit
+typedef int offset_t;       ///> ushort or uint (p vector, nodes indices)
+typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by types.h)
+                            // (neuron id is past as -1 on input params parcelgid argument)
+
 //Core datatypes
 #include "neurox/hpx.h"
 #include "neurox/Event.h"
