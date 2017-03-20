@@ -557,9 +557,14 @@ void DataLoader::loadData(int argc, char ** argv)
     //all neurons have been created, every branch will inform pre-syn ids that they are connected
     assert(allNeuronsIdsSet.size() == neuronsCount);
     printf("neurox::DataLoader::initSynapsesAndTimeDependencies...\n", neuronsCount);
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(getNeuronAddr(i), DataLoader::initSynapsesAndTimeDependencies, NULL, 0 );
-    }, 0, neuronsCount, NULL);
+    std::vector<neuron_id_t> neuronGids;
+    for (int n=0; n<neurox::neuronsCount; n++)
+        neuronGids.push_back( getNeuronIdFromNrnThreadId(n));
+    hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
+    for (int i=0; i<neuronsCount; i++)
+        hpx_call(getNeuronAddr(i), DataLoader::initSynapsesAndTimeDependencies,
+                 mainLCO, neuronGids.data(), sizeof(neuron_id_t)*neuronGids.size());
+    hpx_lco_wait_reset(mainLCO);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE==true
     if (inputParams->outputNetconsDot)
@@ -863,10 +868,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 }
 
 hpx_action_t DataLoader::initSynapsesAndTimeDependencies = 0;
-int DataLoader::initSynapsesAndTimeDependencies_handler()
+int DataLoader::initSynapsesAndTimeDependencies_handler
+    (neuron_id_t * neuronGids, size_t size)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::initSynapsesAndTimeDependencies);
+    neurox_hpx_recursive_branch_async_call(DataLoader::initSynapsesAndTimeDependencies, neuronGids, size);
 
 #if NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS==true
     if (inputParams->outputNetconsDot)
@@ -876,7 +882,7 @@ int DataLoader::initSynapsesAndTimeDependencies_handler()
     const floble_t impossiblyLargeDelay = 99999999;
     for (int i=0; i < neurox::neuronsCount; i++)
     {
-        neuron_id_t srcGid = getNeuronIdFromNrnThreadId(i);
+        neuron_id_t srcGid = neuronGids[i];
 
         //if I'm connected to it (ie is not artificial or non-existent)
         if (local->netcons.find(srcGid) != local->netcons.end())
@@ -931,5 +937,5 @@ int DataLoader::addSynapse_handler(
 void DataLoader::registerHpxActions()
 {
     neurox_hpx_register_action(2, DataLoader::addSynapse);
-    neurox_hpx_register_action(0, DataLoader::initSynapsesAndTimeDependencies);
+    neurox_hpx_register_action(1, DataLoader::initSynapsesAndTimeDependencies);
 }

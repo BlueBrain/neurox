@@ -72,7 +72,7 @@ class DataLoader
     static hpx_action_t addSynapse;
 
     static int createNeuron(NrnThread * nt, hpx_t target);
-    static int initSynapsesAndTimeDependencies_handler();
+    static int initSynapsesAndTimeDependencies_handler (neuron_id_t * neuronGids, size_t size);
     static int addSynapse_handler(const int, const void *[], const size_t[]) ;
 };
 
