@@ -38,6 +38,8 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         TCLAP::SwitchArg multiSplix("1", "multisplix", "activates tree-based parallelism of neurons morphologies.", cmd, false);
         TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
 
+        TCLAP::SwitchArg coreneuronMpiExecution("m", "mpi", "activates coreneuron MPI based execution.", cmd, false);
+
         //coreneuron command line parameters
         TCLAP::ValueArg<floble_t> tstart("s","tstart","Execution start time (msecs). The default value is 0",false, 0 ,"floble_t");
         cmd.add(tstart);
@@ -87,6 +89,8 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->outputCompartmentsDot = outputCompartmentsDot.getValue();
         this->multiMex = multiMex.getValue();
         this->multiSplix = multiSplix.getValue();
+
+        this->coreneuronMpiExecution = coreneuronMpiExecution.getValue(); 
 
         this->algorithm = (Algorithm) algorithm.getValue();
     }

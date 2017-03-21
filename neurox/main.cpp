@@ -30,6 +30,7 @@ int main(int argc, char** argv)
     //MPI parallel data loading
     neurox::Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(argc, argv);
 
+    printf("neurox::main...\n");
     int e = hpx_run(&neurox::main, NULL, &argv, argc);
     hpx_finalize();
     return e;
