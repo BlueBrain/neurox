@@ -33,8 +33,6 @@ class Mechanism
 
     int dependencyIonIndex; ///> index of parent ion (if any)
 
-    //For ionic mechanisms
-    floble_t conci, conco, charge; //from global_conci, global_conco, global_charge variables
     char *sym; ///> name of the mechanism (variable memb_func[type].sym in CoreNeuron)
 
     //from memb_func.h (before after functions not used on BBP models)

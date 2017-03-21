@@ -35,15 +35,15 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
 
-#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
+//#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
-    extern int neuronsCount; 	///> total neurons count in the system
-    extern hpx_t neuronsAddr; 	///> hpx address of the neurons array
+    extern hpx_t * neurons;       ///> hpx address of all neurons array
+    extern int neuronsCount; ///> size of neuronsAddr
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
@@ -53,20 +53,18 @@ namespace neurox
 
     extern hpx_action_t main;            ///> execution starting point (called via hpx_run)
     extern hpx_action_t clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
-    extern hpx_action_t setNeurons;      ///> Initialized neurons and neuronsAddr global vars
     extern hpx_action_t setInputParams;  ///> Initializes InputParams
-    extern hpx_action_t setMechanisms;	  ///> Initializes Mechanisms
+    extern hpx_action_t setMechanisms;   ///> Initializes Mechanisms
     extern hpx_action_t setCoreneuronGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
 
-    hpx_t getNeuronAddr(int i);          ///> get HPX address of i-th neuron:w
-
-    void registerHpxActions();           ///> Register all HPX actions
-    Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    inline Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
 
     static int main_handler(char ***argv, size_t argc);
     static int clear_handler();
-    static int setNeurons_handler(const int nargs, const void *args[], const size_t []);
     static int setInputParams_handler(const Input::InputParams * data, const size_t);
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
     static int setCoreneuronGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
+
+    void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
+    void registerHpxActions();           ///> Register all HPX actions
 } ;

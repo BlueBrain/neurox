@@ -14,8 +14,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), dependencies(nullptr), successors(nullptr), sym(nullptr),
-    conci(-1), conco(-1), charge(-1)
+    isIon(isIon), dependencies(nullptr), successors(nullptr), sym(nullptr)
 {
     if (pntMap>0)
     {
@@ -73,10 +72,10 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     if (HPX_LOCALITY_ID ==0)
         printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
-           "      dependenciesCount %d, conci %.2f, conco %.2f, charge %.2f\n",
+           "      dependenciesCount %d\n",
            this->type, this->dataSize, this->pdataSize, this->isArtificial,
            this->pntMap, this->isIon, this->symLength, this->sym, this->successorsCount,
-           this->dependenciesCount, this->conci, this->conco, this->charge);
+           this->dependenciesCount);
     */
 #endif
 };
@@ -162,12 +161,7 @@ void Mechanism::registerCapacitance()
 void Mechanism::registerIon()
 {
     assert(this->isIon);
-    double ** ion_global_map = nrn_ion_global_map; //get_ion_global_map();
-    assert(ion_global_map);
-    conci  = (floble_t) ion_global_map[type][0];
-    conco  = (floble_t) ion_global_map[type][1];
-    charge = (floble_t) ion_global_map[type][2];
-
+    assert(nrn_ion_global_map);
     //this->membFunc.alloc = ion_alloc; //assert(0) should never be called
     this->membFunc.initialize = nrn_init_ion;
     this->membFunc.current = nrn_cur_ion;

@@ -7,11 +7,11 @@
 #include <memory>
 #include <deque>
 
-#define DOT_PNG_BACKGROUND_COLOR "transparent" //"white"
-#define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS false
-#define NETCONS_DOT_OUTPUT_COMPARTMENTS_WITHOUT_NETCONS  true
+#define DOT_PNG_BACKGROUND_COLOR "transparent"
+#define NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS true
+#define NETCONS_DOT_OUTPUT_NEURONS_WITHOUT_NETCONS  true
 #define NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE true
-#define COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE false
+#define COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE true
 
 using namespace std;
 
@@ -32,9 +32,12 @@ class DataLoader
     ~DataLoader()=delete;
 
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
+    static void initAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
     static void cleanData(); ///>removes all Nrn data structures
     static void registerHpxActions();
 
+    static hpx_action_t createHpxDataStructures;
+    static int createHpxDataStructures_handler();
   private:
 
     static hpx_t createBranch( int nrnThreadId,
@@ -70,10 +73,14 @@ class DataLoader
 
     static hpx_action_t initSynapsesAndTimeDependencies;
     static hpx_action_t addSynapse;
+    static hpx_action_t addNeurons;
+    static hpx_action_t doNothing;
 
     static int createNeuron(NrnThread * nt, hpx_t target);
-    static int initSynapsesAndTimeDependencies_handler (neuron_id_t * neuronGids, size_t size);
+    static int initSynapsesAndTimeDependencies_handler ();
     static int addSynapse_handler(const int, const void *[], const size_t[]) ;
+    static int addNeurons_handler(const int, const void *[], const size_t[]) ;
+    static int doNothing_handler();
 };
 
 }; //Coreneuron

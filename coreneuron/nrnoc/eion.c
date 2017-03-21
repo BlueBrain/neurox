@@ -207,7 +207,7 @@ void nrn_wrote_conc(int type,
     extern int nrnmpi_myid;
     if (flag && nrnmpi_myid == 0) {
         /** need to check this as this kernel was failing */
-        printf("\n WARNING: nrn_nrn_wrote_conc support on GPU need to validate!\n");
+        //printf("\n WARNING: nrn_nrn_wrote_conc support on GPU need to validate!\n");
         flag = 0;
     }
 #endif
