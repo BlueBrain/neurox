@@ -88,7 +88,7 @@ include(CTest)
 
 #Find all dependencies
 if (ENABLE_MPI)
-    find_package(MPI REQUIRED)
+    #### find_package(MPI REQUIRED)  #Not needed, it's part of HPX installation (or hpx_init will fail)
     add_definitions("-DNRNMPI=1")
 else()
     message(STATUS "Use of MPI disabled by user-provided option")

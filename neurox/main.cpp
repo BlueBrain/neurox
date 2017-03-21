@@ -8,7 +8,7 @@ void modl_reg() {} ///No additional mechs, dont register any external
 
 int main(int argc, char** argv)
 {
-    //register HPX actions
+    printf("neurox::registerHpxActions...\n");
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 #endif
 #endif
 
-    //Init HPX
+    printf("neurox::hpx_init...\n");
     if (hpx_init(&argc, &argv) != 0)
     {
         printf("HPX failed to initialize!\n");
