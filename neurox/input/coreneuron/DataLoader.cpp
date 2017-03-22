@@ -89,7 +89,7 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
 
 
 
-int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
+int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
 {
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
 
@@ -108,7 +108,6 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
             Compartment * parentCompartment = compartments.at(nt->_v_parent_index[n]);
             parentCompartment->addChild(compartments.at(n));
         }
-
 
         if (inputParams->outputCompartmentsDot)
         {
@@ -266,14 +265,13 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
 
 
-        createBranch(nt->id, target, compartments, compartments.at(0),
+        createBranch(nt->id, neurond_addr, compartments, compartments.at(0),
                      (size_t) compartments.size(), offsetToInstance);
 
-        hpx_call_sync(target, Branch::initSoma, NULL, 0,
+        hpx_call_sync(neurond_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
                       &APthreshold, sizeof(floble_t),
                       &thvar_index, sizeof(thvar_index));
-
 
         for (auto c : compartments)
             delete c;
@@ -564,18 +562,15 @@ int DataLoader::initNeurons_handler()
         myNeuronsGasAddr = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     assert(myNeuronsGasAddr != HPX_NULL);
 
-    std::vector<int> myNeuronsNrnId(myNeuronsCount);
     std::vector<int> myNeuronsGids(myNeuronsCount);
     for (int n=0; n<myNeuronsCount; n++)
     {
         myNeuronsAddr->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
-        myNeuronsNrnId.at(n) = nrn_threads[n].id ;
         myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
     }
 
     hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
                                         myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
-                                        myNeuronsNrnId.data(), sizeof(int)*myNeuronsNrnId.size(),
                                         myNeuronsAddr->data(), sizeof(hpx_t)*myNeuronsAddr->size());
 
     assert(neuronsGids->size()>0); //at least my neuron!
@@ -590,29 +585,23 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
     /** nargs=2 where
      * args[0] = neuronsCount
      * args[1] = neurons Gids
-     * args[2] = neurons Nrn Id
-     * args[3] = neurons hpx addr
+     * args[2] = neurons hpx addr
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
+    assert(nargs==3);
     const int recvNeuronsCount = *(const int*)args[0];
     const int * neuronsGids_serial = (const int*) args[1];
-    const int * neuronsNrnId = (const int*) args[2];
-    const hpx_t * neuronsAddr_serial = (const hpx_t*) args[3];
+    const hpx_t * neuronsAddr_serial = (const hpx_t*) args[2];
 
     hpx_lco_sema_p(neuronsMutex);
     for (int i=0; i<recvNeuronsCount; i++)
     {
-        int nrnId = neuronsNrnId[i];
-        if (nrnId >= neurons->size())
-        {
-            neurox::neurons->resize(nrnId+1);
-            neuronsGids->resize(nrnId+1);
-        }
-        (*neuronsGids)[nrnId] = neuronsGids_serial[i];
-        (*neurox::neurons)[nrnId]= neuronsAddr_serial[i];
+        neurons->push_back(neuronsAddr_serial[i]);
+        neuronsGids->push_back(neuronsGids_serial[i]);
     }
+    neurons->shrink_to_fit();
+    neuronsGids->shrink_to_fit();
     hpx_lco_sema_v_sync(neuronsMutex);
     neurox_hpx_unpin;
 }
@@ -929,7 +918,13 @@ hpx_action_t DataLoader::initNetcons = 0;
 int DataLoader::initNetcons_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
+//    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
+
+    hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL;
+    if (local->branchTree)
+    for (int c=0; c<local->branchTree->branchesCount; c++)
+       {_hpx_call(local->branchTree->branches[c], DataLoader::initNetcons, lco_branches, NULL, 0);}
+
 
     if (inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);

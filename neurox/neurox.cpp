@@ -181,7 +181,7 @@ static int main_handler()
     printf("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), neurox::Input::Coreneuron::DataLoader::initNetcons, HPX_NULL, 0);
-    }, 0, neurons->size(), NULL);
+    }, 0, neurox::neurons->size(), NULL);
     printf("neurox::Input::Coreneuron::DataLoader::clean...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::clean);
 
@@ -207,13 +207,13 @@ static int main_handler()
     }, 0, neuronsCount, NULL);
 #endif
 
-    printf("neurox::Branchr::finitialize...\n");
+    printf("neurox::Branch::finitialize...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    Input::Coreneuron::Debugger::coreNeuronFinitialize();
+    hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
     printf("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
@@ -241,31 +241,18 @@ static int main_handler()
           hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &Neuron::commStepSize, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
 
-        //Uncomment to do all neurons comparison at every comm time step
-        /*#if !defined(NDEBUG) && defined(CORENEURON_H)
-          for (int s=0; s<commStepSize; s++)
-            Input::Coreneuron::Debugger::fixed_step_minimal();
-          hpx_par_for_sync( [&] (int i, void*) -> int
-          {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
-          }, 0, neuronsCount, NULL);
-        #endif */
+        #if !defined(NDEBUG) && defined(CORENEURON_H)
+          if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
+            hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::nrnSpikeExchange);
+        #endif
       }
     }
     else if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
     {
+        //NOTE: only comparable at SMP mode or final comparison of results only (due to spike exchange)
         for (int i=0; i<neuronsCount; i++)
           hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
-
-        //Uncomment to compare the final result
-        /*#if !defined(NDEBUG) && defined(CORENEURON_H)
-          printf("neurox::Input::CoreNeuron::DataComparison::compareBranch...\n");
-          for (int s=0; s<totalSteps; s++)
-            Input::Coreneuron::Debugger::fixed_step_minimal();
-            hpx_par_for_sync( [&] (int i, void*) -> int
-              {  return hpx_call_sync(neurons.at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
-              }, 0, neuronsCount, NULL);
-        #endif */
     }
 
     double elapsed = hpx_time_elapsed_ms(now)/1e3;

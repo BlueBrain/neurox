@@ -364,6 +364,22 @@ void Debugger::compareBranch2(Branch * branch)
     }
 }
 
+hpx_action_t Debugger::finitialize = 0;
+int Debugger::finitialize_handler()
+{
+    neurox_hpx_pin(uint64_t);
+    nrn_finitialize(inputParams->voltage != 1000., inputParams->voltage);
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Debugger::nrnSpikeExchange = 0;
+int Debugger::nrnSpikeExchange_handler()
+{
+    neurox_hpx_pin(uint64_t);
+    nrn_spike_exchange(nrn_threads);
+    neurox_hpx_unpin;
+}
+
 hpx_action_t Debugger::compareBranch = 0;
 int Debugger::compareBranch_handler()
 {
@@ -372,12 +388,10 @@ int Debugger::compareBranch_handler()
     neurox_hpx_unpin;
 }
 
-void Debugger::coreNeuronFinitialize()
-{
-    nrn_finitialize(inputParams->voltage != 1000., inputParams->voltage);
-}
-
 void Debugger::registerHpxActions()
 {
     neurox_hpx_register_action(0, Debugger::compareBranch);
+    neurox_hpx_register_action(0, Debugger::finitialize);
+    neurox_hpx_register_action(0, Debugger::nrnSpikeExchange);
 }
+

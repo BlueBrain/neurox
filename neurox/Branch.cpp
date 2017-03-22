@@ -556,14 +556,14 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
+
     for (int step=0; step<*steps_ptr; step++)
     {
         local->backwardEulerStep();
-
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
         Input::Coreneuron::Debugger::compareBranch2(local);
-        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //for step-after-step comparison
+        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
 #endif
     }
     if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
@@ -584,9 +584,10 @@ int Branch::finitialize_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->finitialize2(); //finitialize.c::finitilize()
-/* #if !defined(NDEBUG) && defined(CORENEURON_H)
-    Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
-#endif */
+/*#if !defined(NDEBUG) && defined(CORENEURON_H)
+    if (!inputParams->parallelDataLoading) //only single node implementation (no spike exchange)
+      Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
+#endif*/
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
