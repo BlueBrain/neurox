@@ -90,7 +90,7 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->multiMex = multiMex.getValue();
         this->multiSplix = multiSplix.getValue();
 
-        this->coreneuronMpiExecution = coreneuronMpiExecution.getValue(); 
+        this->parallelDataLoading = coreneuronMpiExecution.getValue();
 
         this->algorithm = (Algorithm) algorithm.getValue();
     }

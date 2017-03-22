@@ -42,8 +42,7 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
-    extern hpx_t * neurons;       ///> hpx address of all neurons array
-    extern int neuronsCount; ///> size of neuronsAddr
+    extern std::vector<hpx_t> * neurons; ///> hpx address of all neurons array
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
@@ -53,17 +52,15 @@ namespace neurox
 
     extern hpx_action_t main;            ///> execution starting point (called via hpx_run)
     extern hpx_action_t clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
-    extern hpx_action_t setInputParams;  ///> Initializes InputParams
     extern hpx_action_t setMechanisms;   ///> Initializes Mechanisms
-    extern hpx_action_t setCoreneuronGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
+    extern hpx_action_t setMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
 
     inline Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
 
-    static int main_handler(char ***argv, size_t argc);
+    static int main_handler();
     static int clear_handler();
-    static int setInputParams_handler(const Input::InputParams * data, const size_t);
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
-    static int setCoreneuronGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
+    static int setMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
 
     void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
     void registerHpxActions();           ///> Register all HPX actions

@@ -27,18 +27,11 @@ using namespace neurox::Input::Coreneuron;
 
 FILE *fileNetcons;
 std::vector<int> * neuronsGids = nullptr;
-std::vector<hpx_t> * neuronsAddrs = nullptr;
+std::vector<hpx_t> * myNeuronsAddr = nullptr;
 
 neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
     return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
-}
-
-hpx_action_t DataLoader::doNothing = 0;
-int DataLoader::doNothing_handler()
-{
-    neurox_hpx_pin(uint64_t);
-    neurox_hpx_unpin;
 }
 
 void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
@@ -98,11 +91,6 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
 {
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
 
-        #if NETCONS_DOT_OUTPUT_NEURONS_WITHOUT_NETCONS==true
-        if (inputParams->outputNetconsDot)
-            fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", neuronId);
-        #endif
-
         //======= 1 - reconstructs matrix (solver) values =======
         deque<Compartment*> compartments;
         for (int n=0; n<nt->end; n++)
@@ -131,7 +119,6 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t target)
           fprintf(fileCompartments, "}\n");
           fclose(fileCompartments);
         }
-
 
         //======= 2 - reconstructs mechanisms instances ========
         unsigned vdataTotalOffset=0;
@@ -304,37 +291,24 @@ void Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(int argc, char ** 
     nrn_init_and_load_data(argc, argv, input_params, false);
 }
 
-hpx_action_t DataLoader::createHpxDataStructures = 0;
-int DataLoader::createHpxDataStructures_handler()
+int DataLoader::getMyNrnNeuronsCount()
+{
+    assert(nrn_threads);
+    return std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
+}
+
+hpx_action_t DataLoader::initMechanisms = 0;
+int DataLoader::initMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
-    neuronsAddrs = new std::vector<hpx_t>();
-    neuronsGids  = new std::vector<int>();
 
-    int myNeuronsCount = std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0,
-                                 [](int n, NrnThread & nt){return n+nt.ncell;});
+    //if serial loading and I'mnot the one who loaded the data... do nothing.
+    if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
+    int myNeuronsCount = getMyNrnNeuronsCount();
+    assert(myNeuronsCount>0);
 
     for (int i=0; i<myNeuronsCount; i++)
     {   assert(nrn_threads[i].ncell == 1); }
-
-    #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
-    if (inputParams->outputCompartmentsDot)
-    {
-      for (int i=0; i<myNeuronsCount; i++)
-      {
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
-        FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
-        fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
-
-        //for all nodes in this NrnThread
-        NrnThread * nt = &nrn_threads[i];
-        for (int n=nt->ncell; n<nt->end; n++)
-            fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[n], n);
-        fprintf(fileCompartments, "}\n");
-        fclose(fileCompartments);
-      }
-    }
-    #endif
 
     // Reconstructs unique data related to each mechanism*
     std::vector<Mechanism> mechsData;
@@ -433,12 +407,14 @@ int DataLoader::createHpxDataStructures_handler()
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
-    /** TODO not needed
-    printf("neurox::setCoreneuronGlobalVars...\n");
-    vector<unsigned char> mechHasEntryInIonMap;
-    vector<double> mechsMapInfo;
-    for (int type=0; type<nrn_ion_global_map_size; type++)
+    //if only one CPU (me) loaded the data, then share it with others
+    if (!inputParams->parallelDataLoading && hpx_get_num_ranks()>1)
     {
+      printf("neurox::setMechanisms...\n");
+      vector<unsigned char> mechHasEntryInIonMap;
+      vector<double> mechsMapInfo;
+      for (int type=0; type<nrn_ion_global_map_size; type++)
+      {
         if (nrn_ion_global_map[type]==NULL)
             mechHasEntryInIonMap.push_back(0);
         else
@@ -448,26 +424,27 @@ int DataLoader::createHpxDataStructures_handler()
             mechsMapInfo.push_back(nrn_ion_global_map[type][1]);
             mechsMapInfo.push_back(nrn_ion_global_map[type][2]);
         }
-    }
+      }
 
-    hpx_bcast_rsync(neurox::setCoreneuronGlobalVars,
-                    &celsius, sizeof(double),
-                    &nrn_ion_global_map_size, sizeof(int),
-                    mechHasEntryInIonMap.data(), sizeof(unsigned char)*mechHasEntryInIonMap.size(),
-                    mechsMapInfo.data(), sizeof(double)*mechsMapInfo.size());
-    */
-    assert(nrn_ion_global_map!= NULL);
-
-    /* TODO not needed
-    printf("neurox::setMechanisms...\n");
-    hpx_bcast_rsync(neurox::setMechanisms,
+      hpx_bcast_rsync(neurox::setMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                     mechsDependenciesId.data(), sizeof(int)* mechsDependenciesId.size(),
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
                     mechsSym.data(), sizeof(char)*mechsSym.size());
-    */
-    setMechanisms2(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
+
+      assert(0); //TODO need to share static _na_type_ etc inside mechanisms!x
+      printf("neurox::setMechanismsGlobarVars...\n");
+      hpx_bcast_rsync(neurox::setMechanismsGlobalVars,
+                    &celsius, sizeof(double),
+                    &nrn_ion_global_map_size, sizeof(int),
+                    mechHasEntryInIonMap.data(), sizeof(unsigned char)*mechHasEntryInIonMap.size(),
+                    mechsMapInfo.data(), sizeof(double)*mechsMapInfo.size());
+    }
+    else  //set mechanisms local to my node
+    {
+        setMechanisms2(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
                            mechsSuccessorsId.data(), mechsSym.data());
+    }
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
@@ -477,7 +454,7 @@ int DataLoader::createHpxDataStructures_handler()
 
     if (inputParams->outputMechanismsDot)
     {
-      FILE *fileMechs = fopen(string("mechanisms.dot").c_str(), "wt");
+      FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
       fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
       fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
@@ -516,28 +493,23 @@ int DataLoader::createHpxDataStructures_handler()
       fprintf(fileMechs, "}\n");
       fclose(fileMechs);
     }
+    neurox_hpx_unpin;
+}
 
-    //allocate HPX memory space for neurons locally (not GAS blocked or cyclic)
-    hpx_t myNeuronsGasAddr = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    assert(myNeuronsGasAddr != HPX_NULL);
-    std::vector<hpx_t> myNeuronsAddr;
-    std::vector<int> myNeuronsNrnId;
-    std::vector<int> myNeuronsGids;
-    for (int n=0; n<myNeuronsCount; n++)
+hpx_action_t DataLoader::init =0;
+int DataLoader::init_handler()
+{
+    neurox_hpx_pin(uint64_t);
+    neurox::neurons = new std::vector<hpx_t>();
+    neuronsGids  = new std::vector<int>();
+
+    if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
+       && inputParams->outputNetconsDot)
     {
-        myNeuronsAddr.push_back( hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch)) );
-        myNeuronsNrnId.push_back( nrn_threads[n].id );
-        myNeuronsGids.push_back( getNeuronIdFromNrnThreadId(n) );
+        inputParams->outputNetconsDot=false;
+        if (hpx_get_my_rank()==0)
+            printf("Warning: output of netcons.dot disabled for parallel loading\n");
     }
-    hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
-                                        myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
-                                        myNeuronsNrnId.data(), sizeof(int)*myNeuronsNrnId.size(),
-                                        myNeuronsAddr.data(), sizeof(hpx_t)*myNeuronsAddr.size());
-
-    neurox::neuronsCount = neuronsAddrs->size();
-    neurox::neurons = new hpx_t[neurox::neuronsCount];
-    for (int n=0; n<neurox::neuronsCount; n++)
-        neurox::neurons[n] = neuronsAddrs->at(n);
 
     if (inputParams->outputNetconsDot)
     {
@@ -549,41 +521,63 @@ int DataLoader::createHpxDataStructures_handler()
       #endif
     }
 
+    neurox_hpx_unpin;
+}
+hpx_action_t DataLoader::initNeurons = 0;
+int DataLoader::initNeurons_handler()
+{
+    neurox_hpx_pin(uint64_t);
+
+    //if serial loading, and done by someone else, continue;
+    if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
+
+    int myNeuronsCount =  getMyNrnNeuronsCount();
+    myNeuronsAddr = new std::vector<hpx_t>(myNeuronsCount);
+
+#if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true  //TODO to go away at some point
+    if (inputParams->outputCompartmentsDot)
+    {
+      for (int i=0; i<myNeuronsCount; i++)
+      {
+        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
+        FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
+        fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
+
+        //for all nodes in this NrnThread
+        NrnThread * nt = &nrn_threads[i];
+        for (int n=nt->ncell; n<nt->end; n++)
+          fprintf(fileCompartments, "%d -- %d;\n", nt->_v_parent_index[n], n);
+        fprintf(fileCompartments, "}\n");
+        fclose(fileCompartments);
+      }
+    }
+#endif
+
+    //allocate HPX memory space for neurons
+    hpx_t myNeuronsGasAddr = HPX_NULL;
+    if (inputParams->parallelDataLoading) //if shared pre-balanced loading, store neurons locally
+        myNeuronsGasAddr = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+    else //if I'm the only one loading data... spread it
+        myNeuronsGasAddr = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+    assert(myNeuronsGasAddr != HPX_NULL);
+
+    std::vector<int> myNeuronsNrnId(myNeuronsCount);
+    std::vector<int> myNeuronsGids(myNeuronsCount);
     for (int n=0; n<myNeuronsCount; n++)
-        createNeuron(&nrn_threads[n], myNeuronsAddr.at(n));
-
-    if (inputParams->outputNetconsDot)
     {
-      fprintf(fileNetcons, "}\n");
-      fclose(fileNetcons);
-#if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE==true
-      fileNetcons = fopen(string("netcons_neurox.dot").c_str(), "wt");
-      fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n", DOT_PNG_BACKGROUND_COLOR);
-#endif
+        myNeuronsAddr->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
+        myNeuronsNrnId.at(n) = nrn_threads[n].id ;
+        myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
     }
 
-    //inform pre-syn ids about synaptic connections
-    hpx_bcast_rsync(DataLoader::doNothing); //barrier (wait for all neurons to be created)
-    hpx_t mainLCO = hpx_lco_and_new(myNeuronsCount);
-    for (int i=0; i<myNeuronsCount; i++)
-        hpx_call(myNeuronsAddr.at(i), DataLoader::initSynapsesAndTimeDependencies, mainLCO);
-    hpx_lco_wait_reset(mainLCO);
+    hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
+                                        myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
+                                        myNeuronsNrnId.data(), sizeof(int)*myNeuronsNrnId.size(),
+                                        myNeuronsAddr->data(), sizeof(hpx_t)*myNeuronsAddr->size());
 
-#if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE==true
-    if (inputParams->outputNetconsDot)
-    {
-      fprintf(fileNetcons, "}\n");
-      fclose(fileNetcons);
-    }
-#endif
-
-    neuronsAddrs->clear(); delete neuronsAddrs; neuronsAddrs = nullptr;
-    neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
-    nrn_setup_cleanup();
-
-#if defined(NDEBUG) && defined(CORENEURON_H)
-    nrn_cleanup(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
-#endif
+    assert(neuronsGids->size()>0); //at least my neuron!
+    for (int n=0; n<myNeuronsCount; n++)
+        createNeuron(&nrn_threads[n], myNeuronsAddr->at(n));
     neurox_hpx_unpin;
 }
 
@@ -607,14 +601,35 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
     for (int i=0; i<recvNeuronsCount; i++)
     {
         int nrnId = neuronsNrnId[i];
-        if (nrnId >= neuronsAddrs->size())
+        if (nrnId >= neurons->size())
         {
-            neuronsAddrs->resize(nrnId+1);
+            neurox::neurons->resize(nrnId+1);
             neuronsGids->resize(nrnId+1);
         }
         (*neuronsGids)[nrnId] = neuronsGids_serial[i];
-        (*neuronsAddrs)[nrnId]= neuronsAddr_serial[i];
+        (*neurox::neurons)[nrnId]= neuronsAddr_serial[i];
     }
+    neurox_hpx_unpin;
+}
+
+hpx_action_t DataLoader::clean = 0;
+int DataLoader::clean_handler()
+{
+    neurox_hpx_pin(uint64_t);
+
+    if (inputParams->outputNetconsDot)
+    {
+      fprintf(fileNetcons, "}\n");
+      fclose(fileNetcons);
+    }
+
+    neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
+    myNeuronsAddr->clear(); delete myNeuronsAddr; myNeuronsAddr = nullptr;
+    nrn_setup_cleanup();
+
+#if defined(NDEBUG) && defined(CORENEURON_H)
+    nrn_cleanup(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+#endif
     neurox_hpx_unpin;
 }
 
@@ -904,26 +919,24 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     return branchAddr;
 }
 
-hpx_action_t DataLoader::initSynapsesAndTimeDependencies = 0;
-int DataLoader::initSynapsesAndTimeDependencies_handler()
+hpx_action_t DataLoader::initNetcons = 0;
+int DataLoader::initNetcons_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::initSynapsesAndTimeDependencies);
+    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
 
-#if NETCONS_DOT_OUTPUT_NEURONS_WITHOUT_NETCONS==true
     if (inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
-#endif
 
     const floble_t impossiblyLargeDelay = 99999999;
-    for (int i=0; i < neurox::neuronsCount; i++) //loop through all neurons
+    for (int i=0; i < neurox::neurons->size(); i++) //loop through all neurons
     {
         neuron_id_t srcGid = neuronsGids->at(i);
 
         //if I'm connected to it (ie is not artificial or non-existent)
         if (local->netcons.find(srcGid) != local->netcons.end())
         {
-            hpx_t srcAddr = neurox::neurons[i];
+            hpx_t srcAddr = neurox::neurons->at(i);
             floble_t minDelay = impossiblyLargeDelay;
             for (NetConX *& nc : local->netcons.at(srcGid))
                 if (nc->active)
@@ -972,9 +985,12 @@ int DataLoader::addSynapse_handler(
 
 void DataLoader::registerHpxActions()
 {
-    neurox_hpx_register_action(0, DataLoader::createHpxDataStructures);
-    neurox_hpx_register_action(0, DataLoader::doNothing);
+    neurox_hpx_register_action(0, DataLoader::init);
+    neurox_hpx_register_action(0, DataLoader::initMechanisms);
+    neurox_hpx_register_action(0, DataLoader::initNeurons);
+    neurox_hpx_register_action(0, DataLoader::initNetcons);
+    neurox_hpx_register_action(0, DataLoader::clean);
     neurox_hpx_register_action(2, DataLoader::addSynapse);
     neurox_hpx_register_action(2, DataLoader::addNeurons);
-    neurox_hpx_register_action(0, DataLoader::initSynapsesAndTimeDependencies);
+    neurox_hpx_register_action(0, DataLoader::initNetcons);
 }

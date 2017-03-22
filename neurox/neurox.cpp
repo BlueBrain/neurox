@@ -1,15 +1,19 @@
 #include "neurox/neurox.h"
 #include <cstring>
 #include <map>
+#include <fstream>
 
 #include "nrniv/nrniv_decl.h"
 #include "nrniv/nrn_stats.h"
 
+#ifndef NEUROX_LOGO_PATH
+  #define ""
+#endif
+
 namespace neurox
 {
 
-int neuronsCount = -1;
-hpx_t * neurons = nullptr;
+std::vector<hpx_t> * neurons = nullptr;
 int mechanismsCount=-1;
 int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
@@ -18,18 +22,6 @@ Input::InputParams * inputParams = nullptr;
 Mechanism * getMechanismFromType(int type) {
     assert(mechanismsMap[type]!=-1);
     return mechanisms[mechanismsMap[type]];
-}
-
-hpx_action_t setInputParams = 0;
-int setInputParams_handler(const Input::InputParams * ip, const size_t)
-{
-    neurox_hpx_pin(uint64_t);
-    if (inputParams!=nullptr)
-        delete [] neurox::inputParams;
-
-    neurox::inputParams = new neurox::Input::InputParams();
-    memcpy(neurox::inputParams, ip, sizeof(neurox::Input::InputParams));
-    neurox_hpx_unpin;
 }
 
 void setMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependenciesIds_serial,
@@ -100,8 +92,8 @@ int setMechanisms_handler(const int nargs, const void *args[], const size_t size
     neurox_hpx_unpin;
 }
 
-hpx_action_t setCoreneuronGlobalVars = 0;
-int setCoreneuronGlobalVars_handler(const int nargs, const void *args[], const size_t sizes[])
+hpx_action_t setMechanismsGlobalVars = 0;
+int setMechanismsGlobalVars_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
      * nargs=3 where:
@@ -162,19 +154,36 @@ int setCoreneuronGlobalVars_handler(const int nargs, const void *args[], const s
     neurox_hpx_unpin;
 }
 
-hpx_action_t main = 0;
-static int main_handler(char ***argv, size_t argc)
+static void displayLogo()
 {
-    printf("neurox started (localities: %d, threads/locality: %d)\n", HPX_LOCALITIES, HPX_THREADS);
-    Input::InputParams * inputParams_local = new Input::InputParams(argc, *argv);
-    hpx_bcast_rsync(neurox::setInputParams, inputParams_local, sizeof (Input::InputParams));
-    assert(neurox::inputParams->forwardSkip <= 0); //not supported yet
-    delete inputParams_local; inputParams_local = nullptr;
+    string getcontent;
+    ifstream openfile (NEUROX_LOGO_PATH);
+    if(openfile.is_open())
+        while(getline(openfile, getcontent))
+            std::cout << getcontent << endl;
+    else printf("Warning: can't open logo file %s. Ignoring..\n", NEUROX_LOGO_PATH);
+    openfile.close();
+}
 
-    printf("neurox::Input::Coreneuron::DataLoader::createHpxDataStructures...\n");
-    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::createHpxDataStructures);
+hpx_action_t main = 0;
+static int main_handler()
+{
+    neurox::displayLogo();
+    printf("neurox::main (localities: %d, threads/locality: %d)\n", hpx_get_num_ranks(), hpx_get_num_threads());
+    printf("neurox::Input::Coreneuron::DataLoader::init...\n");
+    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::init);
+    printf("neurox::Input::Coreneuron::DataLoader::initMechanisms...\n");
+    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initMechanisms);
+    printf("neurox::Input::Coreneuron::DataLoader::initNeurons...\n");
+    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initNeurons);
+    printf("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(neurox::neurons->at(i), neurox::Input::Coreneuron::DataLoader::initNetcons, HPX_NULL, 0);
+    }, 0, neurons->size(), NULL);
+    printf("neurox::Input::Coreneuron::DataLoader::clean...\n");
+    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::clean);
 
-    int neuronsCount = neurox::neuronsCount;
+    int neuronsCount = neurons->size();
     if (neurox::inputParams->outputStatistics)
     {
       printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
@@ -184,28 +193,28 @@ static int main_handler(char ***argv, size_t argc)
       //hpx_exit(0,NULL);
     }
 
-    printf("neurox::Branch::NeuronTree::initLCOs...\n");
+    printf("neurox::Branch::BranchTree::initLCOs...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons[i], Branch::BranchTree::initLCOs, HPX_NULL, 0);
+    {  return hpx_call_sync(neurox::neurons->at(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
+    printf("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons[i], Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
+    {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 #endif
 
-    printf("neurox::BackwardEuler::finitialize...\n");
+    printf("neurox::Branchr::finitialize...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons[i], Branch::finitialize, HPX_NULL, 0);
+    {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     Input::Coreneuron::Debugger::coreNeuronFinitialize();
-    printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
+    printf("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons[i], Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
+    {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 #endif
 
@@ -214,7 +223,7 @@ static int main_handler(char ***argv, size_t argc)
             inputParams->algorithm == Algorithm::BackwardEulerSyncFixedCommStepDebug ? "BackwardEulerSyncFixedCommStepDebug" :
            (inputParams->algorithm == Algorithm::BackwardEulerAsyncFixedCommStep     ? "BackwardEulerAsyncFixedCommStep" :
            (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping    ? "BackwardEulerWithPairwiseSteping" : "")),
-           neurox::neuronsCount, inputParams->tstop/1000, inputParams->dt, totalSteps);
+            neuronsCount, inputParams->tstop/1000, inputParams->dt, totalSteps);
 
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t now = hpx_time_now();
@@ -227,7 +236,7 @@ static int main_handler(char ***argv, size_t argc)
       {
         printf("-- t=%.1f ms\n",t);
         for (int i=0; i<neuronsCount; i++)
-          hpx_call(neurox::neurons[i], Branch::backwardEuler, mainLCO, &Neuron::commStepSize, sizeof(int));
+          hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &Neuron::commStepSize, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
 
         //Uncomment to do all neurons comparison at every comm time step
@@ -235,7 +244,7 @@ static int main_handler(char ***argv, size_t argc)
           for (int s=0; s<commStepSize; s++)
             Input::Coreneuron::Debugger::fixed_step_minimal();
           hpx_par_for_sync( [&] (int i, void*) -> int
-          {  return hpx_call_sync(neurox::neurons[i], Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
+          {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
           }, 0, neuronsCount, NULL);
         #endif */
       }
@@ -243,12 +252,12 @@ static int main_handler(char ***argv, size_t argc)
     else if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
     {
         for (int i=0; i<neuronsCount; i++)
-          hpx_call(neurox::neurons[i], Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
+          hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
 
         //Uncomment to compare the final result
         /*#if !defined(NDEBUG) && defined(CORENEURON_H)
-          printf("NDEBUG::Input::CoreNeuron::DataComparison::compareBranch...\n");
+          printf("neurox::Input::CoreNeuron::DataComparison::compareBranch...\n");
           for (int s=0; s<totalSteps; s++)
             Input::Coreneuron::Debugger::fixed_step_minimal();
             hpx_par_for_sync( [&] (int i, void*) -> int
@@ -259,7 +268,7 @@ static int main_handler(char ***argv, size_t argc)
 
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
-           neurox::neuronsCount, inputParams->tstop/1000.0, elapsed);
+           neuronsCount, inputParams->tstop/1000.0, elapsed);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     neurox::Input::Coreneuron::DataLoader::cleanData(); //if Coreneuron+debug, data will be cleaned up only now
@@ -278,11 +287,10 @@ int clear_handler()
 
 void registerHpxActions()
 {
-    neurox_hpx_register_action(1,neurox::main);
+    neurox_hpx_register_action(0,neurox::main);
     neurox_hpx_register_action(0,neurox::clear);
-    neurox_hpx_register_action(1,neurox::setInputParams);
     neurox_hpx_register_action(2,neurox::setMechanisms);
-    neurox_hpx_register_action(2,neurox::setCoreneuronGlobalVars);
+    neurox_hpx_register_action(2,neurox::setMechanismsGlobalVars);
 }
 
 }; //namespace neurox

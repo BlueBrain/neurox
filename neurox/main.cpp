@@ -8,7 +8,6 @@ void modl_reg() {} ///No additional mechs, dont register any external
 
 int main(int argc, char** argv)
 {
-    printf("neurox::registerHpxActions...\n");
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Mechanism::registerHpxActions();
@@ -20,18 +19,20 @@ int main(int argc, char** argv)
 #endif
 #endif
 
-    printf("neurox::hpx_init...\n");
     if (hpx_init(&argc, &argv) != 0)
     {
         printf("HPX failed to initialize!\n");
         return 1;
     }
 
-    //MPI parallel data loading
-    neurox::Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(argc, argv);
+    neurox::inputParams = new Input::InputParams(argc, argv);
 
-    printf("neurox::main...\n");
-    int e = hpx_run(&neurox::main, NULL, &argv, argc);
+    if (inputParams->parallelDataLoading) //coreneuron data loading
+        neurox::Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(argc, argv);
+    else if (hpx_get_my_rank()==0) //one loads all neurons and spreads them
+        neurox::Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(argc, argv);
+
+    int e = hpx_run(&neurox::main, NULL);
     hpx_finalize();
     return e;
 }

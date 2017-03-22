@@ -68,8 +68,8 @@ the handling of v_structure_change as long as possible.
 #define CACHELINE_ALLOC(name, type, size) \
     name = (type*)nrn_cacheline_alloc((void**)&name, size * sizeof(type))
 
-int nrn_nthread;
-NrnThread* nrn_threads;
+int nrn_nthread=0;
+NrnThread* nrn_threads=NULL;
 void (*nrn_mk_transfer_thread_data_)();
 
 extern int v_structure_change;

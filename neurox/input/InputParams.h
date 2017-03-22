@@ -49,7 +49,7 @@ class InputParams
     bool multiMex;              ///> graph-based parallelism of mechanisms
     bool multiSplix;            ///> tree-based parallelism of morphologies
 
-    bool coreneuronMpiExecution;///>coreneuron mpi-based execution
+    bool parallelDataLoading;///>coreneuron mpi-based execution
 
     neurox::Algorithm algorithm;
 

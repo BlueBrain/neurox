@@ -53,10 +53,11 @@ void Statistics::printSimulationSize(bool writeToFile)
 
     fprintf(outstream, "gid,compartments,branches,mechs-instances,total-KB,morphologies-KB,mechanisms-KB,synapses-KB,metadata-KB\n");
 
+    int neuronsCount = neurons->size();
     for (int i=0; i<neuronsCount; i++)
     {
         SizeInfo neuronSize;
-        hpx_call_sync(neurox::neurons[i], Statistics::getNeuronSize, &neuronSize, sizeof(neuronSize));
+        hpx_call_sync(neurox::neurons->at(i), Statistics::getNeuronSize, &neuronSize, sizeof(neuronSize));
         fprintf(outstream, "%d,%llu,%llu,%llu,%.1f,%.2f,%.2f,%.2f,%.2f\n",
                 neuronSize.neuronId, neuronSize.compartmentsCount, neuronSize.branchesCount,
                 neuronSize.mechsInstancesCount, neuronSize.getTotalSize(), neuronSize.morphologies,
@@ -166,9 +167,9 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
     unsigned * mechsCountPerType = new unsigned[mechanismsCount];
     unsigned * sumMechsCountPerType = new unsigned[mechanismsCount]();
     unsigned long long totalMechsInstances=0;
-    for (int i=0; i<neurox::neuronsCount; i++)
+    for (int i=0; i<neurox::neurons->size(); i++)
     {
-        hpx_call_sync(neurox::neurons[i], Statistics::getNeuronMechanismsDistribution,
+        hpx_call_sync(neurox::neurons->at(i), Statistics::getNeuronMechanismsDistribution,
                       mechsCountPerType, sizeof(unsigned)*mechanismsCount);
         for (int m=0; m<mechanismsCount; m++)
         {
@@ -186,7 +187,7 @@ void Statistics::printMechanismsDistribution(bool writeToFile)
 
     for (int m=0; m<mechanismsCount; m++)
         fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type, mechanisms[m]->sym,
-                sumMechsCountPerType[m],(double)sumMechsCountPerType[m]/neurox::neuronsCount);
+                sumMechsCountPerType[m],(double)sumMechsCountPerType[m]/neurox::neurons->size());
 
     if (writeToFile)
         fclose(outstream);

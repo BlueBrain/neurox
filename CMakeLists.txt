@@ -277,6 +277,7 @@ ENDIF()
 # Core library
 add_definitions("-DNET_RECEIVE_BUFFERING=0")
 add_definitions("-D__STDC_CONSTANT_MACROS") #fix viz cluster compilation
+add_definitions("-DNEUROX_LOGO_PATH=\"${PROJECT_SOURCE_DIR}/misc/logos/logo80_cyborg.txt\"")
 add_subdirectory(coreneuron)
 add_subdirectory(neurox)
 
