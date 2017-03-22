@@ -26,6 +26,8 @@ using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
 FILE *fileNetcons;
+
+hpx_t neuronsMutex = HPX_NULL;
 std::vector<int> * neuronsGids = nullptr;
 std::vector<hpx_t> * myNeuronsAddr = nullptr;
 
@@ -502,6 +504,7 @@ int DataLoader::init_handler()
     neurox_hpx_pin(uint64_t);
     neurox::neurons = new std::vector<hpx_t>();
     neuronsGids  = new std::vector<int>();
+    neuronsMutex = hpx_lco_sema_new(1);
 
     if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
        && inputParams->outputNetconsDot)
@@ -598,6 +601,7 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
     const int * neuronsNrnId = (const int*) args[2];
     const hpx_t * neuronsAddr_serial = (const hpx_t*) args[3];
 
+    hpx_lco_sema_p(neuronsMutex);
     for (int i=0; i<recvNeuronsCount; i++)
     {
         int nrnId = neuronsNrnId[i];
@@ -609,6 +613,7 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
         (*neuronsGids)[nrnId] = neuronsGids_serial[i];
         (*neurox::neurons)[nrnId]= neuronsAddr_serial[i];
     }
+    hpx_lco_sema_v_sync(neuronsMutex);
     neurox_hpx_unpin;
 }
 
@@ -626,6 +631,7 @@ int DataLoader::clean_handler()
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
     myNeuronsAddr->clear(); delete myNeuronsAddr; myNeuronsAddr = nullptr;
     nrn_setup_cleanup();
+    hpx_lco_delete_sync(neuronsMutex);
 
 #if defined(NDEBUG) && defined(CORENEURON_H)
     nrn_cleanup(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now

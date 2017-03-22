@@ -168,7 +168,9 @@ static void displayLogo()
 hpx_action_t main = 0;
 static int main_handler()
 {
+#ifdef NDEBUG
     neurox::displayLogo();
+#endif
     printf("neurox::main (localities: %d, threads/locality: %d)\n", hpx_get_num_ranks(), hpx_get_num_threads());
     printf("neurox::Input::Coreneuron::DataLoader::init...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::init);
