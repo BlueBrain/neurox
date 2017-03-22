@@ -55,7 +55,7 @@ namespace neurox
     extern hpx_action_t setMechanisms;   ///> Initializes Mechanisms
     extern hpx_action_t setMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
 
-    inline Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
 
     static int main_handler();
     static int clear_handler();
