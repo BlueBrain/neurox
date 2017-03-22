@@ -46,12 +46,20 @@ class Neuron
         hpx_t previousSpikeLco; ///>lco controlling spikes delivery
     };
 
-    hpx_t commStepAllSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
-    static const int commStepSize; ///> Fixed communication step size
-
     void sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
     void addSynapse(Synapse * target);///> add hpx address of post-synaptic branch
     size_t getSynapseCount(); ///> get size of vector synapse
+
+    class CommunicationBarrier
+    {
+      public:
+        CommunicationBarrier();
+        ~CommunicationBarrier();
+        hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
+        static const int commStepSize; ///> Fixed communication step size
+
+        hpx_t allreduce;
+    } * commBarrier;
 
     //the incoming neuron connections:
     class TimeDependencies

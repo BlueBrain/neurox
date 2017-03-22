@@ -346,9 +346,7 @@ int Branch::clear_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::clear);
-    //hpx_lco_wait(-local->mechsGraphLco);
-    hpx_lco_delete_sync(local->mechsGraph->graphLCO);
-    local->mechsGraph->graphLCO=HPX_NULL;
+    delete local;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -550,6 +548,21 @@ void Branch::backwardEulerStep()
     if (fmod(t, inputParams->dt_io) == 0) {}
 }
 
+
+hpx_action_t Branch::backwardEulerGroup = 0;
+int Branch::backwardEulerGroup_handler(const int * steps_ptr, const size_t size)
+{
+    //TODO @luke: this is a shortcut to avoid sending many messages from single node.
+    neurox_hpx_pin(uint64_t);
+    assert(myNeurons);
+    int myNeuronsCount = myNeurons->size();
+    hpx_t myNeuronsLCO = hpx_lco_and_new(myNeuronsCount);
+    for (int n=0; n<myNeuronsCount; n++)
+        hpx_call(myNeurons->at(n), Branch::backwardEuler, myNeuronsLCO, steps_ptr, size);
+    hpx_lco_wait_reset(myNeuronsLCO);
+    neurox_hpx_unpin;
+}
+
 //fadvance_core.c::nrn_fixed_step_minimal
 hpx_action_t Branch::backwardEuler = 0;
 int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
@@ -575,9 +588,9 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     #endif
 
     //end of communication step, wait for all synapses to be delivered
-    if (inputParams->algorithm == Algorithm::BackwardEulerAsyncFixedCommStep)
-        if (local->soma->commStepAllSpikesLco != HPX_NULL) //was set/used once
-           hpx_lco_wait(local->soma->commStepAllSpikesLco); //wait if needed
+    if (inputParams->algorithm == Algorithm::BackwardEulerFixedCommBarrier)
+        if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
+           hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -857,6 +870,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::updateTimeDependencyValue);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
+    neurox_hpx_register_action(1, Branch::backwardEulerGroup);
     neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);
     neurox_hpx_register_action(1, Branch::MechanismsGraph::nodeFunction);
 }

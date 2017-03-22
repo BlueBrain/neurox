@@ -8,19 +8,18 @@ using namespace neurox::Solver;
 
 const double Neuron::teps = 1e-8;
 const floble_t Neuron::TimeDependencies::notificationIntervalRatio = 1; //ratio (0,1]
-const int Neuron::commStepSize = 4;
+const int Neuron::CommunicationBarrier::commStepSize = 4;
 
 Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     gid(neuronId), threshold(APthreshold), thvar_index(thvar_index)
 {
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
-    this->commStepAllSpikesLco = HPX_NULL;
     this->refractoryPeriod=0;
     this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping ? new TimeDependencies() : NULL;
+    this->commBarrier = inputParams->algorithm != Algorithm::BackwardEulerWithPairwiseSteping ? new CommunicationBarrier() : NULL;
     //to avoid rounding errors, we send the notifications slighly before (so this should never be 1)
     assert(TimeDependencies::notificationIntervalRatio>0 && TimeDependencies::notificationIntervalRatio<=1);
-    assert(Neuron::commStepSize <= 4);
 }
 
 Neuron::~Neuron()
@@ -29,7 +28,18 @@ Neuron::~Neuron()
     for (Synapse *& s : synapses)
         delete s;
     delete timeDependencies;
-    hpx_lco_delete_sync(commStepAllSpikesLco);
+    delete commBarrier;
+}
+
+Neuron::CommunicationBarrier::CommunicationBarrier()
+{
+    this->allSpikesLco = HPX_NULL;
+    assert(Neuron::CommunicationBarrier::commStepSize <= 4);
+}
+
+Neuron::CommunicationBarrier::~CommunicationBarrier()
+{
+    hpx_lco_delete_sync(allSpikesLco);
 }
 
 Neuron::Synapse::Synapse(hpx_t addr, floble_t minDelay, int destinationGid)
@@ -86,21 +96,18 @@ void Neuron::sendSpikes(floble_t t, floble_t dt)
     spike_time_t tt = (spike_time_t) t+1e-10;
 
     //netcvode.cpp::PreSyn::send()
-    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerSyncFixedCommStepDebug
-     || inputParams->algorithm==neurox::Algorithm::BackwardEulerAsyncFixedCommStep)
+    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerFixedCommBarrier
+     || inputParams->algorithm==neurox::Algorithm::BackwardEulerSlidingTimeWindow)
     {
-        if (commStepAllSpikesLco == HPX_NULL) //first use
-            commStepAllSpikesLco = hpx_lco_and_new(synapses.size());
+        if (this->commBarrier->allSpikesLco == HPX_NULL) //first use
+            this->commBarrier->allSpikesLco = hpx_lco_and_new(synapses.size());
         else
-            hpx_lco_reset_sync(commStepAllSpikesLco); //reset to use after
+            hpx_lco_reset_sync(this->commBarrier->allSpikesLco); //reset to use after
 
         for (Synapse *& s : synapses)
             //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-            hpx_call(s->addr, Branch::addSpikeEvent, commStepAllSpikesLco,
+            hpx_call(s->addr, Branch::addSpikeEvent, this->commBarrier->allSpikesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-
-        if (inputParams->algorithm==neurox::Algorithm::BackwardEulerSyncFixedCommStepDebug)
-            hpx_lco_wait_reset(commStepAllSpikesLco); //Debug mode waits now, otherwise at the end of comm step
     }
     else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
     {

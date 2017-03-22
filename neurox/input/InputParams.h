@@ -5,8 +5,8 @@ namespace neurox
 {
 
 enum Algorithm {
-    BackwardEulerSyncFixedCommStepDebug=0,
-    BackwardEulerAsyncFixedCommStep=1,
+    BackwardEulerFixedCommBarrier=0,
+    BackwardEulerSlidingTimeWindow=1,
     BackwardEulerWithPairwiseSteping=2
 };
 

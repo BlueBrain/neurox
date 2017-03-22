@@ -35,14 +35,15 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
 
-#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
+//#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 
 ///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
-    extern std::vector<hpx_t> * neurons; ///> hpx address of all neurons array
+    extern std::vector<hpx_t> * neurons; ///> hpx address of all neurons
+    extern std::vector<hpx_t> * myNeurons; ///> hpx address of my neurons
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms

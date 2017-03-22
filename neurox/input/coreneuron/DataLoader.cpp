@@ -29,7 +29,6 @@ FILE *fileNetcons;
 
 hpx_t neuronsMutex = HPX_NULL;
 std::vector<int> * neuronsGids = nullptr;
-std::vector<hpx_t> * myNeuronsAddr = nullptr;
 
 neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
@@ -533,7 +532,7 @@ int DataLoader::initNeurons_handler()
     if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
 
     int myNeuronsCount =  getMyNrnNeuronsCount();
-    myNeuronsAddr = new std::vector<hpx_t>(myNeuronsCount);
+    neurox::myNeurons = new std::vector<hpx_t>(myNeuronsCount);
 
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true  //TODO to go away at some point
     if (inputParams->outputCompartmentsDot)
@@ -565,17 +564,17 @@ int DataLoader::initNeurons_handler()
     std::vector<int> myNeuronsGids(myNeuronsCount);
     for (int n=0; n<myNeuronsCount; n++)
     {
-        myNeuronsAddr->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
+        neurox::myNeurons->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
         myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
     }
 
     hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
                                         myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
-                                        myNeuronsAddr->data(), sizeof(hpx_t)*myNeuronsAddr->size());
+                                        neurox::myNeurons->data(), sizeof(hpx_t)*myNeurons->size());
 
     assert(neuronsGids->size()>0); //at least my neuron!
     for (int n=0; n<myNeuronsCount; n++)
-        createNeuron(&nrn_threads[n], myNeuronsAddr->at(n));
+        createNeuron(&nrn_threads[n], myNeurons->at(n));
     neurox_hpx_unpin;
 }
 
@@ -618,7 +617,8 @@ int DataLoader::clean_handler()
     }
 
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
-    myNeuronsAddr->clear(); delete myNeuronsAddr; myNeuronsAddr = nullptr;
+    if (inputParams->algorithm != Algorithm::BackwardEulerFixedCommBarrier)
+    {   neurox::myNeurons->clear(); delete myNeurons; myNeurons = nullptr; }
     nrn_setup_cleanup();
     hpx_lco_delete_sync(neuronsMutex);
 

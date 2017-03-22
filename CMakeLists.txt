@@ -62,7 +62,7 @@ option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
 option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
-option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
+option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" ON)
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
