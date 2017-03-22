@@ -566,8 +566,13 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
         //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
 #endif
     }
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
+    #ifdef NEUROX_TIME_STEPPING_VERBOSE
+      if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
+      {
         printf("-- neuron %d finished! \n", local->soma->gid);
+        fflush(stdout);
+      }
+    #endif
 
     //end of communication step, wait for all synapses to be delivered
     if (inputParams->algorithm == Algorithm::BackwardEulerAsyncFixedCommStep)

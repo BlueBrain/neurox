@@ -62,6 +62,7 @@ option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
 option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
+option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
@@ -278,6 +279,9 @@ ENDIF()
 add_definitions("-DNET_RECEIVE_BUFFERING=0")
 add_definitions("-D__STDC_CONSTANT_MACROS") #fix viz cluster compilation
 add_definitions("-DNEUROX_LOGO_PATH=\"${PROJECT_SOURCE_DIR}/misc/logos/logo80_cyborg.txt\"")
+if (NEUROX_TIME_STEPPING_VERBOSE)
+    add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
+endif()
 add_subdirectory(coreneuron)
 add_subdirectory(neurox)
 

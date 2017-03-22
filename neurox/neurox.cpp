@@ -165,6 +165,14 @@ static void displayLogo()
     openfile.close();
 }
 
+void message(char * str)
+{
+#ifdef  NEUROX_TIME_STEPPING_VERBOSE
+    printf ("%s",str);
+    fflush(stdout);
+#endif
+}
+
 hpx_action_t main = 0;
 static int main_handler()
 {
@@ -172,49 +180,50 @@ static int main_handler()
     neurox::displayLogo();
 #endif
     printf("neurox::main (localities: %d, threads/locality: %d)\n", hpx_get_num_ranks(), hpx_get_num_threads());
-    printf("neurox::Input::Coreneuron::DataLoader::init...\n");
+    fflush(stdout);
+    message("neurox::Input::Coreneuron::DataLoader::init...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::init);
-    printf("neurox::Input::Coreneuron::DataLoader::initMechanisms...\n");
+    message("neurox::Input::Coreneuron::DataLoader::initMechanisms...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initMechanisms);
-    printf("neurox::Input::Coreneuron::DataLoader::initNeurons...\n");
+    message("neurox::Input::Coreneuron::DataLoader::initNeurons...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initNeurons);
-    printf("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
+    message("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), neurox::Input::Coreneuron::DataLoader::initNetcons, HPX_NULL, 0);
     }, 0, neurox::neurons->size(), NULL);
-    printf("neurox::Input::Coreneuron::DataLoader::clean...\n");
+    message("neurox::Input::Coreneuron::DataLoader::clean...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::clean);
 
     int neuronsCount = neurons->size();
     if (neurox::inputParams->outputStatistics)
     {
-      printf("neurox::Misc::Statistics::printMechanismsDistribution...\n", neuronsCount);
+      message("neurox::Misc::Statistics::printMechanismsDistribution...\n");
       Misc::Statistics::printMechanismsDistribution();
-      printf("neurox::Misc::Statistics::printSimulationSize...\n", neuronsCount);
+      message("neurox::Misc::Statistics::printSimulationSize...\n");
       Misc::Statistics::printSimulationSize();
       //hpx_exit(0,NULL);
     }
 
-    printf("neurox::Branch::BranchTree::initLCOs...\n");
+    message("neurox::Branch::BranchTree::initLCOs...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    printf("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
+    message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 #endif
 
-    printf("neurox::Branch::finitialize...\n");
+    message("neurox::Branch::finitialize...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
-    printf("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
+    message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
@@ -226,6 +235,7 @@ static int main_handler()
            (inputParams->algorithm == Algorithm::BackwardEulerAsyncFixedCommStep     ? "BackwardEulerAsyncFixedCommStep" :
            (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping    ? "BackwardEulerWithPairwiseSteping" : "")),
             neuronsCount, inputParams->tstop/1000, inputParams->dt, totalSteps);
+    fflush(stdout);
 
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t now = hpx_time_now();
@@ -236,7 +246,10 @@ static int main_handler()
          t < inputParams->tstop - inputParams->dt*0.5;
          t += inputParams->dt*Neuron::commStepSize)
       {
-        printf("-- t=%.1f ms\n",t);
+        #ifdef NEUROX_TIME_STEPPING_VERBOSE
+          printf("-- t=%.1f ms\n",t);
+          fflush(stdout);
+        #endif
         for (int i=0; i<neuronsCount; i++)
           hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &Neuron::commStepSize, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
