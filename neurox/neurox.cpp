@@ -292,9 +292,12 @@ static int main_handler()
     }
 
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
-    compareAllBranches(neuronsCount);
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neuronsCount, inputParams->tstop/1000.0, elapsed);
+
+    if (!(inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping
+       && inputParams->parallelDataLoading)) //not possible to compare in parallel due to spike exhance
+              compareAllBranches(neuronsCount);
 
     if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
     {

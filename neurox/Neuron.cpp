@@ -16,7 +16,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->commBarrier = inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier ? new CommunicationBarrier() : NULL;
     this->slidingTimeWindow = inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? new SlidingTimeWindow() : NULL;
     assert(TimeDependencies::notificationIntervalRatio>0 && TimeDependencies::notificationIntervalRatio<=1);
-//    assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::slidingWindowStepSize==0);
+    assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::reducesPerCommStep==0);
 }
 
 Neuron::~Neuron()

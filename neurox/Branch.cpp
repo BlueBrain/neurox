@@ -567,10 +567,11 @@ int Branch::backwardEulerGroup_handler(const int * steps_ptr, const size_t size)
             hpx_call(Neuron::CommunicationBarrier::myNeurons->at(n),
                      Branch::backwardEuler, myNeuronsLCO, steps_ptr, size);
         hpx_lco_wait_reset(myNeuronsLCO);
-        //TODO create an all-reduce!
     }
     else if (inputParams->algorithm == BackwardEulerWithSlidingTimeWindow)
     {
+        int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reducesPerCommStep;
+
         //for every communication step
         for (int s=0; s<steps; s+=Neuron::CommunicationBarrier::commStepSize)
         {
@@ -586,9 +587,9 @@ int Branch::backwardEulerGroup_handler(const int * steps_ptr, const size_t size)
               hpx_process_collective_allreduce_join(Neuron::SlidingTimeWindow::allReduceLco[r],
                                                   Neuron::SlidingTimeWindow::allReduceId[r], NULL, 0);
 
-              for (int n=0; n<myNeuronsCount; n++) //2 steps
+              for (int n=0; n<myNeuronsCount; n++)
                 hpx_call(Neuron::CommunicationBarrier::myNeurons->at(n), Branch::backwardEuler,
-                         myNeuronsLCO, &Neuron::SlidingTimeWindow::reducesPerCommStep, size);
+                         myNeuronsLCO, &stepsPerReduction, size);
               hpx_lco_wait_reset(myNeuronsLCO);
             }
 
@@ -614,9 +615,13 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
         hpx_t spikesLco = local->backwardEulerStep();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-        Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
-        Input::Coreneuron::Debugger::compareBranch2(local);
-        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
+        if (!(inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping
+           && inputParams->parallelDataLoading)) //not possible to compare in parallel due to spike exhance
+        {
+          Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[local->nt->id], secondorder);
+          Input::Coreneuron::Debugger::compareBranch2(local);
+          //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
+        }
 #endif
 
         //wait for spikes sent 4 steps ago (queue has always size 3)
