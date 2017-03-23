@@ -44,7 +44,7 @@ class Neuron
         hpx_t previousSpikeLco; ///>lco controlling spikes delivery
     };
 
-    hpx_t sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
+    hpx_t sendSpikes(floble_t t); ///> fires AP, returns LCO for sent synapses
     void addSynapse(Synapse * target);///> add hpx address of post-synaptic branch
     size_t getSynapseCount(); ///> get size of vector synapse
 
@@ -55,27 +55,25 @@ class Neuron
         ~CommunicationBarrier();
         hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
 
-        static const int commStepSize; ///> Fixed communication step size
+        static constexpr int commStepSize = 4; ///> Fixed communication step size
         static std::vector<hpx_t> * myNeurons;
     } * commBarrier;
 
-    //the incoming neuron connections:
+    ///the incoming neuron connections:
     class TimeDependencies
     {
       public:
         TimeDependencies();
         ~TimeDependencies();
 
-        //time dependency methods
         void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
         void sendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses); ///> inform my outgoing-connection neurons that I stepped
         void updateTimeDependency(neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
 
-        ///> how often to communicate stepping notification (1: every 'minDelay', 0.5 every half 'minDelay)
-        static const floble_t notificationIntervalRatio;
-        static const double teps; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
+        static constexpr floble_t notificationIntervalRatio = 1; ///> ration of notification interval (0,1]
+        static constexpr double teps =1e-8; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
 
       private:
         std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
@@ -91,9 +89,11 @@ class Neuron
         SlidingTimeWindow();
         ~SlidingTimeWindow();
 
+        //initiated by constructor
         std::queue<hpx_t> spikesLcoQueue;
 
-        static const int reducesPerCommStep ;
+        //initialized at susbcribe
+        static constexpr int reducesPerCommStep =2 ;
         static hpx_t *allReduceFuture;
         static hpx_t *allReduceLco;
         static int *allReduceId;

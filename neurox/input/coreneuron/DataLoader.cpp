@@ -454,15 +454,22 @@ int DataLoader::initMechanisms_handler()
     if (inputParams->outputMechanismsDot)
     {
       FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
-      fprintf(fileMechs, "digraph G\n{ bgcolor=%s;\n", DOT_PNG_BACKGROUND_COLOR);
+      fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", DOT_PNG_BACKGROUND_COLOR,
+              !inputParams->multiMex ? "layout=circo; scale=0.23;" : "");
       fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
       fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
             getMechanismFromType(CAP)->sym, CAP);
+      if (!inputParams->multiMex)
+      {
+        fprintf(fileMechs, "end -> start [color=transparent];\n");
+        fprintf(fileMechs, "start -> \"%s (%d)\";\n", getMechanismFromType(CAP)->sym, CAP);
+      }
       for (int m =0; m< mechanismsCount; m++)
       {
         Mechanism * mech = neurox::mechanisms[m];
+
         if (mech->pntMap > 0) //if is point process make it dotted
             fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->sym, mech->type);
 

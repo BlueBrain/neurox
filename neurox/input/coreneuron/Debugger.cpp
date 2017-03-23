@@ -144,7 +144,7 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
       int & thidx = b->soma->thvar_index;
       floble_t v = b->nt->_actual_v[thidx];
       if (b->soma->checkAPthresholdAndTransmissionFlag(v))
-          b->soma->sendSpikes(b->nt->_t, dt);
+          b->soma->sendSpikes(b->nt->_t);
       //TODO what about spikesLco ??
     }
     b->nt->_t += .5*dt;

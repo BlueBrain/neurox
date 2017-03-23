@@ -13,8 +13,8 @@
 namespace neurox
 {
 
-std::vector<hpx_t> * neurons   = nullptr;
-int mechanismsCount=-1;
+std::vector<hpx_t> * neurons = nullptr;
+int mechanismsCount = -1;
 int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
 Input::InputParams * inputParams = nullptr;
@@ -256,6 +256,7 @@ static int main_handler()
     hpx_time_t now = hpx_time_now();
     if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier)
     {
+      int commStepSize = Neuron::CommunicationBarrier::commStepSize;
       for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
       {
           #ifdef NEUROX_TIME_STEPPING_VERBOSE
@@ -263,8 +264,7 @@ static int main_handler()
               message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
           #endif
 
-          hpx_bcast_rsync(neurox::Branch::backwardEulerGroup,
-                          &Neuron::CommunicationBarrier::commStepSize, sizeof(int));
+          hpx_bcast_rsync(neurox::Branch::backwardEulerGroup, &commStepSize, sizeof(int));
 
           /*TODO compare with this approach
            TO activate this, remove the `static` in Neuron class!!

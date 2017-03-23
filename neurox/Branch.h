@@ -87,7 +87,7 @@ class Branch
         size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
 
-        static const size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
+        static constexpr size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
         hpx_t localLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
         hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
 
@@ -118,7 +118,7 @@ class Branch
     void setupTreeMatrix();
     void solveTreeMatrix();
     void finitialize2();
-    hpx_t backwardEulerStep();
+    void backwardEulerStep();
 
     static void registerHpxActions(); ///> Register all HPX actions
 

@@ -31,9 +31,9 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         TCLAP::CmdLine cmd("neurox simulator.", ' ', "0.1");
 
         //neurox only command line arguments (switches dont require cmd.add() )
-        TCLAP::SwitchArg outputCompartmentsDot("5", "output-compartments-dot", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
-        TCLAP::SwitchArg outputNetconsDot("4", "output-netcons-dot", "outputs netcons.dot with netcons information across neurons.", cmd, false);
-        TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs-dot", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
+        TCLAP::SwitchArg outputCompartmentsDot("5", "output-compartments", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
+        TCLAP::SwitchArg outputNetconsDot("4", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
+        TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
         TCLAP::SwitchArg outputStatistics("2", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
         TCLAP::SwitchArg multiSplix("1", "multisplix", "activates tree-based parallelism of neurons morphologies.", cmd, false);
         TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);

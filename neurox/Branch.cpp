@@ -485,7 +485,7 @@ void Branch::finitialize2()
 }
 
 //fadvance_core.c::nrn_fixed_step_minimal()
-hpx_t Branch::backwardEulerStep()
+void Branch::backwardEulerStep()
 {
     floble_t *& v   = this->nt->_actual_v;
     floble_t *& rhs = this->nt->_actual_rhs;
@@ -518,7 +518,7 @@ hpx_t Branch::backwardEulerStep()
       int & thidx = this->soma->thvar_index;
       floble_t v = this->nt->_actual_v[thidx];
       if (soma->checkAPthresholdAndTransmissionFlag(v))
-          spikesLco = soma->sendSpikes(nt->_t, nt->_dt);
+          spikesLco = soma->sendSpikes(nt->_t);
     }
 
     //netcvode.cpp::NetCvode::deliver_net_events()
@@ -547,7 +547,20 @@ hpx_t Branch::backwardEulerStep()
 
     //if we are at the output time instant output to file
     if (fmod(t, inputParams->dt_io) == 0) {}
-    return spikesLco;
+
+    //wait for spikes sent 4 steps ago (queue has always size 3)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
+    {
+      assert(this->soma->slidingTimeWindow->spikesLcoQueue.size() == Neuron::CommunicationBarrier::commStepSize-1);
+      this->soma->slidingTimeWindow->spikesLcoQueue.push(spikesLco);
+      hpx_t queuedSpikesLco = this->soma->slidingTimeWindow->spikesLcoQueue.front();
+      this->soma->slidingTimeWindow->spikesLcoQueue.pop();
+      if (queuedSpikesLco != HPX_NULL)
+      {
+          hpx_lco_wait(queuedSpikesLco);
+          hpx_lco_delete_sync(queuedSpikesLco);
+      }
+    }
 }
 
 hpx_action_t Branch::backwardEulerGroup = 0;
@@ -612,7 +625,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 
     for (int step=0; step<*steps_ptr; step++)
     {
-        hpx_t spikesLco = local->backwardEulerStep();
+        local->backwardEulerStep();
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
         if (!(inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping
@@ -623,31 +636,20 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
           //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
         }
 #endif
-
-        //wait for spikes sent 4 steps ago (queue has always size 3)
-        if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
-        {
-          local->soma->slidingTimeWindow->spikesLcoQueue.push(spikesLco);
-          hpx_t queuedSpikesLco = local->soma->slidingTimeWindow->spikesLcoQueue.front();
-          local->soma->slidingTimeWindow->spikesLcoQueue.pop();
-          if (queuedSpikesLco != HPX_NULL)
-          {
-              hpx_lco_wait(queuedSpikesLco);
-              hpx_lco_delete_sync(queuedSpikesLco);
-          }
-        }
     }
-    #ifdef NEUROX_TIME_STEPPING_VERBOSE
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
-      neurox::message(std::string("-- neuron "+std::to_string(local->soma->gid)+" finished\n").c_str());
-    #endif
 
     //end of communication step, wait for all synapses to be delivered
     if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier)
     {
+        assert(*steps_ptr == Neuron::CommunicationBarrier::commStepSize);
         if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
            hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
     }
+
+    #ifdef NEUROX_TIME_STEPPING_VERBOSE
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
+        neurox::message(std::string("-- neuron "+std::to_string(local->soma->gid)+" finished\n").c_str());
+    #endif
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
