@@ -90,15 +90,6 @@ int Mechanism::getIonIndex()
     return Branch::MechanismsGraph::IonIndex::no_ion;
 }
 
-hpx_action_t Mechanism::initModFunction = 0;
-void Mechanism::initModFunction_handler(ModFunction *function_ptr, const size_t)
-{}
-
-hpx_action_t Mechanism::reduceModFunction = 0;
-void Mechanism::reduceModFunction_handler
-    (ModFunction * lhs, const ModFunction *rhs, const size_t)
-{ *lhs = *rhs; }
-
 void Mechanism::registerBeforeAfterFunctions()
 {
     //Copy Before-After functions
@@ -286,10 +277,4 @@ void Mechanism::callModFunction(const void * branch_ptr,
             printf("ERROR: Unknown ModFunction with id %d.\n", functionId);
             exit(1);
     }
-}
-
-void Mechanism::registerHpxActions()
-{
-    neurox_hpx_register_action(5, Mechanism::initModFunction);
-    neurox_hpx_register_action(5, Mechanism::reduceModFunction);
 }

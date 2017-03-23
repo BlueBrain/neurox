@@ -19,8 +19,6 @@ class Neuron
 
     Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index);
 
-    static const double teps; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
-
     neuron_id_t gid;     ///> neuron global id
     floble_t threshold;  ///> Action Potential threshold (PreSyn->_threshold)
     int thvar_index;     ///> index in voltages array og value to be compared against AP threshold (PreSyn->thvar_index_)
@@ -46,7 +44,7 @@ class Neuron
         hpx_t previousSpikeLco; ///>lco controlling spikes delivery
     };
 
-    void sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
+    hpx_t sendSpikes(floble_t t, floble_t dt); ///> fires AP, returns LCO for sent synapses
     void addSynapse(Synapse * target);///> add hpx address of post-synaptic branch
     size_t getSynapseCount(); ///> get size of vector synapse
 
@@ -56,9 +54,9 @@ class Neuron
         CommunicationBarrier();
         ~CommunicationBarrier();
         hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
-        static const int commStepSize; ///> Fixed communication step size
 
-        hpx_t allreduce;
+        static const int commStepSize; ///> Fixed communication step size
+        static std::vector<hpx_t> * myNeurons;
     } * commBarrier;
 
     //the incoming neuron connections:
@@ -77,6 +75,7 @@ class Neuron
 
         ///> how often to communicate stepping notification (1: every 'minDelay', 0.5 every half 'minDelay)
         static const floble_t notificationIntervalRatio;
+        static const double teps; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
 
       private:
         std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
@@ -86,11 +85,37 @@ class Neuron
 
     } * timeDependencies;
 
+    class SlidingTimeWindow
+    {
+      public:
+        SlidingTimeWindow();
+        ~SlidingTimeWindow();
+
+        std::queue<hpx_t> spikesLcoQueue;
+
+        static const int reducesPerCommStep ;
+        static hpx_t *allReduceFuture;
+        static hpx_t *allReduceLco;
+        static int *allReduceId;
+
+        static hpx_action_t subscribeAllReduce;
+        static hpx_action_t unsubscribeAllReduce;
+        static hpx_action_t reduce;
+        static hpx_action_t init;
+
+        static int subscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static void init_handler(const void*, const size_t);
+        static void reduce_handler(void* rhs, const void* lhs, const size_t);
+    } * slidingTimeWindow;
+
     std::vector<Synapse*> synapses; ///> out-going synapse information
+
+    static void registerHpxActions(); ///> Register all HPX actions
+
   private:
     //the outgoing neuron connections:
     hpx_t synapsesMutex; ///> protects synapses
     bool synapsesTransmissionFlag; ///> PreSynHelper* psh -> flag (to flag whether spikes for a given AP have been sent or not
-
 }; //Neuron
 }; //namespace neurox

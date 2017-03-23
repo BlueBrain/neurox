@@ -145,6 +145,7 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
       floble_t v = b->nt->_actual_v[thidx];
       if (b->soma->checkAPthresholdAndTransmissionFlag(v))
           b->soma->sendSpikes(b->nt->_t, dt);
+      //TODO what about spikesLco ??
     }
     b->nt->_t += .5*dt;
     b->deliverEvents(b->nt->_t);
@@ -372,11 +373,16 @@ int Debugger::finitialize_handler()
     neurox_hpx_unpin;
 }
 
+void Debugger::nrnSpikeExchange2()
+{
+    nrn_spike_exchange(nrn_threads);
+}
+
 hpx_action_t Debugger::nrnSpikeExchange = 0;
 int Debugger::nrnSpikeExchange_handler()
 {
     neurox_hpx_pin(uint64_t);
-    nrn_spike_exchange(nrn_threads);
+    nrnSpikeExchange2();
     neurox_hpx_unpin;
 }
 

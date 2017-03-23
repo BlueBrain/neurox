@@ -75,20 +75,12 @@ class Mechanism
                          const Mechanism::ModFunction functionId,
                          const NetConX * netcon = NULL, //for net_receive only
                          const floble_t tt = 0 );       //for net_receive only
-
-    static void registerHpxActions(); ///> Register all HPX actions
-    static hpx_action_t initModFunction; ///> init function for hpx_reduce of mechanisms graphs
-    static hpx_action_t reduceModFunction; ///> reduce opreationf for hpx_creduce of mechanisms graphs
-
-private:
+  private:
     void disableMechFunctions(); ///> sets to NULL all function pointers
     void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
     void registerCapacitance();   ///> register mechanism of type "capacitance"
     void registerBeforeAfterFunctions();   ///> register Before-After functions
     void registerModFunctions(int type); ///> register mechanisms functions (mod_t_f type)
 
-    static void initModFunction_handler(ModFunction * func_ptr, const size_t);
-    static void reduceModFunction_handler(ModFunction * lhs,
-                                          const ModFunction *rhs, const size_t);
 };
 };

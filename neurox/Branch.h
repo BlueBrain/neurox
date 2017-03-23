@@ -59,8 +59,14 @@ class Branch
         hpx_t endLCO; ///> represents the bottom of the graph
         hpx_t graphLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
 
-        static hpx_action_t nodeFunction; ///> represents the action of the nodes in the mechanisms graph
-        static int nodeFunction_handler(const int * mechType_ptr, const size_t);
+        static hpx_action_t init; ///> init function for hpx_reduce of mechanisms graphs
+        static hpx_action_t reduce; ///> reduce opreationf for hpx_creduce of mechanisms graphs
+        static hpx_action_t mechFunction; ///> represents the action of the nodes in the mechanisms graph
+
+        static int mechFunction_handler(const int * mechType_ptr, const size_t);
+        static void init_handler(Mechanism::ModFunction * func_ptr, const size_t);
+        static void reduce_handler(Mechanism::ModFunction * lhs,
+                                              const Mechanism::ModFunction *rhs, const size_t);
 
         //for current function accumulation of shadow arrays
         enum IonIndex {na=0, k=1, ca=2, size_writeable_ions=3, ttx=3, no_ion=4}; //ttx not write-able
@@ -112,7 +118,7 @@ class Branch
     void setupTreeMatrix();
     void solveTreeMatrix();
     void finitialize2();
-    void backwardEulerStep();
+    hpx_t backwardEulerStep();
 
     static void registerHpxActions(); ///> Register all HPX actions
 

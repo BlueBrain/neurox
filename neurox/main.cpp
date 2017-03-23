@@ -10,7 +10,7 @@ int main(int argc, char** argv)
 {
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
-    neurox::Mechanism::registerHpxActions();
+    neurox::Neuron::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
 #if defined(CORENEURON_H)
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();

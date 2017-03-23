@@ -31,14 +31,14 @@ class DataLoader
 
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
     static void initAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
-    static void cleanData(); ///>removes all Nrn data structures
+    static void cleanCoreneuronData(); ///>removes all Nrn data structures
     static void registerHpxActions();
 
     static hpx_action_t init;
     static hpx_action_t initMechanisms;
     static hpx_action_t initNeurons;
     static hpx_action_t initNetcons;
-    static hpx_action_t clean;
+    static hpx_action_t clear;
 
   private:
 
@@ -84,7 +84,7 @@ class DataLoader
     static int initMechanisms_handler();
     static int initNeurons_handler();
     static int initNetcons_handler ();
-    static int clean_handler();
+    static int clear_handler();
 };
 
 }; //Coreneuron

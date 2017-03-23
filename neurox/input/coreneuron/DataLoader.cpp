@@ -279,7 +279,7 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
                 delete nvc;
 }
 
-void DataLoader::cleanData()
+void DataLoader::cleanCoreneuronData()
 {
     nrn_cleanup();
 }
@@ -532,7 +532,7 @@ int DataLoader::initNeurons_handler()
     if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
 
     int myNeuronsCount =  getMyNrnNeuronsCount();
-    neurox::myNeurons = new std::vector<hpx_t>(myNeuronsCount);
+    Neuron::CommunicationBarrier::myNeurons = new std::vector<hpx_t>(myNeuronsCount);
 
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true  //TODO to go away at some point
     if (inputParams->outputCompartmentsDot)
@@ -564,17 +564,17 @@ int DataLoader::initNeurons_handler()
     std::vector<int> myNeuronsGids(myNeuronsCount);
     for (int n=0; n<myNeuronsCount; n++)
     {
-        neurox::myNeurons->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
+        Neuron::CommunicationBarrier::myNeurons->at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
         myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
     }
 
     hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
-                                        myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
-                                        neurox::myNeurons->data(), sizeof(hpx_t)*myNeurons->size());
+         myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
+         Neuron::CommunicationBarrier::myNeurons->data(), sizeof(hpx_t)*Neuron::CommunicationBarrier::myNeurons->size());
 
     assert(neuronsGids->size()>0); //at least my neuron!
     for (int n=0; n<myNeuronsCount; n++)
-        createNeuron(&nrn_threads[n], myNeurons->at(n));
+        createNeuron(&nrn_threads[n], Neuron::CommunicationBarrier::myNeurons->at(n));
     neurox_hpx_unpin;
 }
 
@@ -605,8 +605,8 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::clean = 0;
-int DataLoader::clean_handler()
+hpx_action_t DataLoader::clear = 0;
+int DataLoader::clear_handler()
 {
     neurox_hpx_pin(uint64_t);
 
@@ -617,13 +617,18 @@ int DataLoader::clean_handler()
     }
 
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
-    if (inputParams->algorithm != Algorithm::BackwardEulerFixedCommBarrier)
-    {   neurox::myNeurons->clear(); delete myNeurons; myNeurons = nullptr; }
+    if (inputParams->algorithm != Algorithm::BackwardEulerWithAsyncCommBarrier
+    && inputParams->algorithm != Algorithm::BackwardEulerWithSlidingTimeWindow)
+    {
+        Neuron::CommunicationBarrier::myNeurons->clear();
+        delete Neuron::CommunicationBarrier::myNeurons;
+        Neuron::CommunicationBarrier::myNeurons = nullptr;
+    }
     nrn_setup_cleanup();
     hpx_lco_delete_sync(neuronsMutex);
 
 #if defined(NDEBUG) && defined(CORENEURON_H)
-    nrn_cleanup(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+    DataLoader::cleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
 #endif
     neurox_hpx_unpin;
 }
@@ -990,7 +995,7 @@ void DataLoader::registerHpxActions()
     neurox_hpx_register_action(0, DataLoader::initMechanisms);
     neurox_hpx_register_action(0, DataLoader::initNeurons);
     neurox_hpx_register_action(0, DataLoader::initNetcons);
-    neurox_hpx_register_action(0, DataLoader::clean);
+    neurox_hpx_register_action(0, DataLoader::clear);
     neurox_hpx_register_action(2, DataLoader::addSynapse);
     neurox_hpx_register_action(2, DataLoader::addNeurons);
     neurox_hpx_register_action(0, DataLoader::initNetcons);

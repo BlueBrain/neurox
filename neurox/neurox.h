@@ -39,11 +39,9 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 
-///neurox namespace: contains global information that is copied to all localities
 namespace neurox
 {
     extern std::vector<hpx_t> * neurons; ///> hpx address of all neurons
-    extern std::vector<hpx_t> * myNeurons; ///> hpx address of my neurons
 
     extern int mechanismsCount; ///> number of mechanisms
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
@@ -57,12 +55,13 @@ namespace neurox
     extern hpx_action_t setMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
 
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
+    void message(const char * str);
 
     static int main_handler();
     static int clear_handler();
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
     static int setMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
 
-    void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
     void registerHpxActions();           ///> Register all HPX actions
 } ;

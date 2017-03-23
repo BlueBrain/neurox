@@ -14,7 +14,6 @@ namespace neurox
 {
 
 std::vector<hpx_t> * neurons   = nullptr;
-std::vector<hpx_t> * myNeurons = nullptr;
 int mechanismsCount=-1;
 int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
@@ -166,7 +165,7 @@ static void displayLogo()
     openfile.close();
 }
 
-void message(char * str)
+void message(const char * str)
 {
 #ifdef  NEUROX_TIME_STEPPING_VERBOSE
     printf ("%s",str);
@@ -203,7 +202,7 @@ static int main_handler()
     {  return hpx_call_sync(neurox::neurons->at(i), neurox::Input::Coreneuron::DataLoader::initNetcons, HPX_NULL, 0);
     }, 0, neurox::neurons->size(), NULL);
     message("neurox::Input::Coreneuron::DataLoader::clean...\n");
-    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::clean);
+    hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::clear);
 
     int neuronsCount = neurons->size();
     if (neurox::inputParams->outputStatistics)
@@ -213,11 +212,6 @@ static int main_handler()
       message("neurox::Misc::Statistics::printSimulationSize...\n");
       Misc::Statistics::printSimulationSize();
       //hpx_exit(0,NULL);
-    }
-
-    if (inputParams->algorithm == Algorithm::BackwardEulerSlidingTimeWindow)
-    {
-        //hpx_t slidingWindowAllReduce = hpx_process_collective_allreduce_new(sizeof(int), _reset, _op);
     }
 
     message("neurox::Branch::BranchTree::initLCOs...\n");
@@ -237,37 +231,43 @@ static int main_handler()
 #endif
     compareAllBranches(neuronsCount);
 
+    //init Sliding Window in all nodes
+    hpx_t * allreduces = nullptr;
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
+    {
+        message("neurox::Algorithm::BackwardEulerSlidingTimeWindow::init...\n");
+        allreduces = new hpx_t[Neuron::SlidingTimeWindow::reducesPerCommStep];
+        for (int i=0; i<Neuron::SlidingTimeWindow::reducesPerCommStep; i++)
+          allreduces[i] = hpx_process_collective_allreduce_new(0, Neuron::SlidingTimeWindow::init, Neuron::SlidingTimeWindow::reduce);
+        hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::subscribeAllReduce, allreduces, sizeof(hpx_t)*Neuron::SlidingTimeWindow::reducesPerCommStep);
+        for (int i=0; i<Neuron::SlidingTimeWindow::reducesPerCommStep; i++)
+          hpx_process_collective_allreduce_subscribe_finalize(allreduces[i]);
+    }
+
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
     printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps):\n",
-            inputParams->algorithm == Algorithm::BackwardEulerFixedCommBarrier    ? "BackwardEulerFixedCommBarrier" :
-           (inputParams->algorithm == Algorithm::BackwardEulerSlidingTimeWindow   ? "BackwardEulerSlidingTimeWindow" :
-           (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping ? "BackwardEulerWithPairwiseSteping" : "")),
+            inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier  ? "BackwardEulerWithAsyncCommBarrier" :
+           (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
+           (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping   ? "BackwardEulerWithPairwiseSteping" : "")),
             neuronsCount, inputParams->tstop/1000, inputParams->dt, totalSteps);
     fflush(stdout);
 
-    if (inputParams->algorithm == Algorithm::BackwardEulerSlidingTimeWindow)
-    {
-        message("neurox::Algorithm::BackwardEulerSlidingTimeWindow::init...\n");
-        //hpx_t allreduce = hpx_process_collective_allreduce_new(sizeof(int), _reset, _op);
-    }
-
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
     hpx_time_t now = hpx_time_now();
-    if (inputParams->algorithm == Algorithm::BackwardEulerFixedCommBarrier)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier)
     {
-      for (double t = inputParams->tstart;
-         t < inputParams->tstop - inputParams->dt*0.5;
-         t += inputParams->dt*Neuron::CommunicationBarrier::commStepSize)
+      for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
       {
           #ifdef NEUROX_TIME_STEPPING_VERBOSE
-            printf("-- t=%.1f ms\n",t);
-            fflush(stdout);
+            if (hpx_get_my_rank()==0)
+              message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
           #endif
 
           hpx_bcast_rsync(neurox::Branch::backwardEulerGroup,
                           &Neuron::CommunicationBarrier::commStepSize, sizeof(int));
 
           /*TODO compare with this approach
+           TO activate this, remove the `static` in Neuron class!!
           for (int i=0; i<neuronsCount; i++)
           hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO,
                    &Neuron::CommunicationBarrier::commStepSize, sizeof(int));
@@ -280,32 +280,12 @@ static int main_handler()
           #endif
       }
     }
-    else if (inputParams->algorithm == Algorithm::BackwardEulerSlidingTimeWindow)
+    else if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
     {
-      for (double t = inputParams->tstart;
-         t < inputParams->tstop - inputParams->dt*0.5;
-         t += inputParams->dt*Neuron::CommunicationBarrier::commStepSize)
-      {
-        #ifdef NEUROX_TIME_STEPPING_VERBOSE
-          printf("-- t=%.1f ms\n",t);
-          fflush(stdout);
-        #endif
-
-        assert(0);
-
-        for (int i=0; i<neuronsCount; i++)
-          hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO,
-                   &Neuron::CommunicationBarrier::commStepSize, sizeof(int));
-        hpx_lco_wait_reset(mainLCO);
-
-        #if !defined(NDEBUG) && defined(CORENEURON_H)
-          if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
-            hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::nrnSpikeExchange);
-        #endif
-      }
+         hpx_bcast_rsync(neurox::Branch::backwardEulerGroup, &totalSteps, sizeof(int));
     }
     else if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
-    {   //NOTE: only comparable at SMP mode or final comparison of results only (due to spike exchange)
+    {
         for (int i=0; i<neuronsCount; i++)
           hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
         hpx_lco_wait_reset(mainLCO);
@@ -316,13 +296,20 @@ static int main_handler()
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neuronsCount, inputParams->tstop/1000.0, elapsed);
 
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
+    {
+        hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::unsubscribeAllReduce,
+                        allreduces, sizeof(hpx_t)*Neuron::SlidingTimeWindow::reducesPerCommStep);
+
+        for (int i=0; i<Neuron::SlidingTimeWindow::reducesPerCommStep; i++)
+          hpx_process_collective_allreduce_delete(allreduces[i]);
+        delete [] allreduces; allreduces=nullptr;
+    }
+
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    neurox::Input::Coreneuron::DataLoader::cleanData(); //if Coreneuron+debug, data will be cleaned up only now
+    neurox::Input::Coreneuron::DataLoader::cleanCoreneuronData(); //if Coreneuron+debug, data will be cleaned up only now
 #endif
 
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons->at(i), Branch::clear, HPX_NULL, 0);
-    }, 0, neuronsCount, NULL);
     hpx_bcast_rsync(neurox::clear);
     hpx_exit(0,NULL);
 }
@@ -331,9 +318,20 @@ hpx_action_t clear = 0;
 int clear_handler()
 {
     neurox_hpx_pin(uint64_t);
+    //TODO add clearing of branches here
     delete [] mechanisms;
-    if (myNeurons) { myNeurons->clear(); delete myNeurons; myNeurons = nullptr; }
-    if (neurons)   { neurons->clear();   delete neurons;   neurons = nullptr;   }
+    if (Neuron::CommunicationBarrier::myNeurons)
+    {
+        Neuron::CommunicationBarrier::myNeurons->clear();
+        delete Neuron::CommunicationBarrier::myNeurons;
+        Neuron::CommunicationBarrier::myNeurons = nullptr;
+    }
+    if (neurox::neurons)
+    {
+        neurox::neurons->clear();
+        delete neurox::neurons;
+        neurox::neurons = nullptr;
+    }
     neurox_hpx_unpin;
 }
 
