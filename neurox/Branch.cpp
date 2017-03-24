@@ -647,7 +647,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
           for (int s=0; s<steps; s+=Neuron::CommunicationBarrier::commStepSize) //for every communication step
           {
             #ifdef NEUROX_TIME_STEPPING_VERBOSE
-                if (target == neurox::neurons->at(0))
+                if (hpx_get_my_rank()==0 && target == neurox::neurons->at(0))
                     message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
             #endif
             for (int r=0; r<Neuron::SlidingTimeWindow::reductionsPerCommStep; r++) //for every reduction step

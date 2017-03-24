@@ -69,7 +69,8 @@ void setMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependen
         {
           Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
           if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO hard coded exception
-          mech->dependencyIonIndex = parent->getIonIndex();
+          if (parent->getIonIndex() < Branch::MechanismsGraph::IonIndex::size_writeable_ions)
+              mech->dependencyIonIndex = parent->getIonIndex();
         }
       }
     }
