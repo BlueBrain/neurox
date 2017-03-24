@@ -493,10 +493,6 @@ void Branch::backwardEulerStep()
     double dt = this->nt->_dt;
     hpx_t spikesLco = HPX_NULL;
 
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-    printf("## %d starts step t=%.11f\n", this->soma->gid, t);
-#endif
-
     if (soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
     {
         //inform time dependants that must be notified in this step
@@ -564,8 +560,9 @@ void Branch::backwardEulerStep()
     }
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!(inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping
-        && inputParams->parallelDataLoading)) //not possible to compare in parallel due to spike exhance
+    //fixed comm barrier and serial jobas can be compared at runtime
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier
+     || !inputParams->parallelDataLoading)
     {
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
         Input::Coreneuron::Debugger::compareBranch2(this);
@@ -607,6 +604,7 @@ int Branch::backwardEulerOnNode_handler(const int * steps_ptr, const size_t size
             {
               if (s>=Neuron::CommunicationBarrier::commStepSize) //first comm-window does not wait
                   hpx_lco_wait_reset(Neuron::SlidingTimeWindow::nodeAllReduceFuture[r]);
+
               hpx_process_collective_allreduce_join(Neuron::SlidingTimeWindow::nodeAllReduceLco[r],
                                                   Neuron::SlidingTimeWindow::nodeAllReduceId[r], NULL, 0);
 
@@ -615,11 +613,6 @@ int Branch::backwardEulerOnNode_handler(const int * steps_ptr, const size_t size
                          myNeuronsLCO, &stepsPerReduction, size);
               hpx_lco_wait_reset(myNeuronsLCO);
             }
-
-            #if !defined(NDEBUG) && defined(CORENEURON_H)
-                if (inputParams->parallelDataLoading)
-                    neurox::Input::Coreneuron::Debugger::nrnSpikeExchange2();
-            #endif
         }
     }
     hpx_lco_delete_sync(myNeuronsLCO);
@@ -689,8 +682,7 @@ int Branch::finitialize_handler()
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->finitialize2(); //finitialize.c::finitilize()
 /*#if !defined(NDEBUG) && defined(CORENEURON_H)
-    if (!inputParams->parallelDataLoading) //only single node implementation (no spike exchange)
-      Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
+    Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
 #endif*/
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;

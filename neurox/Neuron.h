@@ -89,7 +89,7 @@ class Neuron
         SlidingTimeWindow();
         ~SlidingTimeWindow();
 
-        static constexpr int reductionsPerCommStep =2 ;
+        static constexpr int reductionsPerCommStep = 1 ;
 
         //initiated by constructor (one per neuron)
         std::queue<hpx_t> spikesLcoQueue;

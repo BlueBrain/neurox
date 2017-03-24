@@ -237,13 +237,6 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
     }
 }
 
-void Debugger::fixed_step_minimal()
-{
-    dt2thread(dt);
-    nrn_thread_table_check();
-    nrn_fixed_step_minimal(); //from fadvance_core.c
-}
-
 void Debugger::compareBranch2(Branch * branch)
 {
     assert(branch->soma); //only non-branched neurons
@@ -365,6 +358,16 @@ void Debugger::compareBranch2(Branch * branch)
     }
 }
 
+hpx_action_t Debugger::fixedStepMinimal = 0;
+int Debugger::fixedStepMinimal_handler(const int *steps_ptr, const size_t)
+{
+    neurox_hpx_pin(uint64_t);
+    for (int n=0; n < nrn_nthread; n++)
+      for (int i=0; i< *steps_ptr; i++)
+        Debugger::fixed_step_minimal(&nrn_threads[n], inputParams->secondorder);
+    neurox_hpx_unpin;
+}
+
 hpx_action_t Debugger::finitialize = 0;
 int Debugger::finitialize_handler()
 {
@@ -399,5 +402,6 @@ void Debugger::registerHpxActions()
     neurox_hpx_register_action(0, Debugger::compareBranch);
     neurox_hpx_register_action(0, Debugger::finitialize);
     neurox_hpx_register_action(0, Debugger::nrnSpikeExchange);
+    neurox_hpx_register_action(1, Debugger::fixedStepMinimal);
 }
 

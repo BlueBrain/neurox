@@ -174,13 +174,13 @@ void message(const char * str)
 #endif
 }
 
-void compareAllBranches(int neuronsCount)
+void compareAllBranches()
 {
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
-    }, 0, neuronsCount, NULL);
+    }, 0, neurons->size(), NULL);
 #endif
 }
 
@@ -220,7 +220,7 @@ static int main_handler()
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
-    compareAllBranches(neuronsCount);
+    compareAllBranches();
 
     message("neurox::Branch::finitialize...\n");
     hpx_par_for_sync( [&] (int i, void*) -> int
@@ -229,11 +229,12 @@ static int main_handler()
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
+    compareAllBranches();
 #endif
-    compareAllBranches(neuronsCount);
+
     hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
 
-    //init Sliding Window in all nodes
+    //subscribe to all reduce for sliding window:
     hpx_t * allreduces = nullptr;
     if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
     {
@@ -317,15 +318,11 @@ static int main_handler()
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neuronsCount, inputParams->tstop/1000.0, elapsed);
 
-    if (!(inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping
-       && inputParams->parallelDataLoading)) //not possible to compare in parallel due to spike exhance
-              compareAllBranches(neuronsCount);
-
     if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
     {
         if (neurox::commReduceAtNodeLevel)
         {
-          hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce,
+            hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce,
                           allreduces, sizeof(hpx_t)*Neuron::SlidingTimeWindow::reductionsPerCommStep);
         }
         else
@@ -342,6 +339,19 @@ static int main_handler()
     }
 
 #if !defined(NDEBUG) && defined(CORENEURON_H)
+    if (!inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier //not fixed comm barrier
+    && inputParams->parallelDataLoading) //and not serial
+    {
+        //re-run whole simulation and comparae final result
+        printf("neurox::coreneuron: re-running in Coreneuron to compare final result...");
+        int commStepSize = Neuron::CommunicationBarrier::commStepSize;
+        for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
+        {
+            hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::fixedStepMinimal, &commStepSize, sizeof(int));
+            hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::nrnSpikeExchange);
+        }
+    }
+    compareAllBranches();
     neurox::Input::Coreneuron::DataLoader::cleanCoreneuronData(); //if Coreneuron+debug, data will be cleaned up only now
 #endif
 
