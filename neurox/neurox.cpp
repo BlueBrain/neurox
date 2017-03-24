@@ -315,6 +315,14 @@ static int main_handler()
     }
 
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
+#ifdef NDEBUG
+    printf("csv,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%.2f\n",
+           neuronsCount, hpx_get_num_ranks(), hpx_get_num_threads(), inputParams->tstop,
+           inputParams->algorithm, neurox::commReduceAtNodeLevel ? 1:0,
+           inputParams->multiMex ? 1:0, inputParams->multiSplix ? 1:0,
+           Neuron::SlidingTimeWindow::reductionsPerCommStep,
+           Neuron::TimeDependencies::notificationIntervalRatio);
+#endif
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neuronsCount, inputParams->tstop/1000.0, elapsed);
 
@@ -343,7 +351,8 @@ static int main_handler()
     && inputParams->parallelDataLoading) //and not serial
     {
         //re-run whole simulation and comparae final result
-        printf("neurox::coreneuron: re-running in Coreneuron to compare final result...");
+        printf("neurox::re-running simulation in Coreneuron to compare final result...\n");
+        fflush(stdout);
         int commStepSize = Neuron::CommunicationBarrier::commStepSize;
         for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
         {

@@ -157,7 +157,12 @@ Neuron::SlidingTimeWindow::SlidingTimeWindow()
 Neuron::SlidingTimeWindow::~SlidingTimeWindow()
 {
     for (int i=0; i<spikesLcoQueue.size(); i++)
+    {
+        hpx_t queuedSpikesLco = spikesLcoQueue.front();
+        if (queuedSpikesLco != HPX_NULL)
+            hpx_lco_delete_sync(queuedSpikesLco);
         spikesLcoQueue.pop();
+    }
 }
 
 hpx_action_t Neuron::SlidingTimeWindow::subscribeAllReduce = 0;
