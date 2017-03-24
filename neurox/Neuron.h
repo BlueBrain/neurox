@@ -89,22 +89,32 @@ class Neuron
         SlidingTimeWindow();
         ~SlidingTimeWindow();
 
-        //initiated by constructor
-        std::queue<hpx_t> spikesLcoQueue;
+        static constexpr int reductionsPerCommStep =2 ;
 
-        //initialized at susbcribe
-        static constexpr int reducesPerCommStep =2 ;
-        static hpx_t *allReduceFuture;
-        static hpx_t *allReduceLco;
-        static int *allReduceId;
+        //initiated by constructor (one per neuron)
+        std::queue<hpx_t> spikesLcoQueue;
+        hpx_t *allReduceFuture;
+        hpx_t *allReduceLco;
+        int *allReduceId;
+
+        //initialized at susbcribe (one per node)
+        static hpx_t *nodeAllReduceFuture;
+        static hpx_t *nodeAllReduceLco;
+        static int *nodeAllReduceId;
 
         static hpx_action_t subscribeAllReduce;
         static hpx_action_t unsubscribeAllReduce;
-        static hpx_action_t reduce;
+        static hpx_action_t nodeSubscribeAllReduce;
+        static hpx_action_t nodeUnsubscribeAllReduce;
+
         static hpx_action_t init;
+        static hpx_action_t reduce;
 
         static int subscribeAllReduce_handler(const hpx_t*, const size_t);
         static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int nodeSubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int nodeUnsubscribeAllReduce_handler(const hpx_t*, const size_t);
+
         static void init_handler(const void*, const size_t);
         static void reduce_handler(void* rhs, const void* lhs, const size_t);
     } * slidingTimeWindow;

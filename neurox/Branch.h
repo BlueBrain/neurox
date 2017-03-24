@@ -108,7 +108,7 @@ class Branch
     static hpx_action_t updateTimeDependencyValue; ///>update maximum time allowed based on received dependency info
     static hpx_action_t finitialize; ///> finitialize.c::finitialize()
     static hpx_action_t backwardEuler;
-    static hpx_action_t backwardEulerGroup;
+    static hpx_action_t backwardEulerOnNode;
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
@@ -130,7 +130,7 @@ class Branch
     static int updateTimeDependencyValue_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();
     static int backwardEuler_handler(const int*, const size_t);
-    static int backwardEulerGroup_handler(const int*, const size_t);
+    static int backwardEulerOnNode_handler(const int*, const size_t);
 };
 
 }; //namespace

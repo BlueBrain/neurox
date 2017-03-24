@@ -16,7 +16,7 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->commBarrier = inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier ? new CommunicationBarrier() : NULL;
     this->slidingTimeWindow = inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? new SlidingTimeWindow() : NULL;
     assert(TimeDependencies::notificationIntervalRatio>0 && TimeDependencies::notificationIntervalRatio<=1);
-    assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::reducesPerCommStep==0);
+    assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::reductionsPerCommStep==0);
 }
 
 Neuron::~Neuron()
@@ -144,9 +144,9 @@ Neuron::CommunicationBarrier::~CommunicationBarrier()
 
 //////////////////// Neuron::SlidingTimeWindow ///////////////////////
 
-hpx_t* Neuron::SlidingTimeWindow::allReduceFuture = nullptr;
-hpx_t* Neuron::SlidingTimeWindow::allReduceLco = nullptr;
-int* Neuron::SlidingTimeWindow::allReduceId = nullptr;
+hpx_t* Neuron::SlidingTimeWindow::nodeAllReduceFuture = nullptr;
+hpx_t* Neuron::SlidingTimeWindow::nodeAllReduceLco = nullptr;
+int* Neuron::SlidingTimeWindow::nodeAllReduceId = nullptr;
 
 Neuron::SlidingTimeWindow::SlidingTimeWindow()
 {
@@ -163,16 +163,34 @@ Neuron::SlidingTimeWindow::~SlidingTimeWindow()
 hpx_action_t Neuron::SlidingTimeWindow::subscribeAllReduce = 0;
 int Neuron::SlidingTimeWindow::subscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
-    neurox_hpx_pin(uint64_t);
-    SlidingTimeWindow::allReduceFuture = new hpx_t[SlidingTimeWindow::reducesPerCommStep];
-    SlidingTimeWindow::allReduceLco = new hpx_t[SlidingTimeWindow::reducesPerCommStep];
-    SlidingTimeWindow::allReduceId = new int[SlidingTimeWindow::reducesPerCommStep];
+    neurox_hpx_pin(Branch);
+    SlidingTimeWindow * stw = local->soma->slidingTimeWindow;
+    stw->allReduceFuture = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    stw->allReduceLco = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    stw->allReduceId = new int[SlidingTimeWindow::reductionsPerCommStep];
     for (int i=0; i<size/sizeof(hpx_t); i++)
     {
-        SlidingTimeWindow::allReduceLco[i] = allreduces[i];
-        SlidingTimeWindow::allReduceFuture[i] = hpx_lco_future_new(0); //no value to be reduced
-        SlidingTimeWindow::allReduceId[i] = hpx_process_collective_allreduce_subscribe(
-                allreduces[i], hpx_lco_set_action, SlidingTimeWindow::allReduceFuture[i]);
+        stw->allReduceLco[i] = allreduces[i];
+        stw->allReduceFuture[i] = hpx_lco_future_new(0); //no value to be reduced
+        stw->allReduceId[i] = hpx_process_collective_allreduce_subscribe(
+                allreduces[i], hpx_lco_set_action, stw->allReduceFuture[i]);
+    }
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Neuron::SlidingTimeWindow::nodeSubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::nodeSubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+{
+    neurox_hpx_pin(uint64_t);
+    SlidingTimeWindow::nodeAllReduceFuture = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    SlidingTimeWindow::nodeAllReduceLco = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    SlidingTimeWindow::nodeAllReduceId = new int[SlidingTimeWindow::reductionsPerCommStep];
+    for (int i=0; i<size/sizeof(hpx_t); i++)
+    {
+        SlidingTimeWindow::nodeAllReduceLco[i] = allreduces[i];
+        SlidingTimeWindow::nodeAllReduceFuture[i] = hpx_lco_future_new(0); //no value to be reduced
+        SlidingTimeWindow::nodeAllReduceId[i] = hpx_process_collective_allreduce_subscribe(
+                allreduces[i], hpx_lco_set_action, SlidingTimeWindow::nodeAllReduceFuture[i]);
     }
     neurox_hpx_unpin;
 }
@@ -180,15 +198,31 @@ int Neuron::SlidingTimeWindow::subscribeAllReduce_handler(const hpx_t * allreduc
 hpx_action_t Neuron::SlidingTimeWindow::unsubscribeAllReduce = 0;
 int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
+    neurox_hpx_pin(Branch);
+    SlidingTimeWindow * stw = local->soma->slidingTimeWindow;
+    for (int i=0; i<size/sizeof(hpx_t); i++)
+    {
+      hpx_process_collective_allreduce_unsubscribe(allreduces[i], stw->allReduceId[i]);
+      hpx_lco_delete_sync(stw->allReduceFuture[i]);
+    }
+    delete [] stw->allReduceLco; stw->allReduceLco=nullptr;
+    delete [] stw->allReduceFuture; stw->allReduceFuture=nullptr;
+    delete [] stw->allReduceId; stw->allReduceId=nullptr;
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+{
     neurox_hpx_pin(uint64_t);
     for (int i=0; i<size/sizeof(hpx_t); i++)
     {
-      hpx_process_collective_allreduce_unsubscribe(allreduces[i], Neuron::SlidingTimeWindow::allReduceId[i]);
-      hpx_lco_delete_sync(Neuron::SlidingTimeWindow::allReduceFuture[i]);
+      hpx_process_collective_allreduce_unsubscribe(allreduces[i], Neuron::SlidingTimeWindow::nodeAllReduceId[i]);
+      hpx_lco_delete_sync(Neuron::SlidingTimeWindow::nodeAllReduceFuture[i]);
     }
-    delete [] SlidingTimeWindow::allReduceLco; allReduceLco=nullptr;
-    delete [] SlidingTimeWindow::allReduceFuture; allReduceFuture=nullptr;
-    delete [] SlidingTimeWindow::allReduceId; allReduceId=nullptr;
+    delete [] SlidingTimeWindow::nodeAllReduceLco; nodeAllReduceLco=nullptr;
+    delete [] SlidingTimeWindow::nodeAllReduceFuture; nodeAllReduceFuture=nullptr;
+    delete [] SlidingTimeWindow::nodeAllReduceId; nodeAllReduceId=nullptr;
     neurox_hpx_unpin;
 }
 
@@ -335,6 +369,8 @@ void Neuron::registerHpxActions()
 {
     neurox_hpx_register_action(1, SlidingTimeWindow::subscribeAllReduce);
     neurox_hpx_register_action(1, SlidingTimeWindow::unsubscribeAllReduce);
+    neurox_hpx_register_action(1, SlidingTimeWindow::nodeSubscribeAllReduce);
+    neurox_hpx_register_action(1, SlidingTimeWindow::nodeUnsubscribeAllReduce);
     neurox_hpx_register_action(5, SlidingTimeWindow::init);
     neurox_hpx_register_action(5, SlidingTimeWindow::reduce);
 }

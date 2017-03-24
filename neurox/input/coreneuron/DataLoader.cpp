@@ -624,8 +624,7 @@ int DataLoader::clear_handler()
     }
 
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
-    if (inputParams->algorithm != Algorithm::BackwardEulerWithAsyncCommBarrier
-    && inputParams->algorithm != Algorithm::BackwardEulerWithSlidingTimeWindow)
+    if (!neurox::commReduceAtNodeLevel)
     {
         Neuron::CommunicationBarrier::myNeurons->clear();
         delete Neuron::CommunicationBarrier::myNeurons;
