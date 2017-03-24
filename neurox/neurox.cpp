@@ -315,14 +315,14 @@ static int main_handler()
     }
 
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
-#ifdef NDEBUG
-    printf("csv,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%.2f\n",
+    #ifdef NDEBUG //benchmark info
+      printf("csv,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%.2f\n",
            neuronsCount, hpx_get_num_ranks(), hpx_get_num_threads(), inputParams->tstop,
            inputParams->algorithm, neurox::commReduceAtNodeLevel ? 1:0,
            inputParams->multiMex ? 1:0, inputParams->multiSplix ? 1:0,
            Neuron::SlidingTimeWindow::reductionsPerCommStep,
            Neuron::TimeDependencies::notificationIntervalRatio);
-#endif
+    #endif
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
            neuronsCount, inputParams->tstop/1000.0, elapsed);
 
