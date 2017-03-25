@@ -38,7 +38,7 @@ class DataLoader
     static hpx_action_t initMechanisms;
     static hpx_action_t initNeurons;
     static hpx_action_t initNetcons;
-    static hpx_action_t clear;
+    static hpx_action_t finalize;
 
   private:
 
@@ -84,7 +84,7 @@ class DataLoader
     static int initMechanisms_handler();
     static int initNeurons_handler();
     static int initNetcons_handler ();
-    static int clear_handler();
+    static int finalize_handler();
 };
 
 }; //Coreneuron

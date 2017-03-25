@@ -6,8 +6,9 @@ namespace neurox
 
 enum Algorithm {
     BackwardEulerWithAsyncCommBarrier=0,
-    BackwardEulerWithSlidingTimeWindow=1,
-    BackwardEulerWithPairwiseSteping=2
+    BackwardEulerWithAllReduceBarrier=1,
+    BackwardEulerWithSlidingTimeWindow=2,
+    BackwardEulerWithPairwiseSteping=3
 };
 
 namespace Input

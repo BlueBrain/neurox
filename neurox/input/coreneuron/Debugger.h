@@ -23,7 +23,8 @@ class Debugger
 
     static bool isEqual(floble_t a, floble_t b, bool roughlyEqual = false);
 
-    static void compareBranch2(Branch * branch); ///compares a branch to Coreneuron data structures
+    static void compareAllBranches(); ///> compares all branches wth Coreneuron
+    static void compareBranch2(Branch * branch); ///> compares a branch to Coreneuron data structures
     static void compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs);
     static void nrnSpikeExchange2();
 

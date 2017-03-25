@@ -237,6 +237,16 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
     }
 }
 
+void Debugger::compareAllBranches()
+{
+#if !defined(NDEBUG) && defined(CORENEURON_H)
+    message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(neurox::neurons->at(i), Input::Coreneuron::Debugger::compareBranch, HPX_NULL, 0);
+    }, 0, neurons->size(), NULL);
+#endif
+}
+
 void Debugger::compareBranch2(Branch * branch)
 {
     assert(branch->soma); //only non-branched neurons

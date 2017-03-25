@@ -64,6 +64,4 @@ namespace neurox
     static int setMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
 
     void registerHpxActions();           ///> Register all HPX actions
-
-    static constexpr bool commReduceAtNodeLevel = false;
 } ;

@@ -56,11 +56,9 @@ class Neuron
         hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
 
         static constexpr int commStepSize = 4; ///> Fixed communication step size
-        static std::vector<hpx_t> * myNeurons;
     } * commBarrier;
 
-    ///the incoming neuron connections:
-    class TimeDependencies
+    class TimeDependencies  ///from incoming neuron connections
     {
       public:
         TimeDependencies();
@@ -89,7 +87,8 @@ class Neuron
         SlidingTimeWindow();
         ~SlidingTimeWindow();
 
-        static constexpr int reductionsPerCommStep = 1 ;
+        //set by setReductionsPerCommStep call
+        static int reductionsPerCommStep;
 
         //initiated by constructor (one per neuron)
         std::queue<hpx_t> spikesLcoQueue;
@@ -97,26 +96,18 @@ class Neuron
         hpx_t *allReduceLco;
         int *allReduceId;
 
-        //initialized at susbcribe (one per node)
-        static hpx_t *nodeAllReduceFuture;
-        static hpx_t *nodeAllReduceLco;
-        static int *nodeAllReduceId;
-
-        static hpx_action_t subscribeAllReduce;
-        static hpx_action_t unsubscribeAllReduce;
-        static hpx_action_t nodeSubscribeAllReduce;
-        static hpx_action_t nodeUnsubscribeAllReduce;
-
+        //all-reduce functions
         static hpx_action_t init;
         static hpx_action_t reduce;
-
-        static int subscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int nodeSubscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int nodeUnsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static hpx_action_t subscribeAllReduce;
+        static hpx_action_t unsubscribeAllReduce;
+        static hpx_action_t setReductionsPerCommStep;
 
         static void init_handler(const void*, const size_t);
         static void reduce_handler(void* rhs, const void* lhs, const size_t);
+        static int subscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int setReductionsPerCommStep_handler(const int*, const size_t);
     } * slidingTimeWindow;
 
     std::vector<Synapse*> synapses; ///> out-going synapse information

@@ -14,7 +14,10 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->refractoryPeriod=0;
     this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping ? new TimeDependencies() : NULL;
     this->commBarrier = inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier ? new CommunicationBarrier() : NULL;
-    this->slidingTimeWindow = inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? new SlidingTimeWindow() : NULL;
+    this->slidingTimeWindow =
+            inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ||
+            inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier
+            ? new SlidingTimeWindow() : NULL;
     assert(TimeDependencies::notificationIntervalRatio>0 && TimeDependencies::notificationIntervalRatio<=1);
     assert(Neuron::CommunicationBarrier::commStepSize % Neuron::SlidingTimeWindow::reductionsPerCommStep==0);
 }
@@ -95,7 +98,8 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
             hpx_call(s->addr, Branch::addSpikeEvent, this->commBarrier->allSpikesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
     }
-    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithSlidingTimeWindow)
+    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithSlidingTimeWindow
+          || inputParams->algorithm==neurox::Algorithm::BackwardEulerWithAllReduceBarrier)
     {
         hpx_t newSynapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
@@ -128,12 +132,9 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 
 /////////////////// Neuron::CommunicationBarrier ///////////////////
 
-std::vector<hpx_t> *Neuron::CommunicationBarrier::myNeurons = nullptr;
-
 Neuron::CommunicationBarrier::CommunicationBarrier()
 {
     this->allSpikesLco = HPX_NULL;
-    assert(Neuron::CommunicationBarrier::myNeurons); //has to be already populated
     assert(Neuron::CommunicationBarrier::commStepSize <= 4);
 }
 
@@ -143,10 +144,6 @@ Neuron::CommunicationBarrier::~CommunicationBarrier()
 }
 
 //////////////////// Neuron::SlidingTimeWindow ///////////////////////
-
-hpx_t* Neuron::SlidingTimeWindow::nodeAllReduceFuture = nullptr;
-hpx_t* Neuron::SlidingTimeWindow::nodeAllReduceLco = nullptr;
-int* Neuron::SlidingTimeWindow::nodeAllReduceId = nullptr;
 
 Neuron::SlidingTimeWindow::SlidingTimeWindow()
 {
@@ -183,23 +180,6 @@ int Neuron::SlidingTimeWindow::subscribeAllReduce_handler(const hpx_t * allreduc
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::nodeSubscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::nodeSubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
-{
-    neurox_hpx_pin(uint64_t);
-    SlidingTimeWindow::nodeAllReduceFuture = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
-    SlidingTimeWindow::nodeAllReduceLco = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
-    SlidingTimeWindow::nodeAllReduceId = new int[SlidingTimeWindow::reductionsPerCommStep];
-    for (int i=0; i<size/sizeof(hpx_t); i++)
-    {
-        SlidingTimeWindow::nodeAllReduceLco[i] = allreduces[i];
-        SlidingTimeWindow::nodeAllReduceFuture[i] = hpx_lco_future_new(0); //no value to be reduced
-        SlidingTimeWindow::nodeAllReduceId[i] = hpx_process_collective_allreduce_subscribe(
-                allreduces[i], hpx_lco_set_action, SlidingTimeWindow::nodeAllReduceFuture[i]);
-    }
-    neurox_hpx_unpin;
-}
-
 hpx_action_t Neuron::SlidingTimeWindow::unsubscribeAllReduce = 0;
 int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
@@ -216,29 +196,23 @@ int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allred
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::nodeUnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+int Neuron::SlidingTimeWindow::reductionsPerCommStep = -1;
+
+hpx_action_t Neuron::SlidingTimeWindow::setReductionsPerCommStep = 0;
+int Neuron::SlidingTimeWindow::setReductionsPerCommStep_handler(const int* val, const size_t)
 {
     neurox_hpx_pin(uint64_t);
-    for (int i=0; i<size/sizeof(hpx_t); i++)
-    {
-      hpx_process_collective_allreduce_unsubscribe(allreduces[i], Neuron::SlidingTimeWindow::nodeAllReduceId[i]);
-      hpx_lco_delete_sync(Neuron::SlidingTimeWindow::nodeAllReduceFuture[i]);
-    }
-    delete [] SlidingTimeWindow::nodeAllReduceLco; nodeAllReduceLco=nullptr;
-    delete [] SlidingTimeWindow::nodeAllReduceFuture; nodeAllReduceFuture=nullptr;
-    delete [] SlidingTimeWindow::nodeAllReduceId; nodeAllReduceId=nullptr;
+    reductionsPerCommStep = *val;
     neurox_hpx_unpin;
 }
 
 hpx_action_t Neuron::SlidingTimeWindow::init = 0;
-void Neuron::SlidingTimeWindow::init_handler(const void*, const size_t)
-{}
+void Neuron::SlidingTimeWindow::init_handler
+    (const void*, const size_t) {}
 
 hpx_action_t Neuron::SlidingTimeWindow::reduce = 0;
 void Neuron::SlidingTimeWindow::reduce_handler
-    (void* , const void* , const size_t)
-{}
+    (void* , const void* , const size_t) {}
 
 ////////////////////// Neuron::TimeDependencies ///////////////////
 
@@ -374,8 +348,7 @@ void Neuron::registerHpxActions()
 {
     neurox_hpx_register_action(1, SlidingTimeWindow::subscribeAllReduce);
     neurox_hpx_register_action(1, SlidingTimeWindow::unsubscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::nodeSubscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::nodeUnsubscribeAllReduce);
+    neurox_hpx_register_action(1, SlidingTimeWindow::setReductionsPerCommStep);
     neurox_hpx_register_action(5, SlidingTimeWindow::init);
     neurox_hpx_register_action(5, SlidingTimeWindow::reduce);
 }

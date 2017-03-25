@@ -545,7 +545,8 @@ void Branch::backwardEulerStep()
     if (fmod(t, inputParams->dt_io) == 0) {}
 
     //wait for spikes sent 4 steps ago (queue has always size 3)
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
+     || inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier)
     {
       Neuron::SlidingTimeWindow * stw = this->soma->slidingTimeWindow;
       assert(stw->spikesLcoQueue.size() == Neuron::CommunicationBarrier::commStepSize-1);
@@ -571,54 +572,6 @@ void Branch::backwardEulerStep()
 #endif
 }
 
-hpx_action_t Branch::backwardEulerOnNode = 0;
-int Branch::backwardEulerOnNode_handler(const int * steps_ptr, const size_t size)
-{
-    neurox_hpx_pin(uint64_t);
-    assert(Neuron::CommunicationBarrier::myNeurons);
-    assert(neurox::commReduceAtNodeLevel);
-
-    int myNeuronsCount = Neuron::CommunicationBarrier::myNeurons->size();
-    hpx_t myNeuronsLCO = hpx_lco_and_new(myNeuronsCount);
-    int steps = *steps_ptr;
-
-    if (inputParams->algorithm == BackwardEulerWithAsyncCommBarrier)
-    {
-        assert(steps == Neuron::CommunicationBarrier::commStepSize);
-        for (int n=0; n<myNeuronsCount; n++)
-            hpx_call(Neuron::CommunicationBarrier::myNeurons->at(n),
-                     Branch::backwardEuler, myNeuronsLCO, steps_ptr, size);
-        hpx_lco_wait_reset(myNeuronsLCO);
-    }
-    else if (inputParams->algorithm == BackwardEulerWithSlidingTimeWindow)
-    {
-        int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
-        for (int s=0; s<steps; s+=Neuron::CommunicationBarrier::commStepSize) //for every communication step
-        {
-            #ifdef NEUROX_TIME_STEPPING_VERBOSE
-              if (hpx_get_my_rank()==0)
-                message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
-            #endif
-
-            for (int r=0; r<Neuron::SlidingTimeWindow::reductionsPerCommStep; r++) //for every reduction step
-            {
-              if (s>=Neuron::CommunicationBarrier::commStepSize) //first comm-window does not wait
-                  hpx_lco_wait_reset(Neuron::SlidingTimeWindow::nodeAllReduceFuture[r]);
-
-              hpx_process_collective_allreduce_join(Neuron::SlidingTimeWindow::nodeAllReduceLco[r],
-                                                  Neuron::SlidingTimeWindow::nodeAllReduceId[r], NULL, 0);
-
-              for (int n=0; n<myNeuronsCount; n++)
-                hpx_call(Neuron::CommunicationBarrier::myNeurons->at(n), Branch::backwardEuler,
-                         myNeuronsLCO, &stepsPerReduction, size);
-              hpx_lco_wait_reset(myNeuronsLCO);
-            }
-        }
-    }
-    hpx_lco_delete_sync(myNeuronsLCO);
-    neurox_hpx_unpin;
-}
-
 //fadvance_core.c::nrn_fixed_step_minimal
 hpx_action_t Branch::backwardEuler = 0;
 int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
@@ -627,15 +580,9 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
     int steps = *steps_ptr;
 
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
+    ||  inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier)
     {
-        if (neurox::commReduceAtNodeLevel)
-        {
-          for (int s=0; s<steps; s++)
-            local->backwardEulerStep();
-        }
-        else
-        {
           int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
           for (int s=0; s<steps; s+=Neuron::CommunicationBarrier::commStepSize) //for every communication step
           {
@@ -654,7 +601,6 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
                     local->backwardEulerStep();
             }
           }
-        }
     }
     else
     {
@@ -670,7 +616,6 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
                 neurox::message(std::string("-- neuron "+std::to_string(local->soma->gid)+" finished\n").c_str());
         #endif
     }
-
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
@@ -958,7 +903,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::updateTimeDependencyValue);
     neurox_hpx_register_action(0, Branch::finitialize);
     neurox_hpx_register_action(1, Branch::backwardEuler);
-    neurox_hpx_register_action(1, Branch::backwardEulerOnNode);
     neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);
     neurox_hpx_register_action(1, Branch::MechanismsGraph::mechFunction);
     neurox_hpx_register_action(5, Branch::MechanismsGraph::init);
