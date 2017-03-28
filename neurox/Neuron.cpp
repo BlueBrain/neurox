@@ -197,12 +197,50 @@ int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allred
 }
 
 int Neuron::SlidingTimeWindow::reductionsPerCommStep = -1;
+std::vector<hpx_t>* Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons = nullptr;
+hpx_t* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceFuture = nullptr;
+hpx_t* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceLco = nullptr;
+int* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceId = nullptr;
 
 hpx_action_t Neuron::SlidingTimeWindow::setReductionsPerCommStep = 0;
 int Neuron::SlidingTimeWindow::setReductionsPerCommStep_handler(const int* val, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     reductionsPerCommStep = *val;
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+{
+    neurox_hpx_pin(uint64_t);
+    assert(inputParams->allReduceAtLocality);
+    AllReduceLocality::allReduceLco = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    AllReduceLocality::allReduceFuture = new hpx_t[SlidingTimeWindow::reductionsPerCommStep];
+    AllReduceLocality::allReduceId = new int[SlidingTimeWindow::reductionsPerCommStep];
+    for (int i=0; i<size/sizeof(hpx_t); i++)
+    {
+        allReduceLco[i] = allreduces[i];
+        allReduceFuture[i] = hpx_lco_future_new(0); //no value to be reduced
+        allReduceId[i] = hpx_process_collective_allreduce_subscribe(
+                allreduces[i], hpx_lco_set_action, allReduceFuture[i]);
+    }
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+{
+    neurox_hpx_pin(uint64_t);
+    assert(inputParams->allReduceAtLocality);
+    for (int i=0; i<size/sizeof(hpx_t); i++)
+    {
+      hpx_process_collective_allreduce_unsubscribe(allreduces[i], allReduceId[i]);
+      hpx_lco_delete_sync(allReduceFuture[i]);
+    }
+    delete [] allReduceLco; allReduceLco=nullptr;
+    delete [] allReduceFuture; allReduceFuture=nullptr;
+    delete [] allReduceId; allReduceId=nullptr;
     neurox_hpx_unpin;
 }
 
@@ -348,6 +386,8 @@ void Neuron::registerHpxActions()
 {
     neurox_hpx_register_action(1, SlidingTimeWindow::subscribeAllReduce);
     neurox_hpx_register_action(1, SlidingTimeWindow::unsubscribeAllReduce);
+    neurox_hpx_register_action(1, SlidingTimeWindow::AllReduceLocality::subscribeAllReduce);
+    neurox_hpx_register_action(1, SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce);
     neurox_hpx_register_action(1, SlidingTimeWindow::setReductionsPerCommStep);
     neurox_hpx_register_action(5, SlidingTimeWindow::init);
     neurox_hpx_register_action(5, SlidingTimeWindow::reduce);

@@ -87,8 +87,24 @@ class Neuron
         SlidingTimeWindow();
         ~SlidingTimeWindow();
 
-        //set by setReductionsPerCommStep call
+        //set by initNodeLevelInformaion
         static int reductionsPerCommStep;
+
+        //for node level reduction only (initialized by initNodeLevelInformaion)
+        class AllReduceLocality
+        {
+          public:
+            static std::vector<hpx_t> * localityNeurons;
+            static hpx_t * allReduceFuture;
+            static hpx_t * allReduceLco;
+            static int * allReduceId;
+
+            static hpx_action_t subscribeAllReduce;
+            static hpx_action_t unsubscribeAllReduce;
+
+            static int subscribeAllReduce_handler(const hpx_t*, const size_t);
+            static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        };
 
         //initiated by constructor (one per neuron)
         std::queue<hpx_t> spikesLcoQueue;

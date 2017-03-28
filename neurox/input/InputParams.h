@@ -50,6 +50,7 @@ class InputParams
     bool multiMex;              ///> graph-based parallelism of mechanisms
     bool multiSplix;            ///> tree-based parallelism of morphologies
 
+    bool allReduceAtLocality; ///> whether we perform HPX all-reduce LCOs at neuron or node level
     bool parallelDataLoading;///>coreneuron mpi-based execution
 
     neurox::Algorithm algorithm;

@@ -31,6 +31,7 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         TCLAP::CmdLine cmd("neurox simulator.", ' ', "0.1");
 
         //neurox only command line arguments (switches dont require cmd.add() )
+        TCLAP::SwitchArg allReduceAtLocality("9", "reduce-by-locality", "perform HPX all-reduce operation at locality level instead of neuron level (better for small cluster).", cmd, false);
         TCLAP::SwitchArg outputCompartmentsDot("5", "output-compartments", "outputs compartments_*.dot files displaying neurons morpholgies.", cmd, false);
         TCLAP::SwitchArg outputNetconsDot("4", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
         TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
@@ -90,6 +91,7 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->multiMex = multiMex.getValue();
         this->multiSplix = multiSplix.getValue();
 
+        this->allReduceAtLocality = allReduceAtLocality.getValue();
         this->parallelDataLoading = coreneuronMpiExecution.getValue();
 
         this->algorithm = (Algorithm) algorithm.getValue();

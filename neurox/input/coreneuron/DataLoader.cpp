@@ -560,18 +560,18 @@ int DataLoader::initNeurons_handler()
 #endif
 
     //allocate HPX memory space for neurons
-    hpx_t myNeuronsGasAddr = HPX_NULL;
+    hpx_t myNeuronsGas = HPX_NULL;
     if (inputParams->parallelDataLoading) //if shared pre-balanced loading, store neurons locally
-        myNeuronsGasAddr = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        myNeuronsGas = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     else //if I'm the only one loading data... spread it
-        myNeuronsGasAddr = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-    assert(myNeuronsGasAddr != HPX_NULL);
+        myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+    assert(myNeuronsGas != HPX_NULL);
 
     std::vector<int> myNeuronsGids(myNeuronsCount);
     std::vector<hpx_t> myNeurons(myNeuronsCount);
     for (int n=0; n<myNeuronsCount; n++)
     {
-        myNeurons.at(n) = hpx_addr_add(myNeuronsGasAddr, sizeof(Branch)*n, sizeof(Branch));
+        myNeurons.at(n) = hpx_addr_add(myNeuronsGas, sizeof(Branch)*n, sizeof(Branch));
         myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
     }
 
@@ -582,6 +582,9 @@ int DataLoader::initNeurons_handler()
     assert(neuronsGids->size()>0); //at least my neuron!
     for (int n=0; n<myNeuronsCount; n++)
         createNeuron(&nrn_threads[n], myNeurons.at(n));
+
+    if (inputParams->allReduceAtLocality)
+        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons = new std::vector<hpx_t>(myNeurons);
 
     myNeurons.clear();
     myNeuronsGids.clear();
