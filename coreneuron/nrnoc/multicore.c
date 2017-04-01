@@ -446,7 +446,7 @@ void nrn_multithread_job(void* (*job)(NrnThread*)) {
 
 // default(none) removed to avoid issue with opari2
     #pragma omp parallel for private(i) shared(nrn_threads, job, nrn_nthread, \
-                                           nrnmpi_myid) schedule(static, 1)
+                                           nrnmpi_myid) schedule(dynamic, 1)
     for (i = 0; i < nrn_nthread; ++i) {
         (*job)(nrn_threads + i);
     }

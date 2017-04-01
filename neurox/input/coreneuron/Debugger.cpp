@@ -388,7 +388,9 @@ int Debugger::finitialize_handler()
 
 void Debugger::nrnSpikeExchange2()
 {
+#if NRNMPI
     nrn_spike_exchange(nrn_threads);
+#endif
 }
 
 hpx_action_t Debugger::nrnSpikeExchange = 0;
