@@ -4,7 +4,7 @@
 #include <string>
 #include <algorithm>
 
-#include "coreneuron.h"
+#include "coreneuron.h" 
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrnoc/membfunc.h"

@@ -59,7 +59,6 @@ extern void nrnmpi_spike_initialize();
 extern void nrnmpi_checkbufleak();
 #endif
 
-
 static int nrnmpi_under_nrncontrol_;
 
 void nrnmpi_init(int nrnmpi_under_nrncontrol, int* pargc, char*** pargv) {

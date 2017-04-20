@@ -46,11 +46,6 @@ set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-## Automatically add C++11 flags (eg -libc++ or -lstdc++)
-set(CMAKE_CXX_STANDARD 11) # C++11...
-set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
-set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
-
 ## global options
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
 option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
@@ -62,6 +57,7 @@ option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
 option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
+option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" OFF)
 option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
 
 ## mech / mod options
@@ -117,15 +113,6 @@ find_package(mod2c 2.0.0  REQUIRED)
 find_package(Boost 1.41.0 QUIET COMPONENTS filesystem system atomic unit_test_framework)
 
 include(BlueGenePortability)
-
-# Threading
-if(CORENEURON_OPENMP)
-    find_package(OpenMP)
-    if(OPENMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
-    endif(OPENMP_FOUND)
-endif(CORENEURON_OPENMP)
 
 # ReportingLib
 if(ENABLE_REPORTINGLIB)
@@ -197,20 +184,25 @@ if(ENABLE_OPENACC)
         message(WARNING "Add required compiler flags to enabled OpenACC")
     endif()
 
-    find_package(CUDA 5.0)
-    SET(CUDA_SEPARABLE_COMPILATION ON)
+    if(ENABLE_CUDA_MODULES)
+        find_package(CUDA 5.0)
+        SET(CUDA_SEPARABLE_COMPILATION ON)
 
-    if(CUDA_FOUND)
-        if(ENABLE_SELECTIVE_GPU_PROFILING)
-            add_definitions( -DCUDA_PROFILING)
-            add_definitions( -DENABLE_SELECTIVE_PROFILING)
-        endif(ENABLE_SELECTIVE_GPU_PROFILING)
-    else(CUDA_FOUND)
-        message( FATAL_ERROR "Error : Can't file CUDA, load module or set path!" )
-    endif(CUDA_FOUND)
+        if(CUDA_FOUND)
+            if(ENABLE_SELECTIVE_GPU_PROFILING)
+                add_definitions( -DCUDA_PROFILING)
+                add_definitions( -DENABLE_SELECTIVE_PROFILING)
+            endif(ENABLE_SELECTIVE_GPU_PROFILING)
+        else(CUDA_FOUND)
+            message( FATAL_ERROR "Error : Can't file CUDA, load module or set path!" )
+        endif(CUDA_FOUND)
+    else(ENABLE_CUDA_MODULES)
+        message(INFO "Support for CUDA modules (e.g. Random123) is disabled!")
+    endif(ENABLE_CUDA_MODULES)
 
 ELSE(ENABLE_OPENACC)
     SET (ENABLE_SELECTIVE_GPU_PROFILING OFF)
+    SET (ENABLE_CUDA_MODULES OFF)
     #OpenACC pragmas are not guarded, disable all unknown pragm warnings
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
@@ -228,13 +220,6 @@ if(EXPORT_MECHS_FUNCTIONS)
     add_definitions("-DEXPORT_MECHS_FUNCTIONS")
 endif()
 
-#Incldude tclap
-FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
-        /usr/local/include
-        /usr/include
-        /opt/local/include
-)
-
 #Exception: add lc++ flag instead of lstdc++ on Apple machines
 IF (APPLE)
   message (STATUS "Found MacOS: Added gcc LLVM flag lc++")
@@ -242,48 +227,28 @@ IF (APPLE)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lc++")
 ENDIF()
 
-IF(TCLAP_INCLUDE_DIR)
-        message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
-ELSE()
-        message(FATAL_ERROR "Could not find TCLAP")
-ENDIF()
-include_directories(${TCLAP_INCLUDE_DIR})
-
-# Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of
-#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
-set(PKG_CONFIG_EXECUTABLE pkg-config)
-IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config not found")
-ELSE()
-  #use pkg-config to find hpx
-  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
-  pkg_check_modules(HPX REQUIRED hpx )
-  IF (NOT HPX_FOUND)
-    message (FATAL_ERROR "pkg-config did not find HPX")
-  ELSE()
-    #message (STATUS "pkg-config found hpx ${HPX_VERSION}:")
-    message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-    #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
-    message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
-    #message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
-    #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
-    include_directories(${HPX_INCLUDE_DIRS})
-    link_directories(${HPX_LIBRARY_DIRS})
-  ENDIF()
-ENDIF()
-
 # Core library
 add_definitions("-DNET_RECEIVE_BUFFERING=0")
-add_definitions("-D__STDC_CONSTANT_MACROS") #fix viz cluster compilation
 add_definitions("-DNEUROX_LOGO_PATH=\"${PROJECT_SOURCE_DIR}/misc/logos/logo80_cyborg.txt\"")
 if (NEUROX_TIME_STEPPING_VERBOSE)
     add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
 endif()
-add_subdirectory(coreneuron)
 add_subdirectory(neurox)
+
+# Threading
+if(CORENEURON_OPENMP)
+    find_package(OpenMP)
+    if(OPENMP_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
+    endif(OPENMP_FOUND)
+endif(CORENEURON_OPENMP)
+
+#Fix Rnadom123.h compilation issue on viz cluster
+add_definitions("-D__STDC_CONSTANT_MACROS")
+
+# Core library
+add_subdirectory(coreneuron)
 
 # Main
 if(CORENEURON_MAIN)

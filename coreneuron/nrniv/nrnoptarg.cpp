@@ -145,7 +145,7 @@ void cn_parameters::show_cb_opts_help() {
               Model duplication factor. Model size is normal size * MULTIPLE (int). The default value is '1'.\n\
        -x EXTRACON, --extracon=EXTRACON\n\
               Number of extra random connections in each thread to other duplicate models (int). The default value is '0'.\n\
-       -m --mpi\n\
+       -m, --mpi\n\
               Enable MPI. In order to initialize MPI environment this argument must be specified.\n");
 }
 
