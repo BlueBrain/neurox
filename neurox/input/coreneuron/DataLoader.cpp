@@ -18,6 +18,7 @@
 #include "coreneuron/utils/memory_utils.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 #include "coreneuron/nrniv/vrecitem.h"
+#include "coreneuron/utils/randoms/nrnran123.h" //RNG data structures
 
 #include "neurox/neurox.h"
 

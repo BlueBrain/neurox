@@ -24,6 +24,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 
+
 include_directories(utils/randoms)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${MPI_INCLUDE_PATH})
@@ -33,9 +34,8 @@ FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp")
 FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*")
 file(GLOB_RECURSE coreneuron_cuda_files "*.cu")
 
-set(CMAKE_C_STANDARD 99) #C99
-
 # Compile and include MOD files
+
 find_program(MOD2C mod2c_core)
 if(MOD2C STREQUAL "MOD2C-NOTFOUND")
 message(FATAL_ERROR "Unable to locate mod2c_core executable")
@@ -196,11 +196,13 @@ if (EXPORT_MECHS_FUNCTIONS)
       DEPENDS ${MECH_FILE_LISTS} "${MOD_FUNC_PTRS_C_PL}"
       COMMAND perl "${MOD_FUNC_PTRS_C_PL}" ${MOD_PATHS} > "${MOD_FUNC_PTRS_C}"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+  # Add generated sources from MOD files
+  set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
+else()
+  # Add generated sources from MOD files
+  set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 endif()
-
-# Add generated sources from MOD files
-
-set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 
 # artificial cells must be on cpu, defaul nrnran123.c is for cpu, nrn_setup.cpp uses nrnran123 for only memory calculation purpose which should use cpu version of nrnran123
 set(NOACC_MECH_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/netstim.c ${CMAKE_CURRENT_BINARY_DIR}/netstim_inhpoisson.c ${CMAKE_CURRENT_BINARY_DIR}/pattern.c ${CMAKE_CURRENT_SOURCE_DIR}/utils/randoms/nrnran123.c ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/nrn_setup.cpp)

@@ -133,7 +133,7 @@ static void* nrn_fixed_step_group_thread(NrnThread* nth) {
     return (void*)0;
 }
 
-void update(NrnThread* _nt) {
+void nrn_update_matrix(NrnThread* _nt) {
     int i, i1, i2;
     i1 = 0;
     i2 = _nt->end;
@@ -160,14 +160,13 @@ void update(NrnThread* _nt) {
 
     // update_matrix_to_gpu(_nt);
 
-    assert (_nt->tml); //TODO: added by bruno to test
     if (_nt->tml) {
         assert(_nt->tml->index == CAP);
         nrn_cur_capacitance(_nt, _nt->tml->ml, _nt->tml->index);
     }
 }
 
-void nonvint(NrnThread* _nt) {
+void nrn_nonvint(NrnThread* _nt) {
     NrnThreadMembList* tml;
     if (nrn_have_gaps) {
         nrnthread_v_transfer(_nt);
@@ -215,7 +214,7 @@ static void* nrn_fixed_step_thread(NrnThread* nth) {
         setup_tree_matrix_minimal(nth);
         nrn_solve_minimal(nth);
         nrn_second_order_cur(nth, secondorder);
-        update(nth);
+        nrn_update_matrix(nth);
     }
     if (!nrn_have_gaps) {
         nrn_fixed_step_lastpart(nth);
@@ -235,7 +234,7 @@ void* nrn_fixed_step_lastpart(NrnThread* nth) {
 #endif
 
         fixed_play_continuous(nth);
-        nonvint(nth);
+        nrn_nonvint(nth);
         nrn_ba(nth, AFTER_SOLVE);
 	nrn_ba(nth, BEFORE_STEP);
     }

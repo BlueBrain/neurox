@@ -4,6 +4,8 @@
 #include <numeric>
 #include <set>
 
+#include "coreneuron/utils/randoms/nrnran123.h" //TODO
+
 using namespace neurox;
 using namespace neurox::Solver;
 

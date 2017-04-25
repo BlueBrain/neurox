@@ -20,8 +20,6 @@
 #include "coreneuron/nrnoc/nrnoc_decl.h" //nrn_is_ion()
 #include "coreneuron/nrniv/vrecitem.h"
 
-extern void update(NrnThread*);
-
 #include "neurox/neurox.h"
 
 using namespace std;
@@ -183,7 +181,7 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
     b->callModFunction(Mechanism::ModFunction::currentCapacitance);
 
     nrn_second_order_cur(nth, secondorder);
-    update(nth);
+    nrn_update_matrix(nth);
 
     /****************/ compareBranch2(b); /*****************/
 
@@ -197,7 +195,7 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
 
     b->callModFunction(Mechanism::ModFunction::state);
 
-    nonvint(nth);
+    nrn_nonvint(nth);
 
     /****************/ compareBranch2(b); /*****************/
 
@@ -230,7 +228,7 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
         setup_tree_matrix_minimal(nth);
         nrn_solve_minimal(nth);
         nrn_second_order_cur(nth, secondorder);
-        update(nth);
+        nrn_update_matrix(nth);
     }
     if (!nrn_have_gaps) {
         nrn_fixed_step_lastpart(nth);

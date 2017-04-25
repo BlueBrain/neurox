@@ -184,8 +184,8 @@ void cn_parameters::read_cb_opts(int argc, char** argv) {
         /* getopt_long stores the option index here. */
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:z:x:m:h:r:w:a:v:R:W:0:1:2:3:4:5",
-                        long_options, &option_index);
+        c = getopt_long(argc, argv, "s:e:t:i:l:p:b:g:c:d:f:o:k:z:x:m:h:r:w:a:v:R:W:0:1:2:3:4:5", long_options,
+                        &option_index);
 
         /* Detect the end of the options. */
         if (c == -1) {

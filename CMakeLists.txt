@@ -244,9 +244,6 @@ if(CORENEURON_OPENMP)
     endif(OPENMP_FOUND)
 endif(CORENEURON_OPENMP)
 
-#Fix Rnadom123.h compilation issue on viz cluster
-add_definitions("-D__STDC_CONSTANT_MACROS")
-
 # Core library
 add_subdirectory(coreneuron)
 

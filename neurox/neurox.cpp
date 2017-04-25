@@ -2,6 +2,7 @@
 #include <cstring>
 #include <map>
 #include <fstream>
+#include <iostream>
 
 #include "nrniv/nrniv_decl.h"
 #include "nrniv/nrn_stats.h"
