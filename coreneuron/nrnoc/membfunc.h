@@ -46,9 +46,7 @@ typedef void (*pnt_receive2_t)(struct NrnThread * _nt, Memb_list* _ml, int _iml,
 
 //for locked calls to `current` functions:
 typedef void (*mod_acc_f_t) (struct NrnThread*, Memb_list *, int, void*); //type of function to accumulate RHS and D
-typedef void (*mod_parallel_f_t)(struct NrnThread*, Memb_list*, int, //same as mod_f_t
-                         mod_acc_f_t, mod_acc_f_t, //functions to accumulate RHS+D+I and dIdV
-                         void * args); //last argument passed to all acc functions
+typedef void (*mod_parallel_f_t)(struct NrnThread*, Memb_list*, int, mod_acc_f_t, mod_acc_f_t, void* ); //last argument passed to all acc functions
 
 typedef struct Memb_func {
     mod_alloc_t alloc;
@@ -91,6 +89,9 @@ typedef struct BAMech {
     struct BAMech* next;
 } BAMech;
 extern BAMech** bamech_;
+
+extern int nrn_ion_global_map_size;
+extern double** nrn_ion_global_map;
 
 extern Memb_func* memb_func;
 extern int n_memb_func;

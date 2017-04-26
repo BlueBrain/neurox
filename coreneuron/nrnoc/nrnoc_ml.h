@@ -89,9 +89,10 @@ typedef struct Memb_list {
     NetSendBuffer_t* _net_send_buffer;
     int nodecount; /* actual node count */
     int _nodecount_padded;
+
+    //for parallel current function's race-conditions
     double* _shadow_rhs; ///> shadow RHS for current and state function updates
     double* _shadow_d;   ///> shadow D for current and state function updates
-
     double *_shadow_i;   ///> shadow I to sum to parent ion's current
     double *_shadow_didv; ///> shadow dI/dV to sum to parent ion's current derivative
     int * _shadow_i_offsets; ///> offsets of i in parent's NrnThread data;

@@ -48,9 +48,10 @@ extern "C" {
 #endif
 
 // global variables required by mechanisms
-extern double celsius;
-extern int nrn_ion_global_map_size;
-extern double** nrn_ion_global_map;
+//TODO requires #include coreneuron/coreneuron.h in all mechs
+//extern double celsius; ///from coreneuron/coreneuron/nrnconf.h
+// extern int nrn_ion_global_map_size; //from coreneuron/nrnoc/membfunc.h 
+// extern double** nrn_ion_global_map; //from coreneuron/nrnoc/membfunc.h 
 
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c
