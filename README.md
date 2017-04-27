@@ -1,4 +1,4 @@
-# NeuroX
+# neurox
 
 A large-scale parallel+distributed asynchronous simulator of extended Hodgkin-Huxley neuron models
 
