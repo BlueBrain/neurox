@@ -33,7 +33,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 
 ### Compilation with provided mechanisms
 ```
-cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add-DENABLE_MPI=OFF to buid with SMP
+cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add -DENABLE_MPI=OFF to buid with SMP
 ```
 
 ### Compilation with user-specified mechanisms
