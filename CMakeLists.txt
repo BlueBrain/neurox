@@ -54,7 +54,6 @@ option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and exe
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
 set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
-option(USE_INCLUDED_MECHS "Use mechs in /misc/mechs instead of the ones specified in ADDITIONAL_MECHPATH ADDITIONAL_MECHS" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
@@ -153,12 +152,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
 
 #allow extra function pointers
 add_definitions("-DEXPORT_MECHS_FUNCTIONS")
-
-# The mechanism registration functon will be defined depending on whether we
-# are using neurodamus list of mechanisms
-if(ADDITIONAL_MECHS)
-    add_definitions(-DADDITIONAL_MECHS)
-endif()
 
 #Exception: add lc++ flag instead of lstdc++ on Apple machines
 IF (APPLE)

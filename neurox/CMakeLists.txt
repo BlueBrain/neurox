@@ -121,14 +121,20 @@ set(MECH_FILE_LISTS)
 # If ADDITIONAL_MECHS is not provided, the entire ADDITIONAL_MECHPATH
 # will be checked for the mod files.
 
+
 if(EXISTS ${ADDITIONAL_MECHS})
-    if(IS_DIRECTORY "${modlist}")
-        message(WARNING "Unable to read MOD list file: ${modlist}")
-    else()
-        list(APPEND MECH_FILE_LISTS "${ADDITIONAL_MECHS}")
-    endif()
+  if(IS_DIRECTORY "${modlist}")
+      message(WARNING "Unable to read MOD list file: ${modlist}")
+  else()
+      list(APPEND MECH_FILE_LISTS "${ADDITIONAL_MECHS}")
+  endif()
+  mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
+else()
+  set(ADDITIONAL_MECHPATH   "${CMAKE_SOURCE_DIR}/misc/mechs/coreneuron_modlist.txt")
+  set(ADDITIONAL_MECHS      "${CMAKE_SOURCE_DIR}/misc/mechs/mod")
+  FILE(GLOB_RECURSE MOD2C_STDMECH_OUTPUTS "${CMAKE_SOURCE_DIR}/misc/mechs/c/*.c*")
+  message("-- Using pre-existing mechanisms from ${CMAKE_SOURCE_DIR}/misc/mechs")
 endif()
-mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 
 set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
 set(MOD_FUNC_PTRS_C_PL "${CMAKE_SOURCE_DIR}/misc/mod_func_ptrs.c.pl")
@@ -144,7 +150,7 @@ add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"
 # Add generated sources from MOD files
 set(GENERATED_MECH_C_FILES ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 set(neurox_all_c_files ${neurox_all_c_files} ${GENERATED_MECH_C_FILES})
- 
+
 ##################### library
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
