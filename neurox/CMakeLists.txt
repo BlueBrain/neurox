@@ -104,7 +104,7 @@ endmacro()
 
 # Standard MOD files are always built
 
-set(STDMODLIBPATH "${CMAKE_INSTALL_PREFIX}/include/coreneuron/mech/modfile")
+set(STDMODLIBPATH "${CMAKE_INSTALL_PREFIX}/share/mod")
 set(MECH_STDMODS expsyn.mod  hh.mod  netstim.mod  passive.mod  pattern.mod stim.mod)
 
 foreach(MOD ${MECH_STDMODS})

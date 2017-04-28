@@ -54,6 +54,7 @@ option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and exe
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
 set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
+option(USE_INCLUDED_MECHS "Use mechs in /misc/mechs instead of the ones specified in ADDITIONAL_MECHPATH ADDITIONAL_MECHS" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
