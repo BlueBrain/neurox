@@ -5,7 +5,8 @@ A large-scale parallel+distributed asynchronous simulator of extended Hodgkin-Hu
 ## Installation
 
 ### Dependencies
-
+- cmake 2.8.12+: www.cmake.org
+- hpx 4+: https://hpx.crest.iu.edu/
 - tclap: http://tclap.sourceforge.net/
 - mod2c: https://github.com/BlueBrain/mod2c
 - libCoreNeuron: https://github.com/BlueBrain/coreneuron 
@@ -32,7 +33,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 
 ### Compilation with provided mechanisms
 ```
-cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
+cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add-DENABLE_MPI=OFF to buid with SMP
 ```
 
 ### Compilation with user-specified mechanisms
@@ -40,7 +41,11 @@ cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 export NEURODAMUS_LIB_PATH=$WORKSPACE_PATH/neurodamus/lib/modlib
 export ADDITIONAL_MECHS_PATH=$WORKSPACE_PATH/neurodamus/lib/modlib/coreneuron_modlist.txt
 
-cmake .. -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
+cmake .. -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
+         -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH  \
+         -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
+         #add -DENABLE_MPI=OFF to build with SMP
+          
 ```
 
 ## Execution
