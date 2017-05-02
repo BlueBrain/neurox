@@ -9,7 +9,7 @@ A large-scale parallel+distributed asynchronous simulator of extended Hodgkin-Hu
 - hpx 4+: https://hpx.crest.iu.edu/
 - tclap: http://tclap.sourceforge.net/
 - mod2c: https://github.com/BlueBrain/mod2c
-- libCoreNeuron: https://github.com/BlueBrain/coreneuron 
+- libCoreNeuron: https://github.com/brunomaga/coreneuron 
 
 ### set-up
 ```
@@ -33,7 +33,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 
 ### Compilation with provided mechanisms
 ```
-cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add -DENABLE_MPI=OFF to buid with SMP
+cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add -DENABLE_MPI=OFF to build with SMP mode, or ON (default) for MPI-parallel execution
 ```
 
 ### Compilation with user-specified mechanisms
