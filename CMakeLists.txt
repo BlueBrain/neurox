@@ -47,9 +47,9 @@ set(VERSION_PATCH "0")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ## global options
-option(ENABLE_MPI "Enable MPI-based execution" ON)
+option(ENABLE_MPI "Enable MPI-based execution" OFF)
 option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
-option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
+option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" ON)
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")

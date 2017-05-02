@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use File::Basename;
 
 # Copyright (c) 2014 EPFL-BBP, All rights reserved.
 # 
@@ -126,8 +127,8 @@ mod_parallel_f_t get_cur_parallel_function(const char * sym)
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_parallel__${_};"} @suffixes_with_cur]}
   return NULL;
 }
-__eof
 
+__eof
 
 #output BA functions (not available yet)
 print <<"__eof";
@@ -135,5 +136,15 @@ mod_f_t get_BA_function(const char * sym, int BA_func_id)
 {
   return NULL;
 }
+
 __eof
 
+#output MECHANISM_reg() functions
+print <<"__eof";
+extern int
+  @{[join ",\n  ", map{"_" . basename(${_}) . "_reg(void)"} @mods]};
+
+void modl_reg() {
+@{[join "\n", map{"  _" . basename(${_}) . "_reg();"} @mods] }
+}
+__eof

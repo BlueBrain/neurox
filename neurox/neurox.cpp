@@ -164,6 +164,7 @@ void message(const char * str)
 hpx_action_t main = 0;
 static int main_handler()
 {
+    printf("\n\n");
 #ifdef NDEBUG
     printf("neurox::main (localities: %d, threads/locality: %d)\n", hpx_get_num_ranks(), hpx_get_num_threads());
 #else
