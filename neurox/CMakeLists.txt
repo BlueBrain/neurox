@@ -3,10 +3,9 @@ FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 include_directories( ${CMAKE_CURRENT_BINARY_DIR}
-                     ${CMAKE_SOURCE_DIR}              #include neurox/neurox.h
-                     ${CMAKE_CURRENT_SOURCE_DIR}      #include neurox.h TODO remove this
+                     ${CMAKE_SOURCE_DIR}  #include neurox/neurox.h
                      ${CMAKE_INSTALL_PREFIX}/include 
-                     ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms 
+                     ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms  #include nrnran123.h 
                    )
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
@@ -95,7 +94,7 @@ macro(mod2c_from_file name modlist searchpath)
         if(modpath_)
             mod2c_target(${name} "${modpath_}")
             list(APPEND MOD_PATHS ${modpath_})
-            message("-- extra mechanism: ${modpath_}")
+            message("   -- extra mechanism: ${modpath_}")
         else()
             message(WARNING "Unable to locate MOD file: ${mod_}")
         endif()
@@ -107,12 +106,6 @@ endmacro()
 set(STDMODLIBPATH "${CMAKE_INSTALL_PREFIX}/share/mod")
 set(MECH_STDMODS expsyn.mod  hh.mod  netstim.mod  passive.mod  pattern.mod stim.mod)
 
-foreach(MOD ${MECH_STDMODS})
-    message("-- basic mechanism: ${STDMODLIBPATH}/${MOD}")
-    list(APPEND MOD_PATHS "${STDMODLIBPATH}/${MOD}")
-    mod2c_target(STDMECH "${STDMODLIBPATH}/${MOD}")
-endforeach()
-
 set(MECH_FILE_LISTS)
 
 # Additional optional mechanisms specified in ADDITIONAL_MECHS
@@ -121,25 +114,45 @@ set(MECH_FILE_LISTS)
 # If ADDITIONAL_MECHS is not provided, the entire ADDITIONAL_MECHPATH
 # will be checked for the mod files.
 
-
 if(EXISTS ${ADDITIONAL_MECHS})
   if(IS_DIRECTORY "${modlist}")
       message(WARNING "Unable to read MOD list file: ${modlist}")
   else()
+      message("-- Using mechanisms from ${ADDITIONAL_MECHPATH}")
       list(APPEND MECH_FILE_LISTS "${ADDITIONAL_MECHS}")
+
+      foreach(MOD ${MECH_STDMODS})
+        message("   -- basic mechanism: ${STDMODLIBPATH}/${MOD}")
+        list(APPEND MOD_PATHS "${STDMODLIBPATH}/${MOD}")
+        mod2c_target(STDMECH "${STDMODLIBPATH}/${MOD}")
+      endforeach()
+
   endif()
   mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 else()
-  set(ADDITIONAL_MECHPATH   "${CMAKE_SOURCE_DIR}/misc/mechs/coreneuron_modlist.txt")
-  set(ADDITIONAL_MECHS      "${CMAKE_SOURCE_DIR}/misc/mechs/mod")
-  FILE(GLOB_RECURSE MOD2C_STDMECH_OUTPUTS "${CMAKE_SOURCE_DIR}/misc/mechs/c/*.c*")
+  #if not user provided, use pre-existing mechanisms
   message("-- Using pre-existing mechanisms from ${CMAKE_SOURCE_DIR}/misc/mechs")
+
+  foreach(MOD ${MECH_STDMODS})
+    message("   -- basic mechanism: ${STDMODLIBPATH}/${MOD}")
+    list(APPEND MOD_PATHS "${STDMODLIBPATH}/${MOD}")
+  endforeach()
+
+  set(ADDITIONAL_MECHS    "${CMAKE_SOURCE_DIR}/misc/mechs/coreneuron_modlist.txt")
+  set(ADDITIONAL_MECHPATH "${CMAKE_SOURCE_DIR}/misc/mechs/mod")
+  file(GLOB_RECURSE MOD2C_STDMECH_OUTPUTS "${CMAKE_SOURCE_DIR}/misc/mechs/c/*.c*")
+  file(READ "${ADDITIONAL_MECHS}" mods_)
+  string(REGEX REPLACE "[ \t\n]+" ";" mods_ "${mods_}")
+  list(REMOVE_ITEM mods_ "")
+  foreach(mod_ ${mods_})
+    set(modpath_ "${ADDITIONAL_MECHPATH}/${mod_}")
+    list(APPEND MOD_PATHS ${modpath_})
+    message("   -- included mechanism: ${modpath_}")
+  endforeach()
 endif()
 
 set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
 set(MOD_FUNC_PTRS_C_PL "${CMAKE_SOURCE_DIR}/misc/mod_func_ptrs.c.pl")
-message("-- mechanisms script: ${MOD_FUNC_PTRS_C_PL}")
-message("-- mechanisms output: ${MOD_FUNC_PTRS_C}")
 
 # ... pass as argument to the perl script the list of mods full paths;
 add_custom_command(OUTPUT "${MOD_FUNC_PTRS_C}"

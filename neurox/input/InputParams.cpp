@@ -1,4 +1,4 @@
-﻿#include "neurox.h"
+﻿#include "neurox/neurox.h"
 #include "tclap/CmdLine.h"
 #include "stdio.h"
 #include "string.h"
