@@ -38,7 +38,7 @@ NOTE, requires libcoreneuron installation with export of function pointers, e.g.
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
          -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
          -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH \
-         -DENABLE_MPI=ON -DEXPORT_MECHS_FUNCTIONS=ON
+         -DEXPORT_MECHS_FUNCTIONS=ON
 ```
 
 ## Execution
