@@ -33,7 +33,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 ```
-NOTE, requires libcoreneuron installation with export of function pointers, e.g.:
+NOTE, requires libcoreneuron installation with export of function pointers, and mechanisms functions e.g.:
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
          -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
