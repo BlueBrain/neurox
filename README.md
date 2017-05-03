@@ -44,6 +44,7 @@ cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
 ## Execution
 - `./neurox --help` for execution parameters
 - `./neurox -d <input-data-folder> -e <execution-time-milisecs>` for execution with minimum parameters
+- add `--mpi` for parallel execution and parallel data loading
 
 ## Copyright 
 Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
