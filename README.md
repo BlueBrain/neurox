@@ -8,14 +8,13 @@ A large-scale parallel+distributed asynchronous simulator of extended Hodgkin-Hu
 - cmake 2.8.12+: www.cmake.org
 - hpx 4+: https://hpx.crest.iu.edu/
 - tclap: http://tclap.sourceforge.net/
-- mod2c: https://github.com/BlueBrain/mod2c
-- libCoreNeuron: https://github.com/BlueBrain/coreneuron 
+- libCoreNeuron: https://github.com/brunomaga/coreneuron 
 
 ### set-up
 ```
 #General compilation parameters
-export CC=mpicc.mpich
-export CXX=mpicxx.mpich
+export CC=mpicc
+export CXX=mpicxx
 export WORKSPACE_PATH=/home/username/Workspace
 
 #HPX compilation parameters
@@ -26,26 +25,20 @@ export PATH=$HPX_INSTALL_PATH/bin:$PATH
 
 #neurox compilation parameters
 export NEUROX_INSTALL_PATH=$WORKSPACE_PATH/neurox-install
-export MOD2C_INSTALL_PATH=$NEUROX_INSTALL_PATH
 export LD_LIBRARY_PATH=$NEUROX_INSTALL_PATH/lib:$LD_LIBRARY_PATH
 export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 ```
 
-### Compilation with provided mechanisms
+### Compilation
 ```
-cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH  #add -DENABLE_MPI=OFF to buid with SMP
+cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 ```
-
-### Compilation with user-specified mechanisms
+NOTE, requires libcoreneuron installation with export of function pointers, and mechanisms functions e.g.:
 ```
-export NEURODAMUS_LIB_PATH=$WORKSPACE_PATH/neurodamus/lib/modlib
-export ADDITIONAL_MECHS_PATH=$WORKSPACE_PATH/neurodamus/lib/modlib/coreneuron_modlist.txt
-
-cmake .. -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
-         -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH  \
-         -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
-         #add -DENABLE_MPI=OFF to build with SMP
-          
+cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
+         -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
+         -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH \
+         -DEXPORT_MECHS_FUNCTIONS=ON
 ```
 
 ## Execution
