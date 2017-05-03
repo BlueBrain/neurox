@@ -170,7 +170,11 @@ static int main_handler()
 #else
     printf("neurox::main DEBUG MODE (localities: %d, threads/locality: %d)\n", hpx_get_num_ranks(), hpx_get_num_threads());
 #endif
-    fflush(stdout);
+    if (hpx_get_num_ranks()>1 && !inputParams->parallelDataLoading)
+    {
+      message("ERROR: add the -m or --mpi argument for parallel data loading\n");
+      hpx_exit(0, NULL);
+    }
     message("neurox::Input::Coreneuron::DataLoader::init...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::init);
     message("neurox::Input::Coreneuron::DataLoader::initMechanisms...\n");
