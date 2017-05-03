@@ -562,7 +562,7 @@ void Branch::backwardEulerStep()
       }
     }
 
-#if !defined(NDEBUG) && defined(CORENEURON_H)
+#if !defined(NDEBUG) 
     //fixed comm barrier and serial jobas can be compared at runtime
     if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier
      || !inputParams->parallelDataLoading)
@@ -668,7 +668,7 @@ int Branch::finitialize_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
     local->finitialize2(); //finitialize.c::finitilize()
-/*#if !defined(NDEBUG) && defined(CORENEURON_H)
+/*#if !defined(NDEBUG)
     Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
 #endif*/
     neurox_hpx_recursive_branch_async_wait;

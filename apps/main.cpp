@@ -12,11 +12,9 @@ int main(int argc, char** argv)
     neurox::Branch::registerHpxActions();
     neurox::Neuron::registerHpxActions();
     neurox::Misc::Statistics::registerHpxActions();
-#if defined(CORENEURON_H)
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 #if !defined(NDEBUG)
     neurox::Input::Coreneuron::Debugger::registerHpxActions();
-#endif
 #endif
 
     if (hpx_init(&argc, &argv) != 0)

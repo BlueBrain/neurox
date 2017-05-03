@@ -139,12 +139,3 @@ mod_f_t get_BA_function(const char * sym, int BA_func_id)
 
 __eof
 
-#output MECHANISM_reg() functions
-print <<"__eof";
-extern int
-  @{[join ",\n  ", map{"_" . basename(${_}) . "_reg(void)"} @mods]};
-
-void modl_reg() {
-@{[join "\n", map{"  _" . basename(${_}) . "_reg();"} @mods] }
-}
-__eof

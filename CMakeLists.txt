@@ -28,17 +28,13 @@
 # Ecole Polytechnique Federale de Lausanne
 # Brain Mind Institute,
 # Blue Brain Project
-# (c) 2006-2016. All rights reserved.
+# (c) 2016-2017. All rights reserved.
 #
-# Author: Aleksandr Ovcharenko
-# Core Neuron
-
-
-# Initial Setup
+# Author: Bruno Magalhaes
+# neurox
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 PROJECT(neurox)
-
 set(CORENEURON_DESCRIPTION "BBP NeuroX simulator")
 
 set(VERSION_MAJOR "1")
@@ -47,13 +43,8 @@ set(VERSION_PATCH "0")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ## global options
-option(ENABLE_MPI "Enable MPI-based execution" OFF)
 option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
-option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" ON)
-
-## mech / mod options
-set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
-set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
+option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
@@ -116,15 +107,6 @@ ELSE()
   ENDIF()
 ENDIF()
 
-#Find all dependencies
-if (ENABLE_MPI)
-    #### find_package(MPI REQUIRED)  #Not needed, it's part of HPX installation (or hpx_init will fail)
-    add_definitions("-DNRNMPI=1")
-else()
-    message(STATUS "Use of MPI disabled by user-provided option")
-    add_definitions("-DNRNMPI=0")
-endif()
-
 #Memory layout transformation: 0 for SoA and 1 for AoS
 if (ENABLE_SOA)
     add_definitions("-DLAYOUT=0")
@@ -132,12 +114,7 @@ else()
     add_definitions("-DLAYOUT=1")
 endif()
 
-find_package(mod2c 2.0.0  REQUIRED)
 find_package(Boost 1.41.0 QUIET COMPONENTS filesystem system atomic unit_test_framework)
-
-# Some mechanisms use NEURON specific code which is skipped
-# using this macro for CoreNeuron build
-add_definitions(-DCORENEURON_BUILD)
 
 include(CheckIncludeFiles)
 
@@ -149,9 +126,6 @@ endif()
 #OpenACC pragmas are not guarded, disable all unknown pragm warnings
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
-
-#allow extra function pointers
-add_definitions("-DEXPORT_MECHS_FUNCTIONS")
 
 #Exception: add lc++ flag instead of lstdc++ on Apple machines
 IF (APPLE)
@@ -165,5 +139,39 @@ if (NEUROX_TIME_STEPPING_VERBOSE)
     add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
 endif()
 
-add_subdirectory(neurox)
-add_subdirectory(apps)
+####### LIBRARY libneurox
+
+FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_SOURCE_DIR}/neurox/*.h")
+FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_SOURCE_DIR}/neurox/*.ipp")
+FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_SOURCE_DIR}/neurox/*.c*")
+
+include_directories( ${CMAKE_CURRENT_BINARY_DIR}
+                     ${CMAKE_SOURCE_DIR}  #include neurox/neurox.h
+                     ${CMAKE_INSTALL_PREFIX}/include 
+                     ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms  #include nrnran123.h 
+                   )
+link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+
+add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
+target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
+
+set_target_properties(neurox PROPERTIES
+                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+                            SOVERSION ${VERSION_MAJOR}
+                            CLEAN_DIRECT_OUTPUT 1)
+
+####### EXECUTABLE neurox
+
+add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/main.cpp")
+set_target_properties(neurox_exec PROPERTIES
+                            OUTPUT_NAME "neurox"
+                            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+target_link_libraries(neurox_exec neurox )
+install(TARGETS neurox_exec DESTINATION ${BIN_INSTALL_DIR}/)
+
+####### installation
+
+install(TARGETS neurox
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
+        ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+

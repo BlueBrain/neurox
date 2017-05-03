@@ -206,7 +206,7 @@ static int main_handler()
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
-#if !defined(NDEBUG) && defined(CORENEURON_H)
+#if !defined(NDEBUG) 
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 #endif
@@ -268,7 +268,7 @@ static int main_handler()
             hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
           hpx_lco_wait_reset(mainLCO);
 
-          #if !defined(NDEBUG) && defined(CORENEURON_H)
+          #if !defined(NDEBUG) 
             if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
               hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::nrnSpikeExchange);
           #endif
@@ -325,7 +325,7 @@ static int main_handler()
         delete [] allreduces; allreduces=nullptr;
     }
 
-#if !defined(NDEBUG) && defined(CORENEURON_H)
+#if !defined(NDEBUG)
     if (!inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier //not fixed comm barrier
     && inputParams->parallelDataLoading) //and not serial
     {

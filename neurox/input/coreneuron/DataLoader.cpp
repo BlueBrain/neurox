@@ -447,7 +447,7 @@ int DataLoader::initMechanisms_handler()
     }
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
 
-#if !defined(NDEBUG) && defined(CORENEURON_H)
+#if !defined(NDEBUG) 
     //TODO why this stopped working after HPX update? repair!
     //neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
 #endif
@@ -634,7 +634,7 @@ int DataLoader::finalize_handler()
     nrn_setup_cleanup();
     hpx_lco_delete_sync(neuronsMutex);
 
-#if defined(NDEBUG) && defined(CORENEURON_H)
+#if defined(NDEBUG) 
     DataLoader::cleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
 #endif
     neurox_hpx_unpin;
