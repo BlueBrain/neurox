@@ -150,7 +150,7 @@ include_directories( ${CMAKE_CURRENT_BINARY_DIR}
                      ${CMAKE_INSTALL_PREFIX}/include 
                      ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms  #include nrnran123.h 
                    )
-link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+link_directories(${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib64)
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
