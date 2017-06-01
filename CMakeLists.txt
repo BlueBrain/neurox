@@ -48,7 +48,7 @@ set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ## global options
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
-option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
+option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" OFF)
 option(DISABLE_NRN_TIMEOUT "Disable nrn_timeout implementation" OFF)
 option(ENABLE_REPORTINGLIB "Enable use of ReportingLib for soma reports" OFF)
 option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" ON)
@@ -67,11 +67,11 @@ set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mecha
 
 # test compilations
 option(UNIT_TESTS "Enable unit tests compilation and execution" OFF)
-option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" ON)
+option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" OFF)
 
 # For external development, allow one to install all headers and mod files
 # todo: need to refactor to install specific set of headers only
-option(ENABLE_DEV_FILES_INSTALLATION "Allow to install hedaers/mod files for development" OFF)
+option(ENABLE_DEV_FILES_INSTALLATION "Allow to install hedaers/mod files for development" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
