@@ -1,7 +1,6 @@
 #pragma once
 
 //Coreneuron core datatypes
-#define EXPORT_MECHS_FUNCTIONS  //allows CN to expose get_*_function(char * sym)
 #include "coreneuron/coreneuron.h"
 
 //typedefs
