@@ -81,7 +81,6 @@ if(ADDITIONAL_MECHS)
 endif()
 
 FILE(GLOB neurox_exec_src "*.c*")
-message(INFO "---------------------- ${neurox_exec_src}")
 
 add_executable(neurox_exec ${neurox_exec_src})
 
