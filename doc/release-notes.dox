@@ -1,0 +1,33 @@
+/**
+@page Release_Notes Release Notes
+    -# @ref Enhancements
+    -# @ref Optimizations
+    -# @ref API_Changes
+    -# @ref Sprint
+
+    @htmlonly
+    <hr>
+    @endhtmlonly
+
+    @section Enhancements Enhancements
+        - Fixed differences between Bluron and CoreNeuron outputs
+        - More readable prcellstate() output
+        - Implemented the workflow to deal with multiple nrnthreads on one MPI rank
+        - Testing now includes integration, unit tests, production tests
+        - Results verification procedure based on python is now implemented, needs to be set for testing
+        
+    @section Optimizations Optimizations
+        - Reduced code size on 1/3.
+        - Replaced several macro templates with STL data structures.
+        - Endianness conversion is implemented.
+        - Spike replay functionality is corrected.
+
+
+    @section API_Changes API Changes
+        No changes.
+
+
+    @section Sprint Sprint Logs
+        - https://bbpteam.epfl.ch/project/issues/browse/CNEUR
+
+*/

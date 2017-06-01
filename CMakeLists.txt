@@ -28,23 +28,50 @@
 # Ecole Polytechnique Federale de Lausanne
 # Brain Mind Institute,
 # Blue Brain Project
-# (c) 2016-2017. All rights reserved.
+# (c) 2006-2016. All rights reserved.
 #
-# Author: Bruno Magalhaes
-# neurox
+# Author: Aleksandr Ovcharenko
+# Core Neuron
+
+
+# Initial Setup
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-PROJECT(neurox)
-set(CORENEURON_DESCRIPTION "BBP NeuroX simulator")
+PROJECT(coreneuron)
+
+set(CORENEURON_DESCRIPTION "BBP CoreNeuron simulator")
 
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
-set(VERSION_PATCH "0")
+set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ## global options
+option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
+option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
+option(DISABLE_NRN_TIMEOUT "Disable nrn_timeout implementation" OFF)
+option(ENABLE_REPORTINGLIB "Enable use of ReportingLib for soma reports" OFF)
+option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" ON)
+option(ENABLE_MPI "Enable MPI-based execution" ON)
 option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
-option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
+option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
+option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
+option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
+option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" OFF)
+option(ENABLE_NET_RECEIVE_BUFFERING "Enable event buffering in net_receive function" OFF)
+option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" ON)
+
+## mech / mod options
+set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
+set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
+
+# test compilations
+option(UNIT_TESTS "Enable unit tests compilation and execution" OFF)
+option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" ON)
+
+# For external development, allow one to install all headers and mod files
+# todo: need to refactor to install specific set of headers only
+option(ENABLE_DEV_FILES_INSTALLATION "Allow to install hedaers/mod files for development" OFF)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
@@ -61,51 +88,14 @@ include(SetRpath)
 include(FindPkgConfig)
 include(CTest)
 
-## Automatically add C++11 flags (eg -libc++ or -lstdc++)
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 11) # C++11...
-set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
-set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
-
-#Include tclap
-FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
-        /usr/local/include
-        /usr/include
-        /opt/local/include
-)
-
-IF(TCLAP_INCLUDE_DIR)
-        message(STATUS "Found TCLAP: ${TCLAP_INCLUDE_DIR}")
-ELSE()
-        message(FATAL_ERROR "Could not find TCLAP")
-ENDIF()
-include_directories(${TCLAP_INCLUDE_DIR})
-
-# Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of
-#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
-set(PKG_CONFIG_EXECUTABLE pkg-config)
-IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config not found")
-ELSE()
-  #use pkg-config to find hpx
-  message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
-  pkg_check_modules(HPX REQUIRED hpx )
-  IF (NOT HPX_FOUND)
-    message (FATAL_ERROR "pkg-config did not find HPX")
-  ELSE()
-    #message (STATUS "pkg-config found hpx ${HPX_VERSION}:")
-    message (STATUS "  HPX_INCLUDE_DIRS: ${HPX_INCLUDE_DIRS}")
-    #message (STATUS "  HPX_LIBRARIES: ${HPX_LIBRARIES}")
-    message (STATUS "  HPX_LIBRARY_DIRS: ${HPX_LIBRARY_DIRS}")
-    #message (STATUS "  HPX_LDFLAGS: ${HPX_LDFLAGS}")
-    #message (STATUS "  ldflags_others: ${HPX_LDFLAGS_OTHERS}")
-    #message (STATUS "  HPX_CFLAGS: ${HPX_CFLAGS}")
-    #message (STATUS "  cflags_other: ${HPX_CFLAGS_OTHER}") 
-    include_directories(${HPX_INCLUDE_DIRS})
-    link_directories(${HPX_LIBRARY_DIRS})
-  ENDIF()
-ENDIF()
+#Find all dependencies
+if (ENABLE_MPI)
+    ## find_package(MPI REQUIRED)  #Not needed, it's part of HPX installation
+    add_definitions("-DNRNMPI=1")
+else()
+    message(STATUS "Use of MPI disabled by user-provided option")
+    add_definitions("-DNRNMPI=0")
+endif()
 
 #Memory layout transformation: 0 for SoA and 1 for AoS
 if (ENABLE_SOA)
@@ -114,64 +104,155 @@ else()
     add_definitions("-DLAYOUT=1")
 endif()
 
+#OpenMP runtime schedule
+if (ENABLE_OMP_RUNTIME_SCHEDULE)
+    add_definitions("-DENABLE_OMP_RUNTIME_SCHEDULE")
+endif()
+
+#Disable hoc_exp wrapper for exp
+if (DISABLE_HOC_EXP)
+    add_definitions("-DDISABLE_HOC_EXP")
+endif()
+
+#Enable use of splay tree for queuing (for models using net_move)
+if (ENABLE_SPLAYTREE_QUEUING)
+    add_definitions("-DENABLE_SPLAYTREE_QUEUING")
+endif()
+
+#Turn off event buffering if asked
+if (NOT ENABLE_NET_RECEIVE_BUFFERING)
+    add_definitions("-DNET_RECEIVE_BUFFERING=0")
+endif()
+
+find_package(mod2c 2.0.0  REQUIRED)
 find_package(Boost 1.41.0 QUIET COMPONENTS filesystem system atomic unit_test_framework)
 
+# Threading
+if(CORENEURON_OPENMP)
+    find_package(OpenMP)
+    if(OPENMP_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} ${ADDITIONAL_THREADSAFE_FLAGS}")
+    endif(OPENMP_FOUND)
+endif(CORENEURON_OPENMP)
+
+# ReportingLib
+if(ENABLE_REPORTINGLIB)
+    find_package(reportinglib REQUIRED)
+    if(reportinglib_FOUND)
+        include_directories(${reportinglib_INCLUDE_DIR})
+        add_definitions("-DENABLE_REPORTING")
+    else(reportinglib_FOUND)
+        message(FATAL_ERROR "Enabled use of ReportingLib but ReportingLib installion not found!")
+    endif(reportinglib_FOUND)
+endif(ENABLE_REPORTINGLIB)
+
 include(CheckIncludeFiles)
+CHECK_INCLUDE_FILES (malloc.h have_malloc_h)
+if(have_malloc_h)
+  add_definitions("-DHAVE_MALLOC_H")
+endif()
+
+# Some mechanisms use NEURON specific code which is skipped
+# using this macro for CoreNeuron build
+add_definitions(-DCORENEURON_BUILD)
+
+CHECK_INCLUDE_FILES("spi/include/kernel/memory.h" have_memory_h)
+if(have_memory_h)
+  add_definitions("-DHAVE_MEMORY_H")
+endif()
+
+option (ENABLE_SELECTIVE_GPU_PROFILING "Enable GPU profiling only for Solver" ON)
+option (ENABLE_OPENACC "Enable use of OpenACC" OFF)
+
+find_package(ClangFormat)
+
+if(CLANG_FORMAT_FOUND)
+    message("clang-format : ${CLANG_FORMAT_EXECUTABLE} : ${CLANG_FORMAT_VERSION}")
+else()
+    message("clang-format executable not found")
+endif()
+
+if(CLANG_FORMAT_FOUND)
+    file(COPY ${PROJECT_SOURCE_DIR}/.clang-format DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+    #to indent files using clang-format
+    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT ${PROJECT_SOURCE_DIR}/coreneuron/*.c*
+        ${PROJECT_SOURCE_DIR}/coreneuron/*.h* ${PROJECT_SOURCE_DIR}/coreneuron/*.ipp*)
+
+    add_custom_target(formatsource COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_FILES:STRING="${SRC_FILES_FOR_CLANG_FORMAT}"
+        -DCLANG_FORMAT_EXECUTABLE=${CLANG_FORMAT_EXECUTABLE}
+        -P "${PROJECT_SOURCE_DIR}/CMake/ClangFormatUtils.cmake"
+        )
+endif()
 
 #Turn off inline assembly for PGI
 if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
     add_definitions(-DSWAP_ENDIAN_DISABLE_ASM)
 endif()
 
-#OpenACC pragmas are not guarded, disable all unknown pragm warnings
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
+if(ENABLE_OPENACC)
+    if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
+        add_definitions( -DPG_ACC_BUGS)
+        set(ACC_FLAGS "-acc -Minline=size:200,levels:10")
+        if (ENABLE_OPENACC_INFO)
+            set(ACC_FLAGS "${ACC_FLAGS} -Minfo=acc")
+        endif()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ACC_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ACC_FLAGS}")
+    else()
+        message(WARNING "OpenACC implementation is only supported and tested using only PGI")
+        message(WARNING "Add required compiler flags to enabled OpenACC")
+    endif()
 
-#Exception: add lc++ flag instead of lstdc++ on Apple machines
-IF (APPLE)
-  message (STATUS "Found MacOS: Added gcc LLVM flag lc++")
-  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lc++")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lc++")
-ENDIF()
+    if(ENABLE_CUDA_MODULES)
+        find_package(CUDA 5.0)
+        SET(CUDA_SEPARABLE_COMPILATION ON)
 
-# Core library
-if (NEUROX_TIME_STEPPING_VERBOSE)
-    add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
+        if(CUDA_FOUND)
+            if(ENABLE_SELECTIVE_GPU_PROFILING)
+                add_definitions( -DCUDA_PROFILING)
+                add_definitions( -DENABLE_SELECTIVE_PROFILING)
+            endif(ENABLE_SELECTIVE_GPU_PROFILING)
+        else(CUDA_FOUND)
+            message( FATAL_ERROR "Error : Can't file CUDA, load module or set path!" )
+        endif(CUDA_FOUND)
+    else(ENABLE_CUDA_MODULES)
+        message(INFO "Support for CUDA modules (e.g. Random123) is disabled!")
+    endif(ENABLE_CUDA_MODULES)
+
+ELSE(ENABLE_OPENACC)
+    SET (ENABLE_SELECTIVE_GPU_PROFILING OFF)
+    SET (ENABLE_CUDA_MODULES OFF)
+    #OpenACC pragmas are not guarded, disable all unknown pragm warnings
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
+endif(ENABLE_OPENACC)
+
+if(DISABLE_NRN_TIMEOUT)
+    add_definitions("-DDISABLE_TIMEOUT")
 endif()
 
-####### LIBRARY libneurox
+if(EXPORT_MECHS_FUNCTIONS)
+    add_definitions("-DEXPORT_MECHS_FUNCTIONS")
+endif()
 
-FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_SOURCE_DIR}/neurox/*.h")
-FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_SOURCE_DIR}/neurox/*.ipp")
-FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_SOURCE_DIR}/neurox/*.c*")
+add_subdirectory(neurox)
 
-include_directories( ${CMAKE_CURRENT_BINARY_DIR}
-                     ${CMAKE_SOURCE_DIR}  #include neurox/neurox.h
-                     ${CMAKE_INSTALL_PREFIX}/include 
-                     ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms  #include nrnran123.h 
-                   )
-link_directories(${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib64)
+# Core library
+add_subdirectory(coreneuron)
 
-add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
-target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
+# Main
+if(CORENEURON_MAIN)
+    add_subdirectory(apps)
+endif(CORENEURON_MAIN)
 
-set_target_properties(neurox PROPERTIES
-                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                            SOVERSION ${VERSION_MAJOR}
-                            CLEAN_DIRECT_OUTPUT 1)
+# Tests
+if(Boost_FOUND)
+    add_subdirectory(tests)
+endif(Boost_FOUND)
 
-####### EXECUTABLE neurox
 
-add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/main.cpp")
-set_target_properties(neurox_exec PROPERTIES
-                            OUTPUT_NAME "neurox"
-                            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-target_link_libraries(neurox_exec neurox )
-install(TARGETS neurox_exec DESTINATION ${BIN_INSTALL_DIR}/)
-
-####### installation
-
-install(TARGETS neurox
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
-        ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
-
+# Documentation
+#include(DoxygenRule)
