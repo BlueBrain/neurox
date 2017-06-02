@@ -162,7 +162,7 @@ set_target_properties(neurox PROPERTIES
 
 ####### EXECUTABLE neurox
 
-add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/main.cpp")
+add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
 set_target_properties(neurox_exec PROPERTIES
                             OUTPUT_NAME "neurox"
                             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
