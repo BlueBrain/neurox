@@ -35,31 +35,46 @@ bool Debugger::isEqual(floble_t a, floble_t b, bool roughlyEqual)
     return roughlyEqual ? fabs(a-b) < epsilon : a==b;
 }
 
-void Debugger::compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs)
+void Debugger::compareMechanismsFunctionPointers()
 {
+#if !defined(NDEBUG)
     printf("NDEBUG::comparing Mechanisms functions...\n");
-    for (auto & tml : uniqueMechs)
+    for (int m=0; m<neurox::mechanismsCount; m++)
     {
-        Memb_func & mf_cn = memb_func[tml->index]; //coreneuron
-        Memb_func & mf_nx = mechanisms[mechanismsMap[tml->index]]->membFunc; //neurox
-        if (tml->index != CAP)
-        { //we call MechFunctions::jacobCapacitance and currentCapacitance
-          //so value is set. Coreneuron sets to null and calls nrn_cur_capacitance instead
-          assert (mf_cn.jacob == mf_nx.jacob);
+        int index = mechanisms[m]->type;
+        Memb_func & mf_cn = memb_func[index]; //coreneuron
+        Memb_func & mf_nx = mechanisms[m]->membFunc; //neurox
+
+        //constructur, destructors are different
+        //assert (mf_cn.alloc == mf_nx.alloc);
+        //assert (mf_cn.destructor == mf_nx.destructor);
+
+        //file reader is not used (we read directly from Coreneuron)
+        //assert (mechanisms[m]->nrn_bbcore_read == nrn_bbcore_read_[index]);
+
+        //cap calls MechFunctions::jacobCapacitance and currentCapacitance instead
+        if (index != CAP)
+        {
           assert (mf_cn.current == mf_nx.current);
+          assert (mf_cn.jacob == mf_nx.jacob);
         }
-        //assert (mf_cn.alloc == mf_nx.alloc); //TODO never used?
-        assert (mf_cn.destructor == mf_nx.destructor);
-        assert (mf_cn.initialize == mf_nx.initialize);
+
         assert (mf_cn.state == mf_nx.state);
+        assert (mf_cn.initialize == mf_nx.initialize);
+
+        //If fails below, probably forgot to disable threading table when generating circuit
+        assert (mf_cn.setdata_ == mf_nx.setdata_);
         assert (mf_cn.thread_cleanup_ == mf_nx.thread_cleanup_);
         assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
+        assert (mf_cn.thread_size_ == mf_nx.thread_size_);
         assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
     }
+#endif
 }
 
 void Debugger::stepAfterStepFinitialize(Branch *b, NrnThread *nth)
 {
+    b->callModFunction(Mechanism::ModFunction::threadTableCheck);
     b->initVecPlayContinous();
 
     //coreneuron

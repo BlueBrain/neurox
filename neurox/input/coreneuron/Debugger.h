@@ -25,7 +25,7 @@ class Debugger
 
     static void compareAllBranches(); ///> compares all branches wth Coreneuron
     static void compareBranch2(Branch * branch); ///> compares a branch to Coreneuron data structures
-    static void compareMechanismsFunctionPointers( std::list<NrnThreadMembList*> & uniqueMechs);
+    static void compareMechanismsFunctionPointers();
     static void nrnSpikeExchange2();
 
     static hpx_action_t compareBranch; ///> compares a branch to CoreNeuron data structures

@@ -657,6 +657,7 @@ void setup_ThreadData(NrnThread& nt) {
     for (NrnThreadMembList* tml = nt.tml; tml; tml = tml->next) {
         Memb_func& mf = memb_func[tml->index];
         Memb_list* ml = tml->ml;
+        assert(mf.thread_size_>=0);
         if (mf.thread_size_) {
             ml->_thread = (ThreadDatum*)ecalloc(mf.thread_size_, sizeof(ThreadDatum));
             if (mf.thread_mem_init_) {

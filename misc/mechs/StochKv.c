@@ -90,7 +90,6 @@ extern double hoc_Exp(double);
 #define nrn_cur_launcher nrn_cur_StochKv_launcher
 #define nrn_jacob_launcher nrn_jacob_StochKv_launcher 
 #define ChkProb ChkProb_StochKv 
-#define _f_trates _f_trates_StochKv 
 #define setRNG setRNG_StochKv 
 #define states states_StochKv 
 #define trates trates_StochKv 
@@ -213,11 +212,6 @@ extern Memb_func* memb_func;
  inline double brand( _threadargsprotocomma_ double , double );
  inline double strap( _threadargsprotocomma_ double );
  inline double urand( _threadargsproto_ );
- 
-static void _check_trates(_threadargsproto_); 
-static void _check_table_thread(_threadargsproto_, int _type) {
-   _check_trates(_threadargs_);
- }
  /* declare global and static user variables */
  static int _thread1data_inuse = 0;
 static double _thread1data[7];
@@ -257,9 +251,6 @@ static double _thread1data[7];
 #define temp temp_StochKv
  double temp = 23;
  #pragma acc declare copyin (temp)
-#define usetable usetable_StochKv
- double usetable = 1;
- #pragma acc declare copyin (usetable)
 #define vmax vmax_StochKv
  double vmax = 100;
  #pragma acc declare copyin (vmax)
@@ -275,7 +266,6 @@ static void _acc_globals_update() {
  #pragma acc update device (q10) if(nrn_threads->compute_gpu)
  #pragma acc update device (tha) if(nrn_threads->compute_gpu)
  #pragma acc update device (temp) if(nrn_threads->compute_gpu)
- #pragma acc update device (usetable) if(nrn_threads->compute_gpu)
  #pragma acc update device (vmax) if(nrn_threads->compute_gpu)
  #pragma acc update device (vmin) if(nrn_threads->compute_gpu)
  }
@@ -283,7 +273,6 @@ static void _acc_globals_update() {
 #if 0 /*BBCORE*/
  /* some parameters have upper and lower limits */
  static HocParmLimits _hoc_parm_limits[] = {
- "usetable_StochKv", 0, 1,
  0,0,0
 };
  static HocParmUnits _hoc_parm_units[] = {
@@ -325,7 +314,6 @@ static void _acc_globals_update() {
  "tadj_StochKv", &tadj_StochKv,
  "P_a_StochKv", &P_a_StochKv,
  "P_b_StochKv", &P_b_StochKv,
- "usetable_StochKv", &usetable_StochKv,
  0,0
 };
  static DoubVec hoc_vdoub[] = {
@@ -406,7 +394,6 @@ extern void _cvode_abstol( Symbol**, double*, int);
   _thread1data_inuse = 0;
      _nrn_thread_reg1(_mechtype, _thread_mem_init);
      _nrn_thread_reg0(_mechtype, _thread_cleanup);
-     _nrn_thread_table_reg(_mechtype, _check_table_thread);
    hoc_reg_bbcore_read(_mechtype, bbcore_read);
   hoc_register_prop_size(_mechtype, _psize, _ppsize);
   hoc_register_dparam_semantics(_mechtype, 0, "k_ion");
@@ -416,11 +403,6 @@ extern void _cvode_abstol( Symbol**, double*, int);
   hoc_register_dparam_semantics(_mechtype, 4, "area");
  	hoc_register_var(hoc_scdoub, hoc_vdoub, NULL);
  }
- static double *_t_ntau;
- static double *_t_ninf;
- static double *_t_a;
- static double *_t_b;
- static double *_t_tadj;
 static char *modelname = "skm95.mod  ";
 
 static int error;
@@ -428,13 +410,11 @@ static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int ChkProb(_threadargsprotocomma_ double);
-static int _f_trates(_threadargsprotocomma_ double);
 static int setRNG(_threadargsproto_);
 static int trates(_threadargsprotocomma_ double);
  
 static int _ode_spec1(_threadargsproto_);
 /*static int _ode_matsol1(_threadargsproto_);*/
- static void _n_trates(_threadargsprotocomma_ double _lv);
  
 #define _slist1 _slist1_StochKv
 int* _slist1;
@@ -506,97 +486,8 @@ void* nrn_random_arg(int argpos);
    }
   return 0;
 }
- static double _mfac_trates, _tmin_trates;
-  static void _check_trates(_threadargsproto_) {
-  static int _maktable=1; int _i, _j, _ix = 0;
-  double _xi, _tmax;
-  static double _sav_dt;
-  static double _sav_Ra;
-  static double _sav_Rb;
-  static double _sav_tha;
-  static double _sav_qa;
-  static double _sav_q10;
-  static double _sav_temp;
-  static double _sav_celsius;
-  if (!usetable) {return;}
-  if (_sav_dt != dt) { _maktable = 1;}
-  if (_sav_Ra != Ra) { _maktable = 1;}
-  if (_sav_Rb != Rb) { _maktable = 1;}
-  if (_sav_tha != tha) { _maktable = 1;}
-  if (_sav_qa != qa) { _maktable = 1;}
-  if (_sav_q10 != q10) { _maktable = 1;}
-  if (_sav_temp != temp) { _maktable = 1;}
-  if (_sav_celsius != celsius) { _maktable = 1;}
-  if (_maktable) { double _x, _dx; _maktable=0;
-   _tmin_trates =  vmin ;
-   _tmax =  vmax ;
-   _dx = (_tmax - _tmin_trates)/199.; _mfac_trates = 1./_dx;
-   for (_i=0, _x=_tmin_trates; _i < 200; _x += _dx, _i++) {
-    _f_trates(_threadargs_, _x);
-    _t_ntau[_i] = ntau;
-    _t_ninf[_i] = ninf;
-    _t_a[_i] = a;
-    _t_b[_i] = b;
-    _t_tadj[_i] = tadj;
-   }
-   _sav_dt = dt;
-   _sav_Ra = Ra;
-   _sav_Rb = Rb;
-   _sav_tha = tha;
-   _sav_qa = qa;
-   _sav_q10 = q10;
-   _sav_temp = temp;
-   _sav_celsius = celsius;
-  }
- }
-
- static int trates(_threadargsproto_, double _lv) { 
-#if 0
-_check_trates(_threadargs_);
-#endif
- _n_trates(_threadargs_, _lv);
- return 0;
- }
-
- static void _n_trates(_threadargsproto_, double _lv){ int _i, _j;
- double _xi, _theta;
- if (!usetable) {
- _f_trates(_threadargs_, _lv); return; 
-}
- _xi = _mfac_trates * (_lv - _tmin_trates);
- if (isnan(_xi)) {
-  ntau = _xi;
-  ninf = _xi;
-  a = _xi;
-  b = _xi;
-  tadj = _xi;
-  return;
- }
- if (_xi <= 0.) {
- ntau = _t_ntau[0];
- ninf = _t_ninf[0];
- a = _t_a[0];
- b = _t_b[0];
- tadj = _t_tadj[0];
- return; }
- if (_xi >= 199.) {
- ntau = _t_ntau[199];
- ninf = _t_ninf[199];
- a = _t_a[199];
- b = _t_b[199];
- tadj = _t_tadj[199];
- return; }
- _i = (int) _xi;
- _theta = _xi - (double)_i;
- ntau = _t_ntau[_i] + _theta*(_t_ntau[_i+1] - _t_ntau[_i]);
- ninf = _t_ninf[_i] + _theta*(_t_ninf[_i+1] - _t_ninf[_i]);
- a = _t_a[_i] + _theta*(_t_a[_i+1] - _t_a[_i]);
- b = _t_b[_i] + _theta*(_t_b[_i+1] - _t_b[_i]);
- tadj = _t_tadj[_i] + _theta*(_t_tadj[_i+1] - _t_tadj[_i]);
- }
-
  
-static int  _f_trates ( _threadargsprotocomma_ double _lv ) {
+static int  trates ( _threadargsprotocomma_ double _lv ) {
    tadj = pow( q10 , ( ( celsius - temp ) / ( 10.0 ) ) ) ;
    a = SigmoidRate ( _threadargscomma_ _lv , tha , Ra , qa ) ;
    a = a * tadj ;
@@ -614,10 +505,6 @@ static void _hoc_trates(void) {
    if (_extcall_prop) {_p = _extcall_prop->param; _ppvar = _extcall_prop->dparam;}else{ _p = (double*)0; _ppvar = (Datum*)0; }
   _thread = _extcall_thread;
   _nt = nrn_threads;
- 
-#if 1
- _check_trates(_threadargs_);
-#endif
  _r = 1.;
  trates ( _threadargs_, *getarg(1) ;
  hoc_retpushx(_r);
@@ -1100,10 +987,6 @@ for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 for (;;) { /* help clang-format properly indent */
 #endif
     int _nd_idx = _ni[_iml];
-
-#if 0
- _check_trates(_threadargs_);
-#endif
     _v = _vec_v[_nd_idx];
     _PRCELLSTATE_V
  v = _v;
@@ -1128,14 +1011,13 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
-
-  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
     nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
-  }
+}
 
-  void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
+void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
                         mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
-  {
+{
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -1143,11 +1025,12 @@ _cntml_actual = _ml->_nodecount;
 _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
-double * _vec_d = _nt->_actual_d;
+double * _vec_d =   _nt->_actual_d;
 double * _vec_shadow_rhs = _ml->_shadow_rhs;
 double * _vec_shadow_d = _ml->_shadow_d;
 double * _vec_shadow_i = _ml->_shadow_i;
 double * _vec_shadow_didv = _ml->_shadow_didv;
+
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
@@ -1177,30 +1060,23 @@ for (;;) { /* help clang-format properly indent */
     _PRCELLSTATE_V
   ek = _ion_ek;
  _g = _nrn_current(_threadargs_, _v + .001);
- double _dik;
+ 	{ double _dik;
   _dik = ik;
  _rhs = _nrn_current(_threadargs_, _v);
+  _ion_dikdv += (_dik - ik)/.001 ;
+ 	}
  _g = (_g - _rhs)/.001;
- if (acc_i_didv)
- {
-     _vec_shadow_i[_iml] = +ik;
-     _vec_shadow_didv[_iml] = +(_dik - ik)/.001;
- }
- else
- {
-     _ion_ik += ik ;
-     _ion_dikdv += (_dik - ik)/.001 ;
- }
+  _ion_ik += ik ;
  _PRCELLSTATE_G
  if (acc_rhs_d)
  {
-     _vec_shadow_rhs[_iml] = -_rhs;
-     _vec_shadow_d[_iml] = +_g;
+    _vec_shadow_rhs[_iml] = -_rhs;
+    _vec_shadow_d[_iml] = +_g;
  }
  else
  {
-     _vec_rhs[_nd_idx] -= _rhs;
-     _vec_d[_nd_idx] += _g;
+    _vec_rhs[_nd_idx] -= _rhs;
+    _vec_d[_nd_idx] += _g;
  }
 }
 //accumulation of individual contributions (for parallel executions)
@@ -1266,11 +1142,6 @@ static void _initlists(){
  #pragma acc enter data copyin(_slist1[0:1])
  #pragma acc enter data copyin(_dlist1[0:1])
 
-   _t_ntau = makevector(200*sizeof(double));
-   _t_ninf = makevector(200*sizeof(double));
-   _t_a = makevector(200*sizeof(double));
-   _t_b = makevector(200*sizeof(double));
-   _t_tadj = makevector(200*sizeof(double));
 _first = 0;
 }
 

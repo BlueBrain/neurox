@@ -80,7 +80,7 @@ class Mechanism
     void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
     void registerCapacitance();   ///> register mechanism of type "capacitance"
     void registerBeforeAfterFunctions();   ///> register Before-After functions
-    void registerModFunctions(int type); ///> register mechanisms functions (mod_t_f type)
+    void registerModFunctions(); ///> register mechanisms functions (mod_t_f type)
 
 };
 };

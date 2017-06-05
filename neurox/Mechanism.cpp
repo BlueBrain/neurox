@@ -16,18 +16,16 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
     isIon(isIon), dependencies(nullptr), successors(nullptr), sym(nullptr)
 {
-    if (pntMap>0)
+
+    switch (type)
     {
-        switch (type)
-        {
-            case IClamp           : vdataSize=1; break;
-            case ProbAMPANMDA_EMS : vdataSize=2; break;
-            case ProbGABAAB_EMS   : vdataSize=2; break;
-            default  : throw std::invalid_argument
-                    ("Unknown vdataSize for mech type (FLAG2).");
-        }
-        assert(vdataSize == pdataSize -1); //always?
+        case IClamp           : vdataSize=1; break;
+        case ProbAMPANMDA_EMS : vdataSize=2; break;
+        case ProbGABAAB_EMS   : vdataSize=2; break;
+        case StochKv          :	vdataSize=1; break;
+        default               : vdataSize = 0;
     }
+    this->membFunc.is_point = pntMap > 0 ? 1 : 0; //TODO never used
 
     if (dependencies != nullptr){
         assert(dependenciesCount>0);
@@ -59,16 +57,13 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         registerCapacitance();
     else if (this->isIon)  //ion: eion.c
         registerIon();
-    else //general mechanism: mod file
-        registerModFunctions(this->type);
 
-    if (pntMap>0)
-        pnt_receive = get_net_receive_function(this->sym);
+    //general mechanism: mod file registration and thread tables
+    registerModFunctions();
 
     registerBeforeAfterFunctions();
 
 #ifndef NDEBUG
-    /*
     if (HPX_LOCALITY_ID ==0)
         printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
            "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
@@ -76,7 +71,6 @@ Mechanism::Mechanism(const int type, const short int dataSize,
            this->type, this->dataSize, this->pdataSize, this->isArtificial,
            this->pntMap, this->isIon, this->symLength, this->sym, this->successorsCount,
            this->dependenciesCount);
-    */
 #endif
 };
 
@@ -114,7 +108,6 @@ void Mechanism::disableMechFunctions()
     this->membFunc.thread_mem_init_ = NULL;
     this->membFunc.thread_cleanup_ = NULL;
     this->membFunc.thread_table_check_ = NULL;
-    this->membFunc.setdata_ = NULL;
     this->nrn_bbcore_read = NULL;
     this->membFunc.thread_size_ = -1;
     this->membFunc.is_point = -1;
@@ -122,21 +115,30 @@ void Mechanism::disableMechFunctions()
     this->pnt_receive_init = NULL;
 }
 
-void Mechanism::registerModFunctions(int type)
+void Mechanism::registerModFunctions()
 {
-    this->membFunc.alloc = NULL; // memb_func[type].alloc;
-    this->membFunc.setdata_ = NULL; // memb_func[type].setdata_;
-    this->membFunc.destructor = NULL; // memb_func[type].destructor;
+    int type = this->type;
+    //TODO this should be done by exposing pointers
+    //Even with cach-table disable, mechs (eg StockKv) use some of these functions
+    this->membFunc.is_point = memb_func[type].is_point;
+    this->membFunc.setdata_ = memb_func[type].setdata_; //TODO never used?
+    this->membFunc.thread_cleanup_ = memb_func[type].thread_cleanup_;
+    this->membFunc.thread_mem_init_ = memb_func[type].thread_mem_init_;
+    this->membFunc.thread_size_ = memb_func[type].thread_size_;
+    this->membFunc.thread_table_check_ = memb_func[type].thread_table_check_;
+
+    if (this->type==CAP || this->isIon) return;
+
+    this->membFunc.alloc = NULL;  //N/A memb_func[type].alloc; //TODO never used?
+    this->membFunc.destructor = NULL; //N/A memb_func[type].destructor;
+    this->nrn_bbcore_read = NULL; //N/A nrn_bbcore_read_[type];
+
     this->membFunc.current = get_cur_function(this->sym); //memb_func[type].current;
     this->membFunc.current_parallel = get_cur_parallel_function(this->sym);
-    this->membFunc.jacob = NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
+    this->membFunc.jacob =  NULL; //get_jacob_function(this->sym); //memb_func[type].jacob;
     this->membFunc.state = get_state_function(this->sym); //memb_func[type].state;
     this->membFunc.initialize = get_init_function(this->sym); //memb_func[type].initialize;
-    this->membFunc.thread_cleanup_ = NULL; //N/A: memb_func[type].thread_cleanup_;
-    this->membFunc.thread_mem_init_ = NULL; //N/A: memb_func[type].thread_mem_init_;
-    this->membFunc.thread_size_ = NULL; //N/A: memb_func[type].thread_size_;
-    this->membFunc.thread_table_check_ = NULL; //N/A memb_func[type].thread_table_check_;
-    this->nrn_bbcore_read = NULL; //N/A nrn_bbcore_read_[type];
+    this->pnt_receive = get_net_receive_function(this->sym);
 }
 
 void Mechanism::registerCapacitance()
@@ -249,7 +251,10 @@ void Mechanism::callModFunction(const void * branch_ptr,
         case Mechanism::ModFunction::jacob:
             assert(type != CAP);
             if (membFunc.jacob)
+            {
+                assert(0); //No jacob function pointers yet (get_jacob_function(xxx))
                 membFunc.jacob(nrnThread, membList, type);
+            }
         break;
         case Mechanism::ModFunction::initialize:
             if (membFunc.initialize)
@@ -260,6 +265,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
                 membFunc.destructor();
         break;
         case Mechanism::ModFunction::threadMemInit:
+            assert(0); //TODO should be called only by constructor Branch(...)
             if (membFunc.thread_mem_init_)
                 membFunc.thread_mem_init_(membList->_thread);
         break;
@@ -270,6 +276,7 @@ void Mechanism::callModFunction(const void * branch_ptr,
                      membList->_thread, nrnThread, type);
         break;
         case Mechanism::ModFunction::threadCleanup:
+            assert(0); //TODO should only be called by destructor ~Branch(...)
             if (membFunc.thread_cleanup_)
                 membFunc.thread_cleanup_(membList->_thread);
         break;

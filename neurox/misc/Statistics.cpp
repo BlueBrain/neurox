@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include "coreneuron/utils/randoms/nrnran123.h" //RNG data structures
 
 using namespace neurox;
 using namespace neurox::Misc;
@@ -120,14 +121,14 @@ int Statistics::getNeuronSize_handler()
             branchSize.mechanisms += (double) (sizeof(floble_t) * mechanisms[m]->dataSize * local->mechsInstances[m].nodecount)/1024;
         if (mechanisms[m]->pdataSize>0)
             branchSize.mechanisms += (double) (sizeof(offset_t) * mechanisms[m]->pdataSize * local->mechsInstances[m].nodecount)/1024;
+        if (mechanisms[m]->vdataSize>0)
+            branchSize.mechanisms += (double) (sizeof(void*)    * mechanisms[m]->vdataSize * local->mechsInstances[m].nodecount)/1024;
 
-        if (mechanisms[m]->pntMap>0)
-        {
-            if (mechanisms[m]->type == IClamp)
-                branchSize.synapses += (double) (sizeof(void*)*2 + sizeof(Point_process)) /1024;
-            if (mechanisms[m]->type == ProbAMPANMDA_EMS || mechanisms[m]->type == ProbGABAAB_EMS)
-                branchSize.synapses += (double) (sizeof(void*)*3 + sizeof(Point_process) + sizeof(/*RNG_state*/uint32_t[4])) /1024;
-        }
+        int type = mechanisms[m]->type;
+        if (type == IClamp || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+            branchSize.synapses += ((double) sizeof(Point_process)  ) /1024;
+        if (type == StochKv || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+            branchSize.synapses += ((double) sizeof(nrnran123_State)) /1024;
     }
 
     //call the print function in children branches, pass their size to parent branch

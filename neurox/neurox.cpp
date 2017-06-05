@@ -203,6 +203,7 @@ static int main_handler()
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
 
+    neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers();
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 
     message("neurox::Branch::finitialize...\n");
