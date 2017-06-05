@@ -1,7 +1,6 @@
 #pragma once
 
 //Coreneuron core datatypes
-#define EXPORT_MECHS_FUNCTIONS  //allows CN to expose get_*_function(char * sym)
 #include "coreneuron/coreneuron.h"
 
 //typedefs
@@ -35,9 +34,10 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
+#define StochKv 151
 
 //Uncomment for debugging
-#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
+//#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 

@@ -130,6 +130,18 @@ Branch::Branch(offset_t n,
         if (instance.nodeindices)
             memcpy(instance.nodeindices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.nodecount);
 
+        //init thread data :: nrn_setup.cpp->setup_ThreadData();
+        if (mech->membFunc.thread_size_)
+        {
+            instance._thread = new ThreadDatum[mech->membFunc.thread_size_];
+            if (mech->membFunc.thread_mem_init_)
+                mech->membFunc.thread_mem_init_(instance._thread);
+        }
+        else
+        {
+            instance._thread = nullptr;
+        }
+
         //vdata: if is point process we need to allocate the vdata (by calling bbcore_reg in mod file)
         //and assign the correct offset in pdata (offset of vdata is in pdata[1])
         for (size_t i=0; i<instance.nodecount; i++)
@@ -141,36 +153,51 @@ Branch::Branch(offset_t n,
             floble_t * instanceData2 = (floble_t*) &instance.data [i*mech->dataSize];
             offset_t * instancePdata = (offset_t *) &instance.pdata[i*mech->pdataSize];
             assert (instanceData = instanceData2); //Make sure data offsets are good so far
-            if (mech->pntMap>0)
+
+            if (mech->vdataSize>0 || mech->pntMap>0)
             {
-                assert( (mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2)
+                assert((mech->type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2 && mech->pntMap>0)
+                    || (mech->type == StochKv && mech->vdataSize == 1 && mech->pdataSize == 5 && mech->pntMap==0)
                     || ((mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
-                        && mech->vdataSize == 2 && mech->pdataSize == 3));
+                        && mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap>0 ));
 
+                //ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
                 //pdata[0]: offset in data (area)
-                //pdata[1]: offset for point proc in vdata[0]
-                //pdata[2]: offset for RNG in vdata[1] (if any)
+                //pdata[1]: offset for Point_process in vdata[0]
+                //pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp)
 
-                Point_process * pp = (Point_process *) (void*) &vdataSerialized[vdataOffset];
-                assert(pp->_i_instance>=0 && pp->_tid>=0 && pp->_type>=0);
-                Point_process * ppcopy = new Point_process;
-                memcpy(ppcopy, pp, sizeof(Point_process));
-                vdataOffset += sizeof(Point_process);
-                instancePdata[1] = vdataPtrs.size();
-                vdataPtrs.push_back(ppcopy);
+                //StochKv:
+                //pdata[0]: offset in area (ion_ek)
+                //pdata[1]: offset in area (ion_ik)
+                //pdata[2]: offset in area (ion_dikdv)
+                //pdata[3]: offset for RNG in vdata[0]
+                //pdata[4]: offset in data (area)
 
-                if (mech->vdataSize==2)
+                //copy Point_processes by replacing vdata pointers and pdata offset by the ones referring to a copy
+                if (mech->type == IClamp || mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
                 {
+                    int pointProcOffsetInPdata = 1;
+                    Point_process * pp = (Point_process *) (void*) &vdataSerialized[vdataOffset];
+                    assert(pp->_i_instance>=0 && pp->_tid>=0 && pp->_type>=0);
+                    Point_process * ppcopy = new Point_process;
+                    memcpy(ppcopy, pp, sizeof(Point_process));
+                    vdataOffset += sizeof(Point_process);
+                    instancePdata[pointProcOffsetInPdata] = vdataPtrs.size();
+                    vdataPtrs.push_back(ppcopy);
+                }
+
+                //copy RNG by replacing vdata pointers and pdata offset by the ones referring to a copy
+                if (mech->type == StochKv || mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
+                {
+                    int rngOffsetInPdata = mech->type == StochKv ? 3 : 2;
                     nrnran123_State * rng = (nrnran123_State*) (void*) &vdataSerialized[vdataOffset];
                     nrnran123_State * rngcopy = new nrnran123_State;
                     memcpy(rngcopy, rng, sizeof(nrnran123_State));
                     vdataOffset += sizeof(nrnran123_State);
-                    instancePdata[2] = vdataPtrs.size();
+                    instancePdata[rngOffsetInPdata] = vdataPtrs.size();
                     vdataPtrs.push_back(rngcopy);
                 }
             }
-            else
-            { assert (mech->vdataSize==0);}
             dataOffset  += mech->dataSize;
             pdataOffset += mech->pdataSize;
             assert(dataOffset  < 2^sizeof(offset_t));
@@ -293,6 +320,10 @@ Branch::~Branch()
 
     for (int m=0; m<mechanismsCount; m++)
     {
+        Memb_list & instance = this->mechsInstances[m];
+        if (mechanisms[m]->membFunc.thread_cleanup_)
+            mechanisms[m]->membFunc.thread_cleanup_(instance._thread);
+
         delete [] mechsInstances[m].nodeindices;
         delete [] mechsInstances[m].pdata;
         delete [] mechsInstances[m]._shadow_d;
@@ -465,6 +496,7 @@ void Branch::finitialize2()
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     assert(inputParams->secondorder < sizeof(char));
+    callModFunction(Mechanism::ModFunction::threadTableCheck);
     initVecPlayContinous();
     deliverEvents(t);
 

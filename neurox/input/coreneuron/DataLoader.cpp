@@ -149,28 +149,40 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
                 {   assert(data[i]==nt->_data[dataTotalOffset+i]); }
 
 
-                if (mech->pntMap > 0) //vdata
+                if (mech->pntMap > 0 || mech->vdataSize>0) //vdata
                 {
-                    assert((type==IClamp && mech->pdataSize==2 && mech->vdataSize==1)
-                        ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3 && mech->vdataSize==2));
+                    assert(( type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2 && mech->pntMap>0)
+                        || ( type == StochKv && mech->vdataSize == 1 && mech->pdataSize == 5 && mech->pntMap==0)
+                        || ((type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+                            && mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap>0 ));
 
+                    //ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
                     //pdata[0]: offset in data (area)
-                    //pdata[1]: offset for point proc in vdata[0]
-                    //pdata[2]: offset for RNG in vdata[1]
+                    //pdata[1]: offset for Point_process in vdata[0]
+                    //pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp,  =pdata[1]+1)
 
-                    //position vdata[0]: Point_proc
-                    Point_process * ppn = &nt->pntprocs[pointProcTotalOffset++];
-                    assert(nt->_vdata[pdata[1]] == ppn);
-                    Point_process * pp = (Point_process*) vdata[0];
-                    compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
+                    //StochKv:
+                    //pdata[0]: offset in area (ion_ek)
+                    //pdata[1]: offset in area (ion_ik)
+                    //pdata[2]: offset in area (ion_dikdv)
+                    //pdata[3]: offset for RNG in vdata[0]
+                    //pdata[4]: offset in data (area)
 
-
-                    //position vdata[1]: RNG (if any)
-                    if (mech->vdataSize==2)
+                    if (type == IClamp || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
                     {
-                        assert(pdata[1]+1 ==pdata[2]); //TODO no need to store offsets 1 and 2 if they are sequential
-                        assert(nt->_vdata[pdata[2]] == vdata[1]);
-                        nrnran123_State * RNG = (nrnran123_State*) vdata[1];
+                        const int pointProcOffsetInPdata = 1;
+                        Point_process * ppn = &nt->pntprocs[pointProcTotalOffset++];
+                        assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
+                        Point_process * pp = (Point_process*) vdata[0];
+                        compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
+                    }
+
+                    if (type == StochKv || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+                    {
+                        int rngOffsetInPdata = mech->type == StochKv ? 3 : 2;
+                        int rngOffsetInVdata = mech->type == StochKv ? 0 : 1;
+                        assert(nt->_vdata[pdata[rngOffsetInPdata]] == vdata[rngOffsetInVdata]);
+                        nrnran123_State * RNG = (nrnran123_State*) vdata[rngOffsetInVdata];
                         compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
                     }
                 }
@@ -432,7 +444,7 @@ int DataLoader::initMechanisms_handler()
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
                     mechsSym.data(), sizeof(char)*mechsSym.size());
 
-      assert(0); //TODO need to share static _na_type_ etc inside mechanisms!x
+      assert(0); //TODO need to share static _na_type_ etc inside mechanisms!
       printf("neurox::setMechanismsGlobarVars...\n");
       hpx_bcast_rsync(neurox::setMechanismsGlobalVars,
                     &celsius, sizeof(double),
@@ -446,11 +458,6 @@ int DataLoader::initMechanisms_handler()
                            mechsSuccessorsId.data(), mechsSym.data());
     }
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
-
-#if !defined(NDEBUG) 
-    //TODO why this stopped working after HPX update? repair!
-    //neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers(uniqueMechs);
-#endif
 
     if (inputParams->outputMechanismsDot)
     {
@@ -725,11 +732,18 @@ int DataLoader::getBranchData(
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
 
-            if (mech->pntMap > 0) //vdata
+            if (mech->pntMap > 0 || mech->vdataSize>0)
             {
-                assert((type==IClamp && mech->pdataSize==2 && mech->vdataSize==1)
-                    ||((type==ProbAMPANMDA_EMS || type==ProbGABAAB_EMS) && mech->pdataSize==3 && mech->vdataSize==2));
-                size_t totalVdataSize = sizeof(Point_process) + (mech->vdataSize==2 ? sizeof(nrnran123_State) : 0 );
+                assert(( type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2 && mech->pntMap>0)
+                    || ( type == StochKv && mech->vdataSize == 1 && mech->pdataSize == 5 && mech->pntMap==0)
+                    || ((type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+                        && mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap>0 ));
+
+                size_t totalVdataSize = 0;
+                if (type == IClamp || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+                    totalVdataSize += sizeof(Point_process);
+                if (type == StochKv || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
+                    totalVdataSize += sizeof(nrnran123_State);
                 vdataMechs[mechOffset].insert(vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset], &comp->vdata[compVdataOffset+totalVdataSize] );
                 compVdataOffset += totalVdataSize;
             }
@@ -761,9 +775,14 @@ int DataLoader::getBranchData(
             dataOffset  += mech->dataSize;
             pdataOffset += mech->pdataSize;
 
-            if (mech->pntMap > 0) //vdata
+            if (mech->pntMap > 0 || mech->vdataSize>0)
             {
-                size_t totalVdataSize = sizeof(Point_process) + (mech->vdataSize==2 ? sizeof(nrnran123_State) : 0 );
+                int totalVdataSize=0;
+                if (mech->type == IClamp || mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
+                    totalVdataSize += sizeof(Point_process);
+                if (mech->type == StochKv || mech->type == ProbAMPANMDA_EMS || mech->type == ProbGABAAB_EMS)
+                    totalVdataSize += sizeof(nrnran123_State);
+                assert(totalVdataSize>0);
                 vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset], &vdataMechs[m][vdataOffset+totalVdataSize]);
                 vdataOffset += totalVdataSize;
             }
