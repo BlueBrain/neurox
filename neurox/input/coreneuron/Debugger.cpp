@@ -68,6 +68,9 @@ void Debugger::compareMechanismsFunctionPointers()
         assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
         assert (mf_cn.thread_size_ == mf_nx.thread_size_);
         assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
+
+        for (int i=0; i< BEFORE_AFTER_SIZE; i++)
+            mechanisms[m]->BAfunctions[i] =  nrn_threads[0].tbl[i]->bam->f;
     }
 #endif
 }

@@ -950,6 +950,7 @@ void Branch::MechanismsGraph::accumulate_i_didv(NrnThread* nt,  Memb_list * ml, 
     hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]); //TODO should mutex be at branch and not mech level?
     for (int n=0; n<ml->nodecount; n++)
     {
+        //TODO does it need *_STRIDE to vectorize?
         int & i_offset = ml->_shadow_i_offsets[n];
         int & didv_offset = ml->_shadow_didv_offsets[n];
         assert(i_offset>=0 && didv_offset>=0);
