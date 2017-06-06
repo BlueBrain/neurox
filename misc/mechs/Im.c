@@ -374,7 +374,7 @@ for (;;) { /* help clang-format properly indent */
  //populate offsets arrays //(if parallel processing)
  if (_ml->_shadow_didv_offsets)
  {
-   _ml->_shadow_i_offsets[_iml] = _ppvar[1];
+   _ml->_shadow_i_offsets[_iml] = _ppvar[1*_STRIDE];
    _ml->_shadow_didv_offsets[_iml] = _ppvar[2*_STRIDE];
  }
  }
