@@ -947,7 +947,7 @@ void Branch::MechanismsGraph::accumulate_i_didv(NrnThread* nt,  Memb_list * ml, 
     MechanismsGraph * mg = (MechanismsGraph*) args;
     Mechanism * mech = getMechanismFromType(type);
     assert(mech->dependencyIonIndex<MechanismsGraph::IonIndex::size_writeable_ions);
-    hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]);
+    hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]); //TODO should mutex be at branch and not mech level?
     for (int n=0; n<ml->nodecount; n++)
     {
         int & i_offset = ml->_shadow_i_offsets[n];
