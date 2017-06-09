@@ -154,7 +154,7 @@ int setMechanismsGlobalVars_handler(const int nargs, const void *args[], const s
 
 void message(const char * str)
 {
-#ifdef  NEUROX_TIME_STEPPING_VERBOSE
+#ifndef NDEBUG
     printf ("%s",str);
     fflush(stdout);
 #endif
@@ -210,9 +210,17 @@ static int main_handler()
     hpx_par_for_sync( [&] (int i, void*) -> int
     {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
     }, 0, neuronsCount, NULL);
-
-#if !defined(NDEBUG) 
+#ifndef NDEBUG
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
+    neurox::Input::Coreneuron::Debugger::compareAllBranches();
+#endif
+
+    message("neurox::Branch::threadTableCheck...\n");
+    hpx_par_for_sync( [&] (int i, void*) -> int
+    {  return hpx_call_sync(neurox::neurons->at(i), Branch::threadTableCheck, HPX_NULL, 0);
+    }, 0, neuronsCount, NULL);
+#ifndef NDEBUG
+    hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::threadTableCheck);
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 #endif
 
@@ -263,7 +271,7 @@ static int main_handler()
       int commStepSize = Neuron::CommunicationBarrier::commStepSize;
       for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
       {
-          #ifdef NEUROX_TIME_STEPPING_VERBOSE
+          #ifndef NDEBUG
             if (hpx_get_my_rank()==0)
               message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
           #endif
@@ -273,7 +281,7 @@ static int main_handler()
             hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
           hpx_lco_wait_reset(mainLCO);
 
-          #if !defined(NDEBUG) 
+          #ifndef NDEBUG
             if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
               hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::nrnSpikeExchange);
           #endif

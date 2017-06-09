@@ -26,16 +26,16 @@ class Debugger
     static void compareAllBranches(); ///> compares all branches wth Coreneuron
     static void compareBranch2(Branch * branch); ///> compares a branch to Coreneuron data structures
     static void compareMechanismsFunctionPointers();
-    static void nrnSpikeExchange2();
 
     static hpx_action_t compareBranch; ///> compares a branch to CoreNeuron data structures
     static hpx_action_t finitialize;   ///> calls finitialize (on a compute node, not Branch)
     static hpx_action_t nrnSpikeExchange;   ///> calls nrn_fixed_step_group_minimal (on a compute node, not Branch)
     static hpx_action_t fixedStepMinimal;
+    static hpx_action_t threadTableCheck;
 
     //Interfaces to CoreNeuron methods
     static void fixed_step_minimal(NrnThread * nth, int secondorder); ///> calls fixed_step_minimal for single NrnThread;
-    static void stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder);
+    static void stepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int secondorder);
     static void stepAfterStepFinitialize(Branch *b, NrnThread *nth);
 
     static void registerHpxActions();  ///> Register all HPX actions
@@ -45,6 +45,7 @@ class Debugger
     static int finitialize_handler();
     static int nrnSpikeExchange_handler();
     static int fixedStepMinimal_handler(const int *, const size_t);
+    static int threadTableCheck_handler();
 };
 
 }; //Coreneuron

@@ -518,7 +518,7 @@ void Branch::finitialize2()
     deliverEvents(t);
 }
 
-//fadvance_core.c::nrn_fixed_step_minimal()
+//fadvance_core.c::nrn_fixed_step_thread
 void Branch::backwardEulerStep()
 {
     floble_t *& v   = this->nt->_actual_v;
@@ -535,12 +535,7 @@ void Branch::backwardEulerStep()
         soma->timeDependencies->waitForTimeDependencyNeurons(t, dt, this->soma->gid);
     }
 
-    //1. multicore.c::nrn_thread_table_check()
-    callModFunction(Mechanism::ModFunction::threadTableCheck);
-
-    //2. fadvance_core.c::nrn_fixed_step_thread()
     //cvodestb.cpp::deliver_net_events()
-
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
     if (this->soma)
     {
@@ -601,17 +596,16 @@ void Branch::backwardEulerStep()
     {
         Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
         Input::Coreneuron::Debugger::compareBranch2(this);
-        //Input::Coreneuron::Debugger::stepAfterStepComparison(local, &nrn_threads[local->nt->id], secondorder); //SMP ONLY
     }
 #endif
 }
 
-//fadvance_core.c::nrn_fixed_step_minimal
 hpx_action_t Branch::backwardEuler = 0;
 int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
+
     const int steps = *steps_ptr;
 
     if (!inputParams->allReduceAtLocality
@@ -637,6 +631,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 
                 for (int n=0; n<stepsPerReduction; n++)
                     local->backwardEulerStep();
+                    // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
             }
           }
     }
@@ -644,6 +639,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     {
         for (int step=0; step<steps; step++)
             local->backwardEulerStep();
+            // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
         if (inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier) //end of comm-step
             if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
@@ -691,6 +687,16 @@ int Branch::backwardEulerOnLocality_handler(const int * steps_ptr, const size_t 
         }
     }
     hpx_lco_delete_sync(localityNeuronsLCO);
+    neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::threadTableCheck =0;
+int Branch::threadTableCheck_handler()
+{
+    neurox_hpx_pin(Branch);
+    neurox_hpx_recursive_branch_async_call(Branch::threadTableCheck);
+    local->callModFunction(Mechanism::ModFunction::threadTableCheck);
+    neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
@@ -977,6 +983,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(2, Branch::addSpikeEvent);
     neurox_hpx_register_action(2, Branch::updateTimeDependencyValue);
     neurox_hpx_register_action(0, Branch::finitialize);
+    neurox_hpx_register_action(0, Branch::threadTableCheck);
     neurox_hpx_register_action(1, Branch::backwardEuler);
     neurox_hpx_register_action(1, Branch::backwardEulerOnLocality);
     neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);
