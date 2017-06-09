@@ -68,6 +68,10 @@ void Debugger::compareMechanismsFunctionPointers()
         assert (mf_cn.thread_mem_init_ == mf_nx.thread_mem_init_);
         assert (mf_cn.thread_size_ == mf_nx.thread_size_);
         assert (mf_cn.thread_table_check_ == mf_nx.thread_table_check_);
+
+        for (int i=0; i< BEFORE_AFTER_SIZE; i++)
+            if (nrn_threads[0].tbl[i])
+                assert (mechanisms[m]->BAfunctions[i] ==  nrn_threads[0].tbl[i]->bam->f);
     }
 #endif
 }
@@ -143,7 +147,7 @@ void Debugger::stepAfterStepFinitialize(Branch *b, NrnThread *nth)
     /****************/ compareBranch2(b); /*****************/
 }
 
-void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondorder)
+void Debugger::stepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int secondorder)
 {
     double dt = b->nt->_dt;
     if (b->soma && inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
@@ -151,28 +155,20 @@ void Debugger::stepAfterStepComparison(Branch *b, NrnThread * nth, int secondord
         b->soma->timeDependencies->sendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
         b->soma->timeDependencies->waitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
     }
-    b->callModFunction(Mechanism::ModFunction::threadTableCheck);
     if (b->soma)
     {
       int & thidx = b->soma->thvar_index;
       floble_t v = b->nt->_actual_v[thidx];
       if (b->soma->checkAPthresholdAndTransmissionFlag(v))
           b->soma->sendSpikes(b->nt->_t);
-      //TODO what about spikesLco ??
+      //TODO sendSpikes LCO must be waited
     }
     b->nt->_t += .5*dt;
     b->deliverEvents(b->nt->_t);
 
     //coreneuron
-
-    dt2thread(dt);
-    nrn_thread_table_check();
     assert(b->nt->cj == nth->cj);
-
-    if (secondorder)
-        nth->cj = 2.0 / nth->_dt;
-    else
-        nth->cj = 1.0 / nth->_dt;
+    dt2thread(dt);;
     deliver_net_events(nth);
     nth->_t += .5 * nth->_dt;
 
@@ -399,16 +395,21 @@ int Debugger::finitialize_handler()
     neurox_hpx_unpin;
 }
 
-void Debugger::nrnSpikeExchange2()
+hpx_action_t Debugger::threadTableCheck = 0;
+int Debugger::threadTableCheck_handler()
 {
-    nrn_spike_exchange(nrn_threads);
+    //beginning of fadvance_core.c::nrn_fixed_step_group_minimal
+    neurox_hpx_pin(uint64_t);
+    dt2thread(dt);  //does nothing
+    nrn_thread_table_check();
+    neurox_hpx_unpin;
 }
 
 hpx_action_t Debugger::nrnSpikeExchange = 0;
 int Debugger::nrnSpikeExchange_handler()
 {
     neurox_hpx_pin(uint64_t);
-    nrnSpikeExchange2();
+    nrn_spike_exchange(nrn_threads);
     neurox_hpx_unpin;
 }
 
@@ -426,5 +427,6 @@ void Debugger::registerHpxActions()
     neurox_hpx_register_action(0, Debugger::finitialize);
     neurox_hpx_register_action(0, Debugger::nrnSpikeExchange);
     neurox_hpx_register_action(1, Debugger::fixedStepMinimal);
+    neurox_hpx_register_action(0, Debugger::threadTableCheck);
 }
 
