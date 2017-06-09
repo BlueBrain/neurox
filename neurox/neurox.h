@@ -36,8 +36,9 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define ProbGABAAB_EMS 139
 #define StochKv 151
 
+#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
+
 //Uncomment for debugging
-//#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 

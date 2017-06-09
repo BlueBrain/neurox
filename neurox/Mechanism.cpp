@@ -65,12 +65,10 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
-        printf("DEBUG Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d,\n"
-           "      pntMap %d, isIon %d, symLength %d, sym %s, successorsCount %d\n"
-           "      dependenciesCount %d\n",
-           this->type, this->dataSize, this->pdataSize, this->isArtificial,
-           this->pntMap, this->isIon, this->symLength, this->sym, this->successorsCount,
-           this->dependenciesCount);
+        printf("Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
+               "isIon %d, symLength %d, sym %s, successorsCount %d, dependenciesCount %d\n",
+           this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
+           this->isIon, this->symLength, this->sym, this->successorsCount, this->dependenciesCount);
 #endif
 };
 
