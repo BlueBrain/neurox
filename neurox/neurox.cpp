@@ -271,7 +271,7 @@ static int main_handler()
       int commStepSize = Neuron::CommunicationBarrier::commStepSize;
       for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
       {
-          #ifndef NDEBUG
+          #ifdef NEUROX_TIME_STEPPING_VERBOSE
             if (hpx_get_my_rank()==0)
               message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
           #endif

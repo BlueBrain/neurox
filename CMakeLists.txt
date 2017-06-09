@@ -141,6 +141,7 @@ endif()
 
 ####### LIBRARY libneurox
 
+add_definitions("-DEXPORT_MECHS_FUNCTIONS") #for coreneuron/coreneuron.h
 FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_SOURCE_DIR}/neurox/*.h")
 FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_SOURCE_DIR}/neurox/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_SOURCE_DIR}/neurox/*.c*")
