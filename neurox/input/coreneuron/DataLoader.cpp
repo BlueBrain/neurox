@@ -174,6 +174,7 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
                         Point_process * ppn = &nt->pntprocs[pointProcTotalOffset++];
                         assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
                         Point_process * pp = (Point_process*) vdata[0];
+                        assert(pp!=NULL);
                         compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
                     }
 
@@ -183,7 +184,15 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
                         int rngOffsetInVdata = mech->type == StochKv ? 0 : 1;
                         assert(nt->_vdata[pdata[rngOffsetInPdata]] == vdata[rngOffsetInVdata]);
                         nrnran123_State * RNG = (nrnran123_State*) vdata[rngOffsetInVdata];
-                        compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
+
+                        //TODO TODO TODO: hack: StochKv's current state has NULL pointers
+                        if (RNG==NULL && type == StochKv)
+                            compartment->addSerializedVdata( (unsigned char*) new nrnran123_State, sizeof(nrnran123_State));
+                        else
+                        {
+                            assert(RNG!=NULL);
+                            compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
+                        }
                     }
                 }
                 else
