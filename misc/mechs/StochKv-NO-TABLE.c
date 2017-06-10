@@ -121,7 +121,8 @@ extern double hoc_Exp(double);
 #define ek _p[11*_STRIDE]
 #define scale_dens _p[12*_STRIDE]
 #define n0_n1_new _p[13*_STRIDE]
-#define usingR123 _p[14*_STRIDE]
+//#define usingR123 _p[14*_STRIDE]
+#define usingR123 0 //TODO hard coded because it was crashing!!
 #define Dn _p[15*_STRIDE]
 #define _v_unused _p[16*_STRIDE]
 #define _g_unused _p[17*_STRIDE]

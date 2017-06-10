@@ -54,6 +54,8 @@ include_directories(
     ${PROJECT_BINARY_DIR}/neurox
     )
 
+add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
+
 FILE(GLOB_RECURSE neurox_all_headers "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
