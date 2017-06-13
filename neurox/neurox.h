@@ -10,6 +10,12 @@ typedef int offset_t;       ///> ushort or uint (p vector, nodes indices)
 typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by types.h)
                             // (neuron id is past as -1 on input params parcelgid argument)
 
+#ifdef  USE_TIMQ
+  #include "misc/tim/node.h"
+  #include "misc/tim/sptq_queue.hpp"
+  #include "misc/tim/sptq_queue.ipp"
+#endif
+
 //Core datatypes
 #include "neurox/hpx.h"
 #include "neurox/Event.h"
@@ -35,8 +41,6 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define ProbAMPANMDA_EMS 137
 #define ProbGABAAB_EMS 139
 #define StochKv 151
-
-#define NDEBUG //(if undefined, compares data output with coreneuron and enables assertions)
 
 //Uncomment for debugging
 //#define PRINT_EVENT

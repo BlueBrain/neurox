@@ -60,6 +60,7 @@ option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF
 option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" OFF)
 option(ENABLE_NET_RECEIVE_BUFFERING "Enable event buffering in net_receive function" OFF)
 option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" ON)
+option(USE_TIMQ "Use Tim's Queue" ON)
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
@@ -114,9 +115,14 @@ if (DISABLE_HOC_EXP)
     add_definitions("-DDISABLE_HOC_EXP")
 endif()
 
-#Enable use of splay tree for queuing (for models using net_move)
+#Enable use of splay tree for queuing for coreneuron (for models using net_move)
 if (ENABLE_SPLAYTREE_QUEUING)
     add_definitions("-DENABLE_SPLAYTREE_QUEUING")
+endif()
+
+#Enable use of Tim's Queue on neurox only
+if (USE_TIMQ)
+    add_definitions("-DUSE_TIMEQ")
 endif()
 
 #Turn off event buffering if asked
