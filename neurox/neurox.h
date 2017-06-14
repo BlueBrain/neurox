@@ -60,6 +60,7 @@ namespace neurox
     extern hpx_action_t clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
     extern hpx_action_t setMechanisms;   ///> Initializes Mechanisms
     extern hpx_action_t setMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
+    extern hpx_action_t setAlgorithm;    ///> changes inputParams->algorithm to new value
 
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
@@ -70,6 +71,7 @@ namespace neurox
     static int clear_handler();
     static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
     static int setMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
+    static int setAlgorithm_handler(const neurox::Algorithm * algorithm_ptr, const size_t);
 
     void registerHpxActions();           ///> Register all HPX actions
 } ;
