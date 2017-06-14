@@ -42,7 +42,8 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define ProbGABAAB_EMS 139
 #define StochKv 151
 
-//Uncomment for debugging
+//Debugging output
+#define NDEBUG
 //#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 
@@ -64,6 +65,7 @@ namespace neurox
     Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
     void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
     void message(const char * str);
+    void runAlgorithm(Algorithm algorithm);
 
     static int main_handler();
     static int clear_handler();

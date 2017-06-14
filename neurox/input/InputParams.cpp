@@ -62,7 +62,11 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         cmd.add(inputPath);
         TCLAP::ValueArg<std::string> outputPath("o","outputpath","Path to output directory. The default value is ./output",false,"./output","string");
         cmd.add(outputPath);
-        TCLAP::ValueArg<int> algorithm("y","algorithm","BackwardEulerWithAsyncCommBarrier [0], BackwardEulerWithAllReduceBarrier [1], BackwardEulerWithSlidingTimeWindow [2], BackwardEulerWithPairwiseSteping [3]",false, 1, "int");
+        TCLAP::ValueArg<int> algorithm("y","algorithm","BackwardEulerDebugWithCommBarrier [0], \
+                                                        BackwardEulerWithAllReduceBarrier [1], \
+                                                        BackwardEulerWithSlidingTimeWindow [2], \
+                                                        BackwardEulerWithTimeDependencyLCO [3], \
+                                                        All methods sequentially (neurons data not reset) [9]", false, 1, "int");
         cmd.add(algorithm);
 
         //parse command line arguments

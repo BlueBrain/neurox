@@ -12,9 +12,16 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->refractoryPeriod=0;
-    this->timeDependencies = inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping ? new TimeDependencies() : NULL;
-    this->commBarrier = inputParams->algorithm == Algorithm::BackwardEulerWithAsyncCommBarrier ? new CommunicationBarrier() : NULL;
+    this->timeDependencies =
+            inputParams->algorithm == Algorithm::ALL ||
+            inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO
+            ? new TimeDependencies() : NULL;
+    this->commBarrier =
+            inputParams->algorithm == Algorithm::ALL ||
+            inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
+            ? new CommunicationBarrier() : NULL;
     this->slidingTimeWindow =
+            inputParams->algorithm == Algorithm::ALL ||
             inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ||
             inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier
             ? new SlidingTimeWindow() : NULL;
@@ -86,7 +93,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 
     spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
 
-    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithAsyncCommBarrier)
+    if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebugWithCommBarrier)
     {
         if (this->commBarrier->allSpikesLco == HPX_NULL) //first use
             this->commBarrier->allSpikesLco = hpx_lco_and_new(synapses.size());
@@ -107,7 +114,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
         return newSynapsesLco;
     }
-    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithPairwiseSteping)
+    else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithTimeDependencyLCO)
     {
         for (Synapse *& s : synapses)
         {
@@ -276,6 +283,13 @@ size_t Neuron::TimeDependencies::getDependenciesCount()
     return size;
 }
 
+void Neuron::TimeDependencies::increseDependenciesTime(floble_t t)
+{
+    libhpx_mutex_lock(&this->dependenciesLock);
+    for (auto & dependency : dependenciesMap)
+        dependency.second += t;
+    libhpx_mutex_unlock(&this->dependenciesLock);
+}
 
 floble_t Neuron::TimeDependencies::getDependenciesMinTime()
 {
