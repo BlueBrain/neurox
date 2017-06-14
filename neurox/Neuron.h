@@ -69,6 +69,7 @@ class Neuron
         void updateTimeDependency(neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
+        void increseDependenciesTime(floble_t t);
 
         static constexpr floble_t notificationIntervalRatio = 1; ///> ration of notification interval (0,1]
         static constexpr double teps =1e-8; ///>time-epsilon to correct wrong delivery of events due to floating point rounding

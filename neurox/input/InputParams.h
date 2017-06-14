@@ -5,10 +5,11 @@ namespace neurox
 {
 
 enum Algorithm {
-    BackwardEulerWithAsyncCommBarrier=0,
+    BackwardEulerDebugWithCommBarrier=0,
     BackwardEulerWithAllReduceBarrier=1,
     BackwardEulerWithSlidingTimeWindow=2,
-    BackwardEulerWithPairwiseSteping=3
+    BackwardEulerWithTimeDependencyLCO=3,
+    ALL=9 //All, except debug
 };
 
 namespace Input

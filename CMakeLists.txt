@@ -45,6 +45,7 @@ set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 ## global options
 option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
 option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
+option(USE_TIMQ "Use Tim's Queue" ON)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
@@ -137,6 +138,11 @@ ENDIF()
 # Core library
 if (NEUROX_TIME_STEPPING_VERBOSE)
     add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
+endif()
+
+#Enable use of Tim's Queue on neurox only
+if (USE_TIMQ)
+    add_definitions("-DUSE_TIMEQ")
 endif()
 
 ####### LIBRARY libneurox

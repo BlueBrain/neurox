@@ -65,20 +65,20 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
-        printf("Mechanism: type %d, dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
-               "isIon %d, symLength %d, sym %s, successorsCount %d, dependenciesCount %d\n",
-           this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
-           this->isIon, this->symLength, this->sym, this->successorsCount, this->dependenciesCount);
+        printf("- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
+               "isIon %d, symLength %d, %d successors, %d dependencies\n",
+           this->sym, this->type, this->dataSize, this->pdataSize, this->isArtificial, this->pntMap,
+           this->isIon, this->symLength, this->successorsCount, this->dependenciesCount);
 #endif
 };
 
 int Mechanism::getIonIndex()
 {
     assert(this->sym);
-    if (strcmp("na_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::na;
-    if (strcmp("k_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::k;
+    if (strcmp("na_ion",  this->sym)==0) return Branch::MechanismsGraph::IonIndex::na;
+    if (strcmp("k_ion",   this->sym)==0) return Branch::MechanismsGraph::IonIndex::k;
     if (strcmp("ttx_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::ttx;
-    if (strcmp("ca_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::ca;
+    if (strcmp("ca_ion",  this->sym)==0) return Branch::MechanismsGraph::IonIndex::ca;
     return Branch::MechanismsGraph::IonIndex::no_ion;
 }
 

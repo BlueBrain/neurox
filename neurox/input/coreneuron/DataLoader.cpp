@@ -1000,7 +1000,7 @@ int DataLoader::initNetcons_handler()
 
                 //add this pre-syn neuron as my time-dependency
                 assert(local->soma);
-                if (inputParams->algorithm == Algorithm::BackwardEulerWithPairwiseSteping)
+                if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
                   local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
                        inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio, true);
             }
