@@ -56,7 +56,7 @@ set(Boost_NO_BOOST_CMAKE TRUE)
 
 include(BlueGenePortability)
 include(DefineInstallationPaths)
-include(ReleaseDebugAutoFlags)
+#include(ReleaseDebugAutoFlags)
 include(SetRpath)
 
 include(FindPkgConfig)
@@ -67,6 +67,12 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11) # C++11...
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
+
+#add missing -O0 flag for debug
+IF(CMAKE_BUILD_TYPE MATCHES Debug)
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -O0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+endif()
 
 #Include tclap
 FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
