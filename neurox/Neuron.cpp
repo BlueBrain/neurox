@@ -12,14 +12,13 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
     this->refractoryPeriod=0;
+    this->commBarrier =
+            inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
+            ? new CommunicationBarrier() : NULL;
     this->timeDependencies =
             inputParams->algorithm == Algorithm::ALL ||
             inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO
             ? new TimeDependencies() : NULL;
-    this->commBarrier =
-            inputParams->algorithm == Algorithm::ALL ||
-            inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
-            ? new CommunicationBarrier() : NULL;
     this->slidingTimeWindow =
             inputParams->algorithm == Algorithm::ALL ||
             inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ||

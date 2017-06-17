@@ -631,7 +631,10 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
           {
             #ifdef NEUROX_TIME_STEPPING_VERBOSE
                 if (hpx_get_my_rank()==0 && target == neurox::neurons->at(0))
-                    message(std::string("-- t="+std::to_string(inputParams->dt*s)+" ms\n").c_str());
+                {
+                    printf("-- t=%.4f ms\n", inputParams->dt*s);
+                    fflush(stdout);
+                }
             #endif
             for (int r=0; r<reductionsPerCommStep; r++) //for every reduction step
             {
@@ -661,7 +664,10 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 
         #ifdef NEUROX_TIME_STEPPING_VERBOSE
             if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO) //end of execution
-                neurox::message(std::string("-- neuron "+std::to_string(local->soma->gid)+" finished\n").c_str());
+            {
+                printf("-- neuron %d finished\n", local->soma->gid);
+                fflush(stdout);
+            }
         #endif
     }
     neurox_hpx_recursive_branch_async_wait;
