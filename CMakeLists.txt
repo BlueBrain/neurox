@@ -1,78 +1,8 @@
-# Copyright (c) 2016, Blue Brain Project
-# All rights reserved.
-
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
-# 3. Neither the name of the copyright holder nor the names of its contributors
-#    may be used to endorse or promote products derived from this software
-#    without specific prior written permission.
-
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-# THE POSSIBILITY OF SUCH DAMAGE.
-
-
-# Ecole Polytechnique Federale de Lausanne
-# Brain Mind Institute,
-# Blue Brain Project
-# (c) 2016-2017. All rights reserved.
-#
-# Author: Bruno Magalhaes
-# neurox
-
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-PROJECT(neurox)
-set(CORENEURON_DESCRIPTION "BBP NeuroX simulator")
-
-set(VERSION_MAJOR "1")
-set(VERSION_MINOR "0")
-set(VERSION_PATCH "0")
-set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-
-## global options
-option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
-option(NEUROX_TIME_STEPPING_VERBOSE "Enable indication of initialization and execution progress" OFF)
-option(USE_TIMQ "Use Tim's Queue" OFF)
-
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
-      ${PROJECT_SOURCE_DIR}/CMake/portability
-      ${PROJECT_SOURCE_DIR}/CMake/packages
-      ${PROJECT_SOURCE_DIR}/CMake/config)
-
-set(Boost_NO_BOOST_CMAKE TRUE)
-
-include(BlueGenePortability)
-include(DefineInstallationPaths)
-#include(ReleaseDebugAutoFlags)
-include(SetRpath)
-
-include(FindPkgConfig)
-include(CTest)
-
 ## Automatically add C++11 flags (eg -libc++ or -lstdc++)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11) # C++11...
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
-
-#add missing -O0 flag for debug
-IF(CMAKE_BUILD_TYPE MATCHES Debug)
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -O0")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
-endif()
 
 #Include tclap
 FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
@@ -90,10 +20,10 @@ include_directories(${TCLAP_INCLUDE_DIR})
 
 # Include HPX
 #As a requirement for pkg_check_modules we need to provide the path of
-#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the path)
+#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the $PATH)
 set(PKG_CONFIG_EXECUTABLE pkg-config)
 IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config not found")
+  message (FATAL_ERROR "pkg-config binary not found. Forgot to add it to $PATH?")
 ELSE()
   #use pkg-config to find hpx
   message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
@@ -114,77 +44,49 @@ ELSE()
   ENDIF()
 ENDIF()
 
-#Memory layout transformation: 0 for SoA and 1 for AoS
-if (ENABLE_SOA)
-    add_definitions("-DLAYOUT=0")
-else()
-    add_definitions("-DLAYOUT=1")
-endif()
+#binary (copy from apps/CMakeLists.txt)
+include_directories(
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/coreneuron
+    ${PROJECT_SOURCE_DIR}/neurox
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_BINARY_DIR}/coreneuron
+    ${PROJECT_BINARY_DIR}/neurox
+    )
 
-find_package(Boost 1.41.0 QUIET COMPONENTS filesystem system atomic unit_test_framework)
+add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
 
-include(CheckIncludeFiles)
-
-#Turn off inline assembly for PGI
-if(${CMAKE_C_COMPILER_ID} STREQUAL "PGI")
-    add_definitions(-DSWAP_ENDIAN_DISABLE_ASM)
-endif()
-
-#OpenACC pragmas are not guarded, disable all unknown pragm warnings
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${IGNORE_UNKNOWN_PRAGMA_FLAGS}")
-
-#Exception: add lc++ flag instead of lstdc++ on Apple machines
-IF (APPLE)
-  message (STATUS "Found MacOS: Added gcc LLVM flag lc++")
-  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lc++")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lc++")
-ENDIF()
-
-# Core library
-if (NEUROX_TIME_STEPPING_VERBOSE)
-    add_definitions("-DNEUROX_TIME_STEPPING_VERBOSE")
-endif()
-
-#Enable use of Tim's Queue on neurox only
-if (USE_TIMQ)
-    add_definitions("-DUSE_TIMEQ")
-endif()
-
-####### LIBRARY libneurox
-
-add_definitions("-DEXPORT_MECHS_FUNCTIONS") #for coreneuron/coreneuron.h
-FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_SOURCE_DIR}/neurox/*.h")
-FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_SOURCE_DIR}/neurox/*.ipp")
-FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_SOURCE_DIR}/neurox/*.c*")
-
-include_directories( ${CMAKE_CURRENT_BINARY_DIR}
-                     ${CMAKE_SOURCE_DIR}  #include neurox/neurox.h
-                     ${CMAKE_INSTALL_PREFIX}/include 
-                     ${CMAKE_INSTALL_PREFIX}/include/coreneuron/utils/randoms  #include nrnran123.h 
-                   )
-link_directories(${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib64)
+FILE(GLOB_RECURSE neurox_all_headers "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
+FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
+
 target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
 
 set_target_properties(neurox PROPERTIES
-                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                            SOVERSION ${VERSION_MAJOR}
-                            CLEAN_DIRECT_OUTPUT 1)
-
-####### EXECUTABLE neurox
-
-add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
-set_target_properties(neurox_exec PROPERTIES
-                            OUTPUT_NAME "neurox"
-                            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-target_link_libraries(neurox_exec neurox )
-install(TARGETS neurox_exec DESTINATION ${BIN_INSTALL_DIR}/)
-
-####### installation
+                             VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+                             SOVERSION ${VERSION_MAJOR}
+                             CLEAN_DIRECT_OUTPUT 1)
 
 install(TARGETS neurox
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
-        ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+             LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
+             ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+
+
+# The mechanism registration function will be defined depending on whether we
+# are using neurodamus list of mechanisms
+if(ADDITIONAL_MECHS)
+    add_definitions(-DADDITIONAL_MECHS)
+endif()
+
+add_executable(neurox_exec "${CMAKE_SOURCE_DIR}/apps/neurox.cpp")
+
+set_target_properties(neurox_exec PROPERTIES
+                      OUTPUT_NAME "neurox_exec"
+                      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+target_link_libraries(neurox_exec neurox coreneuron ${HPX_LIBRARIES} )
+
+install(TARGETS neurox_exec  DESTINATION ${BIN_INSTALL_DIR}/)
 
