@@ -290,6 +290,7 @@ static int main_handler()
         delete [] allreduces; allreduces=nullptr;
     }
 
+    neurox_hpx_call_neurons(Branch::clear);
     hpx_bcast_rsync(neurox::clear);
     hpx_exit(0,NULL);
 }
@@ -378,7 +379,6 @@ hpx_action_t clear = 0;
 int clear_handler()
 {
     neurox_hpx_pin(uint64_t);
-    //TODO add clearing of branches here
     delete [] mechanisms;
     if (neurox::neurons)
     {
