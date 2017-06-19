@@ -194,7 +194,6 @@ static int main_handler()
     message("neurox::Input::Coreneuron::DataLoader::clean...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::finalize);
 
-    int neuronsCount = neurons->size();
     if (neurox::inputParams->outputStatistics)
     {
       message("neurox::Misc::Statistics::printMechanismsDistribution...\n");
@@ -257,7 +256,7 @@ static int main_handler()
            (inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier  ? "BackwardEulerWithAllReduceBarrier" :
            (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
            (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
-            "UNKNOWN" )))), neuronsCount, inputParams->tstop/1000, inputParams->dt, totalSteps);
+            "UNKNOWN" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
     fflush(stdout);
 
     hpx_time_t now = hpx_time_now();
@@ -272,7 +271,7 @@ static int main_handler()
         runAlgorithm(inputParams->algorithm);
 
     printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f secs).\n",
-           neuronsCount, inputParams->tstop/1000.0, hpx_time_elapsed_ms(now)/1e3);
+           neurons->size(), inputParams->tstop/1000.0, hpx_time_elapsed_ms(now)/1e3);
 
     //Clean up all-reduce LCOs
     if ( inputParams->algorithm == ALL
@@ -301,13 +300,13 @@ void runAlgorithm(Algorithm algorithm)
     hpx_bcast_rsync(neurox::setAlgorithm, &algorithm, sizeof(Algorithm));
 
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
-    int neuronsCount = neurons->size();
-    hpx_t mainLCO = hpx_lco_and_new(neuronsCount);
+    hpx_t mainLCO = hpx_lco_and_new(neurons->size());
 
 #ifdef NDEBUG //benchmark info
     hpx_time_t now = hpx_time_now();
 #endif
 
+    size_t neuronsCount = neurons->size();
     if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier)
     {
         int commStepSize = Neuron::CommunicationBarrier::commStepSize;
@@ -319,9 +318,7 @@ void runAlgorithm(Algorithm algorithm)
             #endif
 
             //Reduction at locality is not implemented (this mode is for debugging only)
-            for (int i=0; i<neuronsCount; i++)
-              hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
-            hpx_lco_wait_reset(mainLCO);
+            neurox_hpx_call_neurons_lco(Branch::backwardEuler, mainLCO, &commStepSize, sizeof(int));
 
             #ifndef NDEBUG
               if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
@@ -334,22 +331,16 @@ void runAlgorithm(Algorithm algorithm)
         if (inputParams->allReduceAtLocality &&
             (  inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier
             || inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow))
-        {
-             hpx_bcast_rsync(Branch::backwardEulerOnLocality, &totalSteps, sizeof(int));
-        }
+            hpx_bcast_rsync(Branch::backwardEulerOnLocality, &totalSteps, sizeof(int));
         else
-        {
-            for (int i=0; i<neuronsCount; i++)
-                hpx_call(neurox::neurons->at(i), Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
-            hpx_lco_wait_reset(mainLCO);
-        }
+            neurox_hpx_call_neurons_lco(Branch::backwardEuler, mainLCO, &totalSteps, sizeof(int));
     }
 
 #ifdef NDEBUG
     //output benchmark info
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
-    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neuronsCount, hpx_get_num_ranks(),
-        hpx_get_num_threads(), neuronsCount / (double) hpx_get_num_ranks(), inputParams->tstop,
+    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurons->size(), hpx_get_num_ranks(),
+        hpx_get_num_threads(), neurons->size() / (double) hpx_get_num_ranks(), inputParams->tstop,
         inputParams->algorithm, inputParams->multiMex ? 1:0, inputParams->multiSplix ? 1:0,
         inputParams->allReduceAtLocality ? 1:0, elapsed);
     fflush(stdout);
