@@ -76,7 +76,7 @@ class DataLoader
     static hpx_action_t addSynapse;
     static hpx_action_t addNeurons;
 
-    static int createNeuron(NrnThread * nt, hpx_t target);
+    static int createNeuron(int neuron_idx, void * targets);
     static int getMyNrnNeuronsCount();
     static int addSynapse_handler(const int, const void *[], const size_t[]) ;
     static int addNeurons_handler(const int, const void *[], const size_t[]) ;
