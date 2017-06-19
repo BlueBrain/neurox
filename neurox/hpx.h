@@ -53,6 +53,12 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
         hpx_lco_delete(lco_branches, HPX_NULL); \
     }
 
+//hpx wrappers to call method in all neurons
+#define neurox_hpx_call_neurons(Func, ...) \
+    hpx_par_for_sync( [&] (int i, void*) -> int \
+        {  hpx_call_sync(neurox::neurons->at(i), Func, HPX_NULL, 0,  ##__VA_ARGS__); \
+        }, 0, neurox::neurons->size(), NULL);
+
 //auxiliars for neurox_hpx_register_action
 #define neurox_hpx_register_action_0(func) \
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler);

@@ -21,14 +21,11 @@ class Compartment
     ~Compartment();
 
     void addChild(Compartment* child);
-
     void addMechanismInstance(int mechId,
                               double * data, int dataSize,
                               Datum * pdata, int pdataSize);
     void addVecPlay(double * t, double *y, PointProcInfo & ppi);
-
     void addSerializedVdata(unsigned char * data, size_t size);
-
     void addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
 
     offset_t id;

@@ -89,8 +89,10 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
 
 
 
-int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
+int DataLoader::createNeuron(int neuron_idx, void * targets)
 {
+        NrnThread * nt = &nrn_threads[neuron_idx];
+        hpx_t neuron_addr = ((hpx_t*)targets)[neuron_idx];
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
 
         //======= 1 - reconstructs matrix (solver) values =======
@@ -286,10 +288,10 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
 
 
-        createBranch(nt->id, neurond_addr, compartments, compartments.at(0),
+        createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
                      (size_t) compartments.size(), offsetToInstance);
 
-        hpx_call_sync(neurond_addr, Branch::initSoma, NULL, 0,
+        hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
                       &APthreshold, sizeof(floble_t),
                       &thvar_index, sizeof(thvar_index));
@@ -299,6 +301,7 @@ int DataLoader::createNeuron(NrnThread * nt, hpx_t neurond_addr)
         for (auto nc: netcons)
             for (auto nvc : nc.second)
                 delete nvc;
+    return 0;
 }
 
 void DataLoader::cleanCoreneuronData()
@@ -584,27 +587,27 @@ int DataLoader::initNeurons_handler()
         myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
     assert(myNeuronsGas != HPX_NULL);
 
-    std::vector<int> myNeuronsGids(myNeuronsCount);
-    std::vector<hpx_t> myNeurons(myNeuronsCount);
+    int * myNeuronsGids = new int[myNeuronsCount];
+    hpx_t * myNeuronsTargets = new hpx_t[myNeuronsCount];
+
     for (int n=0; n<myNeuronsCount; n++)
     {
-        myNeurons.at(n) = hpx_addr_add(myNeuronsGas, sizeof(Branch)*n, sizeof(Branch));
-        myNeuronsGids.at(n)  = getNeuronIdFromNrnThreadId(n);
+        myNeuronsTargets[n] = hpx_addr_add(myNeuronsGas, sizeof(Branch)*n, sizeof(Branch));
+        myNeuronsGids[n] = getNeuronIdFromNrnThreadId(n);
     }
 
     hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
-         myNeuronsGids.data(), sizeof(int)*myNeuronsGids.size(),
-         myNeurons.data(), sizeof(hpx_t)*myNeurons.size());
+         myNeuronsGids, sizeof(int)*myNeuronsCount,
+         myNeuronsTargets, sizeof(hpx_t)*myNeuronsCount);
 
-    assert(neuronsGids->size()>0); //at least my neuron!
-    for (int n=0; n<myNeuronsCount; n++)
-        createNeuron(&nrn_threads[n], myNeurons.at(n));
+    hpx_par_for_sync( DataLoader::createNeuron, 0, myNeuronsCount, myNeuronsTargets);
 
     if (inputParams->allReduceAtLocality)
-        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons = new std::vector<hpx_t>(myNeurons);
+        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons =
+            new std::vector<hpx_t>(myNeuronsTargets, myNeuronsTargets+myNeuronsCount);
 
-    myNeurons.clear();
-    myNeuronsGids.clear();
+    delete [] myNeuronsGids;
+    delete [] myNeuronsTargets;
     neurox_hpx_unpin;
 }
 
@@ -903,12 +906,8 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         assert(0);//N/A: broken until we manage to translate mechId+instance in neuron to branch!
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
-        for (comp = topCompartment;
-             comp->branches.size()==1;
-             comp = comp->branches.front())
-        {
+        for (comp = topCompartment; comp->branches.size()==1; comp = comp->branches.front())
             subSection.push_back(comp);
-        }
         assert(comp!=NULL);
         subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
@@ -958,16 +957,12 @@ hpx_action_t DataLoader::initNetcons = 0;
 int DataLoader::initNetcons_handler()
 {
     neurox_hpx_pin(Branch);
-//    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
-
-    hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL;
-    if (local->branchTree)
-    for (int c=0; c<local->branchTree->branchesCount; c++)
-       {_hpx_call(local->branchTree->branches[c], DataLoader::initNetcons, lco_branches, NULL, 0);}
-
+    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
 
     if (inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
+
+    std::deque<std::pair<hpx_t, floble_t> > netcons; //set of <srcGid, minDelay>
 
     const floble_t impossiblyLargeDelay = 99999999;
     for (int i=0; i < neurox::neurons->size(); i++) //loop through all neurons
@@ -993,19 +988,26 @@ int DataLoader::initNetcons_handler()
             //and inform him of the fastest netcon we have
             if (minDelay != impossiblyLargeDelay) //if any active synapse
             {
-                //inform pre-syn neuron that he connects to me
-                hpx_call_sync(srcAddr, DataLoader::addSynapse, NULL, 0,
-                    &target, sizeof(target), &minDelay, sizeof(minDelay),
-                    &local->soma->gid, sizeof(int));
+                //add this netcon to list of netconst to be communication
+                netcons.push_back(make_pair(srcAddr,minDelay));
 
                 //add this pre-syn neuron as my time-dependency
-                assert(local->soma);
-                if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
-                  local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
+                if (local->soma)
+                  if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
+                    local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
                        inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio, true);
             }
         }
     }
+
+    //inform pre-syn neuron that he connects to me
+    hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
+    for (auto nc : netcons)
+        hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
+            &target, sizeof(target), &nc.second, sizeof(nc.second),
+            &local->soma->gid, sizeof(int));
+    hpx_lco_wait_reset(netconsLCO); hpx_lco_delete_sync(netconsLCO);
+
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
