@@ -14,7 +14,7 @@ void* Branch::operator new(size_t bytes, void* addr) {
 }
 
 void Branch::operator delete(void* worker) {
-  free(worker);
+  //free(worker);
 }
 
 Branch::Branch(offset_t n,
@@ -313,7 +313,6 @@ Branch::Branch(offset_t n,
 Branch::~Branch()
 {
     delete [] this->nt->_v_parent_index;
-    delete [] this->nt->_actual_area;
     delete [] this->nt->_data;
     delete [] this->nt->_ml_list;
     free(this->nt);

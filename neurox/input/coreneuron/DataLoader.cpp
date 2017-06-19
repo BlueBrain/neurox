@@ -326,7 +326,7 @@ int DataLoader::initMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
 
-    //if serial loading and I'mnot the one who loaded the data... do nothing.
+    //if serial loading and I'mn ot the one who loaded the data... do nothing.
     if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
     int myNeuronsCount = getMyNrnNeuronsCount();
     assert(myNeuronsCount>0);
@@ -334,7 +334,7 @@ int DataLoader::initMechanisms_handler()
     for (int i=0; i<myNeuronsCount; i++)
     {   assert(nrn_threads[i].ncell == 1); }
 
-    // Reconstructs unique data related to each mechanism*
+    // Reconstructs unique data related to each mechanism
     std::vector<Mechanism> mechsData;
     std::vector<int> mechsSuccessorsId, mechsDependenciesId;
     std::vector<char> mechsSym;
