@@ -190,9 +190,7 @@ static int main_handler()
     message("neurox::Input::Coreneuron::DataLoader::initNeurons...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initNeurons);
     message("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons->at(i), neurox::Input::Coreneuron::DataLoader::initNetcons, HPX_NULL, 0);
-    }, 0, neurox::neurons->size(), NULL);
+    neurox_hpx_call_neurons( neurox::Input::Coreneuron::DataLoader::initNetcons);
     message("neurox::Input::Coreneuron::DataLoader::clean...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::finalize);
 
@@ -207,26 +205,20 @@ static int main_handler()
     }
 
     message("neurox::Branch::BranchTree::initLCOs...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons->at(i), Branch::BranchTree::initLCOs, HPX_NULL, 0);
-    }, 0, neuronsCount, NULL);
+    neurox_hpx_call_neurons(Branch::BranchTree::initLCOs);
 
     neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers();
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 
     message("neurox::Branch::finitialize...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons->at(i), Branch::finitialize, HPX_NULL, 0);
-    }, 0, neuronsCount, NULL);
+    neurox_hpx_call_neurons(Branch::finitialize);
 #ifndef NDEBUG
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::finitialize);
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 #endif
 
     message("neurox::Branch::threadTableCheck...\n");
-    hpx_par_for_sync( [&] (int i, void*) -> int
-    {  return hpx_call_sync(neurox::neurons->at(i), Branch::threadTableCheck, HPX_NULL, 0);
-    }, 0, neuronsCount, NULL);
+    neurox_hpx_call_neurons(Branch::threadTableCheck);
 #ifndef NDEBUG
     hpx_bcast_rsync(neurox::Input::Coreneuron::Debugger::threadTableCheck);
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
@@ -248,13 +240,11 @@ static int main_handler()
             allreduces[i] = hpx_process_collective_allreduce_new(0, Neuron::SlidingTimeWindow::init, Neuron::SlidingTimeWindow::reduce);
 
         if (inputParams->allReduceAtLocality)
-              hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce,
-                              allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
+            hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce,
+                            allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
         else
-            hpx_par_for_sync( [&] (int i, void*) -> int
-                {  hpx_call_sync(neurox::neurons->at(i), Neuron::SlidingTimeWindow::subscribeAllReduce, HPX_NULL, 0,
-                                 allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-                }, 0, neuronsCount, NULL);
+            neurox_hpx_call_neurons(Neuron::SlidingTimeWindow::subscribeAllReduce,
+                            allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
 
         for (int i=0; i<maxReductionsPerCommStep; i++)
             hpx_process_collective_allreduce_subscribe_finalize(allreduces[i]);
@@ -293,10 +283,7 @@ static int main_handler()
             hpx_bcast_rsync(neurox::Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce,
                             allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
         else
-            hpx_par_for_sync( [&] (int i, void*) -> int
-                {  hpx_call_sync(neurox::neurons->at(i), Neuron::SlidingTimeWindow::unsubscribeAllReduce, HPX_NULL, 0,
-                                 allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
-                }, 0, neuronsCount, NULL);
+            neurox_hpx_call_neurons(Neuron::SlidingTimeWindow::unsubscribeAllReduce, allreduces, sizeof(hpx_t)*maxReductionsPerCommStep);
 
         for (int i=0; i<maxReductionsPerCommStep; i++)
             hpx_process_collective_allreduce_delete(allreduces[i]);
