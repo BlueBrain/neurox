@@ -43,7 +43,7 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
     hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL; \
     if (local->branchTree) \
     for (int c=0; c<local->branchTree->branchesCount; c++) \
-       {_hpx_call(local->branchTree->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__);}
+       {_hpx_call(local->branchTree->branches[c], Func, lco_branches, __HPX_NARGS(__VA_ARGS__) , ##__VA_ARGS__);} \
 
 ///hpx wrappers for async call a function to all children branches (phase 2 - wait for threads)
 #define neurox_hpx_recursive_branch_async_wait \
@@ -58,6 +58,14 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
     hpx_par_for_sync( [&] (int i, void*) -> int \
         {  hpx_call_sync(neurox::neurons->at(i), Func, HPX_NULL, 0,  ##__VA_ARGS__); \
         }, 0, neurox::neurons->size(), NULL);
+
+#define neurox_hpx_call_neurons_lco(Func, LCO, ...) \
+{ \
+    size_t neurons_size = neurons->size(); \
+    for (size_t i=0; i< neurons_size; i++) \
+        hpx_call(neurox::neurons->at(i), Func, LCO, ##__VA_ARGS__); \
+    hpx_lco_wait_reset(LCO); \
+}
 
 //auxiliars for neurox_hpx_register_action
 #define neurox_hpx_register_action_0(func) \
