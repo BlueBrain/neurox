@@ -33,7 +33,7 @@ class NetConX : Event
 ///temp wrapper for point process
 struct PointProcInfo
 {
-    offset_t nodeId;
+    offset_t nodeId; //compartment id
     int mechType;
     offset_t mechInstance;
     offset_t instanceDataOffset;
