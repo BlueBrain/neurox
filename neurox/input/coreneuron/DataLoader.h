@@ -56,22 +56,28 @@ class DataLoader
             vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
             vector<offset_t> & nodesIndices, int totalN,
-            map<offset_t, pair<int,offset_t>> & ionOffsetToInstance);
+            map<offset_t, pair<int,offset_t>> & ionOffsetToInstance,
+            vector<map<int,int>> * mechInstanceMap = NULL);
 
     static void getVecPlayBranchData(
             deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
-            vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo);
+            vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo,
+            vector<map<int,int>> * mechInstanceMap = NULL);
 
     static void getNetConsBranchData(
             deque<Compartment*> & compartments,
             vector<NetConX> & branchNetCons,
             vector<neuron_id_t> & branchNetConsPreId,
-            vector<floble_t> & branchNetConsArgs);
+            vector<floble_t> & branchNetConsArgs,
+            vector<map<int,int>> * mechInstanceMap = NULL);
+
+    static vector<map<int,int>> * getMechInstanceMap(
+            deque<Compartment*> & compartments);
 
     static void printSubClustersToFile(
             FILE * fileCompartments, Compartment *topCompartment);
 
-    static PointProcInfo getPointProcInfoFromDataPointer(NrnThread * nt, double *pd);
+    static PointProcInfo getPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size);
 
     static hpx_action_t addSynapse;
     static hpx_action_t addNeurons;

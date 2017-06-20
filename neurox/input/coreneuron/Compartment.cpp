@@ -21,12 +21,13 @@ void Compartment::addChild(Compartment * child)
     branches.push_back(child);
 }
 
-void Compartment::addMechanismInstance(int mechType,
+void Compartment::addMechanismInstance(int mechType, int mechsInstance,
                                        double *  data, int dataSize,
                                        Datum  * pdata, int pdataSize)
 {
     assert(mechanismsMap[mechType]!=-1);
     mechsTypes.push_back(mechType);
+    mechsInstances.push_back(mechsInstance);
     if (dataSize>0)
         for (int i=0; i<dataSize; i++)
             this->data.push_back((floble_t) data[i]);
@@ -60,4 +61,20 @@ void Compartment::addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weig
     for (int i=0; i<nc->weightsCount; i++)
         this->netconsWeights.push_back(weights[i]);
 
+}
+
+void Compartment::shrinkToFit()
+{
+    branches.shrink_to_fit();
+    mechsTypes.shrink_to_fit();
+    mechsInstances.shrink_to_fit();
+    data.shrink_to_fit();
+    pdata.shrink_to_fit();
+    vecPlayInfo.shrink_to_fit();
+    vecPlayTdata.shrink_to_fit();
+    vecPlayYdata.shrink_to_fit();
+    vdata.shrink_to_fit();
+    netcons.shrink_to_fit();
+    netconsWeights.shrink_to_fit();
+    netconsPreSynIds.shrink_to_fit();
 }

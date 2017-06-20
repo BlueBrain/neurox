@@ -21,18 +21,20 @@ class Compartment
     ~Compartment();
 
     void addChild(Compartment* child);
-    void addMechanismInstance(int mechId,
+    void addMechanismInstance(int mechId, int mechsInstance,
                               double * data, int dataSize,
                               Datum * pdata, int pdataSize);
     void addVecPlay(double * t, double *y, PointProcInfo & ppi);
     void addSerializedVdata(unsigned char * data, size_t size);
     void addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
+    void shrinkToFit();
 
     offset_t id;
     vector<Compartment*> branches;
     floble_t a,b,d,v,rhs,area;
     offset_t p;
     vector<int> mechsTypes;
+    vector<int> mechsInstances;
     vector<floble_t> data;
     vector<Datum> pdata;
 
