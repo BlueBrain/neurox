@@ -55,11 +55,11 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
   }
 }
 
-PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double *pd)
+PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size)
 {
     PointProcInfo ppi;
     ppi.nodeId=-1;
-    ppi.size = -1; //will be set outside this function
+    ppi.size = size;
     bool found=false;
     for (NrnThreadMembList* tml = nt->tml; !found && tml!=NULL; tml = tml->next) //For every mechanism
     {
@@ -150,7 +150,6 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 for (int i=0; i<mech->dataSize; i++)
                 {   assert(data[i]==nt->_data[dataTotalOffset+i]); }
 
-
                 if (mech->pntMap > 0 || mech->vdataSize>0) //vdata
                 {
                     assert(( type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2 && mech->pntMap>0)
@@ -201,7 +200,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 {
                     assert(mech->vdataSize==0);
                 }
-                compartment->addMechanismInstance(type, data, mech->dataSize, pdata,  mech->pdataSize);
+                compartment->addMechanismInstance(type, n, data, mech->dataSize, pdata,  mech->pdataSize);
                 dataOffset       += (unsigned) mech->dataSize;
                 pdataOffset      += (unsigned) mech->pdataSize;
                 dataTotalOffset  += (unsigned) mech->dataSize;
@@ -212,7 +211,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 assert(vdataTotalOffset < 2^sizeof(ionOffsetToInstance));
             }
         }
-
+        for (Compartment* comp : compartments)  comp->shrinkToFit();
 
         //======= 3 - reconstruct NetCons =====================
         map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron id)
@@ -270,15 +269,14 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
             nc.second.clear();
         }
         netcons.clear();
-
+        for (Compartment* comp : compartments)  comp->shrinkToFit();
 
         //======= 4 - reconstruct VecPlayContinuous events =======
         for (int v=0; v<nt->n_vecplay; v++)
         {
             VecPlayContinuous *vec = (VecPlayContinuous*) nt->_vecplay[v];
             //discover node, mechanism and data offset id that *pd points to
-            PointProcInfo ppi = getPointProcInfoFromDataPointer(nt, vec->pd_);
-            ppi.size = vec->y_->size();
+            PointProcInfo ppi = getPointProcInfoFromDataPointer(nt, vec->pd_,  vec->y_->size());
             compartments.at(ppi.nodeId)->addVecPlay(vec->t_->data(), vec->y_->data(), ppi);
         }
 
@@ -286,6 +284,8 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         //======= 5 - recursively create branches tree ===========
         floble_t APthreshold = (floble_t) nrn_threads[nt->id].presyns[0].threshold_;
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
+
+        for (Compartment* comp : compartments) comp->shrinkToFit();
 
         createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
                      (size_t) compartments.size(), ionOffsetToInstance);
@@ -658,9 +658,37 @@ int DataLoader::finalize_handler()
     neurox_hpx_unpin;
 }
 
+
+vector<map<int,int>>* DataLoader::getMechInstanceMap(deque<Compartment*> & compartments)
+{
+    map<int, deque<int>> mechsInstancesIds; //mech type -> list of mech instance id
+    vector<map<int,int>>* mechsInstancesMap = new vector<map<int,int>>();
+    for (Compartment * comp : compartments)
+    {
+        for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
+        {
+            int type = comp->mechsTypes[m];
+            int mechOffset = mechanismsMap[type];
+            mechsInstancesIds[mechOffset].push_back(comp->mechsInstances[m]);
+        }
+    }
+
+    //convert neuron mech-instances ids from neuron- to branch-level
+    for (int m=0; m<neurox::mechanismsCount; m++)
+    {
+      for (int i=0; i<mechsInstancesIds[m].size(); i++)
+      {
+        int oldInstanceId = mechsInstancesIds[m][i];
+        (*mechsInstancesMap)[m][oldInstanceId] = i;
+      }
+    }
+    return mechsInstancesMap;
+}
+
 void DataLoader::getNetConsBranchData(
         deque<Compartment*> & compartments, vector<NetConX> & branchNetCons,
-        vector<neuron_id_t> & branchNetConsPreId, vector<floble_t> & branchWeights)
+        vector<neuron_id_t> & branchNetConsPreId, vector<floble_t> & branchWeights,
+        vector<map<int,int>> * mechInstanceMap)
 {
     for (auto & comp : compartments)
     {
@@ -671,17 +699,38 @@ void DataLoader::getNetConsBranchData(
 
     //correct weighIndex variables
     int weightOffset=0;
-    for (auto & nc : branchNetCons)
+    for (NetConX & nc : branchNetCons)
     {
         nc.weightIndex = weightOffset;
         weightOffset += nc.weightsCount;
     }
+
+    //convert mech instance id from neuron to branch level
+    if (mechInstanceMap)
+        for (NetConX & nc : branchNetCons)
+            nc.mechInstance = (*mechInstanceMap)[neurox::mechanismsMap[nc.mechType]][nc.mechInstance];
 }
 
 void DataLoader::getVecPlayBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
-        vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo)
+        vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo,
+        vector<map<int,int>> * mechInstanceMap)
 {
+    //convert node id and mech instance id in PointProcess from neuron to branch level
+    if (mechInstanceMap)
+    {
+        std::map<int,int> fromOldToNewCompartmentId;
+        for (int n=0; n<compartments.size(); n++)
+            fromOldToNewCompartmentId[compartments.at(n)->id] = n;
+
+        for (int p=0; p<vecPlayInfo.size(); p++)
+        {
+            PointProcInfo & ppi = vecPlayInfo[p];
+            ppi.mechInstance = (offset_t) (*mechInstanceMap)[neurox::mechanismsMap[ppi.mechType]][ppi.mechInstance];
+            ppi.nodeId = fromOldToNewCompartmentId[ppi.nodeId];
+        }
+    }
+
     for (auto comp : compartments)
     {
         vecPlayTdata.insert(vecPlayTdata.end(), comp->vecPlayTdata.begin(), comp->vecPlayTdata.end());
@@ -694,7 +743,8 @@ int DataLoader::getBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & data,
         vector<offset_t> & pdata, vector<unsigned char> & vdata, vector<offset_t> & p,
         vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
-        int totalN, map<offset_t, pair<int, offset_t>> & ionOffsetToInstance)
+        int totalN, map<offset_t, pair<int, offset_t>> & ionOffsetToInstance,
+        vector<map<int,int>> * mechInstanceMap)
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
@@ -715,7 +765,7 @@ int DataLoader::getBranchData(
     for (auto comp : compartments)
         data.push_back(comp->area);
 
-    ////// Tree of neurons: convert old to new compartments ids
+    ////// Tree of neurons: convert from neuron- to branch-level
     std::map<int,int> fromOldToNewCompartmentId;
     for (n=0; n<compartments.size(); n++)
     {
@@ -723,7 +773,7 @@ int DataLoader::getBranchData(
         fromOldToNewCompartmentId[comp->id] = n;
         comp->id = n;
     }
-    for (auto comp : compartments) //assign right parent id
+    for (auto comp : compartments) //assign right parent ids
         p.push_back(fromOldToNewCompartmentId.at(comp->p));
 
     ////// Mechanisms instances: merge all instances of all compartments into instances of the branch
@@ -731,11 +781,12 @@ int DataLoader::getBranchData(
     vector<vector<offset_t>> pdataMechs (mechanismsCount);
     vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
     vector<vector<unsigned char>> vdataMechs (mechanismsCount);
+    vector<deque<int>> mechsInstancesIds; //mech-offset -> list of pointers to mech instance value
 
     vector<offset_t> pdataType; //type of pdata offset per pdata entry
     map< pair<int, offset_t>, offset_t> instanceToIonOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
 
-    for (auto comp : compartments)
+    for (Compartment * comp : compartments)
     {
         int compDataOffset=0;
         int compPdataOffset=0;
@@ -752,7 +803,6 @@ int DataLoader::getBranchData(
             instancesCount[mechOffset]++;
             compDataOffset  += mech->dataSize;
             compPdataOffset += mech->pdataSize;
-
             if (mech->pntMap > 0 || mech->vdataSize>0)
             {
                 assert(( type == IClamp && mech->vdataSize == 1 && mech->pdataSize == 2 && mech->pntMap>0)
@@ -811,6 +861,14 @@ int DataLoader::getBranchData(
         pdataMechs[m].clear();
         vdataMechs[m].clear();
         nodesIndicesMechs[m].clear();
+
+        //convert neuron mech-instances ids from neuron- to branch-level
+        if (mechInstanceMap)
+          for (int i=0; i<mechsInstancesIds[m].size(); i++)
+          {
+            int oldInstanceId = mechsInstancesIds[m][i];
+            (*mechInstanceMap)[m][oldInstanceId] = i;
+          }
     }
 
     //if there are more than one instance of the same ion mech on a node, this fails! Should not happen.
@@ -918,9 +976,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance);
-        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo);
-        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights);
+        vector<map<int,int>> * mechInstanceMap =  getMechInstanceMap(subSection); //mech-offset -> ( map[old instance]->to new instance )
+        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance, mechInstanceMap);
+        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, mechInstanceMap);
+        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, mechInstanceMap);
+        mechInstanceMap->clear(); delete mechInstanceMap; mechInstanceMap=NULL;
 
         //recursively create children branches
         for (size_t c=0; c<comp->branches.size(); c++)
@@ -928,9 +988,9 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     }
     else //Flat a la Coreneuron
     {
-        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance);
-        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
-        getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights);
+        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance, NULL);
+        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
+        getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
     }
 
     //Allocate HPX Branch (top has already been created on main neurons array)
@@ -938,22 +998,22 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     bool multiSplix = inputParams->multiSplix;
 
     //initiate branch
-    hpx_call_sync(branchAddr, Branch::init, NULL, 0, //TODO clean the OKs once multisplix is in order
-                  &n, sizeof(offset_t), //OK!
-                  &nrnThreadId, sizeof(int), //OK!
-                  data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(), //OK!
-                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(), //OK!
-                  instancesCount.data(), instancesCount.size()*sizeof(offset_t), //OK!
-                  nodesIndices.data(), nodesIndices.size()*sizeof(offset_t), //OK!
-                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0, //OK!
-                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(), //OK!
-                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(), //OK!
-                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(), //OK!
+    hpx_call_sync(branchAddr, Branch::init, NULL, 0,
+                  &n, sizeof(offset_t),
+                  &nrnThreadId, sizeof(int),
+                  data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
+                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
+                  instancesCount.data(), instancesCount.size()*sizeof(offset_t),
+                  nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
+                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
+                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
+                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
-                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(), //OK!
-                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(), //OK!
-                  branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(), //OK!
-                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size() //OK!
+                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
+                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
+                  branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
+                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
                   );
 
     return branchAddr;

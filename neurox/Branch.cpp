@@ -28,7 +28,7 @@ Branch::Branch(offset_t n,
                offset_t * p, size_t pCount,
                floble_t * vecplayT, size_t vecplayTCount,
                floble_t * vecplayY, size_t vecplayYCount,
-               PointProcInfo * ppis, size_t vecplayCount,
+               PointProcInfo * vecplayPPI, size_t vecplayPPIcount,
                NetConX * netcons, size_t netconsCount,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *weights, size_t weightsCount,
@@ -233,13 +233,13 @@ Branch::Branch(offset_t n,
     assert(ionsCount==MechanismsGraph::IonIndex::size_writeable_ions+1); //ttx excluded (no writes to ttx state)
 
     //vecplay
-    nt->n_vecplay = vecplayCount;
-    nt->_vecplay = vecplayCount == 0 ? nullptr : new void*[vecplayCount];
+    nt->n_vecplay = vecplayPPIcount;
+    nt->_vecplay = vecplayPPIcount == 0 ? nullptr : new void*[vecplayPPIcount];
 
     offset_t vOffset=0;
     for (size_t v=0; v < nt->n_vecplay; v++)
     {
-        PointProcInfo & ppi = ppis[v];
+        PointProcInfo & ppi = vecplayPPI[v];
         size_t size =  ppi.size;
         int m = mechanismsMap[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
