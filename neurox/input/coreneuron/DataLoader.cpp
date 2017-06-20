@@ -710,8 +710,17 @@ int DataLoader::getBranchData(
         data.push_back(comp->v);
     for (auto comp : compartments)
         data.push_back(comp->area);
-    for (auto comp: compartments)
-        p.push_back(comp->p);
+
+    //Tree of neurons: convert old to new compartments ids
+    std::map<int,int> fromOldToNewCompartmentId;
+    for (int c=0; c<compartments.size(); c++)
+    {
+        Compartment * comp = compartments.at(c);
+        fromOldToNewCompartmentId[comp->id] = c;
+        comp->id = c;
+    }
+    for (auto comp : compartments) //assign right parent id
+        p.push_back(fromOldToNewCompartmentId.at(comp->p));
 
     vector<vector<floble_t>> dataMechs (mechanismsCount);
     vector<vector<offset_t>> pdataMechs (mechanismsCount);
@@ -929,22 +938,22 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     bool multiSplix = inputParams->multiSplix;
 
     //initiate branch
-    hpx_call_sync(branchAddr, Branch::init, NULL, 0,
-                  &n, sizeof(offset_t),   //OK!
+    hpx_call_sync(branchAddr, Branch::init, NULL, 0, //TODO clean the OKs once multisplix is in order
+                  &n, sizeof(offset_t), //OK!
                   &nrnThreadId, sizeof(int), //OK!
                   data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(), //OK!
-                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
-                  instancesCount.data(), instancesCount.size()*sizeof(offset_t),
+                  pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(), //OK!
+                  instancesCount.data(), instancesCount.size()*sizeof(offset_t), //OK!
                   nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
-                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0,
+                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0, //OK!
                   multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
-                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
-                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
+                  vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(), //OK!
+                  vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(), //OK!
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
-                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
-                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
-                  branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
-                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
+                  branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(), //OK!
+                  branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(), //OK!
+                  branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(), //OK!
+                  vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size() //OK!
                   );
 
     return branchAddr;
