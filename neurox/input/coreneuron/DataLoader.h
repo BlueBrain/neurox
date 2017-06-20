@@ -45,7 +45,7 @@ class DataLoader
     static hpx_t createBranch( int nrnThreadId,
             hpx_t target, deque<Compartment*> & compartments,
             Compartment * topCompartment,
-            int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance);
+            int totalN, map<offset_t, pair<int,offset_t>> & ionOffsetToInstance);
 
     static neuron_id_t getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(
@@ -56,7 +56,7 @@ class DataLoader
             vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
             vector<offset_t> & nodesIndices, int totalN,
-            map<offset_t, pair<int,offset_t>> & offsetToInstance);
+            map<offset_t, pair<int,offset_t>> & ionOffsetToInstance);
 
     static void getVecPlayBranchData(
             deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,

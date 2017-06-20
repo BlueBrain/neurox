@@ -73,8 +73,8 @@ void setMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependen
     }
 }
 
-hpx_action_t setAlgorithm = 0;
-int setAlgorithm_handler(const Algorithm * algorithm_ptr, const size_t)
+hpx_action_t setAlgorithmVariables = 0;
+int setAlgorithmVariables_handler(const Algorithm * algorithm_ptr, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     inputParams->algorithm = *algorithm_ptr;
@@ -297,7 +297,7 @@ static int main_handler()
 void runAlgorithm(Algorithm algorithm)
 {
     Algorithm previousAlgorithm = inputParams->algorithm;
-    hpx_bcast_rsync(neurox::setAlgorithm, &algorithm, sizeof(Algorithm));
+    hpx_bcast_rsync(neurox::setAlgorithmVariables, &algorithm, sizeof(Algorithm));
 
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
     hpx_t mainLCO = hpx_lco_and_new(neurons->size());
@@ -362,7 +362,7 @@ void runAlgorithm(Algorithm algorithm)
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
 #endif
 
-    hpx_bcast_rsync(neurox::setAlgorithm, &previousAlgorithm, sizeof(Algorithm));
+    hpx_bcast_rsync(neurox::setAlgorithmVariables, &previousAlgorithm, sizeof(Algorithm));
     hpx_lco_delete_sync(mainLCO);
 }
 
@@ -395,7 +395,7 @@ void registerHpxActions()
 {
     neurox_hpx_register_action(0,neurox::main);
     neurox_hpx_register_action(0,neurox::clear);
-    neurox_hpx_register_action(1,neurox::setAlgorithm);
+    neurox_hpx_register_action(1,neurox::setAlgorithmVariables);
     neurox_hpx_register_action(2,neurox::setMechanisms);
     neurox_hpx_register_action(2,neurox::setMechanismsGlobalVars);
 }

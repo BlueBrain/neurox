@@ -127,7 +127,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         unsigned vdataTotalOffset=0;
         unsigned dataTotalOffset=nt->end*6;
         unsigned pointProcTotalOffset=0;
-        map<offset_t, pair<int,offset_t>> offsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
+        map<offset_t, pair<int,offset_t>> ionOffsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
         for (NrnThreadMembList* tml = nt->tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -140,7 +140,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 assert (ml->nodeindices[n] < compartments.size());
                 assert (ml->nodeindices[n] < 2^(sizeof(offset_t)*8));
                 if (mech->isIon)
-                    offsetToInstance[dataTotalOffset] =
+                    ionOffsetToInstance[dataTotalOffset] =
                             make_pair(type, (offset_t) ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
@@ -206,10 +206,10 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 pdataOffset      += (unsigned) mech->pdataSize;
                 dataTotalOffset  += (unsigned) mech->dataSize;
                 vdataTotalOffset += (unsigned) mech->vdataSize;
-                assert(dataTotalOffset  < 2^sizeof(offsetToInstance));
-                assert(dataOffset       < 2^sizeof(offsetToInstance));
-                assert(pdataOffset      < 2^sizeof(offsetToInstance));
-                assert(vdataTotalOffset < 2^sizeof(offsetToInstance));
+                assert(dataTotalOffset  < 2^sizeof(ionOffsetToInstance));
+                assert(dataOffset       < 2^sizeof(ionOffsetToInstance));
+                assert(pdataOffset      < 2^sizeof(ionOffsetToInstance));
+                assert(vdataTotalOffset < 2^sizeof(ionOffsetToInstance));
             }
         }
 
@@ -287,9 +287,8 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         floble_t APthreshold = (floble_t) nrn_threads[nt->id].presyns[0].threshold_;
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
 
-
         createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
-                     (size_t) compartments.size(), offsetToInstance);
+                     (size_t) compartments.size(), ionOffsetToInstance);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
@@ -695,7 +694,7 @@ int DataLoader::getBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & data,
         vector<offset_t> & pdata, vector<unsigned char> & vdata, vector<offset_t> & p,
         vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
-        int totalN, map<offset_t, pair<int, offset_t>> & offsetToInstance)
+        int totalN, map<offset_t, pair<int, offset_t>> & ionOffsetToInstance)
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
@@ -721,7 +720,7 @@ int DataLoader::getBranchData(
 
     int n=0;
     vector<offset_t> pdataType; //type of pdata offset per pdata entry
-    map< pair<int, offset_t>, offset_t> instanceToOffset; //from pair of < mech type, OLD node id> to offset in NEW representation
+    map< pair<int, offset_t>, offset_t> instanceToIonOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
     map<offset_t,offset_t> fromNeuronToBranchId; //map of branch id per compartment id
 
     //merge all instances of all compartments into instances of the branch
@@ -777,9 +776,9 @@ int DataLoader::getBranchData(
         int vdataOffset=0;
         for (int i=0; i<nodesIndicesMechs[m].size(); i++) //for all instances
         {
-            assert(instanceToOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == instanceToOffset.end() );
+            assert(instanceToIonOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == instanceToIonOffset.end() );
             if (mech->isIon)
-                instanceToOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
+                instanceToIonOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
 
             data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
             pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
@@ -805,9 +804,8 @@ int DataLoader::getBranchData(
         nodesIndicesMechs[m].clear();
     }
 
-    if (!inputParams->multiSplix)
-      //if there are more than one instace of the same ion mech on a node, this fails!
-      {assert(instanceToOffset.size() == offsetToInstance.size());}
+    //if there are more than one instance of the same ion mech on a node, this fails!
+    assert(instanceToIonOffset.size() == ionOffsetToInstance.size());
 
     //convert all offsets in pdata to the correct ones
     //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
@@ -850,7 +848,7 @@ int DataLoader::getBranchData(
                 //pdata[i] is an offset in pdata
                 std::pair<int, offset_t> mechNodePair;
                 offset_t oldOffset = -1;
-                for (auto val : offsetToInstance)
+                for (auto val : ionOffsetToInstance)
                     if (val.first<=pdata[i])
                     {
                         oldOffset = val.first;
@@ -861,7 +859,7 @@ int DataLoader::getBranchData(
                 assert(oldOffset>=totalN*6); //also fails if not found
                 assert(mechNodePair.first == ptype); //fails if expected type does not agree with the one in the data offset
                 assert(pdata[i]-oldOffset < getMechanismFromType(mechNodePair.first)->dataSize); //instance offset is correct
-                offset_t newOffset = instanceToOffset.at(mechNodePair);
+                offset_t newOffset = instanceToIonOffset.at(mechNodePair);
                 assert(newOffset>=n*6);
                 pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset on the data vector for that instance
                 assert(pdata[i]>=n*6);
@@ -879,7 +877,7 @@ int DataLoader::getBranchData(
 }
 
 hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               int totalN, map<offset_t, pair<int,offset_t>> & offsetToInstance)
+                               int totalN, map<offset_t, pair<int,offset_t>> & ionOffsetToInstance)
 {
     assert(topCompartment!=NULL);
     offset_t n; //number of compartments in branch
@@ -903,7 +901,6 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 
     if (inputParams->multiSplix)
     {
-        assert(0);//N/A: broken until we manage to translate mechId+instance in neuron to branch!
         deque<Compartment*> subSection;
         Compartment * comp = NULL;
         for (comp = topCompartment; comp->branches.size()==1; comp = comp->branches.front())
@@ -912,17 +909,17 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
+        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance);
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights);
 
         //recursively create children branches
         for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, offsetToInstance));
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, ionOffsetToInstance));
     }
     else //Flat a la Coreneuron
     {
-        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, offsetToInstance);
+        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance);
         getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo);
         getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights);
     }
@@ -933,9 +930,9 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 
     //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
-                  &n, sizeof(offset_t),
-                  &nrnThreadId, sizeof(int),
-                  data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
+                  &n, sizeof(offset_t),   //OK!
+                  &nrnThreadId, sizeof(int), //OK!
+                  data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(), //OK!
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),
                   nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
