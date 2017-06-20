@@ -698,6 +698,10 @@ int DataLoader::getBranchData(
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
+
+    int n=0; //number of compartments
+
+    ////// Basic information for RHS, D, A, B, V and area
     for (auto comp : compartments)
         data.push_back(comp->rhs);
     for (auto comp : compartments)
@@ -711,34 +715,31 @@ int DataLoader::getBranchData(
     for (auto comp : compartments)
         data.push_back(comp->area);
 
-    //Tree of neurons: convert old to new compartments ids
+    ////// Tree of neurons: convert old to new compartments ids
     std::map<int,int> fromOldToNewCompartmentId;
-    for (int c=0; c<compartments.size(); c++)
+    for (n=0; n<compartments.size(); n++)
     {
-        Compartment * comp = compartments.at(c);
-        fromOldToNewCompartmentId[comp->id] = c;
-        comp->id = c;
+        Compartment * comp = compartments.at(n);
+        fromOldToNewCompartmentId[comp->id] = n;
+        comp->id = n;
     }
     for (auto comp : compartments) //assign right parent id
         p.push_back(fromOldToNewCompartmentId.at(comp->p));
 
+    ////// Mechanisms instances: merge all instances of all compartments into instances of the branch
     vector<vector<floble_t>> dataMechs (mechanismsCount);
     vector<vector<offset_t>> pdataMechs (mechanismsCount);
     vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
     vector<vector<unsigned char>> vdataMechs (mechanismsCount);
 
-    int n=0;
     vector<offset_t> pdataType; //type of pdata offset per pdata entry
     map< pair<int, offset_t>, offset_t> instanceToIonOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
-    map<offset_t,offset_t> fromNeuronToBranchId; //map of branch id per compartment id
 
-    //merge all instances of all compartments into instances of the branch
     for (auto comp : compartments)
     {
         int compDataOffset=0;
         int compPdataOffset=0;
         int compVdataOffset=0;
-        fromNeuronToBranchId[comp->id] = n;
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
             int type = comp->mechsTypes[m];
@@ -768,7 +769,6 @@ int DataLoader::getBranchData(
                 compVdataOffset += totalVdataSize;
             }
         }
-        n++;
     }
 
     //merge all mechanisms vectors in the final one
@@ -791,7 +791,7 @@ int DataLoader::getBranchData(
 
             data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
             pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
-            nodesIndices.push_back(fromNeuronToBranchId[ nodesIndicesMechs[m][i] ]);
+            nodesIndices.push_back(fromOldToNewCompartmentId[ nodesIndicesMechs[m][i] ]);
             dataOffset  += mech->dataSize;
             pdataOffset += mech->pdataSize;
 
@@ -813,7 +813,7 @@ int DataLoader::getBranchData(
         nodesIndicesMechs[m].clear();
     }
 
-    //if there are more than one instance of the same ion mech on a node, this fails!
+    //if there are more than one instance of the same ion mech on a node, this fails! Should not happen.
     assert(instanceToIonOffset.size() == ionOffsetToInstance.size());
 
     //convert all offsets in pdata to the correct ones
@@ -832,7 +832,7 @@ int DataLoader::getBranchData(
         {
             assert(p>=totalN*5 && p<totalN<6);
             offset_t oldId = p-totalN*5;
-            offset_t newId = fromNeuronToBranchId[oldId];
+            offset_t newId = fromOldToNewCompartmentId[oldId];
             pdata[i] = n*5+newId;
             break;
         }
@@ -944,9 +944,9 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(), //OK!
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(), //OK!
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t), //OK!
-                  nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
+                  nodesIndices.data(), nodesIndices.size()*sizeof(offset_t), //OK!
                   multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0, //OK!
-                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
+                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(), //OK!
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(), //OK!
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(), //OK!
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
