@@ -127,7 +127,10 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         unsigned vdataTotalOffset=0;
         unsigned dataTotalOffset=nt->end*6;
         unsigned pointProcTotalOffset=0;
-        map<offset_t, pair<int,offset_t>> ionOffsetToInstance; //map of data offset -> mech instance (mech Id, node Id)
+
+        //information about offsets in data and node ifs of all instances of all ions
+        vector<DataLoader::IonInstancesInfo> ionsInstancesInfo (Mechanism::Ion::size_all_ions);
+
         for (NrnThreadMembList* tml = nt->tml; tml!=NULL; tml = tml->next) //For every mechanism
         {
             int pdataOffset = 0;
@@ -135,13 +138,11 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
             int type = tml->index;
             Memb_list * ml = tml->ml; //Mechanisms application to each compartment
             Mechanism * mech = getMechanismFromType(type);
+            int ionOffset = mech->getIonIndex();
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 assert (ml->nodeindices[n] < compartments.size());
                 assert (ml->nodeindices[n] < 2^(sizeof(offset_t)*8));
-                if (mech->isIon)
-                    ionOffsetToInstance[dataTotalOffset] =
-                            make_pair(type, (offset_t) ml->nodeindices[n]);
                 double * data = &ml->data[dataOffset];
                 int * pdata = &ml->pdata[pdataOffset];
                 void ** vdata = &nt->_vdata[vdataTotalOffset];
@@ -149,6 +150,17 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 assert(compartment->id == ml->nodeindices[n]);
                 for (int i=0; i<mech->dataSize; i++)
                 {   assert(data[i]==nt->_data[dataTotalOffset+i]); }
+
+                if (mech->isIon)
+                {
+                    if (n==0)
+                    {
+                        ionsInstancesInfo[ionOffset].mechType = type;
+                        ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
+                        ionsInstancesInfo[ionOffset].dataEnd = dataTotalOffset+ml->nodecount*mech->dataSize;
+                    }
+                    ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
+                }
 
                 if (mech->pntMap > 0 || mech->vdataSize>0) //vdata
                 {
@@ -205,10 +217,6 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                 pdataOffset      += (unsigned) mech->pdataSize;
                 dataTotalOffset  += (unsigned) mech->dataSize;
                 vdataTotalOffset += (unsigned) mech->vdataSize;
-                assert(dataTotalOffset  < 2^sizeof(ionOffsetToInstance));
-                assert(dataOffset       < 2^sizeof(ionOffsetToInstance));
-                assert(pdataOffset      < 2^sizeof(ionOffsetToInstance));
-                assert(vdataTotalOffset < 2^sizeof(ionOffsetToInstance));
             }
         }
         for (Compartment* comp : compartments)  comp->shrinkToFit();
@@ -288,7 +296,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         for (Compartment* comp : compartments) comp->shrinkToFit();
 
         createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
-                     (size_t) compartments.size(), ionOffsetToInstance);
+                     (size_t) compartments.size(), ionsInstancesInfo);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
@@ -510,7 +518,7 @@ int DataLoader::initMechanisms_handler()
         {
             Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
             if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO: hardcoded exception
-            if (parent->getIonIndex() < Branch::MechanismsGraph::IonIndex::size_writeable_ions) //ie is writeable
+            if (parent->getIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
                 fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
                         mech->sym, mech->type, parent->sym, parent->type);
         }
@@ -659,30 +667,24 @@ int DataLoader::finalize_handler()
 }
 
 
-vector<map<int,int>>* DataLoader::getMechInstanceMap(deque<Compartment*> & compartments)
+void DataLoader::getMechInstanceMap(deque<Compartment*> & compartments, vector<map<int,int>> & mechsInstancesMap)
 {
-    map<int, deque<int>> mechsInstancesIds; //mech type -> list of mech instance id
-    vector<map<int,int>>* mechsInstancesMap = new vector<map<int,int>>();
+    vector<deque<int>> mechsInstancesIds(neurox::mechanismsCount); //mech offset -> list of mech instance id
     for (Compartment * comp : compartments)
-    {
         for (int m=0; m<comp->mechsTypes.size(); m++) //for all instances
         {
-            int type = comp->mechsTypes[m];
-            int mechOffset = mechanismsMap[type];
+            int type = comp->mechsTypes.at(m);
+            int mechOffset = neurox::mechanismsMap[type];
             mechsInstancesIds[mechOffset].push_back(comp->mechsInstances[m]);
         }
-    }
 
     //convert neuron mech-instances ids from neuron- to branch-level
     for (int m=0; m<neurox::mechanismsCount; m++)
-    {
       for (int i=0; i<mechsInstancesIds[m].size(); i++)
       {
-        int oldInstanceId = mechsInstancesIds[m][i];
-        (*mechsInstancesMap)[m][oldInstanceId] = i;
+        int oldInstanceId = mechsInstancesIds.at(m).at(i);
+        mechsInstancesMap[m][oldInstanceId] = i;
       }
-    }
-    return mechsInstancesMap;
 }
 
 void DataLoader::getNetConsBranchData(
@@ -743,13 +745,14 @@ int DataLoader::getBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & data,
         vector<offset_t> & pdata, vector<unsigned char> & vdata, vector<offset_t> & p,
         vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
-        int totalN, map<offset_t, pair<int, offset_t>> & ionOffsetToInstance,
+        int totalN,  vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo,
         vector<map<int,int>> * mechInstanceMap)
 {
     for (auto comp : compartments)
         { assert (comp != NULL); }
 
     int n=0; //number of compartments
+    int vdataPointerOffset=0;
 
     ////// Basic information for RHS, D, A, B, V and area
     for (auto comp : compartments)
@@ -781,9 +784,8 @@ int DataLoader::getBranchData(
     vector<vector<offset_t>> pdataMechs (mechanismsCount);
     vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
     vector<vector<unsigned char>> vdataMechs (mechanismsCount);
-    vector<deque<int>> mechsInstancesIds; //mech-offset -> list of pointers to mech instance value
+    vector<deque<int>> mechsInstancesIds  (mechanismsCount); //mech-offset -> list of pointers to mech instance value
 
-    vector<offset_t> pdataType; //type of pdata offset per pdata entry
     map< pair<int, offset_t>, offset_t> instanceToIonOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
 
     for (Compartment * comp : compartments)
@@ -826,10 +828,6 @@ int DataLoader::getBranchData(
     for (int m=0; m<mechanismsCount; m++)
     {
         Mechanism * mech = mechanisms[m];
-        for (offset_t n=0; n<instancesCount[m]; n++)
-          for (short d=0; d<mech->pdataSize; d++)
-            pdataType.push_back(memb_func[mech->type].dparam_semantics[d]);
-
         int dataOffset=0;
         int pdataOffset=0;
         int vdataOffset=0;
@@ -838,12 +836,9 @@ int DataLoader::getBranchData(
             assert(instanceToIonOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == instanceToIonOffset.end() );
             if (mech->isIon)
                 instanceToIonOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
-
             data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
-            pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
             nodesIndices.push_back(fromOldToNewCompartmentId[ nodesIndicesMechs[m][i] ]);
             dataOffset  += mech->dataSize;
-            pdataOffset += mech->pdataSize;
 
             if (mech->pntMap > 0 || mech->vdataSize>0)
             {
@@ -856,6 +851,63 @@ int DataLoader::getBranchData(
                 vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset], &vdataMechs[m][vdataOffset+totalVdataSize]);
                 vdataOffset += totalVdataSize;
             }
+
+            //pdata
+            for (int p=pdataOffset; p<pdataOffset+mech->pdataSize; p++)
+            {
+                offset_t pd = pdataMechs.at(m).at(p);
+                int ptype = memb_func[mech->type].dparam_semantics[p-pdataOffset];
+                switch (ptype)
+                {
+                case -1:  //"area" (6th field)
+                {
+                    assert(pd>=totalN*5 && pd<totalN<6);
+                    offset_t oldId = pd-totalN*5;
+                    offset_t newId = fromOldToNewCompartmentId[oldId];
+                    pdataMechs.at(m).at(p) = n*5+newId;
+                    break;
+                }
+                case -2: //"iontype"
+                    //do nothing, its a flag (the 'iontype', see nrnoc/eion.c)
+                    break;
+                case -3: //"cvodeieq"
+                case -5: //"pointer"
+                    assert(0); //not used
+                    break;
+                case -4: //"netsend"
+                case -6: //"pntproc"
+                case -7: //"bbcorepointer"
+                    pdataMechs.at(m).at(p) = (offset_t) vdataPointerOffset++;
+                    break;
+                case -8: //"bbcorepointer"
+                    assert(0); //watch condition, not supported
+                    break;
+                default:
+                    if (ptype>0 && ptype<1000) //name preffixed by '#'
+                    {   //ptype is the ion (mechanism) type it depends on
+                        //pdata is an offset in nt->data (a var in the ion)
+
+                        Mechanism * ion = neurox::getMechanismFromType(ptype);
+                        int ionOffset = ion->getIonIndex();
+                        int dataStart = ionsInstancesInfo[ionOffset].dataStart;
+                        assert(pd>=dataStart && pd<ionsInstancesInfo[ionOffset].dataEnd);
+                        int instanceOffset = trunc( (double)(pd-dataStart) / (double) ion->dataSize);
+                        int instanceVariableOffset = (pd-dataStart) % ion->dataSize;
+                        int nodeId = ionsInstancesInfo[ionOffset].nodeIds.at(instanceOffset);
+                        pdataMechs.at(m).at(p) = instanceToIonOffset.at(make_pair(ion->type, nodeId)) + instanceVariableOffset;
+                        assert(pdataMechs.at(m).at(p)>=n*6);
+                    }
+                    else if (ptype>=1000) //name not preffixed
+                    {
+                        // (concentration = ptype-1000;) //do nothing: value of concentration summed with 1000
+                    }
+                    else
+                        throw std::runtime_error("Unknown pdata type %d (FLAG3)\n");
+                    break;
+                }
+            }
+            pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
+            pdataOffset += mech->pdataSize;
         }
         dataMechs[m].clear();
         pdataMechs[m].clear();
@@ -870,81 +922,11 @@ int DataLoader::getBranchData(
             (*mechInstanceMap)[m][oldInstanceId] = i;
           }
     }
-
-    //if there are more than one instance of the same ion mech on a node, this fails! Should not happen.
-    assert(instanceToIonOffset.size() == ionOffsetToInstance.size());
-
-    //convert all offsets in pdata to the correct ones
-    //depends on the pdata offset type (register_mech.c :: hoc_register_dparam_semantics)
-    int vdataOffset=0;
-    assert(pdataType.size() == pdata.size());
-    assert(pdata.size() < 2^(sizeof(offset_t)*8));
-
-    for (size_t i=0; i<pdata.size(); i++)
-    {
-        offset_t p = pdata.at(i);
-        int ptype = pdataType.at(i);
-        switch (ptype)
-        {
-        case -1:  //"area" (6th field)
-        {
-            assert(p>=totalN*5 && p<totalN<6);
-            offset_t oldId = p-totalN*5;
-            offset_t newId = fromOldToNewCompartmentId[oldId];
-            pdata[i] = n*5+newId;
-            break;
-        }
-        case -2: //"iontype"
-            //do nothing, its a flag (the 'iontype', see nrnoc/eion.c)
-            break;
-        case -3: //"cvodeieq"
-        case -5: //"pointer"
-            assert(0); //not used
-            break;
-        case -4: //"netsend"
-        case -6: //"pntproc"
-        case -7: //"bbcorepointer"
-            pdata[i] = (offset_t) vdataOffset++;
-            break;
-        case -8: //"bbcorepointer"
-            assert(0); //watch condition, not supported
-            break;
-        default:
-            if (ptype>0 && ptype<1000) //name preffixed by '#'
-            {   //ptype is the ion (mechanism) type it depends on
-                //pdata[i] is an offset in pdata
-                std::pair<int, offset_t> mechNodePair;
-                offset_t oldOffset = -1;
-                for (auto val : ionOffsetToInstance)
-                    if (val.first<=pdata[i])
-                    {
-                        oldOffset = val.first;
-                        mechNodePair=val.second;
-                    }
-                    else break; //already found
-                assert(oldOffset!=-1); //make sure was found
-                assert(oldOffset>=totalN*6); //also fails if not found
-                assert(mechNodePair.first == ptype); //fails if expected type does not agree with the one in the data offset
-                assert(pdata[i]-oldOffset < getMechanismFromType(mechNodePair.first)->dataSize); //instance offset is correct
-                offset_t newOffset = instanceToIonOffset.at(mechNodePair);
-                assert(newOffset>=n*6);
-                pdata[i] = newOffset + (pdata[i]-oldOffset); //'pdata[i]-oldOffset' is the offset on the data vector for that instance
-                assert(pdata[i]>=n*6);
-            }
-            else if (ptype>=1000) //name not preffixed
-            {
-                // (concentration = ptype-1000;) //do nothing: value of concentration summed with 1000
-            }
-            else
-                throw std::runtime_error("Unknown pdata type %d (FLAG3)\n");
-            break;
-        }
-    }
     return n;
 }
 
 hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               int totalN, map<offset_t, pair<int,offset_t>> & ionOffsetToInstance)
+                               int totalN, vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo)
 {
     assert(topCompartment!=NULL);
     offset_t n; //number of compartments in branch
@@ -976,19 +958,19 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
-        vector<map<int,int>> * mechInstanceMap =  getMechInstanceMap(subSection); //mech-offset -> ( map[old instance]->to new instance )
-        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance, mechInstanceMap);
-        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, mechInstanceMap);
-        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, mechInstanceMap);
-        mechInstanceMap->clear(); delete mechInstanceMap; mechInstanceMap=NULL;
+        vector<map<int,int>> mechInstanceMap(mechanismsCount); //mech-offset -> ( map[old instance]->to new instance )
+        getMechInstanceMap(subSection, mechInstanceMap);
+        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, &mechInstanceMap);
+        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
+        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
         //recursively create children branches
         for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, ionOffsetToInstance));
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, ionsInstancesInfo));
     }
     else //Flat a la Coreneuron
     {
-        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionOffsetToInstance, NULL);
+        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, NULL);
         getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
         getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
     }

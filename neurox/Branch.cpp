@@ -230,7 +230,7 @@ Branch::Branch(offset_t n,
         this->nt->_ml_list[mech->type] = &instances;
         if (mech->isIon) ionsCount++;
     }
-    assert(ionsCount==MechanismsGraph::IonIndex::size_writeable_ions+1); //ttx excluded (no writes to ttx state)
+    assert(ionsCount==Mechanism::Ion::size_writeable_ions+1); //ttx excluded (no writes to ttx state)
 
     //vecplay
     nt->n_vecplay = vecplayPPIcount;
@@ -276,7 +276,7 @@ Branch::Branch(offset_t n,
             ml->_shadow_rhs[i] = 0;
         }
 
-        if (mechanisms[m]->dependencyIonIndex >= MechanismsGraph::IonIndex::size_writeable_ions)
+        if (mechanisms[m]->dependencyIonIndex >= Mechanism::Ion::size_writeable_ions)
             shadowSize = 0; //> only mechanisms with parent ions update I and DI/DV
 
         ml->_shadow_i            = shadowSize==0 ? nullptr : new double[shadowSize];
@@ -899,7 +899,7 @@ Branch::MechanismsGraph::MechanismsGraph(int compartmentsCount)
     this->endLCO = hpx_lco_and_new(terminalMechanismsCount);
 
     this->rhs_d_mutex = hpx_lco_sema_new(1);
-    for (int i=0; i<IonIndex::size_writeable_ions;i++)
+    for (int i=0; i<Mechanism::Ion::size_writeable_ions;i++)
         this->i_didv_mutex[i] = hpx_lco_sema_new(1);
 }
 
@@ -921,7 +921,7 @@ Branch::MechanismsGraph::~MechanismsGraph()
     delete [] mechsLCOs;
 
     hpx_lco_delete_sync(rhs_d_mutex);
-    for (int i=0; i<IonIndex::size_writeable_ions; i++)
+    for (int i=0; i<Mechanism::Ion::size_writeable_ions; i++)
         hpx_lco_delete_sync(i_didv_mutex[i]);
 }
 
@@ -975,7 +975,7 @@ void Branch::MechanismsGraph::accumulate_i_didv(NrnThread* nt,  Memb_list * ml, 
 {
     MechanismsGraph * mg = (MechanismsGraph*) args;
     Mechanism * mech = getMechanismFromType(type);
-    assert(mech->dependencyIonIndex<MechanismsGraph::IonIndex::size_writeable_ions);
+    assert(mech->dependencyIonIndex<Mechanism::Ion::size_writeable_ions);
     hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]); //TODO should mutex be at branch and not mech level?
     for (int n=0; n<ml->nodecount; n++)
     {

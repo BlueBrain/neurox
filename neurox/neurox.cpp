@@ -59,14 +59,14 @@ void setMechanisms2(int mechsCount, Mechanism* mechanisms_serial, int * dependen
     for (int m=0; m<mechanismsCount; m++)
     {
       Mechanism * mech = mechanisms[m];
-      mech->dependencyIonIndex = Branch::MechanismsGraph::IonIndex::no_ion;
+      mech->dependencyIonIndex = Mechanism::Ion::no_ion;
       if (inputParams->multiMex)
       {
         for (int d=0; d<mech->dependenciesCount; d++)
         {
           Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
           if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO hard coded exception
-          if (parent->getIonIndex() < Branch::MechanismsGraph::IonIndex::size_writeable_ions)
+          if (parent->getIonIndex() < Mechanism::Ion::size_writeable_ions)
               mech->dependencyIonIndex = parent->getIonIndex();
         }
       }
