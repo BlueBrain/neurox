@@ -5,6 +5,7 @@
 
 namespace neurox
 {
+
 /**
  * @brief The Mechanisms class
  * Stores the unique metadata of each mechanism
@@ -12,6 +13,9 @@ namespace neurox
 class Mechanism
 {
   public:
+
+    enum Ion {na=0, k=1, ca=2, size_writeable_ions=3, ttx=3, size_all_ions=4, no_ion=9};
+
     Mechanism()=delete;
     ~Mechanism();
 

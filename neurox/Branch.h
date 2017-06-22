@@ -69,9 +69,8 @@ class Branch
                                               const Mechanism::ModFunction *rhs, const size_t);
 
         //for current function accumulation of shadow arrays
-        enum IonIndex {na=0, k=1, ca=2, size_writeable_ions=3, ttx=3, no_ion=4}; //ttx not write-able
         hpx_t rhs_d_mutex;
-        hpx_t i_didv_mutex[MechanismsGraph::IonIndex::size_writeable_ions];
+        hpx_t i_didv_mutex[Mechanism::Ion::size_writeable_ions];
         static void accumulate_rhs_d  (NrnThread* nt, Memb_list * ml, int, void* args);
         static void accumulate_i_didv (NrnThread* nt, Memb_list * ml, int, void* args);
 

@@ -40,12 +40,20 @@ class DataLoader
     static hpx_action_t initNetcons;
     static hpx_action_t finalize;
 
+    class IonInstancesInfo
+    {
+      public:
+        int mechType;
+        offset_t dataStart, dataEnd; ///> beginning and end offsetes of instances in data
+        vector<int> nodeIds; ///> compartments ids for each instance
+    };
+
   private:
 
     static hpx_t createBranch( int nrnThreadId,
             hpx_t target, deque<Compartment*> & compartments,
-            Compartment * topCompartment,
-            int totalN, map<offset_t, pair<int,offset_t>> & ionOffsetToInstance);
+            Compartment * topCompartment, int totalN,
+            vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo);
 
     static neuron_id_t getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(
@@ -56,7 +64,7 @@ class DataLoader
             vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
             vector<offset_t> & nodesIndices, int totalN,
-            map<offset_t, pair<int,offset_t>> & ionOffsetToInstance,
+            vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
     static void getVecPlayBranchData(
@@ -71,8 +79,9 @@ class DataLoader
             vector<floble_t> & branchNetConsArgs,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
-    static vector<map<int,int>> * getMechInstanceMap(
-            deque<Compartment*> & compartments);
+    static void getMechInstanceMap(
+            deque<Compartment*> & compartments,
+            vector<map<int,int>> & mechsInstancesMap);
 
     static void printSubClustersToFile(
             FILE * fileCompartments, Compartment *topCompartment);

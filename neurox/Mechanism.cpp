@@ -33,7 +33,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
         std::memcpy(this->dependencies, dependencies, dependenciesCount*sizeof(int));
     }
     //ion index will be set later when all mechanisms are created
-    dependencyIonIndex = Branch::MechanismsGraph::IonIndex::no_ion;
+    dependencyIonIndex = Mechanism::Ion::no_ion;
 
     if (successors != nullptr){
         assert(successorsCount>0);
@@ -75,11 +75,11 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 int Mechanism::getIonIndex()
 {
     assert(this->sym);
-    if (strcmp("na_ion",  this->sym)==0) return Branch::MechanismsGraph::IonIndex::na;
-    if (strcmp("k_ion",   this->sym)==0) return Branch::MechanismsGraph::IonIndex::k;
-    if (strcmp("ttx_ion", this->sym)==0) return Branch::MechanismsGraph::IonIndex::ttx;
-    if (strcmp("ca_ion",  this->sym)==0) return Branch::MechanismsGraph::IonIndex::ca;
-    return Branch::MechanismsGraph::IonIndex::no_ion;
+    if (strcmp("na_ion",  this->sym)==0) return Mechanism::Ion::na;
+    if (strcmp("k_ion",   this->sym)==0) return Mechanism::Ion::k;
+    if (strcmp("ttx_ion", this->sym)==0) return Mechanism::Ion::ttx;
+    if (strcmp("ca_ion",  this->sym)==0) return Mechanism::Ion::ca;
+    return Mechanism::Ion::no_ion;
 }
 
 void Mechanism::registerBeforeAfterFunctions()
