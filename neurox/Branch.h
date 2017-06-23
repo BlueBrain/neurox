@@ -80,11 +80,11 @@ class Branch
     {
       public:
         BranchTree()=delete;
-        BranchTree(size_t branchesCount);
+        BranchTree(hpx_t* branches, size_t branchesCount);
         ~BranchTree();
 
-        size_t branchesCount;	///> number of branches (>0)
         hpx_t *branches;		///> hpx address of the branches branches
+        size_t branchesCount;	///> number of branches (>0)
 
         static constexpr size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
         hpx_t localLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch

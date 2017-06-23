@@ -296,8 +296,9 @@ void Debugger::compareBranch2(Branch * branch)
     }
 
     //make sure morphology is correct
-    for (int i=0; i<6*branch->nt->end; i++)
-    {   assert(isEqual(nt._data[i], branch->nt->_data[i], multiMex)); }
+    for (int i=0; i<6; i++) //RHS, D, A, B, V and area
+        for (int j=0; j<branch->nt->end; j++) //for all compartments
+        {   assert(isEqual(nt._data[nt.end*i+j], branch->nt->_data[branch->nt->end*i+j], multiMex)); }
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {
@@ -415,7 +416,9 @@ hpx_action_t Debugger::compareBranch = 0;
 int Debugger::compareBranch_handler()
 {
     neurox_hpx_pin(Branch);
+    //neurox_hpx_recursive_branch_async_call(Debugger::compareBranch);
     compareBranch2(local);
+    //neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
 
