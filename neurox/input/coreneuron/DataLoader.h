@@ -44,7 +44,7 @@ class DataLoader
     {
       public:
         int mechType;
-        offset_t dataStart, dataEnd; ///> beginning and end offsetes of instances in data
+        offset_t dataStart, dataEnd; ///> beginning and end offsets of instances in data
         vector<int> nodeIds; ///> compartments ids for each instance
     };
 

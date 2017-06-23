@@ -776,8 +776,12 @@ int DataLoader::getBranchData(
         fromOldToNewCompartmentId[comp->id] = n;
         comp->id = n;
     }
-    for (auto comp : compartments) //assign right parent ids
-        p.push_back(fromOldToNewCompartmentId.at(comp->p));
+    if (mechInstanceMap)
+    {
+        p.push_back(0); //top compartment has no parent (we assign parent id 0 as in regular case)
+        for (int c=1; c<compartments.size(); c++)
+            p.push_back(fromOldToNewCompartmentId.at(compartments.at(c)->p));
+    }
 
     ////// Mechanisms instances: merge all instances of all compartments into instances of the branch
     vector<vector<floble_t>> dataMechs (mechanismsCount);
@@ -786,7 +790,7 @@ int DataLoader::getBranchData(
     vector<vector<unsigned char>> vdataMechs (mechanismsCount);
     vector<deque<int>> mechsInstancesIds  (mechanismsCount); //mech-offset -> list of pointers to mech instance value
 
-    map< pair<int, offset_t>, offset_t> instanceToIonOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
+    map< pair<int, offset_t>, offset_t> ionInstanceToDataOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
 
     for (Compartment * comp : compartments)
     {
@@ -833,11 +837,11 @@ int DataLoader::getBranchData(
         int vdataOffset=0;
         for (int i=0; i<nodesIndicesMechs[m].size(); i++) //for all instances
         {
-            assert(instanceToIonOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == instanceToIonOffset.end() );
-            if (mech->isIon)
-                instanceToIonOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
+            assert(ionInstanceToDataOffset.find( make_pair(mech->type, nodesIndicesMechs[m][i]) ) == ionInstanceToDataOffset.end() );
+            if (mech->isIon && mechInstanceMap) //for pdata calculation
+                ionInstanceToDataOffset[ make_pair(mech->type, nodesIndicesMechs[m][i]) ] = data.size();
             data.insert ( data.end(),  &dataMechs[m][dataOffset ],  &dataMechs[m][dataOffset +mech->dataSize ]);
-            nodesIndices.push_back(fromOldToNewCompartmentId[ nodesIndicesMechs[m][i] ]);
+            nodesIndices.push_back(nodesIndicesMechs[m][i]);
             dataOffset  += mech->dataSize;
 
             if (mech->pntMap > 0 || mech->vdataSize>0)
@@ -852,9 +856,10 @@ int DataLoader::getBranchData(
                 vdataOffset += totalVdataSize;
             }
 
-            //pdata
-            for (int p=pdataOffset; p<pdataOffset+mech->pdataSize; p++)
+            if (mechInstanceMap) //pdata
             {
+              for (int p=pdataOffset; p<pdataOffset+mech->pdataSize; p++)
+              {
                 offset_t pd = pdataMechs.at(m).at(p);
                 int ptype = memb_func[mech->type].dparam_semantics[p-pdataOffset];
                 switch (ptype)
@@ -863,7 +868,7 @@ int DataLoader::getBranchData(
                 {
                     assert(pd>=totalN*5 && pd<totalN<6);
                     offset_t oldId = pd-totalN*5;
-                    offset_t newId = fromOldToNewCompartmentId[oldId];
+                    offset_t newId = fromOldToNewCompartmentId.at(oldId);
                     pdataMechs.at(m).at(p) = n*5+newId;
                     break;
                 }
@@ -884,7 +889,8 @@ int DataLoader::getBranchData(
                     break;
                 default:
                     if (ptype>0 && ptype<1000) //name preffixed by '#'
-                    {   //ptype is the ion (mechanism) type it depends on
+                    {
+                        //ptype is the ion (mechanism) type it depends on
                         //pdata is an offset in nt->data (a var in the ion)
 
                         Mechanism * ion = neurox::getMechanismFromType(ptype);
@@ -894,7 +900,8 @@ int DataLoader::getBranchData(
                         int instanceOffset = trunc( (double)(pd-dataStart) / (double) ion->dataSize);
                         int instanceVariableOffset = (pd-dataStart) % ion->dataSize;
                         int nodeId = ionsInstancesInfo[ionOffset].nodeIds.at(instanceOffset);
-                        pdataMechs.at(m).at(p) = instanceToIonOffset.at(make_pair(ion->type, nodeId)) + instanceVariableOffset;
+                        int newNodeId = fromOldToNewCompartmentId.at(nodeId);
+                        pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(make_pair(ion->type, newNodeId)) + instanceVariableOffset;
                         assert(pdataMechs.at(m).at(p)>=n*6);
                     }
                     else if (ptype>=1000) //name not preffixed
@@ -905,6 +912,7 @@ int DataLoader::getBranchData(
                         throw std::runtime_error("Unknown pdata type %d (FLAG3)\n");
                     break;
                 }
+              }
             }
             pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset], &pdataMechs[m][pdataOffset+mech->pdataSize]);
             pdataOffset += mech->pdataSize;

@@ -304,7 +304,7 @@ Branch::Branch(offset_t n,
     }
 
     //create branchTree and MechsGraph
-    this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branchesCount) : nullptr;
+    this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branches,branchesCount) : nullptr;
     this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph(n)         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
@@ -813,18 +813,13 @@ void Branch::fixedPlayContinuous()
 
 //////////////////// Branch::NeuronTree ///////////////////////
 
-Branch::BranchTree::BranchTree(size_t branchesCount)
-    : branchesCount(branchesCount)
+Branch::BranchTree::BranchTree(hpx_t * branches, size_t branchesCount)
+    : branches(nullptr), branchesCount(branchesCount)
 {
     if (branchesCount>0)
     {
       this->branches = new hpx_t[branchesCount];
       memcpy(this->branches, branches, branchesCount*sizeof(hpx_t));
-    }
-    else
-    {
-      this->branchesCount = 0;
-      this->branches = nullptr;
     }
 }
 

@@ -191,8 +191,10 @@ static int main_handler()
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initNeurons);
     message("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
     neurox_hpx_call_neurons( neurox::Input::Coreneuron::DataLoader::initNetcons);
-    message("neurox::Input::Coreneuron::DataLoader::clean...\n");
+    message("neurox::Input::Coreneuron::DataLoader::finalize...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::finalize);
+    message("neurox::Branch::BranchTree::initLCOs...\n");
+    neurox_hpx_call_neurons(Branch::BranchTree::initLCOs);
 
     if (neurox::inputParams->outputStatistics)
     {
@@ -202,9 +204,6 @@ static int main_handler()
       Misc::Statistics::printSimulationSize();
       //hpx_exit(0,NULL);
     }
-
-    message("neurox::Branch::BranchTree::initLCOs...\n");
-    neurox_hpx_call_neurons(Branch::BranchTree::initLCOs);
 
     neurox::Input::Coreneuron::Debugger::compareMechanismsFunctionPointers();
     neurox::Input::Coreneuron::Debugger::compareAllBranches();
