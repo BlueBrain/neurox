@@ -304,8 +304,8 @@ Branch::Branch(offset_t n,
     }
 
     //create branchTree and MechsGraph
-    this->branchTree = inputParams->multiSplix ? new Branch::BranchTree(branches,branchesCount) : nullptr;
-    this->mechsGraph = inputParams->multiMex   ? new Branch::MechanismsGraph(n)         : nullptr;
+    this->branchTree = inputParams->branchingDepth>0 ? new Branch::BranchTree(branches,branchesCount) : nullptr;
+    this->mechsGraph = inputParams->multiMex         ? new Branch::MechanismsGraph(n)         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
 }
@@ -607,49 +607,53 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
 
     const int steps = *steps_ptr;
 
-    //fixes crash for Algorithm::ALL when TimeDependency algorithm starts at t=inputParams->tend*2
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
-        if (local->soma)
+    if (local->soma)
+    {
+      //fixes crash for Algorithm::ALL when TimeDependency algorithm starts at t=inputParams->tend*2
+      if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
         {
           //increase notification and dependencies time
           for (Neuron::Synapse *& s : local->soma->synapses)
               s->nextNotificationTime += local->nt->_t;
           local->soma->timeDependencies->increseDependenciesTime(local->nt->_t);
         }
+    }
 
-    if (!inputParams->allReduceAtLocality
-       && (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
-       ||  inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier))
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
+    ||  inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier)
     {
-          const int reductionsPerCommStep = Neuron::SlidingTimeWindow::reductionsPerCommStep;
-          const int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
-          const int commStepSize = Neuron::CommunicationBarrier::commStepSize;
-          const Neuron::SlidingTimeWindow * stw = local->soma->slidingTimeWindow;
+        const int reductionsPerCommStep = Neuron::SlidingTimeWindow::reductionsPerCommStep;
+        const int stepsPerReduction = Neuron::CommunicationBarrier::commStepSize / Neuron::SlidingTimeWindow::reductionsPerCommStep;
+        const int commStepSize = Neuron::CommunicationBarrier::commStepSize;
+        const Neuron::SlidingTimeWindow * stw = local->soma ? local->soma->slidingTimeWindow : nullptr;
 
-          for (int s=0; s<steps; s += commStepSize) //for every communication step
+        for (int s=0; s<steps; s += commStepSize) //for every communication step
+        {
+          #ifdef NEUROX_TIME_STEPPING_VERBOSE
+              if (hpx_get_my_rank()==0 && target == neurox::neurons->at(0))
+              {
+                  printf("-- t=%.4f ms\n", inputParams->dt*s);
+                  fflush(stdout);
+              }
+          #endif
+          for (int r=0; r<reductionsPerCommStep; r++) //for every reduction step
           {
-            #ifdef NEUROX_TIME_STEPPING_VERBOSE
-                if (hpx_get_my_rank()==0 && target == neurox::neurons->at(0))
-                {
-                    printf("-- t=%.4f ms\n", inputParams->dt*s);
-                    fflush(stdout);
-                }
-            #endif
-            for (int r=0; r<reductionsPerCommStep; r++) //for every reduction step
-            {
-                if (s>= commStepSize) //first comm-window does not wait
+              if (local->soma)
+              {
+                  if (s>= commStepSize) //first comm-window does not wait
                     hpx_lco_wait_reset(stw->allReduceFuture[r]);
-                else
+                  else
                     //fixes crash for Algorithm::ALL when running two hpx-reduce -based algorithms in a row
                     hpx_lco_reset_sync(stw->allReduceFuture[r]);
 
-                hpx_process_collective_allreduce_join(stw->allReduceLco[r], stw->allReduceId[r], NULL, 0);
+                  hpx_process_collective_allreduce_join(stw->allReduceLco[r], stw->allReduceId[r], NULL, 0);
+              }
 
-                for (int n=0; n<stepsPerReduction; n++)
-                    local->backwardEulerStep();
-                    // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-            }
+              for (int n=0; n<stepsPerReduction; n++)
+                  local->backwardEulerStep();
+                  // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
           }
+        }
     }
     else
     {
@@ -826,7 +830,7 @@ Branch::BranchTree::BranchTree(hpx_t * branches, size_t branchesCount)
 Branch::BranchTree::~BranchTree()
 {
     delete [] branches;
-    delete [] branchesLCOs;
+    delete [] withChildrenLCOs;
 }
 
 hpx_action_t Branch::BranchTree::initLCOs = 0;
@@ -838,9 +842,8 @@ int Branch::BranchTree::initLCOs_handler()
     {
       offset_t branchesCount = branchTree->branchesCount;
       for (int i=0; i<BranchTree::futuresSize; i++)
-          branchTree->localLCO[i] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
-      branchTree->branchesLCOs = branchesCount ?
-              new hpx_t[branchesCount][BranchTree::futuresSize] : nullptr;
+          branchTree->withParentLCO[i] = local->soma ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
+      branchTree->withChildrenLCOs =  branchesCount ? new hpx_t[branchesCount][BranchTree::futuresSize] : nullptr;
 
       //send my LCOs to children, and receive theirs
       if (branchesCount>0)
@@ -851,10 +854,10 @@ int Branch::BranchTree::initLCOs_handler()
         for (offset_t c = 0; c < branchesCount; c++)
         {
           futures[c] = hpx_lco_future_new(sizeof (hpx_t)*BranchTree::futuresSize);
-          addrs[c]   = &branchTree->branchesLCOs[c];
+          addrs[c]   = &branchTree->withChildrenLCOs[c];
           sizes[c]   = sizeof(hpx_t)*BranchTree::futuresSize;
           hpx_call(branchTree->branches[c], Branch::BranchTree::initLCOs,
-                   futures[c], branchTree->localLCO,
+                   futures[c], branchTree->withParentLCO,
                    sizeof(hpx_t)*BranchTree::futuresSize); //pass my LCO down
         }
         hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
@@ -866,7 +869,7 @@ int Branch::BranchTree::initLCOs_handler()
       }
 
       if (!local->soma) //send my LCO to parent
-          neurox_hpx_unpin_continue(branchTree->localLCO);
+          neurox_hpx_unpin_continue(branchTree->withParentLCO);
     }
     neurox_hpx_unpin;
 }
