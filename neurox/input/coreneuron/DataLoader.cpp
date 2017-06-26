@@ -296,7 +296,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         for (Compartment* comp : compartments) comp->shrinkToFit();
 
         createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
-                     (size_t) compartments.size(), ionsInstancesInfo);
+                     ionsInstancesInfo, inputParams->branchingDepth);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
@@ -667,6 +667,14 @@ int DataLoader::finalize_handler()
 }
 
 
+void DataLoader::getAllChildrenCompartments(deque<Compartment*> & subSection, Compartment * topCompartment)
+{
+    //parent added first, to respect solvers logic, of parents' ids first
+    subSection.push_back(topCompartment);
+    for (int c=0; c<topCompartment->branches.size(); c++)
+        getAllChildrenCompartments(subSection, topCompartment->branches.at(c));
+}
+
 void DataLoader::getMechInstanceMap(deque<Compartment*> & compartments, vector<map<int,int>> & mechsInstancesMap)
 {
     vector<deque<int>> mechsInstancesIds(neurox::mechanismsCount); //mech offset -> list of mech instance id
@@ -767,20 +775,22 @@ int DataLoader::getBranchData(
         data.push_back(comp->v);
     for (auto comp : compartments)
         data.push_back(comp->area);
+    for (auto comp : compartments)
+        p.push_back(comp->p);
 
     ////// Tree of neurons: convert from neuron- to branch-level
     std::map<int,int> fromOldToNewCompartmentId;
-    for (n=0; n<compartments.size(); n++)
+    for (Compartment * comp : compartments)
     {
-        Compartment * comp = compartments.at(n);
         fromOldToNewCompartmentId[comp->id] = n;
         comp->id = n;
+        n++;
     }
     if (mechInstanceMap)
     {
-        p.push_back(0); //top compartment has no parent (we assign parent id 0 as in regular case)
-        for (int c=1; c<compartments.size(); c++)
-            p.push_back(fromOldToNewCompartmentId.at(compartments.at(c)->p));
+        p.at(0) = 0; //top node gets parent Id 0 as in Coreneuron
+        for (int i=1; i<p.size(); i++)
+            p.at(i) = fromOldToNewCompartmentId.at(p.at(i));
     }
 
     ////// Mechanisms instances: merge all instances of all compartments into instances of the branch
@@ -933,8 +943,8 @@ int DataLoader::getBranchData(
     return n;
 }
 
-hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & compartments, Compartment * topCompartment,
-                               int totalN, vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo)
+hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & allCompartments, Compartment * topCompartment,
+                               vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
 {
     assert(topCompartment!=NULL);
     offset_t n; //number of compartments in branch
@@ -945,6 +955,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     vector<offset_t> nodesIndices;
     vector<hpx_t> branches;
     vector<unsigned char> vdata; //Serialized Point Processes and Random123
+    int totalN = allCompartments.size();
 
     //Vector Play instances
     vector<floble_t> vecPlayT;
@@ -956,14 +967,29 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     vector<neuron_id_t> branchNetConsPreId;
     vector<floble_t> branchWeights;
 
-    if (inputParams->multiSplix)
+    if (inputParams->branchingDepth==0 ) //Flat a la Coreneuron
+    {
+        n = getBranchData(allCompartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, NULL);
+        getVecPlayBranchData(allCompartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
+        getNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
+    }
+    else if (inputParams->branchingDepth>0 ) //branch-parallelism
     {
         deque<Compartment*> subSection;
-        Compartment * comp = NULL;
-        for (comp = topCompartment; comp->branches.size()==1; comp = comp->branches.front())
-            subSection.push_back(comp);
-        assert(comp!=NULL);
-        subSection.push_back(comp); //bottom of a branch (bifurcation or bottom leaf)
+        if (branchingDepth > 0)  //node of a tree, with branches
+        {
+          //subsection is the set of all compartments until finding bifurcation
+          subSection.push_back(topCompartment);
+          for (Compartment * comp = topCompartment;
+                 comp->branches.size()==1;
+                 comp = comp->branches.front())
+             subSection.push_back(comp->branches.front());
+        }
+        else //leaf of the tree
+        {
+          //subsection is the set of all children compartments (recursively)
+          getAllChildrenCompartments(subSection, topCompartment);
+        }
 
         //create sub-section of branch (comp is the bottom compartment of the branch)
         vector<map<int,int>> mechInstanceMap(mechanismsCount); //mech-offset -> ( map[old instance]->to new instance )
@@ -972,20 +998,15 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //recursively create children branches
+        //recursively create children branches (if no branches, it stops)
+        Compartment * comp = subSection.back();
+        assert ( (branchingDepth==0 && comp->branches.size()==0) || (branchingDepth>0 && comp->branches.size()>0) );
         for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, compartments, comp->branches[c], totalN, ionsInstancesInfo));
-    }
-    else //Flat a la Coreneuron
-    {
-        n = getBranchData(compartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, NULL);
-        getVecPlayBranchData(compartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
-        getNetConsBranchData(compartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, allCompartments, comp->branches[c], ionsInstancesInfo, branchingDepth-1));
     }
 
     //Allocate HPX Branch (top has already been created on main neurons array)
     hpx_t branchAddr = target==HPX_NULL ? hpx_gas_calloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT) : target;
-    bool multiSplix = inputParams->multiSplix;
 
     //initiate branch
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
@@ -995,8 +1016,8 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),
                   nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
-                  multiSplix ? branches.data() : nullptr, multiSplix ? sizeof(hpx_t)*branches.size() : 0,
-                  multiSplix ? nullptr : p.data(), multiSplix ? 0 : sizeof(offset_t)*p.size(),
+                  branches.size() ? branches.data() : nullptr, branches.size() ? sizeof(hpx_t)*branches.size() : 0,
+                  branches.size() ? nullptr : p.data(), branches.size() ? 0 : sizeof(offset_t)*p.size(),
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
                   vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
                   vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
@@ -1005,7 +1026,6 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
                   );
-
     return branchAddr;
 }
 

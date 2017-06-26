@@ -87,8 +87,8 @@ class Branch
         size_t branchesCount;	///> number of branches (>0)
 
         static constexpr size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
-        hpx_t localLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
-        hpx_t (*branchesLCOs)[futuresSize]; ///> LCOs of branches' executiont (NULL if no children)
+        hpx_t withParentLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
+        hpx_t (*withChildrenLCOs)[futuresSize]; ///> LCOs of branches' execution (NULL if no children)
 
         static hpx_action_t initLCOs; ///> Initializes neuronTree
         static int initLCOs_handler();

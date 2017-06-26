@@ -44,17 +44,15 @@ class InputParams
     char patternStim[512];  ///> patternStim file path (the filename of an output_spikes.h format raster file.)
 
     //neurox specific options
-    bool outputStatistics;      ///> outputs statistics file
-    bool outputMechanismsDot;   ///> outputs mechanisms.dot file
-    bool outputNetconsDot;      ///> outputs netcons.dot file
-    bool outputCompartmentsDot; ///> outputs compartments*.dot files
-    bool multiMex;              ///> graph-based parallelism of mechanisms
-    bool multiSplix;            ///> tree-based parallelism of morphologies
-
-    bool allReduceAtLocality; ///> whether we perform HPX all-reduce LCOs at neuron or node level
-    bool parallelDataLoading;///>coreneuron mpi-based execution
-
-    neurox::Algorithm algorithm;
+    bool outputStatistics;       ///> outputs statistics file
+    bool outputMechanismsDot;    ///> outputs mechanisms.dot file
+    bool outputNetconsDot;       ///> outputs netcons.dot file
+    bool outputCompartmentsDot;  ///> outputs compartments*.dot files
+    bool multiMex;               ///> graph-based parallelism of mechanisms
+    bool allReduceAtLocality;    ///> whether we perform HPX all-reduce LCOs at neuron or node level
+    bool parallelDataLoading;    ///> coreneuron mpi-based execution
+    int branchingDepth;          ///> depth tree-based parallelism of morphologies (0 = none)
+    neurox::Algorithm algorithm; ///> neurons sychronization algorithm
 
   private:
     /// Parses command line arguments and populates structure

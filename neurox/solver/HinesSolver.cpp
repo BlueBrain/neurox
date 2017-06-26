@@ -52,14 +52,14 @@ void HinesSolver::setupMatrixRHS(Branch * local)
         if (!local->soma) //all top compartments except soma
         {
             floble_t fromParentV; //get 'v[p[i]]' from parent
-            hpx_lco_get_reset(neuronTree->localLCO[0],
+            hpx_lco_get_reset(neuronTree->withParentLCO[0],
                     sizeof(floble_t), &fromParentV);
 
             dv = fromParentV - v[0];
             rhs[0] -= b[0]*dv;
 
             floble_t toParentA = a[0]*dv; //pass 'a[i]*dv' upwards to parent
-            hpx_lco_set_rsync(neuronTree->localLCO[1],
+            hpx_lco_set_rsync(neuronTree->withParentLCO[1],
                     sizeof(floble_t), &toParentA);
         }
 
@@ -74,13 +74,13 @@ void HinesSolver::setupMatrixRHS(Branch * local)
         //bottom compartment
         floble_t toChildrenV = v[n-1]; //dv = v[p[i]] - v[i]
         for (offset_t c=0; c<neuronTree->branchesCount; c++)
-            hpx_lco_set_rsync(neuronTree->branchesLCOs[c][0],
+            hpx_lco_set_rsync(neuronTree->withChildrenLCOs[c][0],
                     sizeof(floble_t), &toChildrenV);
 
         floble_t fromChildrenA; //rhs[p[i]] += a[i]*dv
         for (offset_t c=0; c<neuronTree->branchesCount; c++)
         {
-            hpx_lco_get_reset(neuronTree->branchesLCOs[c][1],
+            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][1],
                     sizeof(floble_t), &fromChildrenA);
             rhs[n-1] += fromChildrenA;
         }
@@ -113,7 +113,7 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
         {
             d[0] -= b[0];
             toParentA = a[0]; //pass 'a[i]' upwards to parent
-            hpx_lco_set_rsync(neuronTree->localLCO[2],
+            hpx_lco_set_rsync(neuronTree->withParentLCO[2],
                     sizeof(floble_t), &toParentA);
         }
 
@@ -128,7 +128,7 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
         floble_t fromChildrenA;
         for (offset_t c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
         {
-            hpx_lco_get_reset(neuronTree->branchesLCOs[c][2],
+            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][2],
                     sizeof(floble_t), &fromChildrenA);
             d[n-1] -= fromChildrenA;
         }
