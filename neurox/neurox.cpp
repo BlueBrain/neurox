@@ -190,7 +190,7 @@ static int main_handler()
     message("neurox::Input::Coreneuron::DataLoader::initNeurons...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::initNeurons);
     message("neurox::Input::Coreneuron::DataLoader::initNetcons...\n");
-    neurox_hpx_call_neurons( neurox::Input::Coreneuron::DataLoader::initNetcons);
+    neurox_hpx_call_neurons( neurox::Input::Coreneuron::DataLoader::initNetcons, nullptr, 0);
     message("neurox::Input::Coreneuron::DataLoader::finalize...\n");
     hpx_bcast_rsync(neurox::Input::Coreneuron::DataLoader::finalize);
     message("neurox::Branch::BranchTree::initLCOs...\n");
@@ -390,11 +390,11 @@ int clear_handler()
 
 void registerHpxActions()
 {
-    neurox_hpx_register_action(0,neurox::main);
-    neurox_hpx_register_action(0,neurox::clear);
-    neurox_hpx_register_action(1,neurox::setAlgorithmVariables);
-    neurox_hpx_register_action(2,neurox::setMechanisms);
-    neurox_hpx_register_action(2,neurox::setMechanismsGlobalVars);
+    neurox_hpx_register_action(neurox_zero_var_action,     neurox::main);
+    neurox_hpx_register_action(neurox_zero_var_action,     neurox::clear);
+    neurox_hpx_register_action(neurox_single_var_action,   neurox::setAlgorithmVariables);
+    neurox_hpx_register_action(neurox_several_vars_action, neurox::setMechanisms);
+    neurox_hpx_register_action(neurox_several_vars_action, neurox::setMechanismsGlobalVars);
 }
 
 }; //namespace neurox

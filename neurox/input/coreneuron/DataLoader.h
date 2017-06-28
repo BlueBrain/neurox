@@ -103,7 +103,7 @@ class DataLoader
     static int init_handler ();
     static int initMechanisms_handler();
     static int initNeurons_handler();
-    static int initNetcons_handler ();
+    static int initNetcons_handler(const hpx_t* = nullptr, const size_t = 0);
     static int finalize_handler();
 };
 

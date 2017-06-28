@@ -1033,10 +1033,17 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 }
 
 hpx_action_t DataLoader::initNetcons = 0;
-int DataLoader::initNetcons_handler()
+int DataLoader::initNetcons_handler(const hpx_t* topBranchAddr_ptr, const size_t)
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
+    hpx_t topBranchAddr = local->soma ? target : *topBranchAddr_ptr;
+    //neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons, &topBranchAddr, sizeof(hpx_t));
+
+    hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL;
+    if (local->branchTree)
+    for (int c=0; c<local->branchTree->branchesCount; c++)
+       {hpx_call(local->branchTree->branches[c], DataLoader::initNetcons, lco_branches, &topBranchAddr, sizeof(hpx_t));}
+
 
     if (local->soma && inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
@@ -1081,16 +1088,11 @@ int DataLoader::initNetcons_handler()
 
     //inform pre-syn neuron that he connects to me
     hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
-    if (local->soma)
-    for (auto nc : netcons)
+    int myGid = local->soma ? local->soma->gid : -1;
+    for (std::pair<hpx_t, floble_t> & nc : netcons)
         hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
-            &target, sizeof(target), &nc.second, sizeof(nc.second),
-            &local->soma->gid, sizeof(int));
-    else
-    for (auto nc : netcons)
-        hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
-            &target, sizeof(target), &nc.second, sizeof(nc.second));
-
+            &target, sizeof(hpx_t), &nc.second, sizeof(nc.second),
+            &topBranchAddr, sizeof(hpx_t), &myGid, sizeof(int));
     hpx_lco_wait_reset(netconsLCO); hpx_lco_delete_sync(netconsLCO);
 
     neurox_hpx_recursive_branch_async_wait;
@@ -1103,28 +1105,23 @@ int DataLoader::addSynapse_handler(
 {
     neurox_hpx_pin(Branch);
     assert(local->soma);
-    assert(nargs==2 || nargs==3);
+    assert(nargs==4);
     hpx_t addr = *(const hpx_t*) args[0];
     floble_t minDelay = *(const floble_t*) args[1];
-    if (nargs==3)
-    {
-      int destinationGid = *(const int*) args[2];
-      local->soma->addSynapse(new Neuron::Synapse(addr,minDelay,destinationGid));
-    }
-    else
-      local->soma->addSynapse(new Neuron::Synapse(addr,minDelay));
-
+    hpx_t topBranchAddr = *(const hpx_t*) args[2];
+    int destinationGid = *(const int*) args[3];
+    local->soma->addSynapse(new Neuron::Synapse(addr,minDelay,topBranchAddr,destinationGid));
     neurox_hpx_unpin;
 }
 
 void DataLoader::registerHpxActions()
 {
-    neurox_hpx_register_action(0, DataLoader::init);
-    neurox_hpx_register_action(0, DataLoader::initMechanisms);
-    neurox_hpx_register_action(0, DataLoader::initNeurons);
-    neurox_hpx_register_action(0, DataLoader::initNetcons);
-    neurox_hpx_register_action(0, DataLoader::finalize);
-    neurox_hpx_register_action(2, DataLoader::addSynapse);
-    neurox_hpx_register_action(2, DataLoader::addNeurons);
-    neurox_hpx_register_action(0, DataLoader::initNetcons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::init);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initMechanisms);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNeurons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNetcons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::finalize);
+    neurox_hpx_register_action(neurox_single_var_action,   DataLoader::initNetcons);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addSynapse);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addNeurons);
 }

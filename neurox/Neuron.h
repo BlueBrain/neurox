@@ -32,9 +32,10 @@ class Neuron
     {
       public:
         Synapse()=delete;
-        Synapse(hpx_t addr, floble_t minDelay, int destinationGid=-1);
+        Synapse(hpx_t branchAddr, floble_t minDelay, hpx_t topBranchAddr = HPX_NULL, int destinationGid=-1);
         ~Synapse();
-        hpx_t addr;        ///>address of destination
+        hpx_t branchAddr;          ///> address of destination
+        hpx_t topBranchAddr; ///> addres of top-branch (soma) of destination neuron
 #ifndef NDEBUG
         int destinationGid;
 #endif
@@ -66,7 +67,7 @@ class Neuron
 
         void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
         void sendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses); ///> inform my outgoing-connection neurons that I stepped
-        void updateTimeDependency(neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initialization = false);
+        void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid = -1, bool initialization = false);
         floble_t getDependenciesMinTime();
         size_t getDependenciesCount();
         void increseDependenciesTime(floble_t t);

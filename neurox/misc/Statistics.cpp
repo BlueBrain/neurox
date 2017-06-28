@@ -244,6 +244,6 @@ int Statistics::getNeuronMechanismsDistribution_handler()
 
 void Statistics::registerHpxActions()
 {
-    neurox_hpx_register_action(0, Statistics::getNeuronSize);
-    neurox_hpx_register_action(0, Statistics::getNeuronMechanismsDistribution);
+    neurox_hpx_register_action(neurox_zero_var_action, Statistics::getNeuronSize);
+    neurox_hpx_register_action(neurox_zero_var_action, Statistics::getNeuronMechanismsDistribution);
 }
