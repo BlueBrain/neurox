@@ -468,10 +468,13 @@ int Branch::addSpikeEvent_handler(
 
     if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
     {
+        //inform soma of this neuron of new time dependency update
         spike_time_t maxTime = *(const spike_time_t*) args[2];
         hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
-        //inform soma of this neuron of new time dependency update
-        hpx_call(topBranchAddr, Branch::updateTimeDependency, HPX_NULL,
+        if (local->soma)
+            local->soma->timeDependencies->updateTimeDependency(preNeuronId, maxTime);
+        else
+            hpx_call(topBranchAddr, Branch::updateTimeDependency, HPX_NULL,
                  &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
     }
     neurox_hpx_unpin;

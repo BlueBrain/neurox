@@ -337,7 +337,7 @@ void runAlgorithm(Algorithm algorithm)
     double elapsed = hpx_time_elapsed_ms(now)/1e3;
     printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurons->size(), hpx_get_num_ranks(),
         hpx_get_num_threads(), neurons->size() / (double) hpx_get_num_ranks(), inputParams->tstop,
-        inputParams->algorithm, inputParams->multiMex ? 1:0, inputParams->multiSplix ? 1:0,
+        inputParams->algorithm, inputParams->multiMex ? 1:0, inputParams->branchingDepth,
         inputParams->allReduceAtLocality ? 1:0, elapsed);
     fflush(stdout);
 #else
