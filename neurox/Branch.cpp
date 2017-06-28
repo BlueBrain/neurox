@@ -464,7 +464,7 @@ int Branch::addSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
+    if (local->soma && inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
     {
         spike_time_t maxTime = *(const spike_time_t*) args[2];
         local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
@@ -573,7 +573,7 @@ void Branch::backwardEulerStep()
     if (fmod(t, inputParams->dt_io) == 0) {}
 
     //wait for spikes sent 4 steps ago (queue has always size 3)
-    if (this->soma)
+    if (soma)
     if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
      || inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier)
     {

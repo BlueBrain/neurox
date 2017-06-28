@@ -1038,7 +1038,7 @@ int DataLoader::initNetcons_handler()
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
 
-    if (inputParams->outputNetconsDot)
+    if (local->soma && inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
 
     std::deque<std::pair<hpx_t, floble_t> > netcons; //set of <srcGid, minDelay>
@@ -1081,10 +1081,16 @@ int DataLoader::initNetcons_handler()
 
     //inform pre-syn neuron that he connects to me
     hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
+    if (local->soma)
     for (auto nc : netcons)
         hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
             &target, sizeof(target), &nc.second, sizeof(nc.second),
             &local->soma->gid, sizeof(int));
+    else
+    for (auto nc : netcons)
+        hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
+            &target, sizeof(target), &nc.second, sizeof(nc.second));
+
     hpx_lco_wait_reset(netconsLCO); hpx_lco_delete_sync(netconsLCO);
 
     neurox_hpx_recursive_branch_async_wait;
@@ -1097,11 +1103,17 @@ int DataLoader::addSynapse_handler(
 {
     neurox_hpx_pin(Branch);
     assert(local->soma);
-    assert(nargs==3);
+    assert(nargs==2 || nargs==3);
     hpx_t addr = *(const hpx_t*) args[0];
     floble_t minDelay = *(const floble_t*) args[1];
-    int destinationGid = *(const int*) args[2];
-    local->soma->addSynapse(new Neuron::Synapse(addr,minDelay,destinationGid));
+    if (nargs==3)
+    {
+      int destinationGid = *(const int*) args[2];
+      local->soma->addSynapse(new Neuron::Synapse(addr,minDelay,destinationGid));
+    }
+    else
+      local->soma->addSynapse(new Neuron::Synapse(addr,minDelay));
+
     neurox_hpx_unpin;
 }
 
