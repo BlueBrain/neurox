@@ -295,7 +295,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
 
         for (Compartment* comp : compartments) comp->shrinkToFit();
 
-        createBranch(nt->id, neuron_addr, compartments, compartments.at(0),
+        createBranch(nt->id, neuron_addr, neuron_addr, compartments, compartments.at(0),
                      ionsInstancesInfo, inputParams->branchingDepth);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
@@ -943,7 +943,8 @@ int DataLoader::getBranchData(
     return n;
 }
 
-hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*> & allCompartments, Compartment * topCompartment,
+hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t target,
+                               deque<Compartment*> & allCompartments, Compartment * topCompartment,
                                vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
 {
     assert(topCompartment!=NULL);
@@ -1003,7 +1004,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
         {
           Compartment * bottomCompartment = subSection.back();
           for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, allCompartments,
+            branches.push_back(createBranch(nrnThreadId, topBranchAddr, HPX_NULL, allCompartments,
                                bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
         }
     }
@@ -1019,6 +1020,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),
                   nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
+                  &topBranchAddr, sizeof(hpx_t),
                   branches.size() ? branches.data() : nullptr, branches.size() ? sizeof(hpx_t)*branches.size() : 0,
                   branches.size() ? nullptr : p.data(), branches.size() ? 0 : sizeof(offset_t)*p.size(),
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
@@ -1033,22 +1035,16 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
 }
 
 hpx_action_t DataLoader::initNetcons = 0;
-int DataLoader::initNetcons_handler(const hpx_t* topBranchAddr_ptr, const size_t)
+int DataLoader::initNetcons_handler()
 {
     neurox_hpx_pin(Branch);
-    hpx_t topBranchAddr = local->soma ? target : *topBranchAddr_ptr;
-    //neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons, &topBranchAddr, sizeof(hpx_t));
-
-    hpx_addr_t lco_branches = local->branchTree && local->branchTree->branchesCount ? hpx_lco_and_new(local->branchTree->branchesCount) : HPX_NULL;
-    if (local->branchTree)
-    for (int c=0; c<local->branchTree->branchesCount; c++)
-       {hpx_call(local->branchTree->branches[c], DataLoader::initNetcons, lco_branches, &topBranchAddr, sizeof(hpx_t));}
-
+    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
 
     if (local->soma && inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
 
-    std::deque<std::pair<hpx_t, floble_t> > netcons; //set of <srcGid, minDelay>
+    std::deque<std::pair<hpx_t, floble_t> > netcons; //set of <srcAddr, minDelay> synapses to notify
+    std::deque<std::pair<int, spike_time_t> > dependencies; //set of <srcGid, nextNotificationtime> for dependencies
 
     const floble_t impossiblyLargeDelay = 99999999;
     for (int i=0; i < neurox::neurons->size(); i++) //loop through all neurons
@@ -1070,30 +1066,40 @@ int DataLoader::initNetcons_handler(const hpx_t* topBranchAddr_ptr, const size_t
                     srcGid, local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
 #endif
 
-            //tell the neuron to add a synapse to this branch
-            //and inform him of the fastest netcon we have
+            //tell the neuron to add a synapse to this branch and inform him of the fastest netcon we have
             if (minDelay != impossiblyLargeDelay) //if any active synapse
             {
-                //add this netcon to list of netconst to be communication
+                //add this netcon to list of netcons to be communicated
                 netcons.push_back(make_pair(srcAddr,minDelay));
 
                 //add this pre-syn neuron as my time-dependency
-                if (local->soma)
-                  if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
-                    local->soma->timeDependencies->updateTimeDependency(srcGid, local->soma->gid,
-                       inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio, true);
+                if (inputParams->algorithm == Algorithm::ALL || inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
+                {
+                  spike_time_t notificationTime = inputParams->tstart+minDelay*Neuron::TimeDependencies::notificationIntervalRatio;
+                  dependencies.push_back( make_pair(srcGid, notificationTime ) );
+                }
             }
         }
     }
 
     //inform pre-syn neuron that he connects to me
     hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
+    hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
     int myGid = local->soma ? local->soma->gid : -1;
     for (std::pair<hpx_t, floble_t> & nc : netcons)
         hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
-            &target, sizeof(hpx_t), &nc.second, sizeof(nc.second),
-            &topBranchAddr, sizeof(hpx_t), &myGid, sizeof(int));
+                 &target, sizeof(hpx_t), &nc.second, sizeof(nc.second),
+                 &topBranchAddr, sizeof(hpx_t), &myGid, sizeof(int));
     hpx_lco_wait_reset(netconsLCO); hpx_lco_delete_sync(netconsLCO);
+
+    //inform my soma of my time dependencies
+    hpx_t dependenciesLCO = hpx_lco_and_new(dependencies.size());
+    bool initPhase = true;
+    for (std::pair<int, spike_time_t> & dep : dependencies)
+        hpx_call(topBranchAddr, Branch::updateTimeDependency, dependenciesLCO,
+                 &dep.first, sizeof(neuron_id_t), &dep.second, sizeof(spike_time_t),
+                 &initPhase, sizeof(bool));
+    hpx_lco_wait_reset(dependenciesLCO); hpx_lco_delete_sync(dependenciesLCO);
 
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
@@ -1121,7 +1127,6 @@ void DataLoader::registerHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNeurons);
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNetcons);
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::finalize);
-    neurox_hpx_register_action(neurox_single_var_action,   DataLoader::initNetcons);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addSynapse);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addNeurons);
 }

@@ -33,6 +33,7 @@ class Branch
            offset_t *pdata, size_t pdataCount,
            offset_t * instancesCount, size_t instancesCountCount, //same tipe as pdata
            offset_t * nodesIndices, size_t nodesIndicesCount,
+           hpx_t topBranchAddr,
            hpx_t * branches, size_t branchesCount,
            offset_t * p, size_t pCount,
            floble_t * vecplayT, size_t vecplayTCount,
@@ -80,9 +81,10 @@ class Branch
     {
       public:
         BranchTree()=delete;
-        BranchTree(hpx_t* branches, size_t branchesCount);
+        BranchTree(hpx_t topBranchAddr, hpx_t* branches, size_t branchesCount);
         ~BranchTree();
 
+        hpx_t topBranchAddr;    ///> hpx address of the some branch
         hpx_t *branches;		///> hpx address of children branches
         size_t branchesCount;	///> number of branches (>0)
 

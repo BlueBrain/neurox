@@ -50,11 +50,9 @@ class DataLoader
 
   private:
 
-    static hpx_t createBranch( int nrnThreadId,
-            hpx_t target, deque<Compartment*> & allCompartments,
-            Compartment * topCompartment,
-            vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo,
-            int branchingDepth=0);
+    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t target,
+                              deque<Compartment*> & allCompartments, Compartment * topCompartment,
+                              vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDept=0);
 
     static neuron_id_t getNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(
@@ -103,7 +101,7 @@ class DataLoader
     static int init_handler ();
     static int initMechanisms_handler();
     static int initNeurons_handler();
-    static int initNetcons_handler(const hpx_t* = nullptr, const size_t = 0);
+    static int initNetcons_handler();
     static int finalize_handler();
 };
 

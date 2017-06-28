@@ -302,12 +302,13 @@ floble_t Neuron::TimeDependencies::getDependenciesMinTime()
 void Neuron::TimeDependencies::updateTimeDependency(
         neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid,  bool initializationPhase)
 {
-
     libhpx_mutex_lock(&this->dependenciesLock);
     if (initializationPhase)
     {
-        assert(dependenciesMap.find(srcGid) == dependenciesMap.end());
-        dependenciesMap[srcGid] = dependencyNotificationTime;
+        if (dependenciesMap.find(srcGid) == dependenciesMap.end()) //in execution without branching this is always true
+          dependenciesMap[srcGid] = dependencyNotificationTime;
+        else
+          dependenciesMap.at(srcGid) = std::max(dependenciesMap.at(srcGid), dependencyNotificationTime);
     }
     else
     {
