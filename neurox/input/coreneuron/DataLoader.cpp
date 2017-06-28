@@ -976,33 +976,36 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t target, deque<Compartment*
     else if (inputParams->branchingDepth>0 ) //branch-parallelism
     {
         deque<Compartment*> subSection;
-        if (branchingDepth > 0)  //node of a tree, with branches
+        if (branchingDepth>0)  //node of a tree, with branches
         {
-          //subsection is the set of all compartments until finding bifurcation
-          subSection.push_back(topCompartment);
-          for (Compartment * comp = topCompartment;
+            //subsection is the set of all sequential compartments until finding a bifurcation
+            subSection.push_back(topCompartment);
+            for (Compartment * comp = topCompartment;
                  comp->branches.size()==1;
                  comp = comp->branches.front())
-             subSection.push_back(comp->branches.front());
+                subSection.push_back(comp->branches.front());
         }
         else //leaf of the tree
         {
-          //subsection is the set of all children compartments (recursively)
-          getAllChildrenCompartments(subSection, topCompartment);
+            //subsection is the set of all children compartments (recursively)
+            getAllChildrenCompartments(subSection, topCompartment);
         }
 
-        //create sub-section of branch (comp is the bottom compartment of the branch)
+        //create sub-section of branhc
         vector<map<int,int>> mechInstanceMap(mechanismsCount); //mech-offset -> ( map[old instance]->to new instance )
         getMechInstanceMap(subSection, mechInstanceMap);
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, &mechInstanceMap);
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //recursively create children branches (if no branches, it stops)
-        Compartment * comp = subSection.back();
-        assert ( (branchingDepth==0 && comp->branches.size()==0) || (branchingDepth>0 && comp->branches.size()>0) );
-        for (size_t c=0; c<comp->branches.size(); c++)
-            branches.push_back(createBranch(nrnThreadId, HPX_NULL, allCompartments, comp->branches[c], ionsInstancesInfo, branchingDepth-1));
+        //recursively create children branches (if any)
+        if (branchingDepth>0)
+        {
+          Compartment * bottomCompartment = subSection.back();
+          for (size_t c=0; c<bottomCompartment->branches.size(); c++)
+            branches.push_back(createBranch(nrnThreadId, HPX_NULL, allCompartments,
+                               bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
+        }
     }
 
     //Allocate HPX Branch (top has already been created on main neurons array)
