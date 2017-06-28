@@ -83,7 +83,7 @@ class Branch
         BranchTree(hpx_t* branches, size_t branchesCount);
         ~BranchTree();
 
-        hpx_t *branches;		///> hpx address of the branches branches
+        hpx_t *branches;		///> hpx address of children branches
         size_t branchesCount;	///> number of branches (>0)
 
         static constexpr size_t futuresSize = 6; ///> size of futures arrays (used in Gaussian elimination)
@@ -108,7 +108,7 @@ class Branch
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
-    static hpx_action_t updateTimeDependencyValue; ///>update maximum time allowed based on received dependency info
+    static hpx_action_t updateTimeDependency; ///>update maximum time allowed based on received dependency info
     static hpx_action_t finitialize; ///> finitialize.c::finitialize()
     static hpx_action_t backwardEuler;
     static hpx_action_t backwardEulerOnLocality;
@@ -131,7 +131,7 @@ class Branch
     static int initSoma_handler(const int, const void *[], const size_t[]);
     static int clear_handler();
     static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
-    static int updateTimeDependencyValue_handler(const int, const void *[], const size_t[]);
+    static int updateTimeDependency_handler(const int, const void *[], const size_t[]);
     static int finitialize_handler();
     static int backwardEuler_handler(const int*, const size_t);
     static int backwardEulerOnLocality_handler(const int*, const size_t);

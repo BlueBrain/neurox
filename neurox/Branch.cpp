@@ -464,16 +464,21 @@ int Branch::addSpikeEvent_handler(
     }
     hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
-    if (local->soma && inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
+    if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
     {
         spike_time_t maxTime = *(const spike_time_t*) args[2];
-        local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
+        if (local->soma) //update value of time dependency
+          local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
+        else //inform soma of this neuron of new time dependency update
+          hpx_call(neurons->at(local->nt->id), Branch::updateTimeDependency, HPX_NULL,
+                   &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
+        //TODO if communication is an issue, we can remove previous hpx_call
     }
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::updateTimeDependencyValue = 0;
-int Branch::updateTimeDependencyValue_handler(
+hpx_action_t Branch::updateTimeDependency = 0;
+int Branch::updateTimeDependency_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
@@ -484,7 +489,9 @@ int Branch::updateTimeDependencyValue_handler(
     const spike_time_t maxTime  = *(const spike_time_t*) args[1];
 
     assert(local->soma);
-    local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
+    assert(local->soma->timeDependencies);
+    local->soma->timeDependencies->updateTimeDependency(
+                preNeuronId, (floble_t) maxTime, local->soma ? local->soma->gid : -1);
     neurox_hpx_unpin;
 }
 
@@ -1001,17 +1008,17 @@ void Branch::MechanismsGraph::reduce_handler
 
 void Branch::registerHpxActions()
 {
-    neurox_hpx_register_action(2, Branch::init);
-    neurox_hpx_register_action(2, Branch::initSoma);
-    neurox_hpx_register_action(0, Branch::clear);
-    neurox_hpx_register_action(2, Branch::addSpikeEvent);
-    neurox_hpx_register_action(2, Branch::updateTimeDependencyValue);
-    neurox_hpx_register_action(0, Branch::finitialize);
-    neurox_hpx_register_action(0, Branch::threadTableCheck);
-    neurox_hpx_register_action(1, Branch::backwardEuler);
-    neurox_hpx_register_action(1, Branch::backwardEulerOnLocality);
-    neurox_hpx_register_action(0, Branch::BranchTree::initLCOs);
-    neurox_hpx_register_action(1, Branch::MechanismsGraph::mechFunction);
-    neurox_hpx_register_action(5, Branch::MechanismsGraph::init);
-    neurox_hpx_register_action(5, Branch::MechanismsGraph::reduce);
+    neurox_hpx_register_action(neurox_zero_var_action,     Branch::clear);
+    neurox_hpx_register_action(neurox_zero_var_action,     Branch::finitialize);
+    neurox_hpx_register_action(neurox_zero_var_action,     Branch::threadTableCheck);
+    neurox_hpx_register_action(neurox_zero_var_action,     Branch::BranchTree::initLCOs);
+    neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEuler);
+    neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEulerOnLocality);
+    neurox_hpx_register_action(neurox_single_var_action,   Branch::MechanismsGraph::mechFunction);
+    neurox_hpx_register_action(neurox_several_vars_action, Branch::init);
+    neurox_hpx_register_action(neurox_several_vars_action, Branch::initSoma);
+    neurox_hpx_register_action(neurox_several_vars_action, Branch::addSpikeEvent);
+    neurox_hpx_register_action(neurox_several_vars_action, Branch::updateTimeDependency);
+    neurox_hpx_register_action(neurox_reduce_op_action,    Branch::MechanismsGraph::init);
+    neurox_hpx_register_action(neurox_reduce_op_action,    Branch::MechanismsGraph::reduce);
 }

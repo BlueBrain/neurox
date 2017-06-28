@@ -38,8 +38,8 @@ Neuron::~Neuron()
     delete slidingTimeWindow;
 }
 
-Neuron::Synapse::Synapse(hpx_t addr, floble_t minDelay, int destinationGid)
-    :addr(addr),minDelay(minDelay)
+Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay, hpx_t topBranchAddr, int destinationGid)
+    :branchAddr(branchAddr),minDelay(minDelay), topBranchAddr(topBranchAddr)
 {
     this->nextNotificationTime=inputParams->tstart+TimeDependencies::teps+this->minDelay*TimeDependencies::notificationIntervalRatio;
     this->previousSpikeLco = hpx_lco_future_new(0);
@@ -101,7 +101,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 
         for (Synapse *& s : synapses)
             //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-            hpx_call(s->addr, Branch::addSpikeEvent, this->commBarrier->allSpikesLco,
+            hpx_call(s->branchAddr, Branch::addSpikeEvent, this->commBarrier->allSpikesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
     }
     else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithSlidingTimeWindow
@@ -109,7 +109,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
     {
         hpx_t newSynapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
-            hpx_call(s->addr, Branch::addSpikeEvent, newSynapsesLco,
+            hpx_call(s->branchAddr, Branch::addSpikeEvent, newSynapsesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
         return newSynapsesLco;
     }
@@ -123,7 +123,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
             hpx_lco_wait_reset(s->previousSpikeLco); //reset LCO to be used next
             //any spike or step notification happening after must wait for this spike delivery
 
-            hpx_call(s->addr, Branch::addSpikeEvent, s->previousSpikeLco,
+            hpx_call(s->branchAddr, Branch::addSpikeEvent, s->previousSpikeLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
                 &maxTimeAllowed, sizeof(spike_time_t));
 
@@ -300,7 +300,7 @@ floble_t Neuron::TimeDependencies::getDependenciesMinTime()
 }
 
 void Neuron::TimeDependencies::updateTimeDependency(
-        neuron_id_t srcGid, neuron_id_t myGid, floble_t dependencyNotificationTime, bool initializationPhase)
+        neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid,  bool initializationPhase)
 {
 
     libhpx_mutex_lock(&this->dependenciesLock);
@@ -384,9 +384,9 @@ void Neuron::TimeDependencies::sendSteppingNotification(floble_t t, floble_t dt,
             s->nextNotificationTime     = t+s->minDelay*TimeDependencies::notificationIntervalRatio;
             spike_time_t maxTimeAllowed = t+TimeDependencies::teps+s->minDelay;
 
-            //wait for previous synapse to be delivered (if any) before telling post-syn to proceed in time
+            //wait for previous synapse to be delivered (if any) before telling post-syn neuron to proceed in time
             hpx_lco_wait(s->previousSpikeLco);
-            hpx_call(s->addr, Branch::updateTimeDependencyValue, HPX_NULL,
+            hpx_call(s->topBranchAddr, Branch::updateTimeDependency, HPX_NULL,
                      &gid, sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -397,11 +397,11 @@ void Neuron::TimeDependencies::sendSteppingNotification(floble_t t, floble_t dt,
 
 void Neuron::registerHpxActions()
 {
-    neurox_hpx_register_action(1, SlidingTimeWindow::subscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::unsubscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::AllReduceLocality::subscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce);
-    neurox_hpx_register_action(1, SlidingTimeWindow::setReductionsPerCommStep);
-    neurox_hpx_register_action(5, SlidingTimeWindow::init);
-    neurox_hpx_register_action(5, SlidingTimeWindow::reduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::subscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::unsubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::subscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::setReductionsPerCommStep);
+    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::init);
+    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::reduce);
 }

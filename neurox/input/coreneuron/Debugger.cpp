@@ -430,10 +430,10 @@ int Debugger::compareBranch_handler()
 
 void Debugger::registerHpxActions()
 {
-    neurox_hpx_register_action(0, Debugger::compareBranch);
-    neurox_hpx_register_action(0, Debugger::finitialize);
-    neurox_hpx_register_action(0, Debugger::nrnSpikeExchange);
-    neurox_hpx_register_action(1, Debugger::fixedStepMinimal);
-    neurox_hpx_register_action(0, Debugger::threadTableCheck);
+    neurox_hpx_register_action(neurox_zero_var_action,   Debugger::compareBranch);
+    neurox_hpx_register_action(neurox_zero_var_action,   Debugger::finitialize);
+    neurox_hpx_register_action(neurox_zero_var_action,   Debugger::nrnSpikeExchange);
+    neurox_hpx_register_action(neurox_zero_var_action,   Debugger::threadTableCheck);
+    neurox_hpx_register_action(neurox_single_var_action, Debugger::fixedStepMinimal);
 }
 

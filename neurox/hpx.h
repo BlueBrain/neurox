@@ -67,6 +67,11 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
     hpx_lco_wait_reset(LCO); \
 }
 
+//Concatenate preprocessor tokens A and B without expanding macro definitions
+#define PPCAT_NX(A, B) A ## B
+//Concatenate preprocessor tokens A and B after macro-expanding them.
+#define PPCAT(A, B) PPCAT_NX(A, B)
+
 //auxiliars for neurox_hpx_register_action (below)
 #define neurox_hpx_register_action_0(func) \
     HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_ATTR_NONE, func, func##_handler);
@@ -85,15 +90,14 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
 #define neurox_hpx_register_action_5(func) \
     HPX_REGISTER_ACTION(HPX_FUNCTION, 0, func, func##_handler);
 
-/**
- * shortcut for the declaration of hpx functions.
- * Pass function type and name:
- * 0 : no arguments
- * 1 : one argument
- * 2 : more than one arguments
- * 3 : one argument (compressed)
- * 4 : more than one arguments (compressed)
- * 5 : HPX_FUNCTION for reduce operation
- */
+//main hpx action registration method
+#define neurox_zero_var_action 0                 //0: no arguments
+#define neurox_single_var_action 1               //1: one argument
+#define neurox_several_vars_action 2             //2: more than one argument
+#define neurox_single_var_compressed_action 3    //3: one argument (compressed)
+#define neurox_several_vars_compressed_action 4  //4: more than one argument (compressed)
+#define neurox_reduce_op_action 5                //5: HPX_FUNCTION for reduce operation
+
 #define neurox_hpx_register_action(funcType, func) \
-    neurox_hpx_register_action_##funcType(func)
+    PPCAT(neurox_hpx_register_action_,funcType)(func)
+
