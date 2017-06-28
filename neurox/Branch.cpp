@@ -24,6 +24,7 @@ Branch::Branch(offset_t n,
                offset_t *pdata, size_t pdataCount,
                offset_t * instancesCount, size_t recvMechanismsCount,
                offset_t * nodesIndices, size_t nodesIndicesCount,
+               hpx_t topBranchAddr,
                hpx_t * branches, size_t branchesCount,
                offset_t * p, size_t pCount,
                floble_t * vecplayT, size_t vecplayTCount,
@@ -304,7 +305,7 @@ Branch::Branch(offset_t n,
     }
 
     //create branchTree and MechsGraph
-    this->branchTree = inputParams->branchingDepth>0 ? new Branch::BranchTree(branches,branchesCount) : nullptr;
+    this->branchTree = inputParams->branchingDepth>0 ? new Branch::BranchTree(topBranchAddr, branches,branchesCount) : nullptr;
     this->mechsGraph = inputParams->multiMex         ? new Branch::MechanismsGraph(n)         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
@@ -339,7 +340,7 @@ int Branch::init_handler( const int nargs, const void *args[],
                           const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==14 || nargs==15);
+    assert(nargs==16);
     new(local) Branch(
         *(offset_t*) args[0], //number of compartments
         *(int*) args[1], //nrnThreadId (nt.id)
@@ -348,15 +349,16 @@ int Branch::init_handler( const int nargs, const void *args[],
         (offset_t*) args[3], sizes[3]/sizeof(offset_t), //pdata
         (offset_t*) args[4], sizes[4]/sizeof(offset_t), //instances count per mechanism
         (offset_t*) args[5], sizes[5]/sizeof(offset_t), //nodes indices
-        (hpx_t*) args[6], sizes[6]/sizeof(hpx_t), //branches
-        (offset_t*) args[7], sizes[7]/sizeof(offset_t), //parent index
-        (floble_t*) args[8], sizes[8]/sizeof(floble_t), //vecplay T data
-        (floble_t*) args[9], sizes[9]/sizeof(floble_t), //vecplay Y data
-        (PointProcInfo*) args[10], sizes[10]/sizeof(PointProcInfo), //point processes info
-        (NetConX*) args[11], sizes[11]/sizeof(NetConX), //netcons
-        (neuron_id_t *) args[12], sizes[12]/sizeof(neuron_id_t), //netcons preneuron ids
-        (floble_t *) args[13], sizes[13]/sizeof(floble_t), //netcons weights
-        (unsigned char*) args[14], sizes[14]/sizeof(unsigned char)); //serialized vdata
+        *(hpx_t*) args[6], //top branchAddr
+        (hpx_t*) args[7], sizes[7]/sizeof(hpx_t), //branches
+        (offset_t*) args[8], sizes[8]/sizeof(offset_t), //parent index
+        (floble_t*) args[9], sizes[9]/sizeof(floble_t), //vecplay T data
+        (floble_t*) args[10], sizes[10]/sizeof(floble_t), //vecplay Y data
+        (PointProcInfo*) args[11], sizes[11]/sizeof(PointProcInfo), //point processes info
+        (NetConX*) args[12], sizes[12]/sizeof(NetConX), //netcons
+        (neuron_id_t *) args[13], sizes[13]/sizeof(neuron_id_t), //netcons preneuron ids
+        (floble_t *) args[14], sizes[14]/sizeof(floble_t), //netcons weights
+        (unsigned char*) args[15], sizes[15]/sizeof(unsigned char)); //serialized vdata
     neurox_hpx_unpin;
 }
 
@@ -467,12 +469,10 @@ int Branch::addSpikeEvent_handler(
     if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
     {
         spike_time_t maxTime = *(const spike_time_t*) args[2];
-        if (local->soma) //update value of time dependency
-          local->soma->timeDependencies->updateTimeDependency(preNeuronId, local->soma->gid, (floble_t) maxTime);
-        else //inform soma of this neuron of new time dependency update
-          hpx_call(neurons->at(local->nt->id), Branch::updateTimeDependency, HPX_NULL,
-                   &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
-        //TODO if communication is an issue, we can remove previous hpx_call
+        hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
+        //inform soma of this neuron of new time dependency update
+        hpx_call(topBranchAddr, Branch::updateTimeDependency, HPX_NULL,
+                 &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
     }
     neurox_hpx_unpin;
 }
@@ -482,16 +482,17 @@ int Branch::updateTimeDependency_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==2);
+    assert(nargs==2 || nargs==3);
 
     //auto source = libhpx_parcel_get_source(p);
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
     const spike_time_t maxTime  = *(const spike_time_t*) args[1];
+    const bool initPhase = nargs==3 ? *(const bool*) args[2] : false;
 
     assert(local->soma);
     assert(local->soma->timeDependencies);
     local->soma->timeDependencies->updateTimeDependency(
-                preNeuronId, (floble_t) maxTime, local->soma ? local->soma->gid : -1);
+                preNeuronId, (floble_t) maxTime, local->soma ? local->soma->gid : -1, initPhase);
     neurox_hpx_unpin;
 }
 
@@ -675,12 +676,8 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
                 hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
 
         #ifdef NEUROX_TIME_STEPPING_VERBOSE
-            if (local->soma)
-            if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO) //end of execution
-            {
+            if (local->soma && inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO)
                 printf("-- neuron %d finished\n", local->soma->gid);
-                fflush(stdout);
-            }
         #endif
     }
     neurox_hpx_recursive_branch_async_wait;
@@ -827,8 +824,9 @@ void Branch::fixedPlayContinuous()
 
 //////////////////// Branch::NeuronTree ///////////////////////
 
-Branch::BranchTree::BranchTree(hpx_t * branches, size_t branchesCount)
-    : branches(nullptr), branchesCount(branchesCount)
+Branch::BranchTree::BranchTree(
+        hpx_t topBranchAddr, hpx_t * branches, size_t branchesCount)
+    : topBranchAddr(topBranchAddr), branches(nullptr), branchesCount(branchesCount)
 {
     if (branchesCount>0)
     {
