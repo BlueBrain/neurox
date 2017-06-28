@@ -149,9 +149,9 @@ void HinesSolver::backwardTriangulation(Branch *local)
           floble_t fromChildrenD=-1, fromChildrenRHS=-1; //pp*b[i] and pp*rhs[i] from children
           for (offset_t c=0; c<neuronTree->branchesCount; c++)
           {
-            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][0],
+            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][3],
                     sizeof(floble_t), &fromChildrenD);
-            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][1],
+            hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][4],
                     sizeof(floble_t), &fromChildrenRHS);
             d[n-1]   -= fromChildrenD;
             rhs[n-1] -= fromChildrenRHS;
@@ -185,9 +185,9 @@ void HinesSolver::backwardTriangulation(Branch *local)
             pp = a[0]/d[0];
             toParentD   = pp*b[0];   //pass 'pp*b[i]' upwards to parent
             toParentRHS = pp*rhs[0]; //pass 'pp*rhs[i]' upwards to parent
-            hpx_lco_set_rsync(neuronTree->withParentLCO[0],
+            hpx_lco_set_rsync(neuronTree->withParentLCO[3],
                     sizeof(floble_t), &toParentD);
-            hpx_lco_set_rsync(neuronTree->withParentLCO[1],
+            hpx_lco_set_rsync(neuronTree->withParentLCO[4],
                     sizeof(floble_t), &toParentRHS);
           }
         }
@@ -206,7 +206,7 @@ void HinesSolver::forwardSubstituion(Branch *local)
         if (!local->soma) //all branches except top
         {
             floble_t fromParentRHS; //get 'rhs[p[i]]' from parent
-            hpx_lco_get_reset(neuronTree->withParentLCO[2],
+            hpx_lco_get_reset(neuronTree->withParentLCO[5],
                     sizeof(floble_t), &fromParentRHS);
 
             rhs[0] -= b[0] * fromParentRHS;
@@ -236,7 +236,7 @@ void HinesSolver::forwardSubstituion(Branch *local)
         {
           floble_t toChildrenRHS = rhs[n-1];   //rhs[i] -= b[i] * rhs[p[i]];
           for (offset_t c=0; c<neuronTree->branchesCount; c++)
-              hpx_lco_set_rsync(neuronTree->withChildrenLCOs[c][2],
+              hpx_lco_set_rsync(neuronTree->withChildrenLCOs[c][5],
                     sizeof(floble_t), &toChildrenRHS);
         }
 }

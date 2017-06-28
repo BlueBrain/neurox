@@ -249,6 +249,7 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
 void Debugger::compareAllBranches()
 {
 #if !defined(NDEBUG) 
+    if (inputParams->branchingDepth>0) return;
     message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     neurox_hpx_call_neurons(Input::Coreneuron::Debugger::compareBranch);
 #endif

@@ -248,20 +248,9 @@ static int main_handler()
             hpx_process_collective_allreduce_subscribe_finalize(allreduces[i]);
     }
 
-    int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
-    printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps)\n",
-            inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier  ? "BackwardEulerDebugWithCommBarrier" :
-           (inputParams->algorithm == Algorithm::ALL                                ? "ALL" :
-           (inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier  ? "BackwardEulerWithAllReduceBarrier" :
-           (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
-           (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
-            "UNKNOWN" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
-    fflush(stdout);
-
     hpx_time_t now = hpx_time_now();
     if (inputParams->algorithm == Algorithm::ALL)
     {
-        //TODO Why running all three is slower (for BackwardEulerWithAllReduceBarrier) than running individually?
         runAlgorithm(Algorithm::BackwardEulerWithAllReduceBarrier );
         runAlgorithm(Algorithm::BackwardEulerWithSlidingTimeWindow);
         runAlgorithm(Algorithm::BackwardEulerWithTimeDependencyLCO);
@@ -295,17 +284,25 @@ static int main_handler()
 
 void runAlgorithm(Algorithm algorithm)
 {
+    int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
+    printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps)\n",
+            algorithm == Algorithm::BackwardEulerDebugWithCommBarrier  ? "BackwardEulerDebugWithCommBarrier" :
+           (algorithm == Algorithm::ALL                                ? "ALL" :
+           (algorithm == Algorithm::BackwardEulerWithAllReduceBarrier  ? "BackwardEulerWithAllReduceBarrier" :
+           (algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
+           (algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
+            "UNKNOWN" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
+    fflush(stdout);
+
     Algorithm previousAlgorithm = inputParams->algorithm;
     hpx_bcast_rsync(neurox::setAlgorithmVariables, &algorithm, sizeof(Algorithm));
 
-    int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
     hpx_t mainLCO = hpx_lco_and_new(neurons->size());
 
 #ifdef NDEBUG //benchmark info
     hpx_time_t now = hpx_time_now();
 #endif
 
-    size_t neuronsCount = neurons->size();
     if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier)
     {
         int commStepSize = Neuron::CommunicationBarrier::commStepSize;
@@ -345,6 +342,7 @@ void runAlgorithm(Algorithm algorithm)
     fflush(stdout);
 #else
     //compare final results
+    if (inputParams->branchingDepth==0)
     if (!inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier //not fixed comm barrier
     && inputParams->parallelDataLoading) //and not serial
     {
