@@ -573,6 +573,7 @@ void Branch::backwardEulerStep()
     if (fmod(t, inputParams->dt_io) == 0) {}
 
     //wait for spikes sent 4 steps ago (queue has always size 3)
+    if (this->soma)
     if (inputParams->algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow
      || inputParams->algorithm == Algorithm::BackwardEulerWithAllReduceBarrier)
     {
@@ -589,7 +590,8 @@ void Branch::backwardEulerStep()
     }
 
 #if !defined(NDEBUG) 
-    //fixed comm barrier and serial jobas can be compared at runtime
+    //fixed comm barrier and serial jobs can be compared at runtime
+    if (inputParams->branchingDepth==0)
     if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
      || !inputParams->parallelDataLoading)
     {
@@ -666,6 +668,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
                 hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
 
         #ifdef NEUROX_TIME_STEPPING_VERBOSE
+            if (local->soma)
             if (inputParams->algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO) //end of execution
             {
                 printf("-- neuron %d finished\n", local->soma->gid);

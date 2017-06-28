@@ -86,7 +86,7 @@ class Branch
         hpx_t *branches;		///> hpx address of the branches branches
         size_t branchesCount;	///> number of branches (>0)
 
-        static constexpr size_t futuresSize = 3; ///> size of futures arrays (used in Gaussian elimination)
+        static constexpr size_t futuresSize = 6; ///> size of futures arrays (used in Gaussian elimination)
         hpx_t withParentLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
         hpx_t (*withChildrenLCOs)[futuresSize]; ///> LCOs of branches' execution (NULL if no children)
 
