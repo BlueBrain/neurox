@@ -416,14 +416,8 @@ hpx_action_t Debugger::compareBranch = 0;
 int Debugger::compareBranch_handler()
 {
     neurox_hpx_pin(Branch);
-    if (inputParams->branchingDepth)
-    {
-      neurox_hpx_recursive_branch_async_call(Debugger::compareBranch);
-      //compareBranch2(local);
-      neurox_hpx_recursive_branch_async_wait;
-    }
-    else
-      compareBranch2(local);
+    if (inputParams->branchingDepth==0)
+        compareBranch2(local); //not implemented for branch-parallelism
     neurox_hpx_unpin;
 }
 

@@ -56,19 +56,19 @@ void HinesSolver::setupMatrixRHS(Branch * local)
           for (offset_t i=1; i<n; i++)
           {
             dv = v[p[i]] - v[i];  //reads from parent
-            rhs[i] -= b[i]*dv;
+            rhs[i]    -= b[i]*dv;
             rhs[p[i]] += a[i]*dv; //writes to parent
           }
         else //a leaf on the tree
           for (offset_t i=1; i<n; i++)
           {
             dv = v[i-1] - v[i];
-            rhs[i] -= b[i]*dv;
-            rhs[i-1] += a[i]*dv;
+            rhs[i]    -= b[i]*dv;
+            rhs[i-1]  += a[i]*dv;
           }
 
         //bottom compartment (when there is branching)
-        if (neuronTree!=nullptr)
+        if (neuronTree!=nullptr && neuronTree->branchesCount>0)
         {
           floble_t toChildrenV = v[n-1]; //dv = v[p[i]] - v[i]
           for (offset_t c=0; c<neuronTree->branchesCount; c++)
@@ -97,9 +97,8 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
         //we use third local future for contribution A to parent's D
         if (!local->soma) //all branches except top
         {
-            floble_t toParentA=-1;
             d[0] -= b[0];
-            toParentA = a[0]; //pass 'a[i]' upwards to parent
+            floble_t toParentA = a[0]; //pass 'a[i]' upwards to parent
             hpx_lco_set_rsync(neuronTree->withParentLCO[2],
                     sizeof(floble_t), &toParentA);
         }
@@ -108,18 +107,18 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
         if (p) //may have bifurcations (Coreneuron base case)
           for (offset_t i=1; i<n; i++)
           {
-            d[i] -= b[i];
+            d[i]    -= b[i];
             d[p[i]] -= a[i];
           }
         else //a leaf on the tree
           for (offset_t i=1; i<n; i++)
           {
-            d[i] -= b[i];
-            d[i-1] -= a[i];
+            d[i]    -= b[i];
+            d[i-1]  -= a[i];
           }
 
         //bottom compartment (when there is branching)
-        if (neuronTree!=nullptr)
+        if (neuronTree!=nullptr && neuronTree->branchesCount>0)
         {
           floble_t fromChildrenA;
           for (offset_t c=0; c<neuronTree->branchesCount; c++) //d[p[i]] -= a[i]
@@ -141,19 +140,19 @@ void HinesSolver::backwardTriangulation(Branch *local)
     floble_t *d = local->nt->_actual_d;
     const Branch::BranchTree * neuronTree = local->branchTree;
 
-        floble_t pp=0;
+        floble_t pp;
 
         //bottom compartment (when there is branching)
-        if (neuronTree!=nullptr)
+        if (neuronTree!=nullptr && neuronTree->branchesCount>0)
         {
-          floble_t fromChildrenD=-1, fromChildrenRHS=-1; //pp*b[i] and pp*rhs[i] from children
+          floble_t fromChildrenB, fromChildrenRHS; //pp*b[i] and pp*rhs[i] from children
           for (offset_t c=0; c<neuronTree->branchesCount; c++)
           {
             hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][3],
-                    sizeof(floble_t), &fromChildrenD);
+                    sizeof(floble_t), &fromChildrenB);
             hpx_lco_get_reset(neuronTree->withChildrenLCOs[c][4],
                     sizeof(floble_t), &fromChildrenRHS);
-            d[n-1]   -= fromChildrenD;
+            d[n-1]   -= fromChildrenB;
             rhs[n-1] -= fromChildrenRHS;
           }
         }
@@ -179,14 +178,14 @@ void HinesSolver::backwardTriangulation(Branch *local)
         //we use 1st and 2nd futures for contribution pp*b[i] and pp*rhs[i] to parent D and RHS
         if (!local->soma) //all branches except top
         {
-          floble_t toParentD=-1, toParentRHS=-1;
+          floble_t toParentB=-1, toParentRHS=-1;
           if (!local->soma) //all branches except top
           {
             pp = a[0]/d[0];
-            toParentD   = pp*b[0];   //pass 'pp*b[i]' upwards to parent
-            toParentRHS = pp*rhs[0]; //pass 'pp*rhs[i]' upwards to parent
+            toParentB   = pp * b[0];   //pass 'pp*b[i]' upwards to parent
+            toParentRHS = pp * rhs[0]; //pass 'pp*rhs[i]' upwards to parent
             hpx_lco_set_rsync(neuronTree->withParentLCO[3],
-                    sizeof(floble_t), &toParentD);
+                    sizeof(floble_t), &toParentB);
             hpx_lco_set_rsync(neuronTree->withParentLCO[4],
                     sizeof(floble_t), &toParentRHS);
           }
@@ -212,7 +211,7 @@ void HinesSolver::forwardSubstituion(Branch *local)
             rhs[0] -= b[0] * fromParentRHS;
             rhs[0] /= d[0];
         }
-        else //top compartment only
+        else //top compartment only (Coreneuron base case)
         {
             rhs[0] /= d[0];
         }
