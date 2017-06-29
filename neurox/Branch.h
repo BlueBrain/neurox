@@ -107,6 +107,7 @@ class Branch
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
     static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
+    static hpx_action_t initBenchmarkAndDelete; ///> Initializes neuron, benchmarks 4 exec steps, and deletes
     static hpx_action_t initSoma; ///> Initializes soma information in this branch
     static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
     static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
@@ -131,6 +132,7 @@ class Branch
 
   private:
     static int init_handler(const int, const void *[], const size_t[]);
+    static int initBenchmarkAndDelete_handler(const int, const void *[], const size_t[]);
     static int initSoma_handler(const int, const void *[], const size_t[]);
     static int clear_handler();
     static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
