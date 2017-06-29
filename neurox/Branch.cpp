@@ -383,7 +383,7 @@ int Branch::initSoma_handler(const int nargs,
         int offsetInAxonInitSegment = thvar_index - local->nt->end;
         hpx_t AISbranch = local->branchTree->branches[0];
         hpx_call_sync(AISbranch, Branch::getPointerToAPthreshold,
-                &thvar_ptr, sizeof(floble_t*),         //output
+                &thvar_ptr, sizeof(floble_t*),          //output
                 &offsetInAxonInitSegment, sizeof(int)); //input
         local->soma=new Neuron(neuronId, APthreshold, thvar_ptr);
     }

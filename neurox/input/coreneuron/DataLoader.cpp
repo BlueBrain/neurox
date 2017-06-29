@@ -943,6 +943,9 @@ int DataLoader::getBranchData(
     return n;
 }
 
+bool compareCompartmentsPtrsIds(Compartment * a, Compartment *b)
+{   return a->id<b->id; }
+
 hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t target,
                                deque<Compartment*> & allCompartments, Compartment * topCompartment,
                                vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
@@ -993,7 +996,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t targe
             getAllChildrenCompartments(subSection, topCompartment);
         }
 
-        //create sub-section of branhc
+        //this step is only necesary so that data has the same alignment as CoreNeuron
+        //and allows one to compare results . (can be removed for non-debug mode)
+        std::sort(subSection.begin(), subSection.end(), compareCompartmentsPtrsIds);
+
+        //create sub-section of branch
         vector<map<int,int>> mechInstanceMap(mechanismsCount); //mech-offset -> ( map[old instance]->to new instance )
         getMechInstanceMap(subSection, mechInstanceMap);
         n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, &mechInstanceMap);
@@ -1004,7 +1011,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t targe
         if (bottomCompartment && bottomCompartment->branches.size()>0)
         {
           //allocate memory in GAS //TODO improve load balancing of branches!
-          //NOTE: gas_alloc_cyclic guarantees that first branch (AIS) is in the same locality of calling thread
+          //NOTE: gas_alloc_cyclic guarantees (?) that first branch (AIS) is in the same locality of calling thread
           hpx_t childrenAddrs = hpx_gas_alloc_cyclic(bottomCompartment->branches.size(),sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
           for (size_t c=0; c<bottomCompartment->branches.size(); c++)
               branches.push_back(hpx_addr_add(childrenAddrs, c*sizeof(Branch), sizeof(Branch)));
