@@ -293,9 +293,10 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         floble_t APthreshold = (floble_t) nrn_threads[nt->id].presyns[0].threshold_;
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
 
-        for (Compartment* comp : compartments) comp->shrinkToFit();
+        for (Compartment* comp : compartments)
+            comp->shrinkToFit();
 
-        createBranch(nt->id, neuron_addr, neuron_addr, compartments, compartments.at(0),
+        createBranch(nt->id, neuron_addr, BranchType::Soma, compartments, compartments.at(0),
                      ionsInstancesInfo, inputParams->branchingDepth);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
@@ -946,7 +947,7 @@ int DataLoader::getBranchData(
 bool compareCompartmentsPtrsIds(Compartment * a, Compartment *b)
 {   return a->id<b->id; }
 
-hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t target,
+hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branchType,
                                deque<Compartment*> & allCompartments, Compartment * topCompartment,
                                vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
 {
@@ -1007,26 +1008,38 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t targe
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //recursively create children branches (if any)
-        if (bottomCompartment && bottomCompartment->branches.size()>0)
-        {
-          //allocate memory in GAS //TODO improve load balancing of branches!
-          //NOTE: gas_alloc_cyclic guarantees (?) that first branch (AIS) is in the same locality of calling thread
-          hpx_t childrenAddrs = hpx_gas_alloc_cyclic(bottomCompartment->branches.size(),sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-          for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-              branches.push_back(hpx_addr_add(childrenAddrs, c*sizeof(Branch), sizeof(Branch)));
-        }
+        //compute hpx address of children branches (if any)
+        if (bottomCompartment)
+            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
+                branches.push_back(createBranch( nrnThreadId, somaAddr,
+                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
+                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
     }
 
-    //initiate branch
-    hpx_call_sync(target, Branch::init, NULL, 0,
+    //get HPX address of branch and create it if necessary
+    hpx_t branchAddr = HPX_NULL;
+    switch (branchType)
+    {
+      case BranchType::Soma : //already allocated
+        branchAddr = somaAddr;
+        break;
+      case BranchType::AxonInitSegment :  //AIS must be in samme locality as soma
+        branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        break;
+      case BranchType::Dendrite : //get rank where Branch is to be allocated
+        int rank = 0;
+        branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT, HPX_THERE(rank));
+        break;
+    }
+
+    hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(offset_t),
                   &nrnThreadId, sizeof(int),
                   data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),
                   nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
-                  &topBranchAddr, sizeof(hpx_t),
+                  &somaAddr, sizeof(hpx_t),
                   branches.size() ? branches.data() : nullptr, branches.size() ? sizeof(hpx_t)*branches.size() : 0,
                   branches.size() ? nullptr : p.data(), branches.size() ? 0 : sizeof(offset_t)*p.size(),
                   vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
@@ -1037,19 +1050,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t targe
                   branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
                   vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
                   );
-
-    //clear some memory to be safer on the recursive call below
-    data.clear(); pdata.clear(); instancesCount.clear(); nodesIndices.clear(); p.clear();
-    vecPlayT.clear(); vecPlayY.clear(); vecPlayInfo.clear(); branchNetCons.clear();
-    branchNetConsPreId.clear(); branchWeights.clear(); vdata.clear();
-
-    //recursively create children branches (if any)
-    if (bottomCompartment)
-      for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-          createBranch(nrnThreadId, topBranchAddr, branches.at(c), allCompartments,
-                       bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1);
-
-    return target;
+    return branchAddr;
 }
 
 hpx_action_t DataLoader::initNetcons = 0;
