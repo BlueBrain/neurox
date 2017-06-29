@@ -1027,8 +1027,37 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
         break;
       case BranchType::Dendrite : //get rank where Branch is to be allocated
+
+        //allocate a single branch locally without branching
+        hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        double timeElapsed=-1;
+        hpx_call_sync(tempBranchAddr, Branch::initBenchmarkAndDelete,
+                      &timeElapsed, sizeof(timeElapsed), //output
+                      &n, sizeof(offset_t),
+                      &nrnThreadId, sizeof(int),
+                      data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
+                      pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
+                      instancesCount.data(), instancesCount.size()*sizeof(offset_t),
+                      nodesIndices.data(), nodesIndices.size()*sizeof(offset_t),
+                      &somaAddr, sizeof(hpx_t),
+                      nullptr, 0, //no branching
+                      p.data(), sizeof(offset_t)*p.size(), //force use of parent index
+                      vecPlayT.size() > 0 ? vecPlayT.data() : nullptr, sizeof(floble_t)*vecPlayT.size(),
+                      vecPlayY.size() > 0 ? vecPlayY.data() : nullptr, sizeof(floble_t)*vecPlayY.size(),
+                      vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr, sizeof(PointProcInfo)*vecPlayInfo.size(),
+                      branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
+                      branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
+                      branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
+                      vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
+                      );
+
+        //based on execution time, calculate rank where should be allocated
+        //TODO we should include also time for soma and AIS in the weight per locality
         int rank = 0;
         branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT, HPX_THERE(rank));
+
+        //clean temporary memory
+        hpx_call_sync(tempBranchAddr, Branch::clear, NULL, 0);
         break;
     }
 
