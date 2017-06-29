@@ -6,8 +6,8 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index):
-    gid(neuronId), threshold(APthreshold), thvar_index(thvar_index)
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, floble_t * thvar_ptr):
+    gid(neuronId), threshold(APthreshold), thvar_ptr(thvar_ptr)
 {
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
@@ -88,9 +88,12 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
 
 hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 {
-    if (synapses.size() == 0) return HPX_NULL;
+    if (synapses.size() == 0) return HPX_NULL; 
 
     spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
+#if !defined(NDEBUG)
+        printf("Neuron gid %d spikes at %.3f\n", this->gid, tt);
+#endif
 
     if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebugWithCommBarrier)
     {
