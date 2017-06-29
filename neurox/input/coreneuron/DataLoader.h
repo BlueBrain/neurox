@@ -29,6 +29,8 @@ class DataLoader
     DataLoader()=delete;
     ~DataLoader()=delete;
 
+    enum BranchType { Soma, AxonInitSegment, Dendrite};
+
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
     static void initAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
     static void cleanCoreneuronData(); ///>removes all Nrn data structures
@@ -50,7 +52,7 @@ class DataLoader
 
   private:
 
-    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, hpx_t target,
+    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType,
                               deque<Compartment*> & allCompartments, Compartment * topCompartment,
                               vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDept=0);
 
