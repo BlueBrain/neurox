@@ -43,7 +43,6 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #define StochKv 151
 
 //Debugging output
-//#define PRINT_EVENT
 //#define PRINT_TIME_DEPENDENCY
 
 namespace neurox

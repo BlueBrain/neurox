@@ -115,6 +115,7 @@ class Branch
     static hpx_action_t backwardEuler;
     static hpx_action_t backwardEulerOnLocality;
     static hpx_action_t threadTableCheck;
+    static hpx_action_t getPointerToAPthreshold;
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
@@ -138,6 +139,7 @@ class Branch
     static int backwardEuler_handler(const int*, const size_t);
     static int backwardEulerOnLocality_handler(const int*, const size_t);
     static int threadTableCheck_handler();
+    static int getPointerToAPthreshold_handler(const int*, const size_t);
 };
 
 }; //namespace

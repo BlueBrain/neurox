@@ -17,11 +17,11 @@ class Neuron
     Neuron() = delete;
     ~Neuron();
 
-    Neuron(neuron_id_t neuronId, floble_t APthreshold, int thvar_index);
+    Neuron(neuron_id_t neuronId, floble_t APthreshold, floble_t * thvar_ptr);
 
     neuron_id_t gid;     ///> neuron global id
     floble_t threshold;  ///> Action Potential threshold (PreSyn->_threshold)
-    int thvar_index;     ///> index in voltages array og value to be compared against AP threshold (PreSyn->thvar_index_)
+    floble_t* thvar_ptr;       ///> pointer to variable holding threashold var (typically RHS[0] is AIS's first compartment)
     floble_t refractoryPeriod; ///> refractory period
 
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal

@@ -362,17 +362,44 @@ int Branch::init_handler( const int nargs, const void *args[],
     neurox_hpx_unpin;
 }
 
-hpx_action_t Branch::initSoma = 0;
+hpx_action_t Branch::initSoma=0;
 int Branch::initSoma_handler(const int nargs,
                              const void *args[], const size_t[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==3 || nargs==4);
+    assert(nargs==3);
     const neuron_id_t neuronId = *(const neuron_id_t*) args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
+    //thvar_index is the compartment index holding AP threshold
     const int thvar_index = *(const int*) args[2];
-    local->soma=new Neuron(neuronId, APthreshold, thvar_index);
+
+    floble_t * thvar_ptr = nullptr;
+    if (inputParams->branchingDepth==0)
+        thvar_ptr = &local->nt->_actual_v[thvar_index];
+    else
+    {
+        //ask Axon Initial Segment for its AP threshold  memory address (must be in same locality)
+        assert(target == local->branchTree->topBranchAddr);
+        int offsetInAxonInitSegment = thvar_index - local->nt->end;
+        hpx_t AISbranch = local->branchTree->branches[0];
+        hpx_call_sync(AISbranch, Branch::getPointerToAPthreshold,
+                &thvar_ptr, sizeof(floble_t*),         //output
+                &offsetInAxonInitSegment, sizeof(int)); //input
+        local->soma=new Neuron(neuronId, APthreshold, thvar_ptr);
+    }
+    assert(*thvar_ptr > -200 && *thvar_ptr < 300);
+    local->soma=new Neuron(neuronId, APthreshold, thvar_ptr);
     neurox_hpx_unpin;
+}
+
+hpx_action_t Branch::getPointerToAPthreshold=0;
+int Branch::getPointerToAPthreshold_handler(const int* offset, const size_t)
+{
+    neurox_hpx_pin(Branch);
+    assert(*offset>=0 && *offset<local->nt->end);
+    assert(local->branchTree->branchesCount==0);
+    floble_t * V_ptr = &(local->nt->_actual_v[*offset]);
+    neurox_hpx_unpin_continue(V_ptr);
 }
 
 hpx_action_t Branch::clear=0;
@@ -397,9 +424,6 @@ void Branch::initVecPlayContinous()
 
 void Branch::addEventToQueue(floble_t tt, Event * e)
 {
-#if !defined(NDEBUG) && defined(PRINT_EVENT)
-    printf("Branch::addEventToQueue at %.3f\n", tt);
-#endif
     this->eventsQueue.push(make_pair(tt, e));
 }
 
@@ -550,8 +574,7 @@ void Branch::backwardEulerStep()
     if (this->soma)
     {
       //send spikes that occur in this step
-      int & thidx = this->soma->thvar_index;
-      floble_t v = this->nt->_actual_v[thidx];
+      floble_t v = *(this->soma->thvar_ptr);
       if (soma->checkAPthresholdAndTransmissionFlag(v))
           spikesLco = soma->sendSpikes(nt->_t);
     }
@@ -674,6 +697,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
             local->backwardEulerStep();
             // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local, &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
+        if (local->soma)
         if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier) //end of comm-step
             if (local->soma->commBarrier->allSpikesLco != HPX_NULL) //was set/used once
                 hpx_lco_wait(local->soma->commBarrier->allSpikesLco); //wait if needed
@@ -803,9 +827,6 @@ void Branch::deliverEvents(floble_t til) //til=t+0.5*dt
         //{   assert(tt >= til-0.5*nt->_dt-Neuron::teps && tt<=til+Neuron::teps); }
         //{   assert(tt >= til-0.5*nt->_dt && tt<=til); }
 
-#if !defined(NDEBUG) && defined(PRINT_EVENT)
-        printf("Branch::deliverEvents at %.3f\n", tt);
-#endif
         e->deliver(tt, this);
         this->eventsQueue.pop();
     }
@@ -1014,6 +1035,7 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::threadTableCheck);
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::BranchTree::initLCOs);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEuler);
+    neurox_hpx_register_action(neurox_single_var_action,   Branch::getPointerToAPthreshold);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEulerOnLocality);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::MechanismsGraph::mechFunction);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::init);
