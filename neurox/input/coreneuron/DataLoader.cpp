@@ -26,10 +26,12 @@ using namespace std;
 using namespace neurox::Input;
 using namespace neurox::Input::Coreneuron;
 
-FILE *fileNetcons;
+static FILE *fileNetcons;
+static hpx_t neuronsMutex = HPX_NULL;
+static std::vector<int> * neuronsGids = nullptr;
 
-hpx_t neuronsMutex = HPX_NULL;
-std::vector<int> * neuronsGids = nullptr;
+static double *loadBalancingTable = nullptr;
+static hpx_t loadBalancingMutex = HPX_NULL;
 
 neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
@@ -546,6 +548,45 @@ int DataLoader::initMechanisms_handler()
     neurox_hpx_unpin;
 }
 
+hpx_action_t DataLoader::queryLoadBalancingTable = 0;
+int DataLoader::queryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[])
+{
+    /**
+     * nargs=1 or 2 where
+     * args[0] = elapsedTime
+     * args[1] = rank (if any)
+     */
+    neurox_hpx_pin(uint64_t);
+    assert(nargs==1 || nargs==2);
+    assert(hpx_get_my_rank()==0); //only one loadBalancingTable and only in rank zero
+    const double elapsedTime = *(const double*)args[0];
+
+    if (nargs==2) //this neuron already has a rank allocated, update it's entry
+    {
+        const int rank = *(const int*)args[1];
+        hpx_lco_sema_p(loadBalancingMutex);
+        loadBalancingTable[rank] += elapsedTime;
+        hpx_lco_sema_v_sync(loadBalancingMutex);
+        neurox_hpx_unpin;
+    }
+    else
+    {
+        double minElapsedTime=99999999999;
+        int rank=-1;
+        hpx_lco_sema_p(loadBalancingMutex);
+        for (int r=0; r<hpx_get_num_ranks(); r++)
+            if (loadBalancingTable[r]<minElapsedTime)
+            {
+                minElapsedTime = loadBalancingTable[r];
+                rank=r;
+            }
+        loadBalancingTable[rank] += elapsedTime;
+        hpx_lco_sema_v_sync(loadBalancingMutex);
+        neurox_hpx_unpin_continue(rank);
+    }
+    neurox_hpx_unpin;
+}
+
 hpx_action_t DataLoader::init =0;
 int DataLoader::init_handler()
 {
@@ -553,6 +594,15 @@ int DataLoader::init_handler()
     neurox::neurons = new std::vector<hpx_t>();
     neuronsGids  = new std::vector<int>();
     neuronsMutex = hpx_lco_sema_new(1);
+
+    if (hpx_get_my_rank()==0)
+    {
+        loadBalancingMutex = hpx_lco_sema_new(1);
+        loadBalancingTable = new double[hpx_get_num_ranks()];
+        for (int r=0; r<hpx_get_num_ranks(); r++)
+            loadBalancingTable[r]=0;
+
+    }
 
     if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
        && inputParams->outputNetconsDot)
@@ -638,7 +688,8 @@ int DataLoader::initNeurons_handler()
 hpx_action_t DataLoader::addNeurons = 0;
 int DataLoader::addNeurons_handler(const int nargs, const void *args[], const size_t[])
 {
-    /** nargs=2 where
+    /**
+     * nargs=3 where
      * args[0] = neuronsCount
      * args[1] = neurons Gids
      * args[2] = neurons hpx addr
@@ -679,7 +730,14 @@ int DataLoader::finalize_handler()
 
 #if defined(NDEBUG) 
     DataLoader::cleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
+#else
+    //print Load Balancing table
+    if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
+        for (int r=0; r<hpx_get_num_ranks(); r++)
+            printf("-- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
 #endif
+    hpx_lco_delete_sync(loadBalancingMutex);
+    delete [] loadBalancingTable;
     neurox_hpx_unpin;
 }
 
@@ -988,12 +1046,15 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
     vector<neuron_id_t> branchNetConsPreId;
     vector<floble_t> branchWeights;
 
+    hpx_t branchAddr = HPX_NULL; ///hpx address of this branch
     Compartment * bottomCompartment = nullptr; //iterator for subsections
+
     if (inputParams->branchingDepth==0 ) //Flat a la Coreneuron
     {
         n = getBranchData(allCompartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalN, ionsInstancesInfo, NULL);
         getVecPlayBranchData(allCompartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
         getNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
+        branchAddr = somaAddr;
     }
     else if (inputParams->branchingDepth>0 ) //branch-parallelism
     {
@@ -1024,30 +1085,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //compute hpx address of children branches (if any)
-        if (bottomCompartment)
-            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-                branches.push_back(createBranch( nrnThreadId, somaAddr,
-                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
-                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
-    }
-
-    //get HPX address of branch and create it if necessary
-    hpx_t branchAddr = HPX_NULL;
-    switch (branchType)
-    {
-      case BranchType::Soma : //already allocated
-        branchAddr = somaAddr;
-        break;
-      case BranchType::AxonInitSegment :  //AIS must be in samme locality as soma
-        branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
-        break;
-      case BranchType::Dendrite : //get rank where Branch is to be allocated
-
-        //allocate a single branch locally without branching
+        //time this branch
         hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        bool runBenchmarkAndClear = true;
         double timeElapsed=-1;
-        hpx_call_sync(tempBranchAddr, Branch::initBenchmarkAndDelete,
+        hpx_call_sync(tempBranchAddr, Branch::init,
                       &timeElapsed, sizeof(timeElapsed), //output
                       &n, sizeof(offset_t),
                       &nrnThreadId, sizeof(int),
@@ -1064,19 +1106,58 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                       branchNetCons.size() > 0 ? branchNetCons.data() : nullptr, sizeof(NetConX)*branchNetCons.size(),
                       branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr, sizeof(neuron_id_t)*branchNetConsPreId.size(),
                       branchWeights.size() > 0 ? branchWeights.data() : nullptr, sizeof(floble_t)*branchWeights.size(),
-                      vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size()
+                      vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size(),
+                      &runBenchmarkAndClear, sizeof(bool)
                       );
 
-        //based on execution time, calculate rank where should be allocated
-        //TODO we should include also time for soma and AIS in the weight per locality
-        int rank = 0;
-        branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT, HPX_THERE(rank));
+        //get HPX address of branch; create it if necessary, and update benchmark table
+        int rank = hpx_get_my_rank();
+        switch (branchType)
+        {
+          case BranchType::Soma :
+            //already allocated
+            branchAddr = somaAddr;
+            //update benchmark table with this entry
+            hpx_call_sync(HPX_THERE(0), DataLoader::queryLoadBalancingTable,
+                          NULL, 0, //output
+                          &timeElapsed, sizeof(double),
+                          &rank, sizeof(int));
+            break;
+          case BranchType::AxonInitSegment :
+            //AIS must be in samme locality as soma
+            branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+            //update benchmark table with this entry
+            hpx_call_sync(HPX_THERE(0), DataLoader::queryLoadBalancingTable,
+                          NULL, 0, //output
+                          &timeElapsed, sizeof(double),
+                          &rank, sizeof(int));
+            break;
+          case BranchType::Dendrite :
+            //get rank where to allocate it (query also updates benchmark table)
+            hpx_call_sync(HPX_THERE(0), DataLoader::queryLoadBalancingTable,
+                          &rank, sizeof(int), //output
+                          &timeElapsed, sizeof(double));
+            //allocate memory on that rank
+            branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT, HPX_THERE(rank));
 
-        //clean temporary memory
-        hpx_call_sync(tempBranchAddr, Branch::clear, NULL, 0);
-        break;
+            //clean temporary memory
+            break;
+        }
+#ifndef NDEBUG
+        printf("-- %s branch of neuron nrn_id %d allocated to rank %d (%.6f ms)\n",
+               branchType==BranchType::Soma ? "soma" : (branchType==BranchType::AxonInitSegment ? "AIS" : "dendrite"),
+               nrnThreadId, rank, timeElapsed);
+#endif
+
+        //allocate children branches recursively (if any)
+        if (bottomCompartment)
+            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
+                branches.push_back(createBranch( nrnThreadId, somaAddr,
+                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
+                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
     }
 
+    assert(branchAddr!= HPX_NULL);
     hpx_call_sync(branchAddr, Branch::init, NULL, 0,
                   &n, sizeof(offset_t),
                   &nrnThreadId, sizeof(int),
@@ -1193,4 +1274,5 @@ void DataLoader::registerHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::finalize);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addSynapse);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addNeurons);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::queryLoadBalancingTable);
 }
