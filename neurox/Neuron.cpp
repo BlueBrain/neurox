@@ -7,7 +7,8 @@ using namespace neurox;
 using namespace neurox::Solver;
 
 Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, floble_t * thvar_ptr):
-    gid(neuronId), threshold(APthreshold), thvar_ptr(thvar_ptr)
+    gid(neuronId), threshold(APthreshold), thvar_ptr(thvar_ptr),
+    timeDependencies(nullptr), commBarrier(nullptr), slidingTimeWindow(nullptr)
 {
     this->synapsesTransmissionFlag = false;
     this->synapsesMutex = hpx_lco_sema_new(1);
@@ -30,7 +31,8 @@ Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, floble_t * thvar_ptr)
 
 Neuron::~Neuron()
 {
-    hpx_lco_delete_sync(synapsesMutex);
+    if (synapsesMutex!=HPX_NULL)
+        hpx_lco_delete_sync(synapsesMutex);
     for (Synapse *& s : synapses)
         delete s;
     delete timeDependencies;
@@ -51,7 +53,8 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay, hpx_t topBranchAdd
 
 Neuron::Synapse::~Synapse()
 {
-    hpx_lco_delete_sync(previousSpikeLco);
+    if (previousSpikeLco != HPX_NULL)
+        hpx_lco_delete_sync(previousSpikeLco);
 }
 
 size_t Neuron::getSynapseCount()
@@ -149,7 +152,8 @@ Neuron::CommunicationBarrier::CommunicationBarrier()
 
 Neuron::CommunicationBarrier::~CommunicationBarrier()
 {
-    hpx_lco_delete_sync(allSpikesLco);
+    if (allSpikesLco != HPX_NULL)
+        hpx_lco_delete_sync(allSpikesLco);
 }
 
 //////////////////// Neuron::SlidingTimeWindow ///////////////////////
@@ -197,7 +201,8 @@ int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allred
     for (int i=0; i<size/sizeof(hpx_t); i++)
     {
       hpx_process_collective_allreduce_unsubscribe(allreduces[i], stw->allReduceId[i]);
-      hpx_lco_delete_sync(stw->allReduceFuture[i]);
+      if (stw->allReduceFuture[i]!= HPX_NULL)
+          hpx_lco_delete_sync(stw->allReduceFuture[i]);
     }
     delete [] stw->allReduceLco; stw->allReduceLco=nullptr;
     delete [] stw->allReduceFuture; stw->allReduceFuture=nullptr;

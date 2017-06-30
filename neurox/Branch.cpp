@@ -679,10 +679,7 @@ int Branch::backwardEuler_handler(const int * steps_ptr, const size_t size)
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::backwardEuler, steps_ptr, size);
 
-    local->backwardEulerStep();
-
     const int steps = *steps_ptr;
-
     if (local->soma)
     {
       //fixes crash for Algorithm::ALL when TimeDependency algorithm starts at t=inputParams->tend*2

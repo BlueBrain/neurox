@@ -291,7 +291,7 @@ void runAlgorithm(Algorithm algorithm)
            (algorithm == Algorithm::BackwardEulerWithAllReduceBarrier  ? "BackwardEulerWithAllReduceBarrier" :
            (algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
            (algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
-            "UNKNOWN" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
+            "unknown" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
     fflush(stdout);
 
     Algorithm previousAlgorithm = inputParams->algorithm;
