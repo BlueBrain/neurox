@@ -41,15 +41,15 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
   if (inputParams->outputCompartmentsDot)
   {
     assert(topCompartment!=NULL);
-    fprintf(fileCompartments, "subgraph cluster_%d {\n", topCompartment->id);
-    fprintf(fileCompartments, "style=filled; color=blue; fillcolor=floralwhite; node [style=filled, color=floralwhite];\n");
+    fprintf(fileCompartments, "subgraph cluster_%d { ", topCompartment->id);
+    if (topCompartment->id == 0)
+        fprintf(fileCompartments, "label=\"SOMA\"; ");
+    else if (topCompartment->id == 2 )
+        fprintf(fileCompartments, "label=\"AIS\"; ");
     Compartment * comp=NULL;
     for (comp = topCompartment; comp->branches.size()==1; comp = comp->branches.front())
-        //fprintf(fileCompartments, "%d [color=black; fillcolor=white];\n", comp->id);
-        fprintf(fileCompartments, "%d [color=gray; fillcolor=white];\n", comp->id);
-    //fprintf(fileCompartments, "%d [color=black; fillcolor=white]\n", comp->id);
-    fprintf(fileCompartments, "%d [color=gray; fillcolor=white];\n", comp->id);
-    fprintf(fileCompartments, "}\n");
+        fprintf(fileCompartments, "%d; ", comp->id);
+    fprintf(fileCompartments, "%d };\n", comp->id);
     for (int c=0; c<comp->branches.size(); c++)
         printSubClustersToFile(fileCompartments, comp->branches[c]);
   }
@@ -113,12 +113,28 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
 
         if (inputParams->outputCompartmentsDot)
         {
+          set<int> axonInitSegmentCompartments;
           FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+".dot").c_str(), "wt");
-          fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s;  node [shape=cylinder];\n", neuronId, DOT_PNG_BACKGROUND_COLOR );
+          fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s; \n", neuronId, DOT_PNG_BACKGROUND_COLOR );
+          fprintf(fileCompartments, "graph [fontname=helvetica, style=filled, color=blue, fillcolor=floralwhite];\n");
+          fprintf(fileCompartments, "node [fontname=helvetica, shape=cylinder, color=gray, style=filled, fillcolor=white];\n");
+          fprintf(fileCompartments, "edge [fontname=helvetica, color=gray];\n");
           printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
-          for (auto c : compartments) //draw edges
-            for (auto k : c->branches)
-                fprintf(fileCompartments, "%d -- %d %s;\n", c->id, k->id, "");
+          for (Compartment *comp : compartments) //draw edges
+            for (int c=0; c<comp->branches.size(); c++)
+            {
+                bool isSoma = comp->id == 1; //bottom of soma
+                Compartment * child = comp->branches.at(c);
+                if ((isSoma && c==0) //connection from some to AIS
+                ||  axonInitSegmentCompartments.find(comp->id) != axonInitSegmentCompartments.end()) //connection to any AIS compartment
+                {
+                    //reverse connection, so that it plots AIS on top of soma in dot file
+                    fprintf(fileCompartments, "%d -- %d%s;\n", child->id, comp->id, comp->branches.size()==1 ? "" : " [color=black]");
+                    axonInitSegmentCompartments.insert(child->id);
+                }
+                else
+                    fprintf(fileCompartments, "%d -- %d%s;\n", comp->id, child->id, comp->branches.size()==1 ? "" : " [color=black]");
+            }
           fprintf(fileCompartments, "}\n");
           fclose(fileCompartments);
         }
