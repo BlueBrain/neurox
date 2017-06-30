@@ -1,0 +1,66 @@
+
+/**
+@page User_Guide User Guide
+    -# @ref User_General
+        -# @ref User_Overview
+        -# @ref Acronyms_and_Abbreviations
+    -# @ref Installation_and_Upgrade
+        -# @ref Requirements
+        -# @ref Architechtures
+        -# @ref Installation
+            -# @ref Buildyard
+            -# @ref Manually
+
+    @htmlonly
+    <hr>
+    @endhtmlonly
+
+    @section User_General General Information
+        @subsection User_Overview Overview
+            This page contains information about installation, supported architectures and other features.
+
+        @subsection Acronyms_and_Abbreviations Acronyms and Abbreviations
+            - MPI: Message Passing Interface
+
+    @section Installation_and_Upgrade Installation and Upgrade
+        @subsection Requirements Requirements
+            - CMake 2.8
+            - MPI 
+            - Boost
+
+        @subsection Architechtures Architectures
+            - x86_64
+            - powerpc64
+
+        @subsection Installation Installation
+          Before starting the installation, set the correct MPI compilers (wrappers) with the CC and CXX environment flags. <br>
+          Example: on a Blue Gene Q:
+
+             <b><code>
+             export CC=mpixlc <br>
+             export CXX=mpixlcxx
+             </code></b>
+
+         @subsubsection Buildyard Via Buildyard
+           Clone the Buildyard package itself and clone the configuration files for all the BBP projects in order to set up all the dependencies in the .cmake correspondent package file. Then, build CoreNeuron.
+
+         <code>
+         git clone https://github.com/Eyescale/Buildyard.git <br>
+         cd Buildyard <br>
+         git clone ssh://bbpcode.epfl.ch/common/config.bbp <br>
+         make coreneuron
+         </code>
+
+         @subsubsection Manually Manually
+           In order to build a code manually, follow these steps:
+
+         <code>
+         git clone ssh://bbpcode.epfl.ch/sim/coreneuron <br>
+         cd coreneuron <br>
+         mkdir build <br>
+         cd build <br>
+         cmake .. -DCMAKE_INSTALL_PREFIX=<i>path_to_install</i> <br>
+         make -j install
+         </code>
+
+*/

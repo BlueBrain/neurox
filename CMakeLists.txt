@@ -90,3 +90,5 @@ target_link_libraries(neurox_exec neurox coreneuron ${HPX_LIBRARIES} )
 
 install(TARGETS neurox_exec  DESTINATION ${BIN_INSTALL_DIR}/)
 
+# Documentation
+#include(DoxygenRule)

@@ -1,0 +1,276 @@
+/**
+@page Developers_Guide Developer's Guide
+    -# @ref Developer_General
+    -# @ref Directory_Overview
+    -# @ref Building_and_Installing
+        -# @ref Dependencies
+        -# @ref Building
+        -# @ref Additional_configuration
+        -# @ref Custom_Build
+        -# @ref Installing
+    -# @ref Running
+    -# @ref Testing_and_Validation
+        -# @ref Basic_Testing
+        -# @ref Results_Validation
+        -# @ref Modify_Parameters
+    -# @ref Bluron2CoreNeuron
+    -# @ref Known_Issues
+
+    @htmlonly
+    <hr>
+    @endhtmlonly
+
+    @section Developer_General General
+        In this part of the documentation the developer-related issues are addressed.
+
+
+    @section Directory_Overview Directory Overview
+      The root coreneuron directory has the following structure:
+
+      -# <b><code>apps</code></b> - directory with generic main.cpp file.
+      -# <b><code>coreneuron</code></b> - source folder:
+        -# <b><code>nrniv</code></b> - the source code of core simulator, .cpp files.
+        -# <b><code>nrnmpi</code></b> - the MPI related source code of the simulator.
+        -# <b><code>nrnoc</code></b> - the source code of core simulator, .c files.
+        -# <b><code>mech</code></b> - the source code for default mechanisms.
+            - <b><code>cfile</code></b> - Necessary .h files needed for the generated .c from .mod files.
+            - <b><code>modfile</code></b> - mod files of default Neuron mechanisms.
+        -# <b><code>utils</code></b> - different utilities, some of them are for temporary use to substitute some third-party library.
+      -# <b><code>doc</code></b> - documentation.
+      -# <b><code>tests</code></b> - various tests configuration:
+        -# <b><code>integration</code></b> - integration tests for various simulations.
+        -# <b><code>production</code></b> - production tests for bigger scale runs. 
+        -# <b><code>regression</code></b> - regression testing.
+        -# <b><code>unit</code></b> - unit testing.
+        -# <b><code>validation</code></b> - validation tests which are run using the python scripts to verify the validity of the output.
+
+
+@section Building_and_Installing Building and Installing
+
+Note: The default build of CoreNeuron includes production mechanisms from Neurodamus, unless the CORENEURON_NEURODAMUS_MECHS
+flag is OFF. Additional mechanisms can be set with the ADDITIONAL_MECHS variable (see below).
+
+
+@subsection Dependencies Dependencies
+
+CoreNeuron depends on <code>MPI</code> for parallelization. Currently the following compilers/MPI libraries for production
+simulations are used:
+- Blue Gene/Q: XLC 12.1.0.7 (V1R2M1 drivers)
+- x86_64: icc 13.1, mvapich 2.0.1-nocuda
+
+One can use other compilers and MPI library distributions. Make sure that appropriate modules are loaded and
+CMake (minimum required version is 2.8) is correctly setting appropriate compilers/libraries.
+
+CoreNeuron also depends on <code>mod2c</code> in order to be able to convert .mod files into .c files. The
+<code>mod2c</code> is located in the <code>sim/mod2c</code> repository of the <code>bbpcode</code> portal.
+
+
+
+@subsection Building Building
+
+In order to build the simulator follow the steps below:
+
+1. Set the correct MPI compilers (wrappers) with the CC and CXX environment flags. <br>
+   Example: on a Blue Gene Q: <br>
+     <b><code>
+     export CC=mpixlc <br>
+     export CXX=mpixlcxx
+     </code></b>
+
+2. To build the binaries and libraries use the CMake build system (from the top level folder of CoreNeuron) <br>
+     <b><code>
+     mkdir build && cd build <br>
+     cmake .. -DCMAKE_INSTALL_PREFIX=path_to_dependencies_install <br>
+     make
+     </code></b>
+
+Above steps will create binaries and libraries under build/bin and build/lib folders respectively.
+
+
+@subsection Additional_configuration Additional Configuration Flags
+
+When configuring the build environment with CMake, one can modify the value of following variables,
+which will result in different building outputs:
+  - CORENEURON_OPENMP: OpenMP threading. Default value: ON.
+  - CORENEURON_MAIN: defines whether to build the executable. Default value: ON.
+  - CORENEURON_TESTS: defines whether to build the tests. Default value: ON.
+  - PRODUCTION_TESTS: Activate sbatch scripts which run production tests (BG/Q inly).
+  - ADDITIONAL_MECHS: Path to a file containing a list of mod files to include. One .mod file per line,
+which can be specified with an absolute path name, or as a bare file name.
+  - ADDITIONAL_MECHPATH: List of directories to search for mod files specified in ADDITIONAL_MECHS.
+
+Note that .mod files specified in ADDITIONAL_MECHS or in the coreneuron_modlist.txt file that cannot be
+located are reported with a warning rather than with a fatal error.
+
+
+@subsection Custom_Build Custom Build
+
+One can specify C++/C compilation flags spcecific to the compiler and architecture with -DCMAKE_CXX_FLAGS
+and -DCMAKE_C_FLAGS options to the CMake command.
+
+For example, on a Blue Gene Q: <br>
+     <b><code>
+     cmake .. -DCMAKE_CXX_FLAGS="-O3 -qtune=qp -qarch=qp -q64 -qhot -qsimd=auto -qsmp -qthreaded"
+              -DCMAKE_C_FLAGS="-O3 -qtune=qp -qarch=qp -q64 -qhot -qsimd=auto -qsmp -qthreaded"
+     </code></b>
+
+Note that one should explicitly specify the compilation flags.
+
+Building on x86 and BG-Q platform should work with the above instructions.
+On other systems you might need to pass additional CMake otpions like MPI_C_COMPILER, MPI_C_INCLUDE_PATH etc.
+For example, on Cray's Piz Diant system the following command line was used to build CoreNeuron:
+
+  <b><code>
+  $ export CC=`which cc` export CXX=`which CC` <br>
+  $ cmake -DMPI_C_INCLUDE_PATH=$PATH_TO_MPI_C_INCLUDE_PATH -DMPI_C_LIBRARIES=$PATH_TO_MPI_C_LIBRARIES -DMPI_CXX_INCLUDE_PATH=$PATH_TO_MPI_CXX_INCLUDE_PATH -DMPI_CXX_LIBRARIES=$PATH_TO_MPI_CXX_LIBRARIES -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX
+  </code></b>
+
+@subsection Installing Installing
+
+Follow the previous steps with below modifications:
+
+1. To CMake command line, specify the installation destination: <br>
+     <b><code>
+     cmake .. -DCMAKE_INSTALL_PREFIX=$PATH_TO_INSTALL_FOLDER
+     </code></b>
+
+2. After building the code, install it using
+     make install
+
+The installation folder will be $PATH_TO_INSTALL_FOLDER, and should contain:
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so.#.#.#
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so.#.##
+     -# $PATH_TO_INSTALL_FOLDER/lib/libcoreneuron.so
+     -# $PATH_TO_INSTALL_FOLDER/bin/coreneuron_exec
+
+where # is the (sub) version number.
+
+@section Using ReportingLib
+If you want enable use of ReportingLib for the soma reports, install ReportingLib first and enable it using -DENABLE_REPORTINGLIB (use same install path for ReportingLib as CoreNeuron).
+
+@section Using Neurodamus
+If you are building CoreNeuron with Neurodamus, you have to set ADDITIONAL_MECHPATH and ADDITIONAL_MECHS as:
+cmake .. -DADDITIONAL_MECHPATH="/path/of/neurodamus/lib/modlib" -DADDITIONAL_MECHS="/path/of/neurodamus/lib/modlib/coreneuron_modlist.txt"
+Make sure to switch to appropriate branch of Neurodamus (based on your dataset/experiment, e.g. coreneuronsetup).
+
+
+@section Running Running
+
+Once the CoreNeuron is built, one can run parallel simulator with any MPI launcher as:
+
+1. Change to the directory containing simulation input test data (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat).
+
+2. Set environmental variables by adding lib folder (in build/lib or $PATH_TO_INSTALL_FOLDER/lib) to the LD_LIBRARY_PATH : <br>
+     <b><code>
+     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PATH_TO_INSTALL_FOLDER/lib
+     </code></b>
+
+3. And run simulator with any MPI launcher as: <br>
+     <b><code>
+     srun -n $NUM_MPIS $PATH_TO_CORENEURON_EXEC $ARGS  (assuming slurm batch system) <br>
+     where $NUM_MPIS is number of MPI ranks, $PATH_TO_CORENEURON_EXEC is the path of coreneuron executable
+     and $ARGS are the arguments for the executable.
+     </code></b>
+
+Note: Keep in mind that the OpenMP threading is ON by default. Thus, make sure to set the OMP_NUM_THREADS
+      environmental variable correctly.
+
+
+@section Testing_and_Validation Testing and Validation
+
+@subsection Basic_Testing Basic Testing
+
+  In order to run unit and integration tests, one shoud run <b><code>make test</code></b> after installing the code
+
+
+@subsection Results_Validation Results Validation
+
+When running the simulation with CoreNeuron, each MPI rank writes spike information to out.$mpi_rank file. Those files
+should be combined, sorted and renamed to "out.dat.ref" file to further be able to follow the validation steps.
+
+To validate the results against the reference solution, make sure to use a default simulation time used to produce a reference
+results. The validation process itself is described in the "tests/validation/README" file. Please note that only double precision numbers
+have been used to prepare the validation test cases.
+
+
+@subsection Modify_Parameters Modifying Test Input Parameters
+
+  1. MODIFY SIMULATION RUNTIME PARAMETERS <br>
+One can change the parameters of the simulation by setting the correspondent values from the command line ($ARGS).
+Also, if the "tstop" is significantly increased, the produced amount of spikes might not fit in the allocated
+buffer size "spikebug", which sould be increased as well. The following list describes the configurable
+parameters which can be set from the command line: <br><br>
+       -s TIME, \--tstart=TIME<br>
+              Set the start time to TIME (double). The default value is '0.'<br><br>
+       -e TIME, \--tstop=TIME<br>
+              Set the stop time to TIME (double). The default value is '100.'<br><br>
+       -t TIME, \--dt=TIME<br>
+              Set the dt time to TIME (double). The default value is '0.025'.<br><br>
+       -i TIME, --dt_io=TIME<br>
+               Set the dt of I/O to TIME (double). The default value is '0.1'.<br><br>
+       -l NUMBER, --celsius=NUMBER<br>
+              Set the celsius temperature to NUMBER (double). The default value is '34.'.<br><br>
+       -p FILE, \--pattern=FILE<br>
+              Apply patternstim with the spike file FILE (char*). The default value is 'NULL'.<br><br>
+       -b SIZE, \--spikebuf=SIZE<br>
+              Set the spike buffer to be of the size SIZE (int). The default value is '100000'.<br><br>
+       -g NUMBER, \--prcellgid=NUMBER<br>
+              Output prcellstate information for the gid NUMBER (int). The default value is '-1'.<br><br>
+       -c, \--threading<br>
+              Optiong to enable threading. The default implies no threading.<br><br>
+       -d PATH, \--datpath=PATH<br>
+              Set the path with required CoreNeuron data to PATH (char*). The default value is '.'.<br><br>
+       -f FILE, \--filesdat=FILE<br>
+              Absolute path with the name for the required file FILE (char*). The default value is 'files.dat'.<br><br>
+       -o PATH, \--outpath=PATH<br>
+              Set the path for the output data to PATH (char*). The default value is '.'.<br><br>
+       -k TIME, \--forwardskip=TIME<br>
+              Set forwardskip to TIME (double). The default value is '0.'.<br><br>
+       -r TYPE, \--report=TYPE<br>
+              Enable voltage report with specificied type (0 for disable, 1 for soma, 2 for full compartment).<br><br>
+       -w, \--dt_report=TIME<br>
+              Set the dt for soma reports (using ReportingLib) to TIME (double). The default value is '0.1'.<br><br>
+       -z MULTIPLE, \--multiple=MULTIPLE<br>
+              Model duplication factor. Model size is normal size * MULTIPLE (int). The default value is '1'.<br><br>
+       -x EXTRACON, \--extracon=EXTRACON<br>
+              Number of extra random connections in each thread to other duplicate models (int). The default value is '0'.<br><br>
+       -mpi<br>
+              Enable MPI. In order to initialize MPI environment this argument must be specified.<br><br>
+
+  2. MODIFY USE CASE SIZE (Number of cells/neurons) <br>
+It is possible to run tests with different number of MPI ranks. In every simulation input data directory one can find the file named
+"files.dat". This file has following format (example): <br><br>
+  32768      -> first line is the number of cell ids (or entries) in the file <br>
+  250014     -> first cell id <br>
+  491530     -> second cell id <br>
+  .... <br>
+
+  As shown above, first number is always the number of entries in the files and then there is a list of cell ids per line.
+Once the simulation has been started, CoreNeuron will distribute the cell ids in round robin fashion. (Remeber that each cell id belongs to
+input file named cellid_1.dat and cellid_2.dat in the simulation input data directory).
+
+  Note: Make sure that the number of MPI ranks is not greater than the number of cell ids in "files.dat". Also make sure that the number
+of cell ids is not greater than the maximum number of files provided for each test case.
+
+  For example, the first line in the file "files.dat", 32768, specifies the total number of cell ids and the limitation on maximum number
+of MPI for the corresponding test case (one can run simulation with less number of MPI ranks as long as all input data
+fits into the memory).
+
+  To run the test on the smaller cluster, one have to modify "files.data" file accordingly. For example, if modifying first line in
+"files.dat" to 100 will result in simulator reading only 100 cell ids data (and will distribute that among all MPI ranks).
+
+
+@section Bluron2CoreNeuron Bluron and CoreNeuron
+  Bluron writes the data for CoreNeuron binaries using nrnbbcore_write() function, which is supposed to be called after the stdinit() function.
+In order to get the binaries for CoreNeuron (bbcore_mech.dat, files.dat, *_1.dat, *_2.dat) one should compile <b><code>special</code></b>
+executable in Neurodamus as it is described here:
+
+https://bbpteam.epfl.ch/project/spaces/display/BBPHPC/Bluron+with+Neurodamus
+
+After the binaries are obtained, CoreNeuron is run with <b><code>coreneuron_exec</code></b> executable.
+
+
+@section Known_Issues Known Issues
+     - Fix all the warnings.
+
+*/

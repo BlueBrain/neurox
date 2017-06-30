@@ -1,0 +1,43 @@
+/**
+@page Road_Map Road Map
+    -# @ref Software_Engineering
+    -# @ref Features
+    -# @ref Optimizations
+    -# @ref Priorities
+
+    @htmlonly
+    <hr>
+    @endhtmlonly
+
+    @section Software_Engineering Software Engineering
+        - Removing warnings
+        - Design documentation
+        - Testing:
+            -# Unit testing
+            -# Integration testing
+            -# Stress testing
+        - Bringing the code to later(st) C/C++ standards, i.e. at least C++03, preferred C++11, but might not be possible on all the architectures yet. Also use STL, Boost, etc.
+        
+    @section Features Features
+        - Checkpoint / restore functionality with files in order to write save state
+        - Configurable stimuli
+        - ISC interaction, possibly with the use of ReportingLib
+        - Monitoring
+        - Gap junction
+
+    @section Optimizations Optimizations
+        - Componentization
+        - Simplification of data structures to achieve more memory reduction
+        - SIMD experimentation using the Cyme package
+        - Threading with different techniques
+        - Non-blocking MPI
+
+    @section Priorities Priorities
+        - Draw a baseline
+            -# Memory
+            -# Time to solution
+        - Testing the output between core neuron and neuron for results matching
+        - Refactoring with latest code standards
+        - Read / write files to get the save state functionality
+        - Stimuli
+*/
