@@ -14,8 +14,8 @@ with import <BBPpkgs> { };
 { testExec ? false} : {
 
 
-    func = stdenv.lib.overrideDerivation coreneuron (oldAttrs: {
-      name = "coreneuron-DEVLOCAL";
+    func = stdenv.lib.overrideDerivation neurox (oldAttrs: {
+      name = "neurox-DEVLOCAL";
       src = ./.;
 
       buildInputs = oldAttrs.buildInputs ++ [ bbptestdata ];
