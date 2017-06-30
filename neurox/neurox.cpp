@@ -198,10 +198,10 @@ static int main_handler()
 
     if (neurox::inputParams->outputStatistics)
     {
-      message("neurox::Misc::Statistics::printMechanismsDistribution...\n");
-      Misc::Statistics::printMechanismsDistribution();
-      message("neurox::Misc::Statistics::printSimulationSize...\n");
-      Misc::Statistics::printSimulationSize();
+      message("neurox::Misc::Statistics::outputMechanismsDistribution...\n");
+      Misc::Statistics::outputMechanismsDistribution();
+      message("neurox::Misc::Statistics::outputSimulationSize...\n");
+      Misc::Statistics::outputSimulationSize();
       //hpx_exit(0,NULL);
     }
 

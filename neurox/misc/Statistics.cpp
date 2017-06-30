@@ -42,7 +42,7 @@ class Statistics::SizeInfo
     }
 };
 
-void Statistics::printSimulationSize(bool writeToFile)
+void Statistics::outputSimulationSize(bool writeToFile)
 {
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
@@ -163,7 +163,7 @@ int Statistics::getNeuronSize_handler()
     neurox_hpx_unpin_continue(branchSize);
 }
 
-void Statistics::printMechanismsDistribution(bool writeToFile)
+void Statistics::outputMechanismsDistribution(bool writeToFile)
 {
     unsigned * mechsCountPerType = new unsigned[mechanismsCount];
     unsigned * sumMechsCountPerType = new unsigned[mechanismsCount]();

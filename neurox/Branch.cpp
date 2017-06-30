@@ -313,11 +313,12 @@ Branch::Branch(offset_t n,
 
 Branch::~Branch()
 {
-    delete [] this->nt->_v_parent_index;
     delete [] this->nt->_data;
+    delete [] this->nt->weights;
+    delete [] this->nt->_v_parent_index;
     delete [] this->nt->_ml_list;
-    free(this->nt);
 
+    hpx_lco_delete_sync(this->eventsQueueMutex);
     for (int m=0; m<mechanismsCount; m++)
     {
         Memb_list & instance = this->mechsInstances[m];
@@ -326,11 +327,32 @@ Branch::~Branch()
 
         delete [] mechsInstances[m].nodeindices;
         delete [] mechsInstances[m].pdata;
+        delete [] mechsInstances[m]._thread;
+
         delete [] mechsInstances[m]._shadow_d;
+        delete [] mechsInstances[m]._shadow_didv;
+        delete [] mechsInstances[m]._shadow_didv_offsets;
+        delete [] mechsInstances[m]._shadow_i;
         delete [] mechsInstances[m]._shadow_rhs;
+        delete [] mechsInstances[m]._shadow_i_offsets;
     }
     delete [] mechsInstances;
 
+    for (int i=0; i< this->nt->_nvdata; i++)
+        delete nt->_vdata[i];
+    delete [] this->nt->_vdata;
+
+    for (int i=0; i< this->nt->n_vecplay; i++)
+        delete (VecPlayContinuousX*) nt->_vecplay[i];
+    delete [] this->nt->_vecplay;
+
+    free(this->nt);
+
+    for (auto & nc_pair : this->netcons)
+        for (auto & nc : nc_pair.second)
+            delete nc;
+
+    delete soma;
     delete branchTree;
     delete mechsGraph;
 }
@@ -340,7 +362,7 @@ int Branch::init_handler( const int nargs, const void *args[],
                           const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==16);
+    assert(nargs==16 || nargs==17); //16 for normal init, 17 for benchmark (initializes, benchmarks, and clears memory)
     new(local) Branch(
         *(offset_t*) args[0], //number of compartments
         *(int*) args[1], //nrnThreadId (nt.id)
@@ -359,46 +381,24 @@ int Branch::init_handler( const int nargs, const void *args[],
         (neuron_id_t *) args[13], sizes[13]/sizeof(neuron_id_t), //netcons preneuron ids
         (floble_t *) args[14], sizes[14]/sizeof(floble_t), //netcons weights
         (unsigned char*) args[15], sizes[15]/sizeof(unsigned char)); //serialized vdata
+
+    bool runBenchmarkAndClear=false;
+    if (nargs==17)
+        runBenchmarkAndClear = *(bool*) args[16];
+    if (runBenchmarkAndClear)
+    {
+        local->soma=new Neuron( -1 /*gid (irrevelant)*/,
+                                999 /*APthreshold (make it never spike)*/,
+                                &local->nt->_actual_v[0] /*thvar_index*/ );
+        hpx_time_t now = hpx_time_now();
+        for (int i=0; i< Neuron::CommunicationBarrier::commStepSize; i++)
+            local->backwardEulerStep();
+        double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
+        delete local;
+        neurox_hpx_unpin_continue(timeElapsed);
+    }
     neurox_hpx_unpin;
 }
-
-
-hpx_action_t Branch::initBenchmarkAndDelete = 0;
-int Branch::initBenchmarkAndDelete_handler( const int nargs, const void *args[],
-                          const size_t sizes[])
-{
-    neurox_hpx_pin(Branch);
-    assert(nargs==16);
-    new(local) Branch(
-        *(offset_t*) args[0], //number of compartments
-        *(int*) args[1], //nrnThreadId (nt.id)
-        target, //current branch HPX address
-        (floble_t*) args[2], sizes[2]/sizeof(floble_t), //data (RHS, D, A, V, B, area, and mechs...)
-        (offset_t*) args[3], sizes[3]/sizeof(offset_t), //pdata
-        (offset_t*) args[4], sizes[4]/sizeof(offset_t), //instances count per mechanism
-        (offset_t*) args[5], sizes[5]/sizeof(offset_t), //nodes indices
-        *(hpx_t*) args[6], //top branchAddr
-        (hpx_t*) args[7], sizes[7]/sizeof(hpx_t), //branches
-        (offset_t*) args[8], sizes[8]/sizeof(offset_t), //parent index
-        (floble_t*) args[9], sizes[9]/sizeof(floble_t), //vecplay T data
-        (floble_t*) args[10], sizes[10]/sizeof(floble_t), //vecplay Y data
-        (PointProcInfo*) args[11], sizes[11]/sizeof(PointProcInfo), //point processes info
-        (NetConX*) args[12], sizes[12]/sizeof(NetConX), //netcons
-        (neuron_id_t *) args[13], sizes[13]/sizeof(neuron_id_t), //netcons preneuron ids
-        (floble_t *) args[14], sizes[14]/sizeof(floble_t), //netcons weights
-        (unsigned char*) args[15], sizes[15]/sizeof(unsigned char)); //serialized vdata
-
-    local->soma=new Neuron( -1 /*gid*/,
-                            999 /*APthreshold (make it never spike)*/,
-                            &local->nt->_actual_v[0] /*thvar_index*/ );
-    hpx_time_t now = hpx_time_now();
-    for (int i=0; i<4; i++)
-        local->backwardEulerStep();
-    double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
-    delete local;
-    neurox_hpx_unpin_continue(timeElapsed);
-}
-
 
 hpx_action_t Branch::initSoma=0;
 int Branch::initSoma_handler(const int nargs,
@@ -890,7 +890,7 @@ void Branch::fixedPlayContinuous()
 
 Branch::BranchTree::BranchTree(
         hpx_t topBranchAddr, hpx_t * branches, size_t branchesCount)
-    : topBranchAddr(topBranchAddr), branches(nullptr), branchesCount(branchesCount)
+    : topBranchAddr(topBranchAddr), branches(nullptr), branchesCount(branchesCount), withChildrenLCOs(nullptr)
 {
     if (branchesCount>0)
     {
@@ -1079,7 +1079,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEulerOnLocality);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::MechanismsGraph::mechFunction);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::init);
-    neurox_hpx_register_action(neurox_several_vars_action, Branch::initBenchmarkAndDelete);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::initSoma);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::addSpikeEvent);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::updateTimeDependency);

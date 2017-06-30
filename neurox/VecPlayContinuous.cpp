@@ -25,7 +25,10 @@ void VecPlayContinuousX::play_init(Branch * branch) {
 }
 
 VecPlayContinuousX::~VecPlayContinuousX()
-{};
+{
+    delete [] y_;
+    delete [] t_;
+};
 
 void VecPlayContinuousX::continuous(double tt) {
     *pd_ = interpolate(tt);

@@ -92,7 +92,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 
     spike_time_t tt = (spike_time_t) t+1e-10; //Coreneuron logic, do not change!
 #if !defined(NDEBUG)
-        printf("Neuron gid %d spikes at %.3f\n", this->gid, tt);
+        printf("== Neuron gid %d spiked at %.3f ms\n", this->gid, tt);
 #endif
 
     if (inputParams->algorithm==neurox::Algorithm::BackwardEulerDebugWithCommBarrier)
