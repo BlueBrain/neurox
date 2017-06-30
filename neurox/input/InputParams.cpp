@@ -100,11 +100,20 @@ void InputParams::parseCommandLine(int argc, char ** argv)
         this->parallelDataLoading = coreneuronMpiExecution.getValue();
         this->branchingDepth = branchingDepth.getValue();
         this->algorithm = (Algorithm) algorithm.getValue();
-        assert(this->branchingDepth>=0);
+
+        if (this->branchingDepth<0)
+            throw TCLAP::ArgException("branching depth should be zero or a positive value", "branchingdepth");
+        if (this->dt<=0)
+            throw TCLAP::ArgException("time-step size (ms) should be a positive value", "dt");
+        if (this->tstop<=0)
+            throw TCLAP::ArgException("execution time (ms) should be a positive value", "tstop");
+        if (fmod(this->tstop, 0.1) != 0)
+            throw TCLAP::ArgException("final execution time should be a multiple of the communication delay " +
+                                      to_string(Neuron::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
     }
     catch (TCLAP::ArgException & e)
     {
-        printf("TCLAP error: %s for argument %s\n", e.error().c_str(), e.argId().c_str());
+        printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
         exit(1);
     }
 }
