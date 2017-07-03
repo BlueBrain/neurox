@@ -20,11 +20,13 @@ class HinesSolver
     HinesSolver()=delete;
     ~HinesSolver();
 
+    static floble_t synchronizeThresholdV(Branch* local);
     static void resetMatrixRHSandD(Branch * local);
     static void setupMatrixRHS(Branch * local);
     static void setupMatrixDiagonal(Branch * local);
     static void backwardTriangulation(Branch *local);
     static void forwardSubstituion(Branch *local);
+    static void updateV(Branch* local);
 
   private:
 };

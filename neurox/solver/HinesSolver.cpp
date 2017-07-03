@@ -8,6 +8,31 @@ using namespace neurox::Solver;
 
 HinesSolver::~HinesSolver(){}
 
+floble_t HinesSolver::synchronizeThresholdV(Branch * local)
+{
+    assert(local->soma || local->thvar_ptr);
+    if (local->soma)
+    {
+        if (local->thvar_ptr) //if I hold the value (Coreneuron base case)
+            return *(local->thvar_ptr);
+
+        //If not, wait for the value to be updated by AIS
+        floble_t v;
+        hpx_lco_get_reset(local->branchTree->withChildrenLCOs[0][6],
+            sizeof(floble_t), &v);
+        return v;
+    }
+    else  if (local->thvar_ptr)
+    {
+        //if AIS, tell soma that the value of the AP threshold is ready
+        //(it will be used by soma on the START of NEXT step)
+        //if I hold the AP-threshold
+        hpx_lco_set_rsync(local->branchTree->withParentLCO[6],
+              sizeof(floble_t), local->thvar_ptr);
+    }
+    return 0;
+}
+
 void HinesSolver::resetMatrixRHSandD(Branch * local)
 {
     floble_t *rhs = local->nt->_actual_rhs;
@@ -238,4 +263,14 @@ void HinesSolver::forwardSubstituion(Branch *local)
               hpx_lco_set_rsync(neuronTree->withChildrenLCOs[c][5],
                     sizeof(floble_t), &toChildrenRHS);
         }
+}
+
+void HinesSolver::updateV(Branch *local)
+{
+    floble_t *rhs = local->nt->_actual_rhs;
+    floble_t *v   = local->nt->_actual_v;
+
+    floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
+    for (int i=0; i<local->nt->end; i++)
+        v[i] += secondOrderMultiplier * rhs[i];
 }

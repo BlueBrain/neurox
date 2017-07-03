@@ -52,7 +52,7 @@ class DataLoader
 
   private:
 
-    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType,
+    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType, int thvar_index,
                               deque<Compartment*> & allCompartments, Compartment * topCompartment,
                               vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDept=0);
 

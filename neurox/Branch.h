@@ -28,6 +28,7 @@ class Branch
 
     Branch(offset_t n,
            int nrnThreadId,
+           int thresholdVoffset,
            hpx_t branchHpxAddr,
            floble_t * data, size_t dataCount,
            offset_t *pdata, size_t pdataCount,
@@ -48,6 +49,7 @@ class Branch
     NrnThread *nt;             ///> compartments metadata
     Memb_list *mechsInstances; ///> Arrays of mechanism instances (size neurox::mechanismsCount)
     Neuron * soma;             ///> if top branch, it's populated, otherwise is NULL
+    floble_t* thvar_ptr;       ///> pointer to variable holding threashold var (if any; typically RHS[0] is AIS's first compartment)
 
     class MechanismsGraph
     {
@@ -88,9 +90,9 @@ class Branch
         hpx_t *branches;		///> hpx address of children branches
         size_t branchesCount;	///> number of branches (>0)
 
-        static constexpr size_t futuresSize = 6; ///> size of futures arrays (used in Gaussian elimination)
-        hpx_t withParentLCO[futuresSize]; ///> LCO of current branch execution to communicate 3 variables with parent branch
-        hpx_t (*withChildrenLCOs)[futuresSize]; ///> LCOs of branches' execution (NULL if no children)
+        static constexpr size_t futuresSize = 7; ///> size of futures arrays (used in Gaussian elimination and AP threshold)
+        hpx_t withParentLCO[futuresSize]; ///> LCO of current branch execution to communicate variables with parent branch
+        hpx_t (*withChildrenLCOs)[futuresSize]; ///> LCOs to communication with branches execution (NULL if no children)
 
         static hpx_action_t initLCOs; ///> Initializes neuronTree
         static int initLCOs_handler();
@@ -115,7 +117,6 @@ class Branch
     static hpx_action_t backwardEuler;
     static hpx_action_t backwardEulerOnLocality;
     static hpx_action_t threadTableCheck;
-    static hpx_action_t getPointerToAPthreshold;
 
     void callModFunction(const Mechanism::ModFunction functionId);
     void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
@@ -139,7 +140,7 @@ class Branch
     static int backwardEuler_handler(const int*, const size_t);
     static int backwardEulerOnLocality_handler(const int*, const size_t);
     static int threadTableCheck_handler();
-    static int getPointerToAPthreshold_handler(const int*, const size_t);
+    static int setAPthresholdPointer_handler(const int*, const size_t);
 };
 
 }; //namespace
