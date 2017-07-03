@@ -25,21 +25,39 @@
 # THE POSSIBILITY OF SUCH DAMAGE.
 
 
-
+set(COMMON_ARGS "--tstop 100. --celsius 6.3 -mpi")
+set(RING_COMMON_ARGS "--datpath ${CMAKE_CURRENT_SOURCE_DIR}/ring ${COMMON_ARGS}")
+set(RING_GAP_COMMON_ARGS "--datpath ${CMAKE_CURRENT_SOURCE_DIR}/ring_gap ${COMMON_ARGS}")
+set(PERMUTE1_ARGS "--cell-permute 1 --nwarp 8")
+set(PERMUTE2_ARGS "--cell-permute 2 --nwarp 16")
 
 # List of tests with arguments
 set(TEST_CASE_ARGS
-  "ring!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring --tstop=100. --celsius=6.3 -mpi"
-  "ring_gap!--datpath=${CMAKE_CURRENT_SOURCE_DIR}/ring_gap --outpath=${CMAKE_CURRENT_BINARY_DIR}/ring_gap --tstop=100. --celsius=6.3 -mpi")
+    "ring!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring"
+    "ring_binqueue!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_binqueue --binqueue"
+    "ring_multisend!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_multisend --multisend"
+    "ring_permute1!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_permute1 ${PERMUTE1_ARGS}"
+    "ring_permute2!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_permute2 ${PERMUTE2_ARGS}"
 
+    "ring_gap!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap"
+    "ring_gap_binqueue!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_binqueue --binqueue"
+    "ring_gap_multisend!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_multisend --multisend"
+    "ring_gap_permute1!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_permute1 ${PERMUTE1_ARGS}"
+    "ring_gap_permute2!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_permute2 ${PERMUTE2_ARGS}")
 
+# There are no directories for permute and multisend related tests, create them and copy ref spikes
+foreach(data_dir "ring" "ring_gap")
+    foreach(test_suffix "multisend" "binqueue" "permute1" "permute2")
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}/out.dat.ref" DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}_${test_suffix}/")
+    endforeach()
+endforeach()
 
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
   string(REPLACE "!" ";" string_line ${args_line})
-if(MPI_FOUND)
-  string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
-endif()
+  if(MPI_FOUND)
+    string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
+  endif()
   list(GET string_line 0 TEST_NAME)
   list(GET string_line 1 TEST_ARGS)
   set(SIM_NAME ${TEST_NAME})
@@ -61,11 +79,11 @@ if(MPI_FOUND)
 endif()
     set(SIM_NAME "${TEST_NAME}/${SUBTEST_NAME}")
     if(${SUBTEST_NAME} MATCHES "generic")
-      set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --tstop=100. -mpi")
+      set(TEST_ARGS "--datpath ${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath ${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --tstop 100. -mpi")
     elseif(${SUBTEST_NAME} MATCHES "forwardskip")
-      set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --forwardskip=5000. --tstop=100. -mpi")
+      set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --forwardskip 5000. --tstop 100. -mpi")
     elseif(${SUBTEST_NAME} MATCHES "spikereplay")
-      set(TEST_ARGS "--datpath=${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath=${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --pattern=${CMAKE_CURRENT_SOURCE_DIR}/${SIM_NAME}/out.std --tstop=100. -mpi")
+      set(TEST_ARGS "--datpath ${CMAKE_CURRENT_SOURCE_DIR}/${TEST_NAME} --outpath ${CMAKE_CURRENT_BINARY_DIR}/${SIM_NAME} --pattern ${CMAKE_CURRENT_SOURCE_DIR}/${SIM_NAME}/out.std --tstop 100. -mpi")
     endif()
 
     configure_file(integration_test.sh.in ${SIM_NAME}/integration_test.sh @ONLY)
