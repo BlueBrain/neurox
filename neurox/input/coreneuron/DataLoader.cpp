@@ -674,7 +674,13 @@ int DataLoader::initNeurons_handler()
          myNeuronsGids, sizeof(int)*myNeuronsCount,
          myNeuronsTargets, sizeof(hpx_t)*myNeuronsCount);
 
-    hpx_par_for_sync( DataLoader::createNeuron, 0, myNeuronsCount, myNeuronsTargets);
+    //If there is branch parallelism, neurons are generated in serial
+    //(otherwise branches benchmark is affected by scheduler and running threads)
+//    if (inputParams->branchingDepth>0)
+//        for (int i=0; i<myNeuronsCount; i++)
+ //           createNeuron(i, &myNeuronsTargets[i]);
+   // else
+        hpx_par_for_sync( DataLoader::createNeuron, 0, myNeuronsCount, myNeuronsTargets);
 
     if (inputParams->allReduceAtLocality)
         Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons =
@@ -1087,7 +1093,6 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-
         //allocate children branches recursively (if any)
         if (bottomCompartment)
             for (size_t c=0; c<bottomCompartment->branches.size(); c++)
@@ -1167,7 +1172,6 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                nrnThreadId, rank, timeElapsed);
 #endif
     }
-
     assert(branchAddr!= HPX_NULL);
     hpx_call_sync(branchAddr, Branch::init,
                   NULL, 0, //no timing
