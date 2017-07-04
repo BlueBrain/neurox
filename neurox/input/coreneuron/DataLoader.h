@@ -95,13 +95,11 @@ class DataLoader
 
     static hpx_action_t addSynapse;
     static hpx_action_t addNeurons;
-    static hpx_action_t queryLoadBalancingTable;
 
     static int createNeuron(int neuron_idx, void * targets);
     static int getMyNrnNeuronsCount();
     static int addSynapse_handler(const int, const void *[], const size_t[]) ;
     static int addNeurons_handler(const int, const void *[], const size_t[]) ;
-    static int queryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[]);
     static int init_handler ();
     static int initMechanisms_handler();
     static int initNeurons_handler();

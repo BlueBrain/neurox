@@ -6,7 +6,7 @@
 #include "coreneuron/utils/randoms/nrnran123.h" //RNG data structures
 
 using namespace neurox;
-using namespace neurox::Misc;
+using namespace neurox::Tools;
 
 class Statistics::SizeInfo
 {

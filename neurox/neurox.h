@@ -35,7 +35,8 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #include "neurox/input/coreneuron/Debugger.h"
 
 //Miscellaneous
-#include "neurox/misc/Statistics.h"
+#include "neurox/tools/Statistics.h"
+#include "neurox/tools/LoadBalancing.h"
 
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
