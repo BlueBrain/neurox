@@ -26,17 +26,17 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #include "neurox/Neuron.h"
 
 //Fixed-step Backward-Euler solver
-#include "neurox/input/InputParams.h"
 #include "neurox/solver/HinesSolver.h"
 
 //CoreNeuron Input
-#include "neurox/input/coreneuron/Compartment.h"
-#include "neurox/input/coreneuron/DataLoader.h"
-#include "neurox/input/coreneuron/Debugger.h"
+#include "neurox/input/Compartment.h"
+#include "neurox/input/DataLoader.h"
+#include "neurox/input/Debugger.h"
 
 //Miscellaneous
 #include "neurox/tools/Statistics.h"
 #include "neurox/tools/LoadBalancing.h"
+#include "neurox/tools/CmdLineParser.h"
 
 #define IClamp 7
 #define ProbAMPANMDA_EMS 137
@@ -54,7 +54,7 @@ namespace neurox
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
-    extern Input::InputParams *  inputParams; ///> Parameters parsed from command line
+    extern Tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
 
     extern hpx_action_t main;            ///> execution starting point (called via hpx_run)
     extern hpx_action_t clear;           ///> clears all memory utilised including neurons, branches and mechanisms information

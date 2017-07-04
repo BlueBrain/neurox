@@ -24,7 +24,6 @@
 
 using namespace std;
 using namespace neurox::Input;
-using namespace neurox::Input::Coreneuron;
 
 static FILE *fileNetcons;
 static hpx_t neuronsMutex = HPX_NULL;
@@ -334,7 +333,7 @@ void DataLoader::cleanCoreneuronData()
     nrn_cleanup();
 }
 
-void Input::Coreneuron::DataLoader::initAndLoadCoreneuronData(int argc, char ** argv)
+void DataLoader::initAndLoadCoreneuronData(int argc, char ** argv)
 {
     cn_input_params input_params;
     nrn_init_and_load_data(argc, argv, input_params, false);

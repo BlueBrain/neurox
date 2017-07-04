@@ -12,20 +12,20 @@ enum Algorithm {
     ALL=9 //All, except debug
 };
 
-namespace Input
+namespace Tools
 {
 /**
- * @brief The InputParams class
+ * @brief The CmdLineParser class
  * Represents all input parameters
  */
-class InputParams
+class CmdLineParser
 {
   public:
 
     // default values from register_mech.c:: initnrn()
-    InputParams();
-    InputParams(int argc, char ** argv);
-    ~InputParams();
+    CmdLineParser();
+    CmdLineParser(int argc, char ** argv);
+    ~CmdLineParser();
 
     //Execution parameters (cn_input_parameters)
     char secondorder;       ///> 0 means crank-nicolson. 2 means currents adjusted to t+dt/2
@@ -58,6 +58,6 @@ class InputParams
     /// Parses command line arguments and populates structure
     void parseCommandLine(int argc, char ** argv);
 };
-}; //InputParams
+}; //CmdLineParser
 }; //NeuroX
 

@@ -3,9 +3,9 @@
 #include "stdio.h"
 #include "string.h"
 
-using namespace neurox::Input;
+using namespace neurox::Tools;
 
-InputParams::InputParams ():
+CmdLineParser::CmdLineParser ():
   //from nrnoptarg.cpp::cn_parameters():
   tstart(0), tstop(100), dt(0.025), dt_io(0.1), celsius(34),
   voltage(-65), forwardSkip(0),  prcellgid(-1)
@@ -16,15 +16,15 @@ InputParams::InputParams ():
     memset(outputPath,'\0',512);
 }
 
-InputParams::~InputParams(){}
+CmdLineParser::~CmdLineParser(){}
 
-InputParams::InputParams (int argc, char** argv):
-    InputParams()
+CmdLineParser::CmdLineParser (int argc, char** argv):
+    CmdLineParser()
 {
     parseCommandLine(argc, argv);
 }
 
-void InputParams::parseCommandLine(int argc, char ** argv)
+void CmdLineParser::parseCommandLine(int argc, char ** argv)
 {
     try {
         //message printed (help text, text delimiter, version)

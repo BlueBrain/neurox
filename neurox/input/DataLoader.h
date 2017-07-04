@@ -17,8 +17,6 @@ namespace neurox {
 
 namespace Input {
 
-namespace Coreneuron {
-
 /**
  * @brief The NrxSetup class
  * Converts CoreNeuron data structures to HPX data structures
@@ -107,7 +105,6 @@ class DataLoader
     static int finalize_handler();
 };
 
-}; //Coreneuron
 }; //Input
 }; //NeuroX
 

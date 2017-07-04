@@ -9,7 +9,6 @@
 using namespace std;
 namespace neurox {
 namespace Input {
-namespace Coreneuron {
 
 /**
  * @brief The DataComparison class
@@ -47,7 +46,5 @@ class Debugger
     static int fixedStepMinimal_handler(const int *, const size_t);
     static int threadTableCheck_handler();
 };
-
-}; //Coreneuron
 }; //Input
 }; //NeuroX

@@ -10,8 +10,6 @@ namespace neurox
 {
 namespace Input
 {
-namespace Coreneuron
-{
 class Compartment
 {
   public:
@@ -53,6 +51,5 @@ class Compartment
   private:
 };
 
-}; //Coreneuron
 }; //Input
 }; //NeuroX

@@ -24,7 +24,6 @@
 
 using namespace std;
 using namespace neurox::Input;
-using namespace neurox::Input::Coreneuron;
 
 bool Debugger::isEqual(floble_t a, floble_t b, bool roughlyEqual)
 {
@@ -256,7 +255,7 @@ void Debugger::compareAllBranches()
 #if !defined(NDEBUG) 
     if (inputParams->branchingDepth>0) return;
     message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
-    neurox_hpx_call_neurons(Input::Coreneuron::Debugger::compareBranch);
+    neurox_hpx_call_neurons(Input::Debugger::compareBranch);
 #endif
 }
 

@@ -650,8 +650,8 @@ void Branch::backwardEulerStep()
     if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
      || !inputParams->parallelDataLoading)
     {
-        Input::Coreneuron::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
-        Input::Coreneuron::Debugger::compareBranch2(this);
+        Input::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
+        Input::Debugger::compareBranch2(this);
     }
 #endif
 }

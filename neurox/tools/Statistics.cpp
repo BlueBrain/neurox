@@ -46,7 +46,7 @@ void Statistics::outputSimulationSize(bool writeToFile)
 {
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
-                          + sizeof(neurox::Input::InputParams) * HPX_LOCALITIES) /1024;
+                          + sizeof(neurox::Tools::CmdLineParser) * HPX_LOCALITIES) /1024;
 
     FILE *outstream = stdout;
     if (writeToFile)
