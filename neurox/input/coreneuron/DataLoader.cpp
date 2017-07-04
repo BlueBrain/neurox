@@ -1087,7 +1087,17 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //time this branch
+
+        //allocate children branches recursively (if any)
+        if (bottomCompartment)
+            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
+                branches.push_back(createBranch( nrnThreadId, somaAddr,
+                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
+                    branchType==BranchType::Soma && c==0 ? thvar_index - n : -1, /*offset in AIS = offset in soma - nt->end */
+                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
+
+        //Benchmark and assign this branch to least busy compute node (except soma and AIS)
+        //Note: we do this after children creation so that we use top (lighter) branches to balance work load
         hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
         bool runBenchmarkAndClear = true;
         int dumbThresholdOffset=0;
@@ -1156,14 +1166,6 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                branchType==BranchType::Soma ? "soma" : (branchType==BranchType::AxonInitSegment ? "AIS" : "dendrite"),
                nrnThreadId, rank, timeElapsed);
 #endif
-
-        //allocate children branches recursively (if any)
-        if (bottomCompartment)
-            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-                branches.push_back(createBranch( nrnThreadId, somaAddr,
-                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
-                    branchType==BranchType::Soma && c==0 ? thvar_index - n : -1, /*offset in AIS = offset in soma - nt->end */
-                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
     }
 
     assert(branchAddr!= HPX_NULL);
