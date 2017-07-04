@@ -3,7 +3,7 @@
 #include "neurox/neurox.h"
 
 namespace neurox{
-namespace Misc{
+namespace Tools{
 
 /**
  * @brief The Neuron class

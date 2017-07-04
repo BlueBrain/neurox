@@ -11,7 +11,8 @@ int main(int argc, char** argv)
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Neuron::registerHpxActions();
-    neurox::Misc::Statistics::registerHpxActions();
+    neurox::Tools::Statistics::registerHpxActions();
+    neurox::Tools::LoadBalancing::registerHpxActions();
     neurox::Input::Coreneuron::DataLoader::registerHpxActions();
 #if !defined(NDEBUG)
     neurox::Input::Coreneuron::Debugger::registerHpxActions();
