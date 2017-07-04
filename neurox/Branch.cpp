@@ -584,15 +584,18 @@ void Branch::backwardEulerStep()
 
     //cvodestb.cpp::deliver_net_events()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
-    if (this->soma || this->thvar_ptr)
+    if (this->soma)
     {
       //Soma waits for AIS to have threshold V value updated
-      floble_t thresholdV = HinesSolver::synchronizeThresholdV(this);
-      if (this->soma && this->soma->gid==89)
-          printf("### %d: %.4f ms : V=%.6f > %.6f\n", this->soma->gid, this->nt->_t, thresholdV, this->soma->threshold);
-      if (soma && soma->checkAPthresholdAndTransmissionFlag(thresholdV))
+      floble_t thresholdV;
+      HinesSolver::synchronizeThresholdV(this, &thresholdV);
+      if (soma->checkAPthresholdAndTransmissionFlag(thresholdV))
           spikesLco = soma->sendSpikes(nt->_t);
     }
+    else if (this->thvar_ptr)
+        //Axon Initial Segment send threshold  V to parent
+        HinesSolver::synchronizeThresholdV(this);
+
 
     //netcvode.cpp::NetCvode::deliver_net_events()
     t += .5*dt;

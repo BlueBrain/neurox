@@ -8,29 +8,20 @@ using namespace neurox::Solver;
 
 HinesSolver::~HinesSolver(){}
 
-floble_t HinesSolver::synchronizeThresholdV(Branch * local)
+void HinesSolver::synchronizeThresholdV(Branch *local, floble_t *thresholdV)
 {
-    assert(local->soma || local->thvar_ptr);
     if (local->soma)
     {
         if (local->thvar_ptr) //if I hold the value (Coreneuron base case)
-            return *(local->thvar_ptr);
-
-        //If not, wait for the value to be updated by AIS
-        floble_t v;
-        hpx_lco_get_reset(local->branchTree->withChildrenLCOs[0][6],
-            sizeof(floble_t), &v);
-        return v;
+            *thresholdV = *local->thvar_ptr;
+        else
+            //If not, wait for the value to be updated by AIS
+            hpx_lco_get_reset(local->branchTree->withChildrenLCOs[0][6],
+                sizeof(floble_t), thresholdV);
     }
-    else  if (local->thvar_ptr)
-    {
-        //if AIS, tell soma that the value of the AP threshold is ready
-        //(it will be used by soma on the START of NEXT step)
-        //if I hold the AP-threshold
+    else  if (local->thvar_ptr) //if AIS, send value to soma
         hpx_lco_set_rsync(local->branchTree->withParentLCO[6],
               sizeof(floble_t), local->thvar_ptr);
-    }
-    return 0;
 }
 
 void HinesSolver::resetMatrixRHSandD(Branch * local)

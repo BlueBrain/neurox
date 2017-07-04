@@ -155,13 +155,19 @@ void Debugger::stepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int second
         b->soma->timeDependencies->sendSteppingNotification(b->nt->_t, dt, b->soma->gid, b->soma->synapses);
         b->soma->timeDependencies->waitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
     }
-    floble_t thresholdV = Solver::HinesSolver::synchronizeThresholdV(b);
     if (b->soma)
     {
+      //Soma waits for AIS to have threshold V value updated
+      floble_t thresholdV;
+      Solver::HinesSolver::synchronizeThresholdV(b, &thresholdV);
       if (b->soma->checkAPthresholdAndTransmissionFlag(thresholdV))
           b->soma->sendSpikes(b->nt->_t);
-      //TODO sendSpikes LCO must be waited
+          //TODO sendSpikes LCO must be waited
     }
+    else if (b->thvar_ptr)
+        //Axon Initial Segment send threshold  V to parent
+        Solver::HinesSolver::synchronizeThresholdV(b);
+
     b->nt->_t += .5*dt;
     b->deliverEvents(b->nt->_t);
 
