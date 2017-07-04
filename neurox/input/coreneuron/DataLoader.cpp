@@ -314,13 +314,13 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         for (Compartment* comp : compartments)
             comp->shrinkToFit();
 
-        createBranch(nt->id, neuron_addr, BranchType::Soma, compartments, compartments.at(0),
+        createBranch(nt->id, neuron_addr, BranchType::Soma,
+                     thvar_index, compartments, compartments.at(0),
                      ionsInstancesInfo, inputParams->branchingDepth);
 
         hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
-                      &APthreshold, sizeof(floble_t),
-                      &thvar_index, sizeof(thvar_index));
+                      &APthreshold, sizeof(floble_t));
 
         for (auto c : compartments)
             delete c;
@@ -1021,7 +1021,7 @@ int DataLoader::getBranchData(
 bool compareCompartmentsPtrsIds(Compartment * a, Compartment *b)
 {   return a->id<b->id; }
 
-hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branchType,
+hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branchType, int thvar_index,
                                deque<Compartment*> & allCompartments, Compartment * topCompartment,
                                vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
 {
@@ -1047,6 +1047,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
     vector<floble_t> branchWeights;
 
     hpx_t branchAddr = HPX_NULL; ///hpx address of this branch
+    int thresholdVoffset=-1; //offset of the AP threshold voltage, or -1 if none in this branch
     Compartment * bottomCompartment = nullptr; //iterator for subsections
 
     if (inputParams->branchingDepth==0 ) //Flat a la Coreneuron
@@ -1055,6 +1056,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         getVecPlayBranchData(allCompartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
         getNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
         branchAddr = somaAddr;
+        thresholdVoffset = thvar_index;
     }
     else if (inputParams->branchingDepth>0 ) //branch-parallelism
     {
@@ -1085,14 +1087,26 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
         getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
-        //time this branch
+
+        //allocate children branches recursively (if any)
+        if (bottomCompartment)
+            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
+                branches.push_back(createBranch( nrnThreadId, somaAddr,
+                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
+                    branchType==BranchType::Soma && c==0 ? thvar_index - n : -1, /*offset in AIS = offset in soma - nt->end */
+                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
+
+        //Benchmark and assign this branch to least busy compute node (except soma and AIS)
+        //Note: we do this after children creation so that we use top (lighter) branches to balance work load
         hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
         bool runBenchmarkAndClear = true;
+        int dumbThresholdOffset=0;
         double timeElapsed=-1;
         hpx_call_sync(tempBranchAddr, Branch::init,
                       &timeElapsed, sizeof(timeElapsed), //output
                       &n, sizeof(offset_t),
                       &nrnThreadId, sizeof(int),
+                      &dumbThresholdOffset, sizeof(int),
                       data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
                       pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                       instancesCount.data(), instancesCount.size()*sizeof(offset_t),
@@ -1109,6 +1123,8 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                       vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size(),
                       &runBenchmarkAndClear, sizeof(bool)
                       );
+        assert(timeElapsed>0);
+        hpx_gas_clear_affinity(tempBranchAddr); //TODO is this enough to deallocate mem?
 
         //get HPX address of branch; create it if necessary, and update benchmark table
         int rank = hpx_get_my_rank();
@@ -1124,8 +1140,10 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                           &rank, sizeof(int));
             break;
           case BranchType::AxonInitSegment :
-            //AIS must be in samme locality as soma
+            //AIS will be allocated in the same locality as soma (to speed-up AT threshold check)
             branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+            thresholdVoffset = thvar_index; //correct value past by soma
+
             //update benchmark table with this entry
             hpx_call_sync(HPX_THERE(0), DataLoader::queryLoadBalancingTable,
                           NULL, 0, //output
@@ -1148,19 +1166,14 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                branchType==BranchType::Soma ? "soma" : (branchType==BranchType::AxonInitSegment ? "AIS" : "dendrite"),
                nrnThreadId, rank, timeElapsed);
 #endif
-
-        //allocate children branches recursively (if any)
-        if (bottomCompartment)
-            for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-                branches.push_back(createBranch( nrnThreadId, somaAddr,
-                    branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
-                    allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
     }
 
     assert(branchAddr!= HPX_NULL);
-    hpx_call_sync(branchAddr, Branch::init, NULL, 0,
+    hpx_call_sync(branchAddr, Branch::init,
+                  NULL, 0, //no timing
                   &n, sizeof(offset_t),
                   &nrnThreadId, sizeof(int),
+                  &thresholdVoffset, sizeof(int),
                   data.size()>0 ? data.data() : nullptr, sizeof(floble_t)*data.size(),
                   pdata.size()>0 ? pdata.data() : nullptr, sizeof(offset_t)*pdata.size(),
                   instancesCount.data(), instancesCount.size()*sizeof(offset_t),

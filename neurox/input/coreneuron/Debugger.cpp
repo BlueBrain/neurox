@@ -157,11 +157,17 @@ void Debugger::stepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int second
     }
     if (b->soma)
     {
-      floble_t v = *(b->soma->thvar_ptr);
-      if (b->soma->checkAPthresholdAndTransmissionFlag(v))
+      //Soma waits for AIS to have threshold V value updated
+      floble_t thresholdV;
+      Solver::HinesSolver::synchronizeThresholdV(b, &thresholdV);
+      if (b->soma->checkAPthresholdAndTransmissionFlag(thresholdV))
           b->soma->sendSpikes(b->nt->_t);
-      //TODO sendSpikes LCO must be waited
+          //TODO sendSpikes LCO must be waited
     }
+    else if (b->thvar_ptr)
+        //Axon Initial Segment send threshold  V to parent
+        Solver::HinesSolver::synchronizeThresholdV(b);
+
     b->nt->_t += .5*dt;
     b->deliverEvents(b->nt->_t);
 
@@ -266,7 +272,7 @@ void Debugger::compareBranch2(Branch * branch)
     assert(branch->nt->_t == nt._t);
     assert(secondorder == inputParams->secondorder);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
-    assert(*(branch->soma->thvar_ptr) == nt._actual_v[nt.presyns[0].thvar_index_]);
+    assert(*(branch->thvar_ptr) == nt._actual_v[nt.presyns[0].thvar_index_]);
     assert(branch->soma->gid == nt.presyns[0].gid_);
 
     //vecplay

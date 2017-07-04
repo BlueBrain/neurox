@@ -19,6 +19,7 @@ void Branch::operator delete(void* worker) {
 
 Branch::Branch(offset_t n,
                int nrnThreadId,
+               int thresholdVoffset,
                hpx_t branchHpxAddr,
                floble_t * data, size_t dataCount,
                offset_t *pdata, size_t pdataCount,
@@ -34,7 +35,7 @@ Branch::Branch(offset_t n,
                neuron_id_t * netConsPreId, size_t netConsPreIdsCount,
                floble_t *weights, size_t weightsCount,
                unsigned char* vdataSerialized, size_t vdataSerializedCount):
-    soma(nullptr),nt(nullptr)
+    soma(nullptr),nt(nullptr), thvar_ptr(nullptr)
 {
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
@@ -89,6 +90,10 @@ Branch::Branch(offset_t n,
     nt->_actual_v    = nt->_data + n*4;
     nt->_actual_area = nt->_data + n*5;
 
+    //AP threshold offset
+    this->thvar_ptr = thresholdVoffset==-1 ? NULL : &(this->nt->_actual_v[thresholdVoffset]);
+
+    //events mutex
     this->eventsQueueMutex = hpx_lco_sema_new(1);
 
     //parent index
@@ -362,34 +367,34 @@ int Branch::init_handler( const int nargs, const void *args[],
                           const size_t sizes[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==16 || nargs==17); //16 for normal init, 17 for benchmark (initializes, benchmarks, and clears memory)
+    assert(nargs==17 || nargs==18); //16 for normal init, 17 for benchmark (initializes, benchmarks, and clears memory)
     new(local) Branch(
         *(offset_t*) args[0], //number of compartments
         *(int*) args[1], //nrnThreadId (nt.id)
+        *(int*) args[2], //offset  AP voltage threshold (-1 if none)
         target, //current branch HPX address
-        (floble_t*) args[2], sizes[2]/sizeof(floble_t), //data (RHS, D, A, V, B, area, and mechs...)
-        (offset_t*) args[3], sizes[3]/sizeof(offset_t), //pdata
-        (offset_t*) args[4], sizes[4]/sizeof(offset_t), //instances count per mechanism
-        (offset_t*) args[5], sizes[5]/sizeof(offset_t), //nodes indices
-        *(hpx_t*) args[6], //top branchAddr
-        (hpx_t*) args[7], sizes[7]/sizeof(hpx_t), //branches
-        (offset_t*) args[8], sizes[8]/sizeof(offset_t), //parent index
-        (floble_t*) args[9], sizes[9]/sizeof(floble_t), //vecplay T data
-        (floble_t*) args[10], sizes[10]/sizeof(floble_t), //vecplay Y data
-        (PointProcInfo*) args[11], sizes[11]/sizeof(PointProcInfo), //point processes info
-        (NetConX*) args[12], sizes[12]/sizeof(NetConX), //netcons
-        (neuron_id_t *) args[13], sizes[13]/sizeof(neuron_id_t), //netcons preneuron ids
-        (floble_t *) args[14], sizes[14]/sizeof(floble_t), //netcons weights
-        (unsigned char*) args[15], sizes[15]/sizeof(unsigned char)); //serialized vdata
+        (floble_t*) args[3], sizes[3]/sizeof(floble_t), //data (RHS, D, A, V, B, area, and mechs...)
+        (offset_t*) args[4], sizes[4]/sizeof(offset_t), //pdata
+        (offset_t*) args[5], sizes[5]/sizeof(offset_t), //instances count per mechanism
+        (offset_t*) args[6], sizes[6]/sizeof(offset_t), //nodes indices
+        *(hpx_t*) args[7], //top branchAddr
+        (hpx_t*) args[8], sizes[8]/sizeof(hpx_t), //branches
+        (offset_t*) args[9], sizes[9]/sizeof(offset_t), //parent index
+        (floble_t*) args[10], sizes[10]/sizeof(floble_t), //vecplay T data
+        (floble_t*) args[11], sizes[11]/sizeof(floble_t), //vecplay Y data
+        (PointProcInfo*) args[12], sizes[12]/sizeof(PointProcInfo), //point processes info
+        (NetConX*) args[13], sizes[13]/sizeof(NetConX), //netcons
+        (neuron_id_t *) args[14], sizes[14]/sizeof(neuron_id_t), //netcons preneuron ids
+        (floble_t *) args[15], sizes[15]/sizeof(floble_t), //netcons weights
+        (unsigned char*) args[16], sizes[16]/sizeof(unsigned char)); //serialized vdata
 
     bool runBenchmarkAndClear=false;
-    if (nargs==17)
-        runBenchmarkAndClear = *(bool*) args[16];
+    if (nargs==18)
+        runBenchmarkAndClear = *(bool*) args[17];
     if (runBenchmarkAndClear)
     {
         local->soma=new Neuron( -1 /*gid (irrevelant)*/,
-                                999 /*APthreshold (make it never spike)*/,
-                                &local->nt->_actual_v[0] /*thvar_index*/ );
+                                999 /*APthreshold (make it never spike)*/);
         hpx_time_t now = hpx_time_now();
         for (int i=0; i< Neuron::CommunicationBarrier::commStepSize; i++)
             local->backwardEulerStep();
@@ -405,39 +410,11 @@ int Branch::initSoma_handler(const int nargs,
                              const void *args[], const size_t[])
 {
     neurox_hpx_pin(Branch);
-    assert(nargs==3);
+    assert(nargs==2);
     const neuron_id_t neuronId = *(const neuron_id_t*) args[0];
     const floble_t APthreshold = *(const floble_t*) args[1];
-    //thvar_index is the compartment index holding AP threshold
-    const int thvar_index = *(const int*) args[2];
-
-    floble_t * thvar_ptr = nullptr;
-    if (inputParams->branchingDepth==0)
-        thvar_ptr = &local->nt->_actual_v[thvar_index];
-    else
-    {
-        //ask Axon Initial Segment for its AP threshold  memory address (must be in same locality)
-        assert(target == local->branchTree->topBranchAddr);
-        int offsetInAxonInitSegment = thvar_index - local->nt->end;
-        hpx_t AISbranch = local->branchTree->branches[0];
-        hpx_call_sync(AISbranch, Branch::getPointerToAPthreshold,
-                &thvar_ptr, sizeof(floble_t*),          //output
-                &offsetInAxonInitSegment, sizeof(int)); //input
-        local->soma=new Neuron(neuronId, APthreshold, thvar_ptr);
-    }
-    assert(*thvar_ptr > -200 && *thvar_ptr < 300);
-    local->soma=new Neuron(neuronId, APthreshold, thvar_ptr);
+    local->soma=new Neuron(neuronId, APthreshold);
     neurox_hpx_unpin;
-}
-
-hpx_action_t Branch::getPointerToAPthreshold=0;
-int Branch::getPointerToAPthreshold_handler(const int* offset, const size_t)
-{
-    neurox_hpx_pin(Branch);
-    assert(*offset>=0 && *offset<local->nt->end);
-    assert(local->branchTree->branchesCount==0);
-    floble_t * V_ptr = &(local->nt->_actual_v[*offset]);
-    neurox_hpx_unpin_continue(V_ptr);
 }
 
 hpx_action_t Branch::clear=0;
@@ -593,8 +570,6 @@ void Branch::finitialize2()
 //fadvance_core.c::nrn_fixed_step_thread
 void Branch::backwardEulerStep()
 {
-    floble_t *& v   = this->nt->_actual_v;
-    floble_t *& rhs = this->nt->_actual_rhs;
     double & t  = this->nt->_t;
     const double dt = this->nt->_dt;
     hpx_t spikesLco = HPX_NULL;
@@ -611,11 +586,16 @@ void Branch::backwardEulerStep()
     //netcvode.cpp::NetCvode::check_thresh(NrnThread*)
     if (this->soma)
     {
-      //send spikes that occur in this step
-      floble_t v = *(this->soma->thvar_ptr);
-      if (soma->checkAPthresholdAndTransmissionFlag(v))
+      //Soma waits for AIS to have threshold V value updated
+      floble_t thresholdV;
+      HinesSolver::synchronizeThresholdV(this, &thresholdV);
+      if (soma->checkAPthresholdAndTransmissionFlag(thresholdV))
           spikesLco = soma->sendSpikes(nt->_t);
     }
+    else if (this->thvar_ptr)
+        //Axon Initial Segment send threshold  V to parent
+        HinesSolver::synchronizeThresholdV(this);
+
 
     //netcvode.cpp::NetCvode::deliver_net_events()
     t += .5*dt;
@@ -625,10 +605,8 @@ void Branch::backwardEulerStep()
     solveTreeMatrix();
     second_order_cur(this->nt, inputParams->secondorder );
 
-    ////// fadvance_core.c : update() / Branch::updateV
-    floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
-    for (int i=0; i<this->nt->end; i++)
-        v[i] += secondOrderMultiplier * rhs[i];
+    ////// fadvance_core.c : update()
+    Solver::HinesSolver::updateV(this);
 
     callModFunction(Mechanism::ModFunction::currentCapacitance);
 
@@ -814,9 +792,6 @@ int Branch::finitialize_handler()
 void Branch::setupTreeMatrix()
 {
     //treeset_core.c::nrn_rhs: Set up Right-Hand-Side of Matrix-Vector multiplication
-    floble_t *& d = this->nt->_actual_d;
-    floble_t *& rhs = this->nt->_actual_rhs;
-
     Solver::HinesSolver::resetMatrixRHSandD(this);
 
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
@@ -881,7 +856,6 @@ void Branch::fixedPlayContinuous()
         vecplay->continuous(t);
     }
 }
-
 
 //////////////////// Branch::NeuronTree ///////////////////////
 
@@ -1072,7 +1046,6 @@ void Branch::registerHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::threadTableCheck);
     neurox_hpx_register_action(neurox_zero_var_action,     Branch::BranchTree::initLCOs);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEuler);
-    neurox_hpx_register_action(neurox_single_var_action,   Branch::getPointerToAPthreshold);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::backwardEulerOnLocality);
     neurox_hpx_register_action(neurox_single_var_action,   Branch::MechanismsGraph::mechFunction);
     neurox_hpx_register_action(neurox_several_vars_action, Branch::init);

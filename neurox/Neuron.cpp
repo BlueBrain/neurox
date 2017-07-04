@@ -6,8 +6,8 @@
 using namespace neurox;
 using namespace neurox::Solver;
 
-Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold, floble_t * thvar_ptr):
-    gid(neuronId), threshold(APthreshold), thvar_ptr(thvar_ptr),
+Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
+    gid(neuronId), threshold(APthreshold),
     timeDependencies(nullptr), commBarrier(nullptr), slidingTimeWindow(nullptr)
 {
     this->synapsesTransmissionFlag = false;

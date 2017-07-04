@@ -107,8 +107,9 @@ void InputParams::parseCommandLine(int argc, char ** argv)
             throw TCLAP::ArgException("time-step size (ms) should be a positive value", "dt");
         if (this->tstop<=0)
             throw TCLAP::ArgException("execution time (ms) should be a positive value", "tstop");
-        if (fmod(this->tstop, 0.1) != 0)
-            throw TCLAP::ArgException("final execution time should be a multiple of the communication delay " +
+        floble_t remainder_tstop_tcomm = fmod(this->tstop, Neuron::CommunicationBarrier::commStepSize*this->dt);
+        if (! (remainder_tstop_tcomm<0.00001 || remainder_tstop_tcomm>Neuron::CommunicationBarrier::commStepSize*this->dt-0.00001))
+            throw TCLAP::ArgException("execution time " +to_string(this->tstop) + "ms  should be a multiple of the communication delay " +
                                       to_string(Neuron::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
     }
     catch (TCLAP::ArgException & e)

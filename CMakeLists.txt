@@ -1,3 +1,6 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+project(neurox)
+
 ## Automatically add C++11 flags (eg -libc++ or -lstdc++)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11) # C++11...
@@ -23,7 +26,7 @@ include_directories(${TCLAP_INCLUDE_DIR})
 #PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the $PATH)
 set(PKG_CONFIG_EXECUTABLE pkg-config)
 IF (NOT PKG_CONFIG_FOUND)
-  message (FATAL_ERROR "pkg-config binary not found. Forgot to add it to $PATH?")
+  message (FATAL_ERROR "pkg-config binary not found. Did you forget to add it to $PATH?")
 ELSE()
   #use pkg-config to find hpx
   message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
