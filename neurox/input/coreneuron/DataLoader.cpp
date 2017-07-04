@@ -676,10 +676,10 @@ int DataLoader::initNeurons_handler()
 
     //If there is branch parallelism, neurons are generated in serial
     //(otherwise branches benchmark is affected by scheduler and running threads)
-//    if (inputParams->branchingDepth>0)
-//        for (int i=0; i<myNeuronsCount; i++)
- //           createNeuron(i, &myNeuronsTargets[i]);
-   // else
+    if (inputParams->branchingDepth>0)
+        for (int i=0; i<myNeuronsCount; i++)
+            createNeuron(i, myNeuronsTargets);
+    else
         hpx_par_for_sync( DataLoader::createNeuron, 0, myNeuronsCount, myNeuronsTargets);
 
     if (inputParams->allReduceAtLocality)
