@@ -393,8 +393,13 @@ int Branch::init_handler( const int nargs, const void *args[],
         runBenchmarkAndClear = *(bool*) args[17];
     if (runBenchmarkAndClear)
     {
-        local->soma=new Neuron( -1 /*gid (irrevelant)*/,
-                                999 /*APthreshold (make it never spike)*/);
+        //initialize soma (gid irrelevant, APthreshold very high (never spikes)
+        local->soma=new Neuron( -1, 999);
+
+        //initialize datatypes and offsets (required for mechs graph-parallelism shadow vecs)
+        local->finitialize2();
+
+        //benchmark execution time of a communication-step time-frame
         hpx_time_t now = hpx_time_now();
         for (int i=0; i< Neuron::CommunicationBarrier::commStepSize; i++)
             local->backwardEulerStep();
@@ -958,7 +963,8 @@ Branch::MechanismsGraph::~MechanismsGraph()
     hpx_lco_delete_sync(graphLCO);
 
     for (int i=0; i<mechanismsCount; i++)
-        hpx_lco_delete_sync(mechsLCOs[i]);
+        if (i != mechanismsMap[CAP]) //HPX_NULL
+            hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
 
     hpx_lco_delete_sync(rhs_d_mutex);
