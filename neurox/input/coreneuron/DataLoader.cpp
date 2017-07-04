@@ -1090,8 +1090,8 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         //time this branch
         hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
         bool runBenchmarkAndClear = true;
-        double timeElapsed=-1;
         int dumbThresholdOffset=0;
+        double timeElapsed=-1;
         hpx_call_sync(tempBranchAddr, Branch::init,
                       &timeElapsed, sizeof(timeElapsed), //output
                       &n, sizeof(offset_t),
@@ -1113,6 +1113,8 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                       vdata.size()>0 ? vdata.data() : nullptr, sizeof(unsigned char)*vdata.size(),
                       &runBenchmarkAndClear, sizeof(bool)
                       );
+        assert(timeElapsed>0);
+        hpx_gas_clear_affinity(tempBranchAddr); //TODO is this enough to deallocate mem?
 
         //get HPX address of branch; create it if necessary, and update benchmark table
         int rank = hpx_get_my_rank();
@@ -1128,7 +1130,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                           &rank, sizeof(int));
             break;
           case BranchType::AxonInitSegment :
-            //AIS must be in samme locality as soma
+            //AIS will be allocated in the same locality as soma (to speed-up AT threshold check)
             branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
             thresholdVoffset = thvar_index; //correct value past by soma
 

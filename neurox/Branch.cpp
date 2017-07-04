@@ -390,7 +390,7 @@ int Branch::init_handler( const int nargs, const void *args[],
 
     bool runBenchmarkAndClear=false;
     if (nargs==18)
-        runBenchmarkAndClear = *(bool*) args[16];
+        runBenchmarkAndClear = *(bool*) args[17];
     if (runBenchmarkAndClear)
     {
         local->soma=new Neuron( -1 /*gid (irrevelant)*/,
