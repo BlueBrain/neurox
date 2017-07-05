@@ -59,5 +59,5 @@ class CmdLineParser
     void parseCommandLine(int argc, char ** argv);
 };
 }; //CmdLineParser
-}; //NeuroX
+}; //neurox
 

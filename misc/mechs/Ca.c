@@ -418,7 +418,7 @@ void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 }
 
 void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
-                      mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
 {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;

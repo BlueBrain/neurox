@@ -709,7 +709,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   }
 
   void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
-                        mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+                        const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
   {
       assert(0); //BRUNO addid this here because it's writing to multiple ions!!
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
