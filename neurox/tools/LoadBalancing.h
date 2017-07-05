@@ -33,6 +33,6 @@ class LoadBalancing
     static hpx_t loadBalancingMutex;;  ///> mutex for loadBalancingTable
 };
 
-}; //Misc
+}; //Tools
 }; //NeuroX
 

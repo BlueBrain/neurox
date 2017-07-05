@@ -23,5 +23,5 @@ class Statistics
     static int getNeuronMechanismsDistribution_handler();
     class SizeInfo;
 };
-}
-}
+} //Tools
+} //neurox

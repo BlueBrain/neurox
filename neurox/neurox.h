@@ -37,6 +37,7 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #include "neurox/tools/Statistics.h"
 #include "neurox/tools/LoadBalancing.h"
 #include "neurox/tools/CmdLineParser.h"
+#include "neurox/tools/Vectorizer.h"
 
 //hard-coded mechanism types
 #define IClamp 7

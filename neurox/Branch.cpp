@@ -314,6 +314,10 @@ Branch::Branch(offset_t n,
     this->mechsGraph = inputParams->multiMex         ? new Branch::MechanismsGraph(n)         : nullptr;
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
+
+#if LAYOUT==1 /*AoS*/
+
+#endif
 }
 
 Branch::~Branch()
