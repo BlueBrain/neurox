@@ -273,8 +273,8 @@ Branch::Branch(offset_t n,
             shadowSize = this->mechsInstances[m].nodecount;
 
         Memb_list * ml = &mechsInstances[m];
-        ml->_shadow_d           = shadowSize==0 ? nullptr : new double[shadowSize];
-        ml->_shadow_rhs         = shadowSize==0 ? nullptr : new double[shadowSize];
+        ml->_shadow_d   = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
+        ml->_shadow_rhs = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
 
         for (int i=0; i<shadowSize; i++)
         {
@@ -408,7 +408,7 @@ int Branch::init_handler( const int nargs, const void *args[],
         for (int i=0; i< Neuron::CommunicationBarrier::commStepSize; i++)
             local->backwardEulerStep();
         double timeElapsed = hpx_time_elapsed_ms(now)/1e3;
-        delete local;
+        local->~Branch(); //new overloaded methods are deleted by calling destructor, not delete keyword
         neurox_hpx_unpin_continue(timeElapsed);
     }
     neurox_hpx_unpin;
@@ -431,7 +431,8 @@ int Branch::clear_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::clear);
-    delete local;
+    local->~Branch(); //new overloaded methods are deleted by calling destructor, not delete keyword
+    //delete local;
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
