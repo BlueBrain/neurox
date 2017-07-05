@@ -137,7 +137,7 @@ void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
 }
 
 void nrn_cur_parallel_capacitance (NrnThread* _nt, Memb_list* ml, int type,
-                         mod_acc_f_t acc_rhs_d, mod_acc_f_t acc_i_didv, void *args)
+                         const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
 {
     (void)type;
     int _cntml_actual = ml->nodecount;
