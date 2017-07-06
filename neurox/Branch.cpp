@@ -314,9 +314,9 @@ Branch::Branch(offset_t n,
     if (this->mechsGraph) mechsGraph->initMechsGraph(branchHpxAddr);
     assert(weightsCount == weightsOffset);
 
-#if LAYOUT==1 /*AoS*/
+//#if LAYOUT==1
     Tools::Vectorizer::vectorize(this);
-#endif
+//#endif
 }
 
 Branch::~Branch()

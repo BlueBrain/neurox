@@ -10,12 +10,11 @@ size_t Tools::Vectorizer::sizeof_(size_t size)
 
 void Tools::Vectorizer::vectorize(Branch * b)
 {
-   //Vectors to expand:
-   //pdata, data, nodeindices, parent index
-   //ml->shadow_*
+   //NOTE: arrays with memory-aligned allocation:
+   //ml->pdata, nt->data, ml->nodeindices, v->parent_index, and ml->shadow_*;
+   //data needs to add gaps, pdata needs new offset values
 
-   //Vectors of offsets to be updateed
-   //nt->pdata(ml->pdata)
+   assert(memb_func);
 
    //get total counts
    size_t totalDataSize = 6*sizeof_(b->nt->end);
@@ -79,6 +78,25 @@ void Tools::Vectorizer::vectorize(Branch * b)
    delete_(b->nt->_data);
    b->nt->_data  = data_new;
 
-   //TODO swap rows and columns!
-   //todo update pdata values
+   //convert old pointers to new pointers
+   if (inputParams->vectorize)
+       for (int m=0; m<mechanismsCount; m++)
+           for (int i=0; i<b->mechsInstances[m].nodecount; i++)
+               for (int p=0; p<mechanisms[m]->pdataSize; p++)
+               {
+                   int ptype = memb_func[mechanisms[m]->type].dparam_semantics[p];
+                   //true for pointer to data area or ion, false for vdata pointers or others
+                   bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
+                   if (isPointer)
+                   {
+                       int & pd = b->mechsInstances[m].pdata[p];
+                       pd = dataNewOffset[pd]; //point to new offset (with gaps)
+                   }
+               }
+
+//swap rows and columns
+   //convert AoS to AoS
+#if LAYOUT ==1
+   //TODO
+#endif
 }
