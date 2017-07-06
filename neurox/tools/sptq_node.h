@@ -30,7 +30,8 @@
 #ifndef __node_h_
 #define __node_h_
 
-namespace tim {
+namespace neurox{
+namespace tools {
     /*
      first version of coreneuron use a fat node for bin_queue and sptq, but
      it degrades the performance during the tree operation (push,pop, etc...)
@@ -38,5 +39,6 @@ namespace tim {
      and good static_cast when needed.
      */
     struct TQitem {};
-}
+};
+};
 #endif

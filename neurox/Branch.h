@@ -101,8 +101,8 @@ class Branch
     std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
 
     /// priority queue of incoming events sorted per delivery time
-#ifdef USE_TIMQ
-    tim::sptq_queue <TimedEvent, std::greater_equal<TimedEvent> > eventsQueue;
+#ifdef USE_TIM_SPTQ
+    tools::sptq_queue <TimedEvent, std::greater_equal<TimedEvent> > eventsQueue;
  #else
     std::priority_queue< TimedEvent, std::vector<TimedEvent>, std::greater_equal<TimedEvent> > eventsQueue;
 #endif

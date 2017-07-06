@@ -30,7 +30,8 @@
 #ifndef tqueue_ipp_
 #define tqueue_ipp_
 
-namespace tim {
+namespace neurox{
+namespace tools {
 
     // splay tree + bin queue limited to fixed step method
     // for event-sets or priority queues
@@ -483,6 +484,7 @@ namespace tim {
         }
     } /* spdelete */
 
-}  // end namespace
+} //tools
+} //neurox
 
 #endif
