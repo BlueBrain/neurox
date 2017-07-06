@@ -35,9 +35,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <ostream>
 #include <stdio.h>
 
-#include "node.h"
+#include "neurox/tools/sptq_node.h"
 
-namespace tim {
+namespace neurox{
+namespace tools {
     /** The queue: TQeue from Michael starts here, not compliant with std for the
     container,
     but ok for the type support and the comparator, by default std::less and not
@@ -183,7 +184,8 @@ namespace tim {
         size_type size_; /*!< size of the queue */
         container q;     /*!< the legacy "C" data structure to store the node */
     };
-}  // end namespace
+} // tools
+} // neurox
 #include "sptq_queue.ipp"
 
 #endif
