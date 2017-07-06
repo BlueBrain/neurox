@@ -33,7 +33,7 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #include "neurox/input/DataLoader.h"
 #include "neurox/input/Debugger.h"
 
-//Miscellaneous
+//Tools
 #include "neurox/tools/Statistics.h"
 #include "neurox/tools/LoadBalancing.h"
 #include "neurox/tools/CmdLineParser.h"
@@ -76,4 +76,23 @@ namespace neurox
     static int setAlgorithmVariables_handler(const neurox::Algorithm * algorithm_ptr, const size_t);
 
     void registerHpxActions(); ///> Register all HPX actions
+
+    //C++11 does not support memory-aligned new[]/delete, this is a work around
+    template<typename T>
+    static T* new_align(size_t count)
+    {
+        void* ptr=nullptr;
+        int err = posix_memalign(&ptr, NEUROX_MEM_ALIGNMENT, sizeof(T)*count);
+        assert(err==0);
+        //return (T*) ptr;
+        return new (ptr) T[count]();
+    }
+
+    template<typename T>
+    static void delete_align(T * ptr)
+    {
+        if (ptr==nullptr) return;
+        //free(ptr); ptr=nullptr;
+        return delete[] (ptr);
+    }
 } ;
