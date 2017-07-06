@@ -36,6 +36,7 @@ void CmdLineParser::parseCommandLine(int argc, char ** argv)
         TCLAP::SwitchArg outputNetconsDot("4", "output-netcons", "outputs netcons.dot with netcons information across neurons.", cmd, false);
         TCLAP::SwitchArg outputMechanismsDot("3", "output-mechs", "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
         TCLAP::SwitchArg outputStatistics("2", "output-statistics", "outputs files with memory consumption and mechanism distribution.", cmd, false);
+        TCLAP::SwitchArg vectorize("1", "vectorize", "convert input from Array of Structures (AoS) to Structures of Arrays (SoA) for vectorization.", cmd, true);
         TCLAP::SwitchArg multiMex("0", "multimex", "activates graph-based parallelism of mechanisms.", cmd, false);
 
         TCLAP::SwitchArg coreneuronMpiExecution("m", "mpi", "activates coreneuron MPI based execution.", cmd, false);
@@ -95,6 +96,7 @@ void CmdLineParser::parseCommandLine(int argc, char ** argv)
         this->outputMechanismsDot = outputMechanismsDot.getValue();
         this->outputNetconsDot = outputNetconsDot.getValue();
         this->outputCompartmentsDot = outputCompartmentsDot.getValue();
+        this->vectorize = vectorize.getValue();
         this->multiMex = multiMex.getValue();
         this->allReduceAtLocality = allReduceAtLocality.getValue();
         this->parallelDataLoading = coreneuronMpiExecution.getValue();

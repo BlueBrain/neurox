@@ -80,4 +80,5 @@ void Tools::Vectorizer::vectorize(Branch * b)
    b->nt->_data  = data_new;
 
    //TODO swap rows and columns!
+   //todo update pdata values
 }

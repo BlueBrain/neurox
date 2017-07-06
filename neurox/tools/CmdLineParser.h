@@ -48,6 +48,7 @@ class CmdLineParser
     bool outputMechanismsDot;    ///> outputs mechanisms.dot file
     bool outputNetconsDot;       ///> outputs netcons.dot file
     bool outputCompartmentsDot;  ///> outputs compartments*.dot files
+    bool vectorize;              ///> convert input data from AoS to SoA
     bool multiMex;               ///> graph-based parallelism of mechanisms
     bool allReduceAtLocality;    ///> whether we perform HPX all-reduce LCOs at neuron or node level
     bool parallelDataLoading;    ///> coreneuron mpi-based execution
