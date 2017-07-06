@@ -28,14 +28,24 @@ void Tools::Vectorizer::vectorize(Branch * b)
    //copy RHS, D, A, B, V and area to new data
    size_t dataOffset =0;
    for (int i=0; i<6; i++) //RHS, D, A, B, V and area
-       for (int j=0; j<sizeof_(b->nt->end); j++, dataOffset++)
-       {
-           if (j<b->nt->end)
-           {
-               data_new[dataOffset] = b->nt->_data[i*6+j];
-               dataNewOffset[i*6+j] = dataOffset;
-           }
-       }
+   {
+        switch(i)
+        {
+            case 0: b->nt->_actual_rhs  = &data_new[dataOffset]; break;
+            case 1: b->nt->_actual_d    = &data_new[dataOffset]; break;
+            case 2: b->nt->_actual_a    = &data_new[dataOffset]; break;
+            case 3: b->nt->_actual_b    = &data_new[dataOffset]; break;
+            case 4: b->nt->_actual_v    = &data_new[dataOffset]; break;
+            case 5: b->nt->_actual_area = &data_new[dataOffset]; break;
+        }
+
+        for (int j=0; j<sizeof_(b->nt->end); j++, dataOffset++)
+            if (j<b->nt->end)
+            {
+                data_new[dataOffset] = b->nt->_data[i*6+j];
+                dataNewOffset[i*6+j] = dataOffset;
+            }
+   }
 
    //create data and pdata for mechs instances
    for (int m=0; m<mechanismsCount; m++)
