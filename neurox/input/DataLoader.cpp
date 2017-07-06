@@ -609,9 +609,9 @@ int DataLoader::initNeurons_handler()
     //allocate HPX memory space for neurons
     hpx_t myNeuronsGas = HPX_NULL;
     if (inputParams->parallelDataLoading) //if shared pre-balanced loading, store neurons locally
-        myNeuronsGas = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        myNeuronsGas = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
     else //if I'm the only one loading data... spread it
-        myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
     assert(myNeuronsGas != HPX_NULL);
 
     int * myNeuronsGids = new int[myNeuronsCount];
@@ -1054,7 +1054,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
 
         //Benchmark and assign this branch to least busy compute node (except soma and AIS)
         //Note: we do this after children creation so that we use top (lighter) branches to balance work load
-        hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+        hpx_t tempBranchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
         bool runBenchmarkAndClear = true;
         int dumbThresholdOffset=0;
         double timeElapsed=-1;
@@ -1097,7 +1097,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             break;
           case BranchType::AxonInitSegment :
             //AIS will be allocated in the same locality as soma (to speed-up AT threshold check)
-            branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT);
+            branchAddr = hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
             thresholdVoffset = thvar_index; //correct value past by soma
 
             //update benchmark table with this entry
@@ -1112,7 +1112,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
                           &rank, sizeof(int), //output
                           &timeElapsed, sizeof(double));
             //allocate memory on that rank
-            branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_HPX_MEM_ALIGNMENT, HPX_THERE(rank));
+            branchAddr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_THERE(rank));
 
             //clean temporary memory
             break;

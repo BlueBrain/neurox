@@ -77,13 +77,22 @@ namespace neurox
 
     void registerHpxActions(); ///> Register all HPX actions
 
-    //C++11 does not support memory-aligned new[], this is a work around
+    //C++11 does not support memory-aligned new[]/delete, this is a work around
     template<typename T>
-    T* new_align(size_t count)
+    static T* new_align(size_t count)
     {
         void* ptr=nullptr;
-        int err = posix_memalign(&ptr, NEUROX_HPX_MEM_ALIGNMENT, sizeof(T)*count);
+        int err = posix_memalign(&ptr, NEUROX_MEM_ALIGNMENT, sizeof(T)*count);
         assert(err==0);
+        //return (T*) ptr;
         return new (ptr) T[count]();
+    }
+
+    template<typename T>
+    static void delete_align(T * ptr)
+    {
+        if (ptr==nullptr) return;
+        //free(ptr); ptr=nullptr;
+        return delete[] (ptr);
     }
 } ;
