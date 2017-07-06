@@ -8,6 +8,7 @@
 
 using namespace neurox;
 using namespace neurox::Solver;
+using namespace neurox::Tools;
 
 void* Branch::operator new(size_t bytes, void* addr) {
   return addr;
@@ -73,7 +74,7 @@ Branch::Branch(offset_t n,
     nt->cj = (inputParams->secondorder ? 2.0 : 1.0 ) / inputParams->dt;
     nt->end = n;
 
-    nt->_data = dataCount==0 ? nullptr : new_align<floble_t>(dataCount);
+    nt->_data = dataCount==0 ? nullptr : Vectorizer::new_<floble_t>(dataCount);
     memcpy(nt->_data, data, dataCount*sizeof(floble_t));
     nt->_ndata = dataCount;
 
@@ -98,7 +99,7 @@ Branch::Branch(offset_t n,
     if (pCount>0)
     {
         assert(pCount==n);
-        this->nt->_v_parent_index = new_align<offset_t>(pCount);
+        this->nt->_v_parent_index = Vectorizer::new_<offset_t>(pCount);
         memcpy(this->nt->_v_parent_index, p, n*sizeof(offset_t));
     }
     else
@@ -127,10 +128,10 @@ Branch::Branch(offset_t n,
 
         //data, pdata, and nodesIndices arrays
         instance.data  = mech->dataSize ==0 || instance.nodecount==0 ? nullptr : this->nt->_data+dataOffset;
-        instance.pdata = mech->pdataSize==0 || instance.nodecount==0 ? nullptr : new_align<offset_t>(mech->pdataSize * instance.nodecount);
+        instance.pdata = mech->pdataSize==0 || instance.nodecount==0 ? nullptr : Vectorizer::new_<offset_t>(mech->pdataSize * instance.nodecount);
         if (instance.pdata)
             memcpy(instance.pdata, &pdata[pdataOffset], sizeof(offset_t)*(mech->pdataSize * instance.nodecount));
-        instance.nodeindices = instance.nodecount>0 ? new_align<offset_t>(instance.nodecount) : nullptr;
+        instance.nodeindices = instance.nodecount>0 ? Vectorizer::new_<offset_t>(instance.nodecount) : nullptr;
         if (instance.nodeindices)
             memcpy(instance.nodeindices, &nodesIndices[instancesOffset], sizeof(offset_t)*instance.nodecount);
 
@@ -271,8 +272,8 @@ Branch::Branch(offset_t n,
             shadowSize = this->mechsInstances[m].nodecount;
 
         Memb_list * ml = &mechsInstances[m];
-        ml->_shadow_d   = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
-        ml->_shadow_rhs = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
+        ml->_shadow_d   = shadowSize==0 ? nullptr : Vectorizer::new_<double>(shadowSize);
+        ml->_shadow_rhs = shadowSize==0 ? nullptr : Vectorizer::new_<double>(shadowSize);
 
         for (int i=0; i<shadowSize; i++)
         {
@@ -283,10 +284,10 @@ Branch::Branch(offset_t n,
         if (mechanisms[m]->dependencyIonIndex >= Mechanism::Ion::size_writeable_ions)
             shadowSize = 0; //> only mechanisms with parent ions update I and DI/DV
 
-        ml->_shadow_i            = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
-        ml->_shadow_didv         = shadowSize==0 ? nullptr : new_align<double>(shadowSize);
-        ml->_shadow_i_offsets    = shadowSize==0 ? nullptr : new_align<int>(shadowSize);
-        ml->_shadow_didv_offsets = shadowSize==0 ? nullptr : new_align<int>(shadowSize);
+        ml->_shadow_i            = shadowSize==0 ? nullptr : Vectorizer::new_<double>(shadowSize);
+        ml->_shadow_didv         = shadowSize==0 ? nullptr : Vectorizer::new_<double>(shadowSize);
+        ml->_shadow_i_offsets    = shadowSize==0 ? nullptr : Vectorizer::new_<int>(shadowSize);
+        ml->_shadow_didv_offsets = shadowSize==0 ? nullptr : Vectorizer::new_<int>(shadowSize);
         for (int i=0; i<shadowSize; i++)
         {
             ml->_shadow_i[i] = 0;
@@ -314,14 +315,14 @@ Branch::Branch(offset_t n,
     assert(weightsCount == weightsOffset);
 
 #if LAYOUT==1 /*AoS*/
-
+    Tools::Vectorizer::vectorize(this);
 #endif
 }
 
 Branch::~Branch()
 {
-    delete_align(this->nt->_data);
-    delete_align(this->nt->_v_parent_index);
+    Vectorizer::delete_(this->nt->_data);
+    Vectorizer::delete_(this->nt->_v_parent_index);
     delete [] this->nt->weights;
     delete [] this->nt->_ml_list;
 
@@ -332,16 +333,16 @@ Branch::~Branch()
         if (mechanisms[m]->membFunc.thread_cleanup_)
             mechanisms[m]->membFunc.thread_cleanup_(instance._thread);
 
-        delete_align(mechsInstances[m].nodeindices);
-        delete_align(mechsInstances[m].pdata);
+        Vectorizer::delete_(mechsInstances[m].nodeindices);
+        Vectorizer::delete_(mechsInstances[m].pdata);
         delete [] mechsInstances[m]._thread;
 
-        delete_align(mechsInstances[m]._shadow_d);
-        delete_align(mechsInstances[m]._shadow_didv);
-        delete_align(mechsInstances[m]._shadow_didv_offsets);
-        delete_align(mechsInstances[m]._shadow_i);
-        delete_align(mechsInstances[m]._shadow_rhs);
-        delete_align(mechsInstances[m]._shadow_i_offsets);
+        Vectorizer::delete_(mechsInstances[m]._shadow_d);
+        Vectorizer::delete_(mechsInstances[m]._shadow_didv);
+        Vectorizer::delete_(mechsInstances[m]._shadow_didv_offsets);
+        Vectorizer::delete_(mechsInstances[m]._shadow_i);
+        Vectorizer::delete_(mechsInstances[m]._shadow_rhs);
+        Vectorizer::delete_(mechsInstances[m]._shadow_i_offsets);
     }
     delete [] mechsInstances;
 
