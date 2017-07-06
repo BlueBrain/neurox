@@ -31,7 +31,7 @@
 #define __node_h_
 
 namespace neurox{
-namespace tools {
+namespace Tools {
     /*
      first version of coreneuron use a fat node for bin_queue and sptq, but
      it degrades the performance during the tree operation (push,pop, etc...)
