@@ -315,7 +315,8 @@ Branch::Branch(offset_t n,
     assert(weightsCount == weightsOffset);
 
 //#if LAYOUT==1
-    Tools::Vectorizer::vectorize(this);
+    if (inputParams->vectorize)
+        Tools::Vectorizer::vectorize(this);
 //#endif
 }
 
@@ -789,10 +790,10 @@ int Branch::finitialize_handler()
 {
     neurox_hpx_pin(Branch);
     neurox_hpx_recursive_branch_async_call(Branch::finitialize);
-    local->finitialize2(); //finitialize.c::finitilize()
-/*#if !defined(NDEBUG)
-    Input::Coreneuron::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
-#endif*/
+    local->finitialize2();
+#if !defined(NDEBUG)
+    //Input::Debugger::stepAfterStepFinitialize(local, &nrn_threads[local->nt->id]);
+#endif
     neurox_hpx_recursive_branch_async_wait;
     neurox_hpx_unpin;
 }
