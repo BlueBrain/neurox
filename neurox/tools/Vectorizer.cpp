@@ -5,7 +5,9 @@ using namespace neurox;
 
 size_t Tools::Vectorizer::sizeof_(size_t size)
 {
-    return size + (NEUROX_MEM_ALIGNMENT - size % NEUROX_MEM_ALIGNMENT);
+    size_t size_padded = size==0 ? 0 : size + (NEUROX_MEM_ALIGNMENT - size % NEUROX_MEM_ALIGNMENT);
+    assert(size_padded % NEUROX_MEM_ALIGNMENT == 0);
+    return size_padded;
 }
 
 void Tools::Vectorizer::vectorize(Branch * b)
@@ -17,7 +19,8 @@ void Tools::Vectorizer::vectorize(Branch * b)
    assert(memb_func);
 
    //get total counts
-   size_t totalDataSize = 6*sizeof_(b->nt->end);
+   int N = b->nt->end;
+   size_t totalDataSize = 6*sizeof_(N);
    assert(totalDataSize %NEUROX_MEM_ALIGNMENT==0);
    int *  dataNewOffset = new int[b->nt->_ndata];
    for (int m=0; m<mechanismsCount; m++)
@@ -25,9 +28,9 @@ void Tools::Vectorizer::vectorize(Branch * b)
 
    double* data_new = new_<double>(totalDataSize);
 
-   //copy RHS, D, A, B, V and area to new data
    size_t dataOffset =0;
-   for (int i=0; i<6; i++) //RHS, D, A, B, V and area
+   //add padding to data for RHS, D, A, B, V and area
+   for (int i=0; i<6; i++)
    {
         switch(i)
         {
@@ -39,61 +42,51 @@ void Tools::Vectorizer::vectorize(Branch * b)
             case 5: b->nt->_actual_area = &data_new[dataOffset]; break;
         }
 
-        for (int j=0; j<sizeof_(b->nt->end); j++, dataOffset++)
-            if (j<b->nt->end)
+        for (size_t j=0; j<sizeof_(b->nt->end); j++, dataOffset++)
+            if (j < b->nt->end)
             {
-                data_new[dataOffset] = b->nt->_data[i*6+j];
-                dataNewOffset[i*6+j] = dataOffset;
+                data_new[dataOffset] = b->nt->_data[i*N+j];
+                dataNewOffset[i*N+j] = dataOffset;
+
+                //convert AP-threshold pointer (if held in this voltage)
+                if (i==4 && &(b->nt->_data[i*N+j]) == b->thvar_ptr)
+                    b->thvar_ptr = &data_new[dataOffset];
             }
    }
 
-   //create data and pdata for mechs instances
-   for (int m=0; m<mechanismsCount; m++)
+   //add padding to nt->data and update ml->data for mechs instances
+   for (int m=0; m<neurox::mechanismsCount; m++)
    {
-       Memb_list * instances = &b->mechsInstances[m];
        short dataSize = mechanisms[m]->dataSize;
-       short pdataSize = mechanisms[m]->pdataSize;
-
+       Memb_list * instances = &b->mechsInstances[m];
+       double* instance_data_new = &data_new[dataOffset];
        for (int i=0; i<instances->nodecount; i++)
-       {
-           Memb_list & instance = instances[m];
-
-           //instances data are part of nt->data
-           double * instance_data_new = &data_new[dataOffset];
-           for (int d=0; d<sizeof_(dataSize); d++, dataOffset++)
-               if (d<sizeof_(dataSize))
-                   data_new[dataOffset] = instance.data[d];
-           instance.data = instance_data_new;
-
-           //instances pdata are single arrays
-           size_t instance_pdata_size = sizeof_(pdataSize);
-           int * instance_pdata_new = new_<int>(instance_pdata_size);
-           size_t pdataOffset=0;
-           for (int p=0; p<sizeof_(pdataSize); p++, pdataOffset++)
-               if (p<sizeof_(pdataSize))
-                   instance_pdata_new[pdataOffset] = instance.pdata[p];
-           delete_(instance.pdata);
-           instance.pdata = instance_pdata_new;
-       }
+           for (size_t d=0; d<sizeof_(dataSize); d++, dataOffset++)
+               if (d < dataSize)
+                   data_new[dataOffset] = instances->data[dataSize*i+d];
+       instances->data = instance_data_new;
    }
    delete_(b->nt->_data);
    b->nt->_data  = data_new;
 
-   //convert pdata offsets for data vector
-   if (inputParams->vectorize)
-       for (int m=0; m<mechanismsCount; m++)
-           for (int i=0; i<b->mechsInstances[m].nodecount; i++)
-               for (int p=0; p<mechanisms[m]->pdataSize; p++)
+   //convert ml->pdata offsets for data vector
+   for (int m=0; m<mechanismsCount; m++)
+   {
+       short pdataSize = mechanisms[m]->pdataSize;
+       Memb_list * instances = &b->mechsInstances[m];
+       for (int i=0; i<instances->nodecount; i++)
+           for (int p=0; p<pdataSize; p++)
+           {
+               int ptype = memb_func[mechanisms[m]->type].dparam_semantics[p];
+               //true data pointer to area or ion, false for vdata pointers or other types
+               bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
+               if (isPointer)
                {
-                   int ptype = memb_func[mechanisms[m]->type].dparam_semantics[p];
-                   //true for pointer to data area or ion, false for vdata pointers or others
-                   bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
-                   if (isPointer)
-                   {
-                       int & pd = b->mechsInstances[m].pdata[p];
-                       pd = dataNewOffset[pd]; //point to new offset (with gaps)
-                   }
+                   int & pd = instances->pdata[pdataSize*i+p];
+                   pd = dataNewOffset[pd]; //point to new offset (with gaps)
                }
+           }
+    }
 
 //swap rows and columns
    //convert AoS to AoS
