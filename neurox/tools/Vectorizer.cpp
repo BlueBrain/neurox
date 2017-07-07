@@ -5,7 +5,7 @@ using namespace neurox;
 
 size_t Tools::Vectorizer::sizeof_(size_t size)
 {
-    return size % NEUROX_MEM_ALIGNMENT + 1;
+    return size + (NEUROX_MEM_ALIGNMENT - size % NEUROX_MEM_ALIGNMENT);
 }
 
 void Tools::Vectorizer::vectorize(Branch * b)
@@ -18,6 +18,7 @@ void Tools::Vectorizer::vectorize(Branch * b)
 
    //get total counts
    size_t totalDataSize = 6*sizeof_(b->nt->end);
+   assert(totalDataSize %NEUROX_MEM_ALIGNMENT==0);
    int *  dataNewOffset = new int[b->nt->_ndata];
    for (int m=0; m<mechanismsCount; m++)
        totalDataSize += b->mechsInstances[m].nodecount * sizeof_(mechanisms[m]->dataSize);
@@ -78,7 +79,7 @@ void Tools::Vectorizer::vectorize(Branch * b)
    delete_(b->nt->_data);
    b->nt->_data  = data_new;
 
-   //convert old pointers to new pointers
+   //convert pdata offsets for data vector
    if (inputParams->vectorize)
        for (int m=0; m<mechanismsCount; m++)
            for (int i=0; i<b->mechsInstances[m].nodecount; i++)
