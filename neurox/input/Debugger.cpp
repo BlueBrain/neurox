@@ -252,8 +252,8 @@ void Debugger::fixed_step_minimal(NrnThread * nth, int secondorder)
 
 void Debugger::compareAllBranches()
 {
-#if !defined(NDEBUG) 
-    if (inputParams->branchingDepth>0 || inputParams->vectorize) return;
+#if !defined(NDEBUG) && LAYOUT==1 /*AoS only*/
+    if (inputParams->branchingDepth>0) return;
     message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
     neurox_hpx_call_neurons(Input::Debugger::compareBranch);
 #endif
@@ -303,10 +303,7 @@ void Debugger::compareBranch2(Branch * branch)
     //make sure morphology is correct
     for (int i=0; i<6; i++) //RHS, D, A, B, V and area
         for (int j=0; j<branch->nt->end; j++) //for all compartments
-        {
-            if (!inputParams->vectorize) //with gaps. nt->data is different
-               { assert(isEqual(nt._data[nt.end*i+j], branch->nt->_data[branch->nt->end*i+j], multiMex));}
-        }
+           { assert(isEqual(nt._data[nt.end*i+j], branch->nt->_data[branch->nt->end*i+j], multiMex));}
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {
@@ -350,14 +347,10 @@ void Debugger::compareBranch2(Branch * branch)
         {
             assert(ml->nodeindices[n]==instances.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
-                if (inputParams->vectorize)
-                    { assert(isEqual(ml->data[n*dataSize+i], instances.data[n*Tools::Vectorizer::sizeof_(dataSize)+i], multiMex)); }
-                else
-                    { assert(isEqual(ml->data[n*dataSize+i], instances.data[n*dataSize+i], multiMex)); }
+                { assert(isEqual(ml->data[n*dataSize+i], instances.data[n*dataSize+i], multiMex)); }
 
             for (int i=0; i<pdataSize; i++)
-                if (!inputParams->vectorize) //with padding, offsets are different
-                    { assert(isEqual(ml->pdata[n*pdataSize+i], instances.pdata[n*pdataSize+i], multiMex));}
+                { assert(isEqual(ml->pdata[n*pdataSize+i], instances.pdata[n*pdataSize+i], multiMex));}
 
             /* We comment this because it runs for NULL presyn
             if (mechanisms[m]->pntMap)
@@ -376,7 +369,6 @@ void Debugger::compareBranch2(Branch * branch)
     }
 
     //make sure data array is correct
-    if (!inputParams->vectorize) //with padding, results are different
     for (int i=0; i<nt._ndata; i++)
     {
         if (!isEqual(nt._data[i], branch->nt->_data[i], multiMex))
