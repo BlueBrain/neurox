@@ -24,7 +24,7 @@ class Vectorizer
     ~Vectorizer()=delete;
 
     ///converts a branch from AoS to SoA
-    static void vectorize(Branch * b);
+    static void convertToSOA(Branch * b);
 
     //C++11 does not support memory-aligned new[]/delete, this is a work around
     template<typename T>

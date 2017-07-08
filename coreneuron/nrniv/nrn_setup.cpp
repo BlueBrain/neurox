@@ -35,6 +35,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrniv/vrecitem.h"
+#include "coreneuron/nrniv/multisend.h"
 #include "coreneuron/utils/sdprintf.h"
 #include "coreneuron/nrniv/nrn_assert.h"
 #include "coreneuron/nrniv/nrnmutdec.h"
@@ -105,7 +106,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // tvec
 //
 // The critical issue requiring careful attention is that a coreneuron
-// process reads many bluron thread files with a result that, although
+// process reads many coreneuron thread files with a result that, although
 // the conceptual
 // total n_pre is the sum of all the n_presyn from each thread as is the
 // total number of output_gid, the number of InputPreSyn instances must
@@ -208,6 +209,10 @@ void nrn_read_filesdat(int& ngrp, int*& grp, int multiple, int*& imult, const ch
         nrn_fatal_error("No input file with nrnthreads, exiting...");
     }
 
+    char version[256];
+    fscanf(fp, "%s\n", version);
+    check_bbcore_write_version(version);
+
     int iNumFiles = 0;
     nrn_assert(fscanf(fp, "%d\n", &iNumFiles) == 1);
 
@@ -257,7 +262,7 @@ void read_phase1(data_reader& F, int imult, NrnThread& nt) {
     nt.netcons = new NetCon[nt.n_netcon + nrn_setup_extracon];
     nt.presyns_helper = (PreSynHelper*)ecalloc(nt.n_presyn, sizeof(PreSynHelper));
 
-    /// Checkpoint in bluron is defined for both phase 1 and phase 2 since they are written together
+    /// Checkpoint in coreneuron is defined for both phase 1 and phase 2 since they are written together
     /// output_gid has all of output PreSyns, netcon_srcgid is created for NetCons which might be
     /// 10k times more than output_gid.
     int* output_gid = F.read_array<int>(nt.n_presyn);
@@ -502,7 +507,14 @@ void determine_inputpresyn() {
         offset += psi->nc_cnt_;
         psi->nc_cnt_ = 0;
     }
+
     inputpresyn_.clear();
+
+    // with gid to InputPreSyn and PreSyn maps we can setup the multisend
+    // target lists.
+    if (use_multisend_) {
+        nrn_multisend_setup();
+    }
 
     // fill the netcon_in_presyn_order and recompute nc_cnt_
     // note that not all netcon_in_presyn will be filled if there are netcon
@@ -542,7 +554,7 @@ void nrn_setup_cleanup() {
     neg_gid2out.clear();
 }
 
-void nrn_setup(cn_input_params& input_params, const char* filesdat, int byte_swap, bool run_setup_cleanup) {
+void nrn_setup(const char* filesdat, int byte_swap, bool run_setup_cleanup) {
     /// Number of local cell groups
     int ngroup = 0;
 
@@ -565,7 +577,7 @@ void nrn_setup(cn_input_params& input_params, const char* filesdat, int byte_swa
     // Allocate NrnThread* nrn_threads of size ngroup (minimum 2)
     // Note that rank with 0 dataset/cellgroup works fine
     nrn_threads_create(ngroup <= 1 ? 2 : ngroup,
-                       input_params.threading);  // serial/parallel threads
+                       nrnopt_get_flag("--threading") ? 1 : 0);  // serial/parallel threads
 
     if (use_solve_interleave) {
         create_interleave_info();
@@ -591,8 +603,10 @@ void nrn_setup(cn_input_params& input_params, const char* filesdat, int byte_swa
 
     data_reader* file_reader = new data_reader[ngroup];
 
+    std::string datapath = nrnopt_get_str("--datpath");
+
     /* nrn_multithread_job supports serial, pthread, and openmp. */
-    store_phase_args(ngroup, gidgroups, imult, file_reader, input_params.datpath, byte_swap);
+    store_phase_args(ngroup, gidgroups, imult, file_reader, datapath.c_str(), byte_swap);
 
     // gap junctions
     if (nrn_have_gaps) {
@@ -616,11 +630,11 @@ void nrn_setup(cn_input_params& input_params, const char* filesdat, int byte_swa
     /* nrn_multithread_job supports serial, pthread, and openmp. */
     coreneuron::phase_wrapper<(coreneuron::phase)2>();
 
-    if (input_params.report)
+    if (nrnopt_get_flag("--report"))
         coreneuron::phase_wrapper<(coreneuron::phase)3>();
 
-    double mindelay = set_mindelay(input_params.maxdelay);
-    input_params.set_mindelay(mindelay);
+    double mindelay = set_mindelay(nrnopt_get_dbl("--mindelay"));
+    nrnopt_modify_dbl("--mindelay", mindelay);
 
     if (run_setup_cleanup) //if run_setup_cleanup==false, user must call nrn_setup_cleanup() later
        nrn_setup_cleanup();
@@ -657,7 +671,6 @@ void setup_ThreadData(NrnThread& nt) {
     for (NrnThreadMembList* tml = nt.tml; tml; tml = tml->next) {
         Memb_func& mf = memb_func[tml->index];
         Memb_list* ml = tml->ml;
-        assert(mf.thread_size_>=0);
         if (mf.thread_size_) {
             ml->_thread = (ThreadDatum*)ecalloc(mf.thread_size_, sizeof(ThreadDatum));
             if (mf.thread_mem_init_) {
@@ -910,6 +923,8 @@ void nrn_cleanup() {
         free(nt->_ml_list);
     }
 
+    nrn_multisend_cleanup();
+
     netcon_in_presyn_order_.clear();
 
     nrn_threads_free();
@@ -928,7 +943,7 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
     int ndiam=0;
     int nmech = F.read_int();
 
-    /// Checkpoint in bluron is defined for both phase 1 and phase 2 since they are written together
+    /// Checkpoint in coreneuron is defined for both phase 1 and phase 2 since they are written together
     // printf("ncell=%d end=%d nmech=%d\n", nt.ncell, nt.end, nmech);
     // printf("nart=%d\n", nart);
     NrnThreadMembList* tml_last = NULL;
@@ -1048,24 +1063,6 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
         unpadded_offset += n * sz;
         if (pnt_map[type] > 0) {
             npnt += n;
-        }
-
-        //TODO not needed because CN has no graph parallelism of mechs!
-        ml->_shadow_d = new double[ml->nodecount];
-        ml->_shadow_rhs = new double[ml->nodecount];
-        ml->_shadow_i = new double[ml->nodecount];
-        ml->_shadow_i_offsets = new int[ml->nodecount];
-        ml->_shadow_didv = new double[ml->nodecount];
-        ml->_shadow_didv_offsets = new int[ml->nodecount];
-        int k=-1;
-        for (k=0; k<tml->ml->nodecount; k++)
-        {
-            ml->_shadow_d[k] = 0;
-            ml->_shadow_rhs[k] = 0;
-            ml->_shadow_i[k] = 0;
-            ml->_shadow_didv[k] = 0;
-            ml->_shadow_i_offsets[k] = -1;
-            ml->_shadow_didv_offsets[k] = -1;
         }
     }
     nt.pntprocs = new Point_process[npnt];  // includes acell with and without gid

@@ -315,7 +315,7 @@ Branch::Branch(offset_t n,
     assert(weightsCount == weightsOffset);
 
 #if LAYOUT==0
-    Tools::Vectorizer::vectorize(this);
+    Tools::Vectorizer::convertToSOA(this);
 #endif
 }
 
