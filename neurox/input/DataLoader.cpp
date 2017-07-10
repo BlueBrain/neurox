@@ -94,6 +94,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         NrnThread * nt = &nrn_threads[neuron_idx];
         hpx_t neuron_addr = ((hpx_t*)targets)[neuron_idx];
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
+        assert(nt->_permute==NULL); //if data permutted, this method fails
 
         //======= 1 - reconstructs matrix (solver) values =======
         deque<Compartment*> compartments;

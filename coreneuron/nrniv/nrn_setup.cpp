@@ -1144,6 +1144,10 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
                 Point_process* pp = pnt + i;
                 pp->_type = type;
                 pp->_i_instance = i;
+                printf("-- nt.pntprocs[%d] = nt.vdata[%d] = nt.vdata[nt.p[%d]]\n",
+                       synoffset+i,
+                       ml->pdata[nrn_i_layout(i, cnt, 1, szdp, layout)],
+                       nrn_i_layout(i, cnt, 1, szdp, layout) );
                 nt._vdata[ml->pdata[nrn_i_layout(i, cnt, 1, szdp, layout)]] = pp;
                 pp->_tid = nt.id;
             }
