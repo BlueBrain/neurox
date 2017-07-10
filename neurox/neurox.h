@@ -32,7 +32,6 @@ typedef int neuron_id_t;    ///> neuron gids (gid_t or id_t already used by type
 #include "neurox/tools/LoadBalancing.h"
 #include "neurox/tools/CmdLineParser.h"
 #include "neurox/tools/Vectorizer.h"
-#define USE_TIM_SPTQ
 #ifdef USE_TIM_SPTQ
   #include "neurox/tools/sptq_node.h"
   #include "neurox/tools/sptq_queue.hpp"

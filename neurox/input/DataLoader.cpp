@@ -95,6 +95,9 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         hpx_t neuron_addr = ((hpx_t*)targets)[neuron_idx];
         neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
 
+        //if data is permuted, this method fails.
+        assert(!use_interleave_permute && !use_solve_interleave && nt->_permute==NULL);
+
         //======= 1 - reconstructs matrix (solver) values =======
         deque<Compartment*> compartments;
         for (int n=0; n<nt->end; n++)
@@ -335,8 +338,7 @@ void DataLoader::cleanCoreneuronData()
 
 void DataLoader::initAndLoadCoreneuronData(int argc, char ** argv)
 {
-    cn_input_params input_params;
-    nrn_init_and_load_data(argc, argv, input_params, false);
+    nrn_init_and_load_data(argc, argv, false);
 }
 
 int DataLoader::getMyNrnNeuronsCount()

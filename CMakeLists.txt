@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 11) # C++11...
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 
+option(ENABLE_SOA "Enable SoA Memory Layout" OFF)
+
 #Include tclap
 FIND_PATH(TCLAP_INCLUDE_DIR tclap/CmdLine.h
         /usr/local/include
@@ -76,6 +78,12 @@ install(TARGETS neurox
              LIBRARY DESTINATION ${LIB_INSTALL_DIR} 
              ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
 
+#Memory layout transformation: 0 for SoA and 1 for AoS
+if (ENABLE_SOA)
+    add_definitions("-DLAYOUT=0")
+else()
+    add_definitions("-DLAYOUT=1")
+endif()
 
 # The mechanism registration function will be defined depending on whether we
 # are using neurodamus list of mechanisms

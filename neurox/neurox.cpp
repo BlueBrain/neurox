@@ -343,7 +343,7 @@ void runAlgorithm(Algorithm algorithm)
 #else
     //compare final results
     if (inputParams->branchingDepth==0)
-    if (!inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier //not fixed comm barrier
+    if (inputParams->algorithm != Algorithm::BackwardEulerDebugWithCommBarrier //not fixed comm barrier
     && inputParams->parallelDataLoading) //and not serial
     {
         //re-run whole simulation and comparae final result

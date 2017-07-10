@@ -12,7 +12,7 @@ size_t Tools::Vectorizer::sizeof_(size_t size)
     return size_padded;
 }
 
-void Tools::Vectorizer::vectorize(Branch * b)
+void Tools::Vectorizer::convertToSOA(Branch * b)
 {
    //NOTE: arrays with memory-aligned allocation:
    //ml->pdata, nt->data, ml->nodeindices, v->parent_index, and ml->shadow_*;
