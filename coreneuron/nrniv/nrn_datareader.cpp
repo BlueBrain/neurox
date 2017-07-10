@@ -42,10 +42,10 @@ void data_reader::open(const char* filename, bool reorder) {
     close();
     F.open(filename);
 
-    char version[256];
-    F.getline(version, sizeof(version));
+    //char version[256];
+    //F.getline(version, sizeof(version));
     nrn_assert(!F.fail());
-    check_bbcore_write_version(version);
+    //check_bbcore_write_version(version);
 }
 
 int data_reader::read_int() {

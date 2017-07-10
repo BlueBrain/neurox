@@ -32,6 +32,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrniv/nrn_datareader.h"
+#include "coreneuron/utils/sdprintf.h"
 
 static int ngroup_w;
 static int* gidgroups_w;

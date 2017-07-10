@@ -335,8 +335,7 @@ void DataLoader::cleanCoreneuronData()
 
 void DataLoader::initAndLoadCoreneuronData(int argc, char ** argv)
 {
-    cn_input_params input_params;
-    nrn_init_and_load_data(argc, argv, input_params, false);
+    nrn_init_and_load_data(argc, argv, false);
 }
 
 int DataLoader::getMyNrnNeuronsCount()

@@ -203,7 +203,7 @@ int nrnopt_parse(int argc, const char* argv[]) {
             if (nrnmpi_myid == 0)
                 std::cerr << "   " << opt->lastArgs[i]->c_str() << "\n";
         }
-        graceful_exit(1);
+        //graceful_exit(1);
     }
 
     std::vector<std::string> badArgs;
