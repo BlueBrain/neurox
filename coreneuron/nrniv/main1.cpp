@@ -151,7 +151,7 @@ void nrn_init_and_load_data(int argc, char* argv[], bool run_setup_cleanup=true)
     report_mem_usage("Before nrn_setup");
 
     // set if need to interleave cells
-    use_interleave_permute = 0; //nrnopt_get_int("--cell-permute");
+    use_interleave_permute = nrnopt_get_int("--cell-permute");
     cellorder_nwarp = nrnopt_get_int("--nwarp");
     use_solve_interleave = nrnopt_get_int("--cell-permute");
 

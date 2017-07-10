@@ -60,7 +60,7 @@ static param_int param_int_args[] = {
     {"--spikebuf -b", 100000, 1, 2000000000, "Spike buffer size. (100000)"},
     {"--spkcompress", 0, 0, 100000, "Spike compression. Up to ARG are exchanged during MPI_Allgather. (0)"},
     {"--prcellgid -g", -1, -1, 2000000000, "Output prcellstate information for the gid NUMBER."},
-    {"--cell-permute -R", 1, 0, 3,
+    {"--cell-permute -R", 0, 0, 3,
      "Cell permutation, 0 No; 1 optimise node adjacency; 2 optimize parent adjacency. (1)"},
     {"--nwarp -W", 0, 0, 1000000, "Number of warps to balance. (0)"},
     {"--ms-subintervals", 2, 1, 2, "Number of multisend subintervals, 1 or 2. (2)"},
