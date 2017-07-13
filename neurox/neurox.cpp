@@ -285,13 +285,14 @@ static int main_handler()
 void runAlgorithm(Algorithm algorithm)
 {
     int totalSteps = (inputParams->tstop - inputParams->tstart) / inputParams->dt;
-    printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps)\n",
+    printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs, %d steps, %s)\n",
             algorithm == Algorithm::BackwardEulerDebugWithCommBarrier  ? "BackwardEulerDebugWithCommBarrier" :
            (algorithm == Algorithm::ALL                                ? "ALL" :
            (algorithm == Algorithm::BackwardEulerWithAllReduceBarrier  ? "BackwardEulerWithAllReduceBarrier" :
            (algorithm == Algorithm::BackwardEulerWithSlidingTimeWindow ? "BackwardEulerWithSlidingTimeWindow" :
            (algorithm == Algorithm::BackwardEulerWithTimeDependencyLCO ? "BackwardEulerWithTimeDependencyLCO" :
-            "unknown" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps);
+            "unknown" )))), neurons->size(), inputParams->tstop/1000, inputParams->dt, totalSteps,
+           LAYOUT==0 ? "SoA" : "AoS");
     fflush(stdout);
 
     Algorithm previousAlgorithm = inputParams->algorithm;
