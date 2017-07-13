@@ -80,6 +80,8 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
                 ppi.mechType = type;
                 ppi.mechInstance = (offset_t) n;
                 ppi.instanceDataOffset = i;
+                printf("## PPI node %d, mech %d, instance %d, dataOffset %d\n",
+                       ppi.nodeId, ppi.mechType, ppi.mechInstance, i);
                 found=true;
                 break;
            }

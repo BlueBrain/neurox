@@ -39,6 +39,12 @@ Branch::Branch(offset_t n,
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
 
+    for (int i=0; i<dataCount; i++)
+        printf("## data[%d]=%8f\n", i, data[i]);
+
+    for (int i=0; i<pdataCount; i++)
+        printf("## pdata[%d]=%8f\n", i, pdata[i]);
+
     //all non usable values
     nt->_ml_list = NULL;
     nt->tml = NULL;
@@ -249,6 +255,7 @@ Branch::Branch(offset_t n,
         int m = mechanismsMap[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppi.mechInstance*mechanisms[m]->dataSize + ppi.instanceDataOffset]);
+        printf("## PPI value %f\n", *pd);
         floble_t * yvec = new floble_t[size];
         floble_t * tvec = new floble_t[size];
         for (size_t i=0; i<size; i++)
