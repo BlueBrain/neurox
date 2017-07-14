@@ -56,26 +56,26 @@ class Branch
       public:
         MechanismsGraph(int); ///> creates mechanisms instance graph based on global var 'mechanisms'
         ~MechanismsGraph();
-        void initMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
+        void InitMechsGraph(hpx_t branchHpxAddr); ///> Launch HPX-threads for dorment mechs-graph
 
         hpx_t * mechsLCOs; ///>contains the HPX address of the and-gate of each mechanism in the graph
         hpx_t endLCO; ///> represents the bottom of the graph
         hpx_t graphLCO; ///> controls all active thread on the graph of mechanisms (including the 'end' node)
 
-        static hpx_action_t init; ///> init function for hpx_reduce of mechanisms graphs
-        static hpx_action_t reduce; ///> reduce opreationf for hpx_creduce of mechanisms graphs
-        static hpx_action_t mechFunction; ///> represents the action of the nodes in the mechanisms graph
+        static hpx_action_t Init; ///> init function for hpx_reduce of mechanisms graphs
+        static hpx_action_t Reduce; ///> reduce opreationf for hpx_creduce of mechanisms graphs
+        static hpx_action_t MechFunction; ///> represents the action of the nodes in the mechanisms graph
 
-        static int mechFunction_handler(const int * mechType_ptr, const size_t);
-        static void init_handler(Mechanism::ModFunction * func_ptr, const size_t);
-        static void reduce_handler(Mechanism::ModFunction * lhs,
+        static int MechFunction_handler(const int * mechType_ptr, const size_t);
+        static void Init_handler(Mechanism::ModFunction * func_ptr, const size_t);
+        static void Reduce_handler(Mechanism::ModFunction * lhs,
                                               const Mechanism::ModFunction *rhs, const size_t);
 
         //for current function accumulation of shadow arrays
         hpx_t rhs_d_mutex;
         hpx_t i_didv_mutex[Mechanism::Ion::size_writeable_ions];
-        static void accumulate_rhs_d  (NrnThread* nt, Memb_list * ml, int, void* args);
-        static void accumulate_i_didv (NrnThread* nt, Memb_list * ml, int, void* args);
+        static void AccumulateRHSandD  (NrnThread* nt, Memb_list * ml, int, void* args);
+        static void AccumulateIandDIDV (NrnThread* nt, Memb_list * ml, int, void* args);
 
     } * mechsGraph; ///> represents the parallel computation graph of mechanisms instances (NULL for serial)
 
@@ -94,8 +94,8 @@ class Branch
         hpx_t withParentLCO[futuresSize]; ///> LCO of current branch execution to communicate variables with parent branch
         hpx_t (*withChildrenLCOs)[futuresSize]; ///> LCOs to communication with branches execution (NULL if no children)
 
-        static hpx_action_t initLCOs; ///> Initializes neuronTree
-        static int initLCOs_handler();
+        static hpx_action_t InitLCOs; ///> Initializes neuronTree
+        static int InitLCOs_handler();
     } * branchTree; ///> represents the tree structure (or NULL if none i.e. full neuron representation)
 
     std::map<neuron_id_t, std::vector<NetConX*> > netcons; ///> map of incoming netcons per pre-synaptic gid
@@ -108,39 +108,38 @@ class Branch
 #endif
     hpx_t eventsQueueMutex;   ///> mutex to protect the memory access to eventsQueue
 
-    static hpx_action_t init; ///> Initializes the diagonal matrix and children branches for this branch
-    static hpx_action_t initSoma; ///> Initializes soma information in this branch
-    static hpx_action_t clear; ///> deletes all data structures in branch and sub-branches
-    static hpx_action_t addSpikeEvent; ///> add incoming synapse to queue
-    static hpx_action_t updateTimeDependency; ///>update maximum time allowed based on received dependency info
-    static hpx_action_t finitialize; ///> finitialize.c::finitialize()
-    static hpx_action_t backwardEuler;
-    static hpx_action_t backwardEulerOnLocality;
-    static hpx_action_t threadTableCheck;
+    static hpx_action_t Init; ///> Initializes the diagonal matrix and children branches for this branch
+    static hpx_action_t InitSoma; ///> Initializes soma information in this branch
+    static hpx_action_t Clear; ///> deletes all data structures in branch and sub-branches
+    static hpx_action_t AddSpikeEvent; ///> add incoming synapse to queue
+    static hpx_action_t UpdateTimeDependency; ///>update maximum time allowed based on received dependency info
+    static hpx_action_t Finitialize; ///> finitialize.c::finitialize()
+    static hpx_action_t BackwardEuler;
+    static hpx_action_t BackwardEulerOnLocality;
+    static hpx_action_t ThreadTableCheck;
 
-    void callModFunction(const Mechanism::ModFunction functionId);
-    void initVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
-    void addEventToQueue(floble_t t, Event * e);
-    void deliverEvents(floble_t t);
-    void fixedPlayContinuous();
-    void setupTreeMatrix();
-    void solveTreeMatrix();
-    void finitialize2();
-    void backwardEulerStep();
+    void CallModFunction(const Mechanism::ModFunction functionId);
+    void InitVecPlayContinous(); ///> start NetEvents and PlayVect on events queue
+    void AddEventToQueue(floble_t t, Event * e);
+    void DeliverEvents(floble_t t);
+    void FixedPlayContinuous();
+    void SetupTreeMatrix();
+    void SolveTreeMatrix();
+    void Finitialize2();
+    void BackwardEulerStep();
 
     static void registerHpxActions(); ///> Register all HPX actions
 
   private:
-    static int init_handler(const int, const void *[], const size_t[]);
-    static int initSoma_handler(const int, const void *[], const size_t[]);
-    static int clear_handler();
-    static int addSpikeEvent_handler(const int, const void *[], const size_t[]);
-    static int updateTimeDependency_handler(const int, const void *[], const size_t[]);
-    static int finitialize_handler();
-    static int backwardEuler_handler(const int*, const size_t);
-    static int backwardEulerOnLocality_handler(const int*, const size_t);
-    static int threadTableCheck_handler();
-    static int setAPthresholdPointer_handler(const int*, const size_t);
+    static int Init_handler(const int, const void *[], const size_t[]);
+    static int InitSoma_handler(const int, const void *[], const size_t[]);
+    static int Clear_handler();
+    static int AddSpikeEvent_handler(const int, const void *[], const size_t[]);
+    static int UpdateTimeDependency_handler(const int, const void *[], const size_t[]);
+    static int Finitialize_handler();
+    static int BackwardEuler_handler(const int*, const size_t);
+    static int BackwardEulerOnLocality_handler(const int*, const size_t);
+    static int ThreadTableCheck_handler();
 };
 
 }; //namespace

@@ -57,24 +57,24 @@ namespace neurox
     extern neurox::Mechanism ** mechanisms; ///> array to all existing mechanisms
     extern int * mechanismsMap; ///>map of mechanisms offset in 'mechanisms' by 'mechanism type'
 
-    extern Tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
+    extern tools::CmdLineParser * inputParams; ///> Parameters parsed from command line
 
-    extern hpx_action_t main;            ///> execution starting point (called via hpx_run)
-    extern hpx_action_t clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
-    extern hpx_action_t setMechanisms;   ///> Initializes Mechanisms
-    extern hpx_action_t setMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
-    extern hpx_action_t setAlgorithmVariables;    ///> changes inputParams->algorithm to new value
+    extern hpx_action_t Main;            ///> execution starting point (called via hpx_run)
+    extern hpx_action_t Clear;           ///> clears all memory utilised including neurons, branches and mechanisms information
+    extern hpx_action_t SetMechanisms;   ///> Initializes Mechanisms
+    extern hpx_action_t SetMechanismsGlobalVars; ///> sets nrn_ion_global_map and nrn_ion_global_map_size;
+    extern hpx_action_t SetAlgorithmVariables;    ///> changes inputParams->algorithm to new value
 
-    Mechanism * getMechanismFromType(int type); ///> returns mechanisms of type 'type'
-    void setMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
-    void message(const char * str);
-    void runAlgorithm(Algorithm algorithm);
+    Mechanism * GetMechanismFromType(int type); ///> returns mechanisms of type 'type'
+    void SetMechanisms2(int count, Mechanism* mechs, int * dependencies, int * successors, char * syms);
+    void DebugMessage(const char * str);
+    void RunAlgorithm(Algorithm algorithm);
 
-    static int main_handler();
-    static int clear_handler();
-    static int setMechanisms_handler (const int nargs, const void *args[], const size_t[]);
-    static int setMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
-    static int setAlgorithmVariables_handler(const neurox::Algorithm * algorithm_ptr, const size_t);
+    static int Main_handler();
+    static int Clear_handler();
+    static int SetMechanisms_handler (const int nargs, const void *args[], const size_t[]);
+    static int SetMechanismsGlobalVars_handler (const int nargs, const void *args[], const size_t[]);
+    static int SetAlgorithmVariables_handler(const neurox::Algorithm * algorithm_ptr, const size_t);
 
-    void registerHpxActions(); ///> Register all HPX actions
+    void RegisterHpxActions(); ///> Register all HPX actions
 } ;

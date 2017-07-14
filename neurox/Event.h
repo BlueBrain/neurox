@@ -24,8 +24,8 @@ class Branch;
  */
 class Event {
 public:
-    virtual void deliver(floble_t t, Branch* branch)=0;
-    virtual int type() { return DiscreteEventType; }
+    virtual void Deliver(floble_t t, Branch* branch)=0;
+    virtual int Type() { return DiscreteEventType; }
 };
 
 }

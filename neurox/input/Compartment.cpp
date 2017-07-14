@@ -6,7 +6,7 @@
 
 using namespace std;
 using namespace neurox;
-using namespace neurox::Input;
+using namespace neurox::input;
 
 class neurox::NetConX;
 
@@ -16,12 +16,12 @@ Compartment::Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
                          floble_t v, floble_t rhs, floble_t area, offset_t p):
     id(id), a(a), b(b), d(d), v(v), rhs(rhs), area(area), p(p) {};
 
-void Compartment::addChild(Compartment * child)
+void Compartment::AddChild(Compartment * child)
 {
     branches.push_back(child);
 }
 
-void Compartment::addMechanismInstance(int mechType, int mechsInstance,
+void Compartment::AddMechanismInstance(int mechType, int mechsInstance,
                                        double *  data, int dataSize,
                                        Datum  * pdata, int pdataSize)
 {
@@ -36,7 +36,7 @@ void Compartment::addMechanismInstance(int mechType, int mechsInstance,
             this->pdata.push_back((offset_t) pdata[i]);
 }
 
-void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
+void Compartment::AddVecPlay(double * t, double *y, PointProcInfo & ppi)
 {
     assert(ppi.size>0);
     this->vecPlayInfo.push_back(ppi);
@@ -47,13 +47,13 @@ void Compartment::addVecPlay(double * t, double *y, PointProcInfo & ppi)
     }
 }
 
-void Compartment::addSerializedVdata(unsigned char * data, size_t size)
+void Compartment::AddSerializedVdata(unsigned char * data, size_t size)
 {
     for (size_t i=0; i<size; i++)
         this->vdata.push_back(data[i]);
 }
 
-void Compartment::addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights)
+void Compartment::AddNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights)
 {
     this->netconsPreSynIds.push_back(preSynNrnThreadId);
     this->netcons.push_back(NetConX(nc->mechType, nc->mechInstance, nc->delay,
@@ -63,7 +63,7 @@ void Compartment::addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weig
 
 }
 
-void Compartment::shrinkToFit()
+void Compartment::ShrinkToFit()
 {
     branches.shrink_to_fit();
     mechsTypes.shrink_to_fit();

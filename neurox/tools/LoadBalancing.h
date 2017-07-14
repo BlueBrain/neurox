@@ -11,7 +11,7 @@ using namespace std;
 
 namespace neurox {
 
-namespace Tools {
+namespace tools {
 
 /**
  * @brief The LoadBalancing class
@@ -22,11 +22,11 @@ class LoadBalancing
     LoadBalancing();
     ~LoadBalancing();
 
-    static hpx_action_t queryLoadBalancingTable;
+    static hpx_action_t QueryLoadBalancingTable;
 
-    static void print();
-    static void registerHpxActions();
-    static int queryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[]);
+    static void PrintTable();
+    static void RegisterHpxActions();
+    static int QueryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[]);
 
   private:
     static double *loadBalancingTable; ///> computation (ms) per compute node

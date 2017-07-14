@@ -8,7 +8,7 @@ using namespace std;
 
 namespace neurox
 {
-namespace Input
+namespace input
 {
 class Compartment
 {
@@ -18,14 +18,14 @@ class Compartment
                 floble_t v, floble_t rhs, floble_t area, offset_t p);
     ~Compartment();
 
-    void addChild(Compartment* child);
-    void addMechanismInstance(int mechId, int mechsInstance,
+    void AddChild(Compartment* child);
+    void AddMechanismInstance(int mechId, int mechsInstance,
                               double * data, int dataSize,
                               Datum * pdata, int pdataSize);
-    void addVecPlay(double * t, double *y, PointProcInfo & ppi);
-    void addSerializedVdata(unsigned char * data, size_t size);
-    void addNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
-    void shrinkToFit();
+    void AddVecPlay(double * t, double *y, PointProcInfo & ppi);
+    void AddSerializedVdata(unsigned char * data, size_t size);
+    void AddNetCon(int preSynNrnThreadId, NetConX * nc, floble_t * weights);
+    void ShrinkToFit();
 
     offset_t id;
     vector<Compartment*> branches;

@@ -24,7 +24,7 @@ class Neuron
     floble_t refractoryPeriod; ///> refractory period
 
     void setupTreeMatrixMinimal(); ///>set_tree_matrix_minimal
-    bool checkAPthresholdAndTransmissionFlag (floble_t v); ///> checks if AP threshold has been reached and whether spikes can be transmitted  (PreSynHelper->flag)
+    bool CheckAPthresholdAndTransmissionFlag (floble_t v); ///> checks if AP threshold has been reached and whether spikes can be transmitted  (PreSynHelper->flag)
 
     // the outgoing neurons:
     class Synapse
@@ -44,9 +44,9 @@ class Neuron
         hpx_t previousSpikeLco; ///>lco controlling spikes delivery
     };
 
-    hpx_t sendSpikes(floble_t t); ///> fires AP, returns LCO for sent synapses
-    void addSynapse(Synapse * target);///> add hpx address of post-synaptic branch
-    size_t getSynapseCount(); ///> get size of vector synapse
+    hpx_t SendSpikes(floble_t t); ///> fires AP, returns LCO for sent synapses
+    void AddSynapse(Synapse * target);///> add hpx address of post-synaptic branch
+    size_t GetSynapsesCount(); ///> get size of vector synapse
 
     class CommunicationBarrier
     {
@@ -64,12 +64,12 @@ class Neuron
         TimeDependencies();
         ~TimeDependencies();
 
-        void waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
-        void sendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses); ///> inform my outgoing-connection neurons that I stepped
-        void updateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid = -1, bool initialization = false);
-        floble_t getDependenciesMinTime();
-        size_t getDependenciesCount();
-        void increseDependenciesTime(floble_t t);
+        void WaitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
+        void SendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses); ///> inform my outgoing-connection neurons that I stepped
+        void UpdateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid = -1, bool initialization = false);
+        floble_t GetDependenciesMinTime();
+        size_t GetDependenciesCount();
+        void IncreseDependenciesTime(floble_t t);
 
         static constexpr floble_t notificationIntervalRatio = 1; ///> ration of notification interval (0,1]
         static constexpr double teps =1e-8; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
@@ -100,11 +100,11 @@ class Neuron
             static hpx_t * allReduceLco;
             static int * allReduceId;
 
-            static hpx_action_t subscribeAllReduce;
-            static hpx_action_t unsubscribeAllReduce;
+            static hpx_action_t SubscribeAllReduce;
+            static hpx_action_t UnsubscribeAllReduce;
 
-            static int subscribeAllReduce_handler(const hpx_t*, const size_t);
-            static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
+            static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
+            static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
         };
 
         //initiated by constructor (one per neuron)
@@ -114,17 +114,17 @@ class Neuron
         int *allReduceId;
 
         //all-reduce functions
-        static hpx_action_t init;
-        static hpx_action_t reduce;
-        static hpx_action_t subscribeAllReduce;
-        static hpx_action_t unsubscribeAllReduce;
-        static hpx_action_t setReductionsPerCommStep;
+        static hpx_action_t Init;
+        static hpx_action_t Reduce;
+        static hpx_action_t SubscribeAllReduce;
+        static hpx_action_t UnsubscribeAllReduce;
+        static hpx_action_t SetReductionsPerCommStep;
 
-        static void init_handler(const void*, const size_t);
-        static void reduce_handler(void* rhs, const void* lhs, const size_t);
-        static int subscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int unsubscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int setReductionsPerCommStep_handler(const int*, const size_t);
+        static void Init_handler(const void*, const size_t);
+        static void Reduce_handler(void* rhs, const void* lhs, const size_t);
+        static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
+        static int SetReductionsPerCommStep_handler(const int*, const size_t);
     } * slidingTimeWindow;
 
     std::vector<Synapse*> synapses; ///> out-going synapse information

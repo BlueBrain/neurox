@@ -3,7 +3,7 @@
 #include "neurox/neurox.h"
 
 namespace neurox{
-namespace Tools{
+namespace tools{
 
 /**
  * @brief The Neuron class
@@ -12,15 +12,15 @@ namespace Tools{
 class Statistics
 {
   public:
-    static void registerHpxActions(); ///> Register all HPX actions
-    static void outputSimulationSize(bool writeToFile = true); ///> returns total simulation size
-    static void outputMechanismsDistribution(bool writeToFile = true); ///> print the statistics about mechanisms distribution per type
-    static hpx_action_t getNeuronSize; ///> returns branch size, including branches, in KB
-    static hpx_action_t getNeuronMechanismsDistribution; ///> returns mechanisms count per type
+    static void RegisterHpxActions(); ///> Register all HPX actions
+    static void OutputSimulationSize(bool writeToFile = true); ///> returns total simulation size
+    static void OutputMechanismsDistribution(bool writeToFile = true); ///> print the statistics about mechanisms distribution per type
+    static hpx_action_t GetNeuronSize; ///> returns branch size, including branches, in KB
+    static hpx_action_t GetNeuronMechanismsDistribution; ///> returns mechanisms count per type
 
   private:
-    static int getNeuronSize_handler();
-    static int getNeuronMechanismsDistribution_handler();
+    static int GetNeuronSize_handler();
+    static int GetNeuronMechanismsDistribution_handler();
     class SizeInfo;
 };
 } //Tools

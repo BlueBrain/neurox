@@ -3,11 +3,11 @@
 using namespace std;
 using namespace neurox;
 
-double * Tools::LoadBalancing::loadBalancingTable = nullptr;
-hpx_t Tools::LoadBalancing::loadBalancingMutex = HPX_NULL;
+double * tools::LoadBalancing::loadBalancingTable = nullptr;
+hpx_t tools::LoadBalancing::loadBalancingMutex = HPX_NULL;
 
-hpx_action_t Tools::LoadBalancing::queryLoadBalancingTable = 0;
-int Tools::LoadBalancing::queryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[])
+hpx_action_t tools::LoadBalancing::QueryLoadBalancingTable = 0;
+int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[])
 {
     /**
      * nargs=1 or 2 where
@@ -45,7 +45,7 @@ int Tools::LoadBalancing::queryLoadBalancingTable_handler(const int nargs, const
     neurox_hpx_unpin;
 }
 
-Tools::LoadBalancing::LoadBalancing()
+tools::LoadBalancing::LoadBalancing()
 {
     if (hpx_get_my_rank()==0)
     {
@@ -56,19 +56,19 @@ Tools::LoadBalancing::LoadBalancing()
     }
 }
 
-Tools::LoadBalancing::~LoadBalancing()
+tools::LoadBalancing::~LoadBalancing()
 {
     hpx_lco_delete_sync(loadBalancingMutex);
     delete [] loadBalancingTable;
 }
 
-void Tools::LoadBalancing::print()
+void tools::LoadBalancing::PrintTable()
 {
     for (int r=0; r<hpx_get_num_ranks(); r++)
         printf("-- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
 }
 
-void Tools::LoadBalancing::registerHpxActions()
+void tools::LoadBalancing::RegisterHpxActions()
 {
-    neurox_hpx_register_action(neurox_several_vars_action, queryLoadBalancingTable);
+    neurox_hpx_register_action(neurox_several_vars_action, QueryLoadBalancingTable);
 }
