@@ -57,7 +57,7 @@ Neuron::Synapse::~Synapse()
         hpx_lco_delete_sync(previousSpikeLco);
 }
 
-size_t Neuron::getSynapseCount()
+size_t Neuron::GetSynapsesCount()
 {
     size_t size = -1;
     hpx_lco_sema_p(synapsesMutex);
@@ -66,7 +66,7 @@ size_t Neuron::getSynapseCount()
     return size;
 }
 
-void Neuron::addSynapse(Synapse * syn)
+void Neuron::AddSynapse(Synapse * syn)
 {
     hpx_lco_sema_p(synapsesMutex);
     synapses.push_back(syn);
@@ -75,7 +75,7 @@ void Neuron::addSynapse(Synapse * syn)
 }
 
 //netcvode.cpp::static bool pscheck(...)
-bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
+bool Neuron::CheckAPthresholdAndTransmissionFlag(floble_t v)
 {
     //can only spike if AP threshold has been reach and spikes havent already been transmitted
     if (v > threshold) {
@@ -89,7 +89,7 @@ bool Neuron::checkAPthresholdAndTransmissionFlag(floble_t v)
     return false;
 }
 
-hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
+hpx_t Neuron::SendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 {
     if (synapses.size() == 0) return HPX_NULL; 
 
@@ -107,7 +107,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
 
         for (Synapse *& s : synapses)
             //deliveryTime (t+delay) is handled on post-syn side (diff value for every NetCon)
-            hpx_call(s->branchAddr, Branch::addSpikeEvent, this->commBarrier->allSpikesLco,
+            hpx_call(s->branchAddr, Branch::AddSpikeEvent, this->commBarrier->allSpikesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
     }
     else if (inputParams->algorithm==neurox::Algorithm::BackwardEulerWithSlidingTimeWindow
@@ -115,7 +115,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
     {
         hpx_t newSynapsesLco = hpx_lco_and_new(synapses.size());
         for (Synapse *& s : synapses)
-            hpx_call(s->branchAddr, Branch::addSpikeEvent, newSynapsesLco,
+            hpx_call(s->branchAddr, Branch::AddSpikeEvent, newSynapsesLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
         return newSynapsesLco;
     }
@@ -129,7 +129,7 @@ hpx_t Neuron::sendSpikes(floble_t t) //netcvode.cpp::PreSyn::send()
             hpx_lco_wait_reset(s->previousSpikeLco); //reset LCO to be used next
             //any spike or step notification happening after must wait for this spike delivery
 
-            hpx_call(s->branchAddr, Branch::addSpikeEvent, s->previousSpikeLco,
+            hpx_call(s->branchAddr, Branch::AddSpikeEvent, s->previousSpikeLco,
                 &this->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
                 &maxTimeAllowed, sizeof(spike_time_t));
 
@@ -175,8 +175,8 @@ Neuron::SlidingTimeWindow::~SlidingTimeWindow()
     }
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::subscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::subscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t Neuron::SlidingTimeWindow::SubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(Branch);
     SlidingTimeWindow * stw = local->soma->slidingTimeWindow;
@@ -193,8 +193,8 @@ int Neuron::SlidingTimeWindow::subscribeAllReduce_handler(const hpx_t * allreduc
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::unsubscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::unsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t Neuron::SlidingTimeWindow::UnsubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(Branch);
     SlidingTimeWindow * stw = local->soma->slidingTimeWindow;
@@ -216,16 +216,16 @@ hpx_t* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceFuture = nullptr;
 hpx_t* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceLco = nullptr;
 int* Neuron::SlidingTimeWindow::AllReduceLocality::allReduceId = nullptr;
 
-hpx_action_t Neuron::SlidingTimeWindow::setReductionsPerCommStep = 0;
-int Neuron::SlidingTimeWindow::setReductionsPerCommStep_handler(const int* val, const size_t)
+hpx_action_t Neuron::SlidingTimeWindow::SetReductionsPerCommStep = 0;
+int Neuron::SlidingTimeWindow::SetReductionsPerCommStep_handler(const int* val, const size_t)
 {
     neurox_hpx_pin(uint64_t);
     reductionsPerCommStep = *val;
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::SubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::AllReduceLocality::SubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
@@ -242,8 +242,8 @@ int Neuron::SlidingTimeWindow::AllReduceLocality::subscribeAllReduce_handler(con
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce = 0;
-int Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
+hpx_action_t Neuron::SlidingTimeWindow::AllReduceLocality::UnsubscribeAllReduce = 0;
+int Neuron::SlidingTimeWindow::AllReduceLocality::UnsubscribeAllReduce_handler(const hpx_t * allreduces, const size_t size)
 {
     neurox_hpx_pin(uint64_t);
     assert(inputParams->allReduceAtLocality);
@@ -258,12 +258,12 @@ int Neuron::SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce_handler(c
     neurox_hpx_unpin;
 }
 
-hpx_action_t Neuron::SlidingTimeWindow::init = 0;
-void Neuron::SlidingTimeWindow::init_handler
+hpx_action_t Neuron::SlidingTimeWindow::Init = 0;
+void Neuron::SlidingTimeWindow::Init_handler
     (const void*, const size_t) {}
 
-hpx_action_t Neuron::SlidingTimeWindow::reduce = 0;
-void Neuron::SlidingTimeWindow::reduce_handler
+hpx_action_t Neuron::SlidingTimeWindow::Reduce = 0;
+void Neuron::SlidingTimeWindow::Reduce_handler
     (void* , const void* , const size_t) {}
 
 ////////////////////// Neuron::TimeDependencies ///////////////////
@@ -281,7 +281,7 @@ Neuron::TimeDependencies::~TimeDependencies()
     libhpx_mutex_destroy(&this->dependenciesLock);
 }
 
-size_t Neuron::TimeDependencies::getDependenciesCount()
+size_t Neuron::TimeDependencies::GetDependenciesCount()
 {
     size_t size = -1;
     libhpx_mutex_lock(&this->dependenciesLock);
@@ -290,7 +290,7 @@ size_t Neuron::TimeDependencies::getDependenciesCount()
     return size;
 }
 
-void Neuron::TimeDependencies::increseDependenciesTime(floble_t t)
+void Neuron::TimeDependencies::IncreseDependenciesTime(floble_t t)
 {
     libhpx_mutex_lock(&this->dependenciesLock);
     for (auto & dependency : dependenciesMap)
@@ -298,7 +298,7 @@ void Neuron::TimeDependencies::increseDependenciesTime(floble_t t)
     libhpx_mutex_unlock(&this->dependenciesLock);
 }
 
-floble_t Neuron::TimeDependencies::getDependenciesMinTime()
+floble_t Neuron::TimeDependencies::GetDependenciesMinTime()
 {
     assert(dependenciesMap.size()>0);
     return std::min_element(
@@ -307,7 +307,7 @@ floble_t Neuron::TimeDependencies::getDependenciesMinTime()
             {return lhs.second < rhs.second;} )->second;
 }
 
-void Neuron::TimeDependencies::updateTimeDependency(
+void Neuron::TimeDependencies::UpdateTimeDependency(
         neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid,  bool initializationPhase)
 {
     libhpx_mutex_lock(&this->dependenciesLock);
@@ -337,7 +337,7 @@ void Neuron::TimeDependencies::updateTimeDependency(
         }
 
         if (dependenciesTimeNeuronWaitsFor > 0) //if neuron is waiting for a dependencies time update
-          if (getDependenciesMinTime() >= dependenciesTimeNeuronWaitsFor) //and new min time allows neuron to proceed
+          if (GetDependenciesMinTime() >= dependenciesTimeNeuronWaitsFor) //and new min time allows neuron to proceed
           {
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
             printf("-- %d (msg from %d) wakes up producer, getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
@@ -350,7 +350,7 @@ void Neuron::TimeDependencies::updateTimeDependency(
     libhpx_mutex_unlock(&this->dependenciesLock);
 }
 
-void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid)
+void Neuron::TimeDependencies::WaitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid)
 {
     //if I have no dependencies... I'm free to go!
     if (dependenciesMap.size()==0) return;
@@ -359,7 +359,7 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t t, floble_t
     printf("== %d enters TimeDependencies::waitForTimeDependencyNeurons\n", gid);
 #endif
     libhpx_mutex_lock(&this->dependenciesLock);
-    if (getDependenciesMinTime() < t+dt) //if I cant proceed
+    if (GetDependenciesMinTime() < t+dt) //if I cant proceed
     {
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
         printf("== %d cant proceed and sleeps: getDependenciesMinTime()=%.11f < t+dt=%.11f\n", gid, getDependenciesMinTime(), t+dt);
@@ -376,14 +376,14 @@ void Neuron::TimeDependencies::waitForTimeDependencyNeurons(floble_t t, floble_t
     else
         printf("== %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n", gid, getDependenciesMinTime(), t+dt);
 #endif
-    assert(getDependenciesMinTime()>=t+dt);
+    assert(GetDependenciesMinTime()>=t+dt);
     libhpx_mutex_unlock(&this->dependenciesLock);
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
     printf("== %d leaves TimeDependencies::waitForTimeDependencyNeurons\n", gid);
 #endif
 }
 
-void Neuron::TimeDependencies::sendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses)
+void Neuron::TimeDependencies::SendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses)
 {
     for (Synapse *& s : synapses)
         if (s->nextNotificationTime-teps <= t+dt) //if in this time step
@@ -395,7 +395,7 @@ void Neuron::TimeDependencies::sendSteppingNotification(floble_t t, floble_t dt,
 
             //wait for previous synapse to be delivered (if any) before telling post-syn neuron to proceed in time
             hpx_lco_wait(s->previousSpikeLco);
-            hpx_call(s->topBranchAddr, Branch::updateTimeDependency, HPX_NULL,
+            hpx_call(s->topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,
                      &gid, sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -406,11 +406,11 @@ void Neuron::TimeDependencies::sendSteppingNotification(floble_t t, floble_t dt,
 
 void Neuron::registerHpxActions()
 {
-    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::subscribeAllReduce);
-    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::unsubscribeAllReduce);
-    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::subscribeAllReduce);
-    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::unsubscribeAllReduce);
-    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::setReductionsPerCommStep);
-    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::init);
-    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::reduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::SubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::UnsubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::SubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::AllReduceLocality::UnsubscribeAllReduce);
+    neurox_hpx_register_action(neurox_single_var_action, SlidingTimeWindow::SetReductionsPerCommStep);
+    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::Init);
+    neurox_hpx_register_action(neurox_reduce_op_action,  SlidingTimeWindow::Reduce);
 }

@@ -73,18 +73,18 @@ class Mechanism
         netReceiveInit = 18
     };
 
-    int getIonIndex();
+    int GetIonIndex();
 
-    void callModFunction(const void * branch,
+    void CallModFunction(const void * branch,
                          const Mechanism::ModFunction functionId,
                          const NetConX * netcon = NULL, //for net_receive only
                          const floble_t tt = 0 );       //for net_receive only
   private:
-    void disableMechFunctions(); ///> sets to NULL all function pointers
-    void registerIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
-    void registerCapacitance();   ///> register mechanism of type "capacitance"
-    void registerBeforeAfterFunctions();   ///> register Before-After functions
-    void registerModFunctions(); ///> register mechanisms functions (mod_t_f type)
+    void DisableMechFunctions(); ///> sets to NULL all function pointers
+    void RegisterIon();  ///> register ions' mechanisms (ion_reg() in eion.c)
+    void RegisterCapacitance();   ///> register mechanism of type "capacitance"
+    void RegisterBeforeAfterFunctions();   ///> register Before-After functions
+    void RegisterModFunctions(); ///> register mechanisms functions (mod_t_f type)
 
 };
 };

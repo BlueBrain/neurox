@@ -56,7 +56,7 @@ class CmdLineParser
 
   private:
     /// Parses command line arguments and populates structure
-    void parseCommandLine(int argc, char ** argv);
+    void Parse(int argc, char ** argv);
 };
 }; //CmdLineParser
 }; //neurox

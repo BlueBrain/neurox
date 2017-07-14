@@ -52,16 +52,16 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     if (sym==nullptr && successors == nullptr) //not constructing, just serialized for transmission
         return;
 
-    disableMechFunctions();
+    DisableMechFunctions();
     if (this->type == CAP) //capacitance: capac.c
-        registerCapacitance();
+        RegisterCapacitance();
     else if (this->isIon)  //ion: eion.c
-        registerIon();
+        RegisterIon();
 
     //general mechanism: mod file registration and thread tables
-    registerModFunctions();
+    RegisterModFunctions();
 
-    registerBeforeAfterFunctions();
+    RegisterBeforeAfterFunctions();
 
 #ifndef NDEBUG
     if (HPX_LOCALITY_ID ==0)
@@ -72,7 +72,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 #endif
 };
 
-int Mechanism::getIonIndex()
+int Mechanism::GetIonIndex()
 {
     assert(this->sym);
     if (strcmp("na_ion",  this->sym)==0) return Mechanism::Ion::na;
@@ -82,7 +82,7 @@ int Mechanism::getIonIndex()
     return Mechanism::Ion::no_ion;
 }
 
-void Mechanism::registerBeforeAfterFunctions()
+void Mechanism::RegisterBeforeAfterFunctions()
 {
     //Copy Before-After functions
     //register_mech.c::hoc_reg_ba()
@@ -91,7 +91,7 @@ void Mechanism::registerBeforeAfterFunctions()
         //this->BAfunctions[i] = nrn_threads[0].tbl[i]->bam->f;
 }
 
-void Mechanism::disableMechFunctions()
+void Mechanism::DisableMechFunctions()
 {
     for (int i=0; i< BEFORE_AFTER_SIZE; i++)
         this->BAfunctions[i] = NULL;
@@ -113,7 +113,7 @@ void Mechanism::disableMechFunctions()
     this->pnt_receive_init = NULL;
 }
 
-void Mechanism::registerModFunctions()
+void Mechanism::RegisterModFunctions()
 {
     int type = this->type;
     //TODO this should be done by exposing pointers
@@ -139,7 +139,7 @@ void Mechanism::registerModFunctions()
     this->pnt_receive = get_net_receive_function(this->sym);
 }
 
-void Mechanism::registerCapacitance()
+void Mechanism::RegisterCapacitance()
 {
     assert(this->sym && strcmp("capacitance", this->sym)==0);
     this->membFunc.alloc = nrn_alloc_capacitance;
@@ -149,7 +149,7 @@ void Mechanism::registerCapacitance()
     this->membFunc.jacob = nrn_jacob_capacitance;
 }
 
-void Mechanism::registerIon()
+void Mechanism::RegisterIon()
 {
     assert(this->isIon);
     assert(nrn_ion_global_map);
@@ -164,7 +164,7 @@ Mechanism::~Mechanism(){
     delete [] successors;
 };
 
-void Mechanism::callModFunction(const void * branch_ptr,
+void Mechanism::CallModFunction(const void * branch_ptr,
                                 const Mechanism::ModFunction functionId,
                                 const NetConX * netcon , //for net_receive only
                                 const floble_t tt        //for net_receive only
@@ -223,13 +223,13 @@ void Mechanism::callModFunction(const void * branch_ptr,
                     if (this->dependenciesCount>0)
                         membFunc.current_parallel(
                                     nrnThread, membList, type,
-                                    Branch::MechanismsGraph::accumulate_rhs_d,
-                                    Branch::MechanismsGraph::accumulate_i_didv,
+                                    Branch::MechanismsGraph::AccumulateRHSandD,
+                                    Branch::MechanismsGraph::AccumulateIandDIDV,
                                     branch->mechsGraph);
                     else
                         membFunc.current_parallel(
                                     nrnThread, membList, type,
-                                    Branch::MechanismsGraph::accumulate_rhs_d,
+                                    Branch::MechanismsGraph::AccumulateRHSandD,
                                     NULL, //no accummulation of i and di/dv
                                     branch->mechsGraph);
                 }

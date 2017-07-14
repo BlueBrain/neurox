@@ -6,8 +6,8 @@ using namespace neurox;
 double * tools::LoadBalancing::loadBalancingTable = nullptr;
 hpx_t tools::LoadBalancing::loadBalancingMutex = HPX_NULL;
 
-hpx_action_t tools::LoadBalancing::queryLoadBalancingTable = 0;
-int tools::LoadBalancing::queryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[])
+hpx_action_t tools::LoadBalancing::QueryLoadBalancingTable = 0;
+int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs, const void *args[], const size_t[])
 {
     /**
      * nargs=1 or 2 where
@@ -62,13 +62,13 @@ tools::LoadBalancing::~LoadBalancing()
     delete [] loadBalancingTable;
 }
 
-void tools::LoadBalancing::print()
+void tools::LoadBalancing::PrintTable()
 {
     for (int r=0; r<hpx_get_num_ranks(); r++)
         printf("-- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
 }
 
-void tools::LoadBalancing::registerHpxActions()
+void tools::LoadBalancing::RegisterHpxActions()
 {
-    neurox_hpx_register_action(neurox_several_vars_action, queryLoadBalancingTable);
+    neurox_hpx_register_action(neurox_several_vars_action, QueryLoadBalancingTable);
 }

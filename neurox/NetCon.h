@@ -18,7 +18,7 @@ class NetConX : Event
             offset_t weightIndex, unsigned short weightsCount, bool active);
     ~NetConX();
 
-    void deliver(floble_t t, Branch* branch) override; //event method (inherited)
+    void Deliver(floble_t t, Branch* branch) override; //event method (inherited)
 
     int mechType;   ///> mechanism type associated with this synapse
     unsigned short weightsCount;  ///> size of variable args

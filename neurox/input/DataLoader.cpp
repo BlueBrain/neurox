@@ -31,12 +31,12 @@ static std::vector<int> * neuronsGids = nullptr;
 
 static tools::LoadBalancing* loadBalancing = nullptr;
 
-neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
+neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id)
 {
     return (neuron_id_t) nrn_threads[nrn_id].presyns[0].gid_;
 }
 
-void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
+void DataLoader::PrintSubClustersToFile(FILE * fileCompartments, Compartment *topCompartment)
 {
   if (inputParams->outputCompartmentsDot)
   {
@@ -51,11 +51,11 @@ void DataLoader::printSubClustersToFile(FILE * fileCompartments, Compartment *to
         fprintf(fileCompartments, "%d; ", comp->id);
     fprintf(fileCompartments, "%d };\n", comp->id);
     for (int c=0; c<comp->branches.size(); c++)
-        printSubClustersToFile(fileCompartments, comp->branches[c]);
+        PrintSubClustersToFile(fileCompartments, comp->branches[c]);
   }
 }
 
-PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size)
+PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size)
 {
     PointProcInfo ppi;
     ppi.nodeId=-1;
@@ -64,7 +64,7 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
     for (NrnThreadMembList* tml = nt->tml; !found && tml!=NULL; tml = tml->next) //For every mechanism
     {
         int type = tml->index;
-        Mechanism * mech = getMechanismFromType(type);
+        Mechanism * mech = GetMechanismFromType(type);
         Memb_list * ml = tml->ml;
         for (int n=0; n<ml->nodecount; n++)
             for (int i=0; i<mech->dataSize; i++)
@@ -92,11 +92,11 @@ PointProcInfo DataLoader::getPointProcInfoFromDataPointer(NrnThread * nt, double
 
 
 
-int DataLoader::createNeuron(int neuron_idx, void * targets)
+int DataLoader::CreateNeuron(int neuron_idx, void * targets)
 {
         NrnThread * nt = &nrn_threads[neuron_idx];
         hpx_t neuron_addr = ((hpx_t*)targets)[neuron_idx];
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(nt->id);
+        neuron_id_t neuronId = GetNeuronIdFromNrnThreadId(nt->id);
 
         //if data is permuted, this method fails.
         assert(!use_interleave_permute && !use_solve_interleave && nt->_permute==NULL);
@@ -114,7 +114,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         for (int n=1; n<nt->end; n++) //exclude top (no parent)
         {
             Compartment * parentCompartment = compartments.at(nt->_v_parent_index[n]);
-            parentCompartment->addChild(compartments.at(n));
+            parentCompartment->AddChild(compartments.at(n));
         }
 
         if (inputParams->outputCompartmentsDot)
@@ -125,7 +125,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
           fprintf(fileCompartments, "graph [fontname=helvetica, style=filled, color=blue, fillcolor=floralwhite];\n");
           fprintf(fileCompartments, "node [fontname=helvetica, shape=cylinder, color=gray, style=filled, fillcolor=white];\n");
           fprintf(fileCompartments, "edge [fontname=helvetica, color=gray];\n");
-          printSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
+          PrintSubClustersToFile(fileCompartments, compartments.at(0)); //add subclusters
           for (Compartment *comp : compartments) //draw edges
             for (int c=0; c<comp->branches.size(); c++)
             {
@@ -157,8 +157,8 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         {
             int type = tml->index;
             Memb_list * ml = tml->ml; //Mechanisms application to each compartment
-            Mechanism * mech = getMechanismFromType(type);
-            int ionOffset = mech->getIonIndex();
+            Mechanism * mech = GetMechanismFromType(type);
+            int ionOffset = mech->GetIonIndex();
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
                 std::vector<double> data;
@@ -227,7 +227,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
                         assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
                         Point_process * pp = (Point_process*) vdata[0];
                         assert(pp!=NULL);
-                        compartment->addSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
+                        compartment->AddSerializedVdata( (unsigned char*) (void*) pp, sizeof(Point_process));
                     }
 
                     if (type == StochKv || type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS)
@@ -239,21 +239,21 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
 
                         //TODO: manual hack: StochKv's current state has NULL pointers, why?
                         if (RNG==NULL && type == StochKv)
-                            compartment->addSerializedVdata( (unsigned char*) new nrnran123_State, sizeof(nrnran123_State));
+                            compartment->AddSerializedVdata( (unsigned char*) new nrnran123_State, sizeof(nrnran123_State));
                         else
                         {
                             assert(RNG!=NULL);
-                            compartment->addSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
+                            compartment->AddSerializedVdata( (unsigned char*) (void*) RNG, sizeof(nrnran123_State));
                         }
                     }
                 }
-                compartment->addMechanismInstance(type, n, data.data(), mech->dataSize, pdata.data(),  mech->pdataSize);
+                compartment->AddMechanismInstance(type, n, data.data(), mech->dataSize, pdata.data(),  mech->pdataSize);
 
                 vdataTotalOffset += (unsigned) mech->vdataSize;
             }
             dataTotalOffset +=  nrn_soa_padded_size(ml->nodecount, LAYOUT)*mech->dataSize;
         }
-        for (Compartment* comp : compartments)  comp->shrinkToFit();
+        for (Compartment* comp : compartments)  comp->ShrinkToFit();
 
         //======= 3 - reconstruct NetCons =====================
         map< neuron_id_t, vector<NetConX*> > netcons ; //netcons per pre-synaptic neuron id)
@@ -275,7 +275,7 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
             NetConX * nx = new NetConX(mechtype, (offset_t) nc->target_->_i_instance,
                                        (floble_t) nc->delay_, weightsOffset, weightscount, nc->active_);
             double * weights = &nt->weights[weightsOffset];
-            comp->addNetCon(srcgid, nx, weights);
+            comp->AddNetCon(srcgid, nx, weights);
             netcons[srcgid].push_back(nx);
         }
 
@@ -309,15 +309,15 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
             nc.second.clear();
         }
         netcons.clear();
-        for (Compartment* comp : compartments)  comp->shrinkToFit();
+        for (Compartment* comp : compartments)  comp->ShrinkToFit();
 
         //======= 4 - reconstruct VecPlayContinuous events =======
         for (int v=0; v<nt->n_vecplay; v++)
         {
             VecPlayContinuous *vec = (VecPlayContinuous*) nt->_vecplay[v];
             //discover node, mechanism and data offset id that *pd points to
-            PointProcInfo ppi = getPointProcInfoFromDataPointer(nt, vec->pd_,  vec->y_->size());
-            compartments.at(ppi.nodeId)->addVecPlay(vec->t_->data(), vec->y_->data(), ppi);
+            PointProcInfo ppi = GetPointProcInfoFromDataPointer(nt, vec->pd_,  vec->y_->size());
+            compartments.at(ppi.nodeId)->AddVecPlay(vec->t_->data(), vec->y_->data(), ppi);
         }
 
 
@@ -326,13 +326,13 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
         int thvar_index = nrn_threads[nt->id].presyns[0].thvar_index_;
 
         for (Compartment* comp : compartments)
-            comp->shrinkToFit();
+            comp->ShrinkToFit();
 
-        createBranch(nt->id, neuron_addr, BranchType::Soma,
+        CreateBranch(nt->id, neuron_addr, BranchType::Soma,
                      thvar_index, compartments, compartments.at(0),
                      ionsInstancesInfo, inputParams->branchingDepth);
 
-        hpx_call_sync(neuron_addr, Branch::initSoma, NULL, 0,
+        hpx_call_sync(neuron_addr, Branch::InitSoma, NULL, 0,
                       &neuronId, sizeof(neuron_id_t),
                       &APthreshold, sizeof(floble_t));
 
@@ -344,30 +344,30 @@ int DataLoader::createNeuron(int neuron_idx, void * targets)
     return 0;
 }
 
-void DataLoader::cleanCoreneuronData()
+void DataLoader::CleanCoreneuronData()
 {
     nrn_cleanup();
 }
 
-void DataLoader::initAndLoadCoreneuronData(int argc, char ** argv)
+void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv)
 {
     nrn_init_and_load_data(argc, argv, false);
 }
 
-int DataLoader::getMyNrnNeuronsCount()
+int DataLoader::GetMyNrnNeuronsCount()
 {
     assert(nrn_threads);
     return std::accumulate(nrn_threads, nrn_threads+nrn_nthread, 0, [](int n, NrnThread & nt){return n+nt.ncell;});
 }
 
-hpx_action_t DataLoader::initMechanisms = 0;
-int DataLoader::initMechanisms_handler()
+hpx_action_t DataLoader::InitMechanisms = 0;
+int DataLoader::InitMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
 
     //if serial loading and I'mn ot the one who loaded the data... do nothing.
     if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
-    int myNeuronsCount = getMyNrnNeuronsCount();
+    int myNeuronsCount = GetMyNrnNeuronsCount();
     assert(myNeuronsCount>0);
 
     for (int i=0; i<myNeuronsCount; i++)
@@ -489,7 +489,7 @@ int DataLoader::initMechanisms_handler()
         }
       }
 
-      hpx_bcast_rsync(neurox::setMechanisms,
+      hpx_bcast_rsync(neurox::SetMechanisms,
                     mechsData.data(), sizeof(Mechanism)*mechsData.size(),
                     mechsDependenciesId.data(), sizeof(int)* mechsDependenciesId.size(),
                     mechsSuccessorsId.data(), sizeof(int)* mechsSuccessorsId.size(),
@@ -497,7 +497,7 @@ int DataLoader::initMechanisms_handler()
 
       assert(0); //TODO need to share static _na_type_ etc inside mechanisms!
       printf("neurox::setMechanismsGlobarVars...\n");
-      hpx_bcast_rsync(neurox::setMechanismsGlobalVars,
+      hpx_bcast_rsync(neurox::SetMechanismsGlobalVars,
                     &celsius, sizeof(double),
                     &nrn_ion_global_map_size, sizeof(int),
                     mechHasEntryInIonMap.data(), sizeof(unsigned char)*mechHasEntryInIonMap.size(),
@@ -505,7 +505,7 @@ int DataLoader::initMechanisms_handler()
     }
     else  //set mechanisms local to my node
     {
-        setMechanisms2(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
+        SetMechanisms2(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
                            mechsSuccessorsId.data(), mechsSym.data());
     }
     mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
@@ -519,11 +519,11 @@ int DataLoader::initMechanisms_handler()
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
       fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            getMechanismFromType(CAP)->sym, CAP);
+            GetMechanismFromType(CAP)->sym, CAP);
       if (!inputParams->multiMex)
       {
         fprintf(fileMechs, "end -> start [color=transparent];\n");
-        fprintf(fileMechs, "start -> \"%s (%d)\";\n", getMechanismFromType(CAP)->sym, CAP);
+        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->sym, CAP);
       }
       for (int m =0; m< mechanismsCount; m++)
       {
@@ -540,7 +540,7 @@ int DataLoader::initMechanisms_handler()
 
         for (int s=0; s<mech->successorsCount; s++)
         {
-            Mechanism * successor = getMechanismFromType(mech->successors[s]);
+            Mechanism * successor = GetMechanismFromType(mech->successors[s]);
             fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
                     mech->sym, mech->type, successor->sym, successor->type);
         }
@@ -548,9 +548,9 @@ int DataLoader::initMechanisms_handler()
         if (inputParams->multiMex)
         for (int d=0; d<mech->dependenciesCount; d++)
         {
-            Mechanism * parent = getMechanismFromType(mech->dependencies[d]);
+            Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
             if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO: hardcoded exception
-            if (parent->getIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
+            if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
                 fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
                         mech->sym, mech->type, parent->sym, parent->type);
         }
@@ -561,8 +561,8 @@ int DataLoader::initMechanisms_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::init =0;
-int DataLoader::init_handler()
+hpx_action_t DataLoader::Init =0;
+int DataLoader::Init_handler()
 {
     neurox_hpx_pin(uint64_t);
     neurox::neurons = new std::vector<hpx_t>();
@@ -592,15 +592,15 @@ int DataLoader::init_handler()
 
     neurox_hpx_unpin;
 }
-hpx_action_t DataLoader::initNeurons = 0;
-int DataLoader::initNeurons_handler()
+hpx_action_t DataLoader::InitNeurons = 0;
+int DataLoader::InitNeurons_handler()
 {
     neurox_hpx_pin(uint64_t);
 
     //if serial loading, and done by someone else, continue;
     if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
 
-    int myNeuronsCount =  getMyNrnNeuronsCount();
+    int myNeuronsCount =  GetMyNrnNeuronsCount();
 
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
     if (inputParams->outputCompartmentsDot)
@@ -635,10 +635,10 @@ int DataLoader::initNeurons_handler()
     for (int n=0; n<myNeuronsCount; n++)
     {
         myNeuronsTargets[n] = hpx_addr_add(myNeuronsGas, sizeof(Branch)*n, sizeof(Branch));
-        myNeuronsGids[n] = getNeuronIdFromNrnThreadId(n);
+        myNeuronsGids[n] = GetNeuronIdFromNrnThreadId(n);
     }
 
-    hpx_bcast_rsync(DataLoader::addNeurons, &myNeuronsCount, sizeof(int),
+    hpx_bcast_rsync(DataLoader::AddNeurons, &myNeuronsCount, sizeof(int),
          myNeuronsGids, sizeof(int)*myNeuronsCount,
          myNeuronsTargets, sizeof(hpx_t)*myNeuronsCount);
 
@@ -646,9 +646,9 @@ int DataLoader::initNeurons_handler()
     //(otherwise branches benchmark is affected by scheduler and running threads)
     if (inputParams->branchingDepth>0)
         for (int i=0; i<myNeuronsCount; i++)
-            createNeuron(i, myNeuronsTargets);
+            CreateNeuron(i, myNeuronsTargets);
     else
-        hpx_par_for_sync( DataLoader::createNeuron, 0, myNeuronsCount, myNeuronsTargets);
+        hpx_par_for_sync( DataLoader::CreateNeuron, 0, myNeuronsCount, myNeuronsTargets);
 
     if (inputParams->allReduceAtLocality)
         Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons =
@@ -659,8 +659,8 @@ int DataLoader::initNeurons_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::addNeurons = 0;
-int DataLoader::addNeurons_handler(const int nargs, const void *args[], const size_t[])
+hpx_action_t DataLoader::AddNeurons = 0;
+int DataLoader::AddNeurons_handler(const int nargs, const void *args[], const size_t[])
 {
     /**
      * nargs=3 where
@@ -687,8 +687,8 @@ int DataLoader::addNeurons_handler(const int nargs, const void *args[], const si
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::finalize = 0;
-int DataLoader::finalize_handler()
+hpx_action_t DataLoader::Finalize = 0;
+int DataLoader::Finalize_handler()
 {
     neurox_hpx_pin(uint64_t);
 
@@ -707,22 +707,22 @@ int DataLoader::finalize_handler()
 #else
     //print Load Balancing table
     if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
-        loadBalancing->print();
+        loadBalancing->PrintTable();
 #endif
     delete loadBalancing; loadBalancing = nullptr;
     neurox_hpx_unpin;
 }
 
 
-void DataLoader::getAllChildrenCompartments(deque<Compartment*> & subSection, Compartment * topCompartment)
+void DataLoader::GetAllChildrenCompartments(deque<Compartment*> & subSection, Compartment * topCompartment)
 {
     //parent added first, to respect solvers logic, of parents' ids first
     subSection.push_back(topCompartment);
     for (int c=0; c<topCompartment->branches.size(); c++)
-        getAllChildrenCompartments(subSection, topCompartment->branches.at(c));
+        GetAllChildrenCompartments(subSection, topCompartment->branches.at(c));
 }
 
-void DataLoader::getMechInstanceMap(deque<Compartment*> & compartments, vector<map<int,int>> & mechsInstancesMap)
+void DataLoader::GetMechInstanceMap(deque<Compartment*> & compartments, vector<map<int,int>> & mechsInstancesMap)
 {
     vector<deque<int>> mechsInstancesIds(neurox::mechanismsCount); //mech offset -> list of mech instance id
     for (Compartment * comp : compartments)
@@ -742,7 +742,7 @@ void DataLoader::getMechInstanceMap(deque<Compartment*> & compartments, vector<m
       }
 }
 
-void DataLoader::getNetConsBranchData(
+void DataLoader::GetNetConsBranchData(
         deque<Compartment*> & compartments, vector<NetConX> & branchNetCons,
         vector<neuron_id_t> & branchNetConsPreId, vector<floble_t> & branchWeights,
         vector<map<int,int>> * mechInstanceMap)
@@ -768,7 +768,7 @@ void DataLoader::getNetConsBranchData(
             nc.mechInstance = (*mechInstanceMap)[neurox::mechanismsMap[nc.mechType]][nc.mechInstance];
 }
 
-void DataLoader::getVecPlayBranchData(
+void DataLoader::GetVecPlayBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
         vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo,
         vector<map<int,int>> * mechInstanceMap)
@@ -796,7 +796,7 @@ void DataLoader::getVecPlayBranchData(
     }
 }
 
-int DataLoader::getBranchData(
+int DataLoader::GetBranchData(
         deque<Compartment*> & compartments, vector<floble_t> & data,
         vector<offset_t> & pdata, vector<unsigned char> & vdata, vector<offset_t> & p,
         vector<offset_t> & instancesCount, vector<offset_t> & nodesIndices,
@@ -950,8 +950,8 @@ int DataLoader::getBranchData(
                         //ptype is the ion (mechanism) type it depends on
                         //pdata is an offset in nt->data (a var in the ion)
 
-                        Mechanism * ion = neurox::getMechanismFromType(ptype);
-                        int ionOffset = ion->getIonIndex();
+                        Mechanism * ion = neurox::GetMechanismFromType(ptype);
+                        int ionOffset = ion->GetIonIndex();
                         IonInstancesInfo & ionInfo = ionsInstancesInfo.at(ionOffset);
                         int dataStart = ionInfo.dataStart;
                         assert(pd>=dataStart && pd<ionInfo.dataEnd);
@@ -997,10 +997,10 @@ int DataLoader::getBranchData(
     return n;
 }
 
-bool compareCompartmentsPtrsIds(Compartment * a, Compartment *b)
+bool CompareCompartmentsPtrsIds(Compartment * a, Compartment *b)
 {   return a->id<b->id; }
 
-hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branchType, int thvar_index,
+hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaAddr, BranchType branchType, int thvar_index,
                                deque<Compartment*> & allCompartments, Compartment * topCompartment,
                                vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDepth)
 {
@@ -1031,9 +1031,9 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
 
     if (inputParams->branchingDepth==0 ) //Flat a la Coreneuron
     {
-        n = getBranchData(allCompartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalPaddedN, ionsInstancesInfo, NULL);
-        getVecPlayBranchData(allCompartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
-        getNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
+        n = GetBranchData(allCompartments, data, pdata, vdata, p, instancesCount, nodesIndices, totalPaddedN, ionsInstancesInfo, NULL);
+        GetVecPlayBranchData(allCompartments, vecPlayT, vecPlayY, vecPlayInfo, NULL);
+        GetNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId, branchWeights, NULL);
         branchAddr = somaAddr;
         thresholdVoffset = thvar_index;
     }
@@ -1052,24 +1052,24 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         else //leaf of the tree
         {
             //subsection is the set of all children compartments (recursively)
-            getAllChildrenCompartments(subSection, topCompartment);
+            GetAllChildrenCompartments(subSection, topCompartment);
         }
 
         //this step is only necesary so that data has the same alignment as CoreNeuron
         //and allows one to compare results . (can be removed for non-debug mode)
-        std::sort(subSection.begin(), subSection.end(), compareCompartmentsPtrsIds);
+        std::sort(subSection.begin(), subSection.end(), CompareCompartmentsPtrsIds);
 
         //create sub-section of branch
         vector<map<int,int>> mechInstanceMap(mechanismsCount); //mech-offset -> ( map[old instance]->to new instance )
-        getMechInstanceMap(subSection, mechInstanceMap);
-        n = getBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalPaddedN, ionsInstancesInfo, &mechInstanceMap);
-        getVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
-        getNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
+        GetMechInstanceMap(subSection, mechInstanceMap);
+        n = GetBranchData(subSection, data, pdata, vdata, p, instancesCount, nodesIndices, totalPaddedN, ionsInstancesInfo, &mechInstanceMap);
+        GetVecPlayBranchData(subSection, vecPlayT, vecPlayY, vecPlayInfo, &mechInstanceMap);
+        GetNetConsBranchData(subSection, branchNetCons, branchNetConsPreId, branchWeights, &mechInstanceMap);
 
         //allocate children branches recursively (if any)
         if (bottomCompartment)
             for (size_t c=0; c<bottomCompartment->branches.size(); c++)
-                branches.push_back(createBranch( nrnThreadId, somaAddr,
+                branches.push_back(CreateBranch( nrnThreadId, somaAddr,
                     branchType==BranchType::Soma && c==0 ? BranchType::AxonInitSegment : BranchType::Dendrite,
                     branchType==BranchType::Soma && c==0 ? thvar_index - n : -1, /*offset in AIS = offset in soma - nt->end */
                     allCompartments, bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth-1));
@@ -1080,7 +1080,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
         bool runBenchmarkAndClear = true;
         int dumbThresholdOffset=0;
         double timeElapsed=-1;
-        hpx_call_sync(tempBranchAddr, Branch::init,
+        hpx_call_sync(tempBranchAddr, Branch::Init,
                       &timeElapsed, sizeof(timeElapsed), //output
                       &n, sizeof(offset_t),
                       &nrnThreadId, sizeof(int),
@@ -1112,7 +1112,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             //already allocated
             branchAddr = somaAddr;
             //update benchmark table with this entry
-            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                           NULL, 0, //output
                           &timeElapsed, sizeof(double),
                           &rank, sizeof(int));
@@ -1123,14 +1123,14 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             thresholdVoffset = thvar_index; //correct value past by soma
 
             //update benchmark table with this entry
-            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                           NULL, 0, //output
                           &timeElapsed, sizeof(double),
                           &rank, sizeof(int));
             break;
           case BranchType::Dendrite :
             //get rank where to allocate it (query also updates benchmark table)
-            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                           &rank, sizeof(int), //output
                           &timeElapsed, sizeof(double));
             //allocate memory on that rank
@@ -1146,7 +1146,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
 #endif
     }
     assert(branchAddr!= HPX_NULL);
-    hpx_call_sync(branchAddr, Branch::init,
+    hpx_call_sync(branchAddr, Branch::Init,
                   NULL, 0, //no timing
                   &n, sizeof(offset_t),
                   &nrnThreadId, sizeof(int),
@@ -1169,11 +1169,11 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
     return branchAddr;
 }
 
-hpx_action_t DataLoader::initNetcons = 0;
-int DataLoader::initNetcons_handler()
+hpx_action_t DataLoader::InitNetcons = 0;
+int DataLoader::InitNetcons_handler()
 {
     neurox_hpx_pin(Branch);
-    neurox_hpx_recursive_branch_async_call(DataLoader::initNetcons);
+    neurox_hpx_recursive_branch_async_call(DataLoader::InitNetcons);
 
     if (local->soma && inputParams->outputNetconsDot)
         fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n", local->soma->gid);
@@ -1222,7 +1222,7 @@ int DataLoader::initNetcons_handler()
     hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
     int myGid = local->soma ? local->soma->gid : -1;
     for (std::pair<hpx_t, floble_t> & nc : netcons)
-        hpx_call(nc.first, DataLoader::addSynapse, netconsLCO,
+        hpx_call(nc.first, DataLoader::AddSynapse, netconsLCO,
                  &target, sizeof(hpx_t), &nc.second, sizeof(nc.second),
                  &topBranchAddr, sizeof(hpx_t), &myGid, sizeof(int));
     hpx_lco_wait_reset(netconsLCO); hpx_lco_delete_sync(netconsLCO);
@@ -1231,7 +1231,7 @@ int DataLoader::initNetcons_handler()
     hpx_t dependenciesLCO = hpx_lco_and_new(dependencies.size());
     bool initPhase = true;
     for (std::pair<int, spike_time_t> & dep : dependencies)
-        hpx_call(topBranchAddr, Branch::updateTimeDependency, dependenciesLCO,
+        hpx_call(topBranchAddr, Branch::UpdateTimeDependency, dependenciesLCO,
                  &dep.first, sizeof(neuron_id_t), &dep.second, sizeof(spike_time_t),
                  &initPhase, sizeof(bool));
     hpx_lco_wait_reset(dependenciesLCO); hpx_lco_delete_sync(dependenciesLCO);
@@ -1240,8 +1240,8 @@ int DataLoader::initNetcons_handler()
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::addSynapse = 0;
-int DataLoader::addSynapse_handler(
+hpx_action_t DataLoader::AddSynapse = 0;
+int DataLoader::AddSynapse_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
@@ -1251,17 +1251,17 @@ int DataLoader::addSynapse_handler(
     floble_t minDelay = *(const floble_t*) args[1];
     hpx_t topBranchAddr = *(const hpx_t*) args[2];
     int destinationGid = *(const int*) args[3];
-    local->soma->addSynapse(new Neuron::Synapse(addr,minDelay,topBranchAddr,destinationGid));
+    local->soma->AddSynapse(new Neuron::Synapse(addr,minDelay,topBranchAddr,destinationGid));
     neurox_hpx_unpin;
 }
 
 void DataLoader::registerHpxActions()
 {
-    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::init);
-    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initMechanisms);
-    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNeurons);
-    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::initNetcons);
-    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::finalize);
-    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addSynapse);
-    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::addNeurons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::Init);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::InitMechanisms);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::InitNeurons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::InitNetcons);
+    neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::Finalize);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddSynapse);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddNeurons);
 }

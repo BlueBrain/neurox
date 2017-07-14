@@ -8,7 +8,7 @@ using namespace neurox::solver;
 
 HinesSolver::~HinesSolver(){}
 
-void HinesSolver::synchronizeThresholdV(Branch *local, floble_t *thresholdV)
+void HinesSolver::SynchronizeThresholdV(Branch *local, floble_t *thresholdV)
 {
     if (local->soma)
     {
@@ -24,7 +24,7 @@ void HinesSolver::synchronizeThresholdV(Branch *local, floble_t *thresholdV)
               sizeof(floble_t), local->thvar_ptr);
 }
 
-void HinesSolver::resetMatrixRHSandD(Branch * local)
+void HinesSolver::ResetMatrixRHSandD(Branch * local)
 {
     floble_t *rhs = local->nt->_actual_rhs;
     floble_t *d = local->nt->_actual_d;
@@ -36,7 +36,7 @@ void HinesSolver::resetMatrixRHSandD(Branch * local)
     }
 }
 
-void HinesSolver::setupMatrixRHS(Branch * local)
+void HinesSolver::SetupMatrixRHS(Branch * local)
 {
     const offset_t n = local->nt->end;
     const floble_t *a   = local->nt->_actual_a;
@@ -101,7 +101,7 @@ void HinesSolver::setupMatrixRHS(Branch * local)
         }
 }
 
-void HinesSolver::setupMatrixDiagonal(Branch * local)
+void HinesSolver::SetupMatrixDiagonal(Branch * local)
 {
     const offset_t n = local->nt->end;
     const floble_t *a   = local->nt->_actual_a;
@@ -146,7 +146,7 @@ void HinesSolver::setupMatrixDiagonal(Branch * local)
         }
 }
 
-void HinesSolver::backwardTriangulation(Branch *local)
+void HinesSolver::BackwardTriangulation(Branch *local)
 {
     const offset_t n = local->nt->end;
     const floble_t *a   = local->nt->_actual_a;
@@ -208,7 +208,7 @@ void HinesSolver::backwardTriangulation(Branch *local)
         }
 }
 
-void HinesSolver::forwardSubstituion(Branch *local)
+void HinesSolver::ForwardSubstituion(Branch *local)
 {
     const offset_t n = local->nt->end;
     const floble_t *b   = local->nt->_actual_b;
@@ -256,7 +256,7 @@ void HinesSolver::forwardSubstituion(Branch *local)
         }
 }
 
-void HinesSolver::updateV(Branch *local)
+void HinesSolver::UpdateV(Branch *local)
 {
     floble_t *rhs = local->nt->_actual_rhs;
     floble_t *v   = local->nt->_actual_v;

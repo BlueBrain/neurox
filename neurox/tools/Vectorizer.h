@@ -24,11 +24,11 @@ class Vectorizer
     ~Vectorizer()=delete;
 
     ///converts a branch from AoS to SoA
-    static void convertToSOA(Branch * b);
+    static void ConvertToSOA(Branch * b);
 
     //C++11 does not support memory-aligned new[]/delete, this is a work around
     template<typename T>
-    static T* new_(size_t count)
+    static T* New(size_t count)
     {
         void* ptr=nullptr;
         int err = posix_memalign(&ptr, NEUROX_MEM_ALIGNMENT, sizeof(T)*count);
@@ -38,7 +38,7 @@ class Vectorizer
     }
 
     template<typename T>
-    static void delete_(T * ptr)
+    static void Delete(T * ptr)
     {
         if (ptr==nullptr) return;
         delete[] (ptr); //free(ptr);
@@ -46,17 +46,17 @@ class Vectorizer
     }
 
     template<typename T>
-    static T* enlarge_(T* ptr, size_t count, size_t new_count)
+    static T* Enlarge(T* ptr, size_t count, size_t new_count)
     {
         assert(new_count>=count && new_count>0);
-        T* new_ptr = new_<T>(new_count);
+        T* new_ptr = New<T>(new_count);
         assert(new_ptr && ptr);
         memcpy(new_ptr, ptr, sizeof(T)*count);
         return new_ptr;
     }
 
     ///get size of datastructure with alignment-based padding
-    static size_t sizeof_(size_t);
+    static size_t SizeOf(size_t);
 
   private:
 };

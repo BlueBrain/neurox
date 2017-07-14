@@ -30,15 +30,15 @@ class DataLoader
     enum BranchType { Soma, AxonInitSegment, Dendrite};
 
     static void loadData(int argc, char ** argv); ///> Copies Coreneuron data structs to HPX
-    static void initAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
-    static void cleanCoreneuronData(); ///>removes all Nrn data structures
+    static void InitAndLoadCoreneuronData(int argc, char ** argv); ///> call coreneuron nrn_init_and_load_data
+    static void CleanCoreneuronData(); ///>removes all Nrn data structures
     static void registerHpxActions();
 
-    static hpx_action_t init;
-    static hpx_action_t initMechanisms;
-    static hpx_action_t initNeurons;
-    static hpx_action_t initNetcons;
-    static hpx_action_t finalize;
+    static hpx_action_t Init;
+    static hpx_action_t InitMechanisms;
+    static hpx_action_t InitNeurons;
+    static hpx_action_t InitNetcons;
+    static hpx_action_t Finalize;
 
     class IonInstancesInfo
     {
@@ -50,15 +50,15 @@ class DataLoader
 
   private:
 
-    static hpx_t createBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType, int thvar_index,
+    static hpx_t CreateBranch(int nrnThreadId, hpx_t topBranchAddr, BranchType branchType, int thvar_index,
                               deque<Compartment*> & allCompartments, Compartment * topCompartment,
                               vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo, int branchingDept=0);
 
-    static neuron_id_t getNeuronIdFromNrnThreadId(int nrn_id);
+    static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
     static void getMechTypeAndInstanceForBranch(
             int & mechType, int & mechInstance);
 
-    static int getBranchData(
+    static int GetBranchData(
             deque<Compartment*> & compartments, vector<floble_t> & data,
             vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
@@ -66,43 +66,43 @@ class DataLoader
             vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
-    static void getVecPlayBranchData(
+    static void GetVecPlayBranchData(
             deque<Compartment*> & compartments, vector<floble_t> & vecPlayTdata,
             vector<floble_t> & vecPlayYdata, vector<PointProcInfo> & vecPlayInfo,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
-    static void getNetConsBranchData(
+    static void GetNetConsBranchData(
             deque<Compartment*> & compartments,
             vector<NetConX> & branchNetCons,
             vector<neuron_id_t> & branchNetConsPreId,
             vector<floble_t> & branchNetConsArgs,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
-    static void getAllChildrenCompartments(
+    static void GetAllChildrenCompartments(
             deque<Compartment*> & subSection,
             Compartment * topCompartment);
 
-    static void getMechInstanceMap(
+    static void GetMechInstanceMap(
             deque<Compartment*> & compartments,
             vector<map<int,int>> & mechsInstancesMap);
 
-    static void printSubClustersToFile(
+    static void PrintSubClustersToFile(
             FILE * fileCompartments, Compartment *topCompartment);
 
-    static PointProcInfo getPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size);
+    static PointProcInfo GetPointProcInfoFromDataPointer(NrnThread * nt, double *pd, size_t size);
 
-    static hpx_action_t addSynapse;
-    static hpx_action_t addNeurons;
+    static hpx_action_t AddSynapse;
+    static hpx_action_t AddNeurons;
 
-    static int createNeuron(int neuron_idx, void * targets);
-    static int getMyNrnNeuronsCount();
-    static int addSynapse_handler(const int, const void *[], const size_t[]) ;
-    static int addNeurons_handler(const int, const void *[], const size_t[]) ;
-    static int init_handler ();
-    static int initMechanisms_handler();
-    static int initNeurons_handler();
-    static int initNetcons_handler();
-    static int finalize_handler();
+    static int CreateNeuron(int neuron_idx, void * targets);
+    static int GetMyNrnNeuronsCount();
+    static int AddSynapse_handler(const int, const void *[], const size_t[]) ;
+    static int AddNeurons_handler(const int, const void *[], const size_t[]) ;
+    static int Init_handler ();
+    static int InitMechanisms_handler();
+    static int InitNeurons_handler();
+    static int InitNetcons_handler();
+    static int Finalize_handler();
 };
 
 }; //Input

@@ -21,10 +21,10 @@ CmdLineParser::~CmdLineParser(){}
 CmdLineParser::CmdLineParser (int argc, char** argv):
     CmdLineParser()
 {
-    parseCommandLine(argc, argv);
+    Parse(argc, argv);
 }
 
-void CmdLineParser::parseCommandLine(int argc, char ** argv)
+void CmdLineParser::Parse(int argc, char ** argv)
 {
     try {
         //message printed (help text, text delimiter, version)
