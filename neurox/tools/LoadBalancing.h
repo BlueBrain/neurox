@@ -11,7 +11,7 @@ using namespace std;
 
 namespace neurox {
 
-namespace Tools {
+namespace tools {
 
 /**
  * @brief The LoadBalancing class

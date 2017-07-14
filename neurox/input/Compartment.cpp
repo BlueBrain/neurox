@@ -6,7 +6,7 @@
 
 using namespace std;
 using namespace neurox;
-using namespace neurox::Input;
+using namespace neurox::input;
 
 class neurox::NetConX;
 

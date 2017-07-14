@@ -11,11 +11,11 @@ int main(int argc, char** argv)
     neurox::registerHpxActions();
     neurox::Branch::registerHpxActions();
     neurox::Neuron::registerHpxActions();
-    neurox::Tools::Statistics::registerHpxActions();
-    neurox::Tools::LoadBalancing::registerHpxActions();
-    neurox::Input::DataLoader::registerHpxActions();
+    neurox::tools::Statistics::registerHpxActions();
+    neurox::tools::LoadBalancing::registerHpxActions();
+    neurox::input::DataLoader::registerHpxActions();
 #if !defined(NDEBUG)
-    neurox::Input::Debugger::registerHpxActions();
+    neurox::input::Debugger::registerHpxActions();
 #endif
 
     if (hpx_init(&argc, &argv) != 0)
@@ -24,12 +24,12 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    neurox::inputParams = new Tools::CmdLineParser(argc, argv);
+    neurox::inputParams = new tools::CmdLineParser(argc, argv);
 
     if (inputParams->parallelDataLoading) //coreneuron data loading
-        neurox::Input::DataLoader::initAndLoadCoreneuronData(argc, argv);
+        neurox::input::DataLoader::initAndLoadCoreneuronData(argc, argv);
     else if (hpx_get_my_rank()==0) //one loads all neurons and spreads them
-        neurox::Input::DataLoader::initAndLoadCoreneuronData(argc, argv);
+        neurox::input::DataLoader::initAndLoadCoreneuronData(argc, argv);
 
     int e = hpx_run(&neurox::main, NULL);
     hpx_finalize();

@@ -4,7 +4,7 @@
 #include <numeric>
 
 using namespace neurox;
-using namespace neurox::Solver;
+using namespace neurox::solver;
 
 HinesSolver::~HinesSolver(){}
 

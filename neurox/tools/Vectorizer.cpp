@@ -6,14 +6,14 @@ using namespace neurox;
 //TODO replace these functions by Coreneuron's in "coreneuron/nrniv/memory.h"
 #define DUMMY_DATA 123456789
 
-size_t Tools::Vectorizer::sizeof_(size_t size)
+size_t tools::Vectorizer::sizeof_(size_t size)
 {
     size_t size_padded = size % NEUROX_MEM_ALIGNMENT ==0 ? size : size + (NEUROX_MEM_ALIGNMENT - size % NEUROX_MEM_ALIGNMENT);
     assert(size_padded % NEUROX_MEM_ALIGNMENT == 0);
     return size_padded;
 }
 
-void Tools::Vectorizer::convertToSOA(Branch * b)
+void tools::Vectorizer::convertToSOA(Branch * b)
 {
    //NOTE: arrays with memory-aligned allocation:
    //ml->pdata, nt->data, ml->nodeindices, v->parent_index, and ml->shadow_*;

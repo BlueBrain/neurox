@@ -6,7 +6,7 @@
 #include "coreneuron/utils/randoms/nrnran123.h" //RNG data structures
 
 using namespace neurox;
-using namespace neurox::Tools;
+using namespace neurox::tools;
 
 class Statistics::SizeInfo
 {
@@ -46,7 +46,7 @@ void Statistics::outputSimulationSize(bool writeToFile)
 {
     SizeInfo simSize;
     simSize.globalVars = (double) (sizeof(hpx_t) + sizeof(int)*2 + sizeof(Mechanism)*mechanismsCount
-                          + sizeof(neurox::Tools::CmdLineParser) * HPX_LOCALITIES) /1024;
+                          + sizeof(neurox::tools::CmdLineParser) * HPX_LOCALITIES) /1024;
 
     FILE *outstream = stdout;
     if (writeToFile)

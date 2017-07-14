@@ -14,7 +14,7 @@ std::vector<hpx_t> * neurons = nullptr;
 int mechanismsCount = -1;
 int * mechanismsMap = nullptr;
 neurox::Mechanism ** mechanisms = nullptr;
-neurox::Tools::CmdLineParser * inputParams = nullptr;
+neurox::tools::CmdLineParser * inputParams = nullptr;
 
 Mechanism * getMechanismFromType(int type) {
     assert(mechanismsMap[type]!=-1);
@@ -184,42 +184,42 @@ static int main_handler()
       hpx_exit(0, NULL);
     }
     message("neurox::Input::DataLoader::init...\n");
-    hpx_bcast_rsync(neurox::Input::DataLoader::init);
+    hpx_bcast_rsync(neurox::input::DataLoader::init);
     message("neurox::Input::DataLoader::initMechanisms...\n");
-    hpx_bcast_rsync(neurox::Input::DataLoader::initMechanisms);
+    hpx_bcast_rsync(neurox::input::DataLoader::initMechanisms);
     message("neurox::Input::DataLoader::initNeurons...\n");
-    hpx_bcast_rsync(neurox::Input::DataLoader::initNeurons);
+    hpx_bcast_rsync(neurox::input::DataLoader::initNeurons);
     message("neurox::Input::DataLoader::initNetcons...\n");
-    neurox_hpx_call_neurons( neurox::Input::DataLoader::initNetcons, nullptr, 0);
+    neurox_hpx_call_neurons( neurox::input::DataLoader::initNetcons, nullptr, 0);
     message("neurox::Input::DataLoader::finalize...\n");
-    hpx_bcast_rsync(neurox::Input::DataLoader::finalize);
+    hpx_bcast_rsync(neurox::input::DataLoader::finalize);
     message("neurox::Branch::BranchTree::initLCOs...\n");
     neurox_hpx_call_neurons(Branch::BranchTree::initLCOs);
 
     if (neurox::inputParams->outputStatistics)
     {
       message("neurox::Misc::Statistics::outputMechanismsDistribution...\n");
-      Tools::Statistics::outputMechanismsDistribution();
+      tools::Statistics::outputMechanismsDistribution();
       message("neurox::Misc::Statistics::outputSimulationSize...\n");
-      Tools::Statistics::outputSimulationSize();
+      tools::Statistics::outputSimulationSize();
       //hpx_exit(0,NULL);
     }
 
-    neurox::Input::Debugger::compareMechanismsFunctionPointers();
-    neurox::Input::Debugger::compareAllBranches();
+    neurox::input::Debugger::compareMechanismsFunctionPointers();
+    neurox::input::Debugger::compareAllBranches();
 
     message("neurox::Branch::finitialize...\n");
     neurox_hpx_call_neurons(Branch::finitialize);
 #ifndef NDEBUG
-    hpx_bcast_rsync(neurox::Input::Debugger::finitialize);
-    neurox::Input::Debugger::compareAllBranches();
+    hpx_bcast_rsync(neurox::input::Debugger::finitialize);
+    neurox::input::Debugger::compareAllBranches();
 #endif
 
     message("neurox::Branch::threadTableCheck...\n");
     neurox_hpx_call_neurons(Branch::threadTableCheck);
 #ifndef NDEBUG
-    hpx_bcast_rsync(neurox::Input::Debugger::threadTableCheck);
-    neurox::Input::Debugger::compareAllBranches();
+    hpx_bcast_rsync(neurox::input::Debugger::threadTableCheck);
+    neurox::input::Debugger::compareAllBranches();
 #endif
 
     //subscribe to the all-reduce LCOs
@@ -319,7 +319,7 @@ void runAlgorithm(Algorithm algorithm)
 
             #ifndef NDEBUG
               if (inputParams->parallelDataLoading) //if parallel execution... spike exchange
-                hpx_bcast_rsync(neurox::Input::Debugger::nrnSpikeExchange);
+                hpx_bcast_rsync(neurox::input::Debugger::nrnSpikeExchange);
             #endif
         }
     }
@@ -353,11 +353,11 @@ void runAlgorithm(Algorithm algorithm)
         int commStepSize = Neuron::CommunicationBarrier::commStepSize;
         for (int s=0; s<totalSteps; s+=Neuron::CommunicationBarrier::commStepSize)
         {
-            hpx_bcast_rsync(neurox::Input::Debugger::fixedStepMinimal, &commStepSize, sizeof(int));
-            hpx_bcast_rsync(neurox::Input::Debugger::nrnSpikeExchange);
+            hpx_bcast_rsync(neurox::input::Debugger::fixedStepMinimal, &commStepSize, sizeof(int));
+            hpx_bcast_rsync(neurox::input::Debugger::nrnSpikeExchange);
         }
     }
-    neurox::Input::Debugger::compareAllBranches();
+    neurox::input::Debugger::compareAllBranches();
 #endif
 
     hpx_bcast_rsync(neurox::setAlgorithmVariables, &previousAlgorithm, sizeof(Algorithm));
@@ -384,7 +384,7 @@ int clear_handler()
     }
 
 #ifndef NDEBUG
-    neurox::Input::DataLoader::cleanCoreneuronData();
+    neurox::input::DataLoader::cleanCoreneuronData();
 #endif
     neurox_hpx_unpin;
 }

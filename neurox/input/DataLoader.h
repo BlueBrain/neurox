@@ -15,7 +15,7 @@ using namespace std;
 
 namespace neurox {
 
-namespace Input {
+namespace input {
 
 /**
  * @brief The NrxSetup class

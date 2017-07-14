@@ -8,7 +8,7 @@ using namespace std;
 
 namespace neurox
 {
-namespace Input
+namespace input
 {
 class Compartment
 {

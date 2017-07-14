@@ -7,8 +7,8 @@
 #include "coreneuron/utils/randoms/nrnran123.h" //TODO
 
 using namespace neurox;
-using namespace neurox::Solver;
-using namespace neurox::Tools;
+using namespace neurox::solver;
+using namespace neurox::tools;
 
 void* Branch::operator new(size_t bytes, void* addr) {
   return addr;
@@ -322,7 +322,7 @@ Branch::Branch(offset_t n,
     assert(weightsCount == weightsOffset);
 
 #if LAYOUT==0
-    Tools::Vectorizer::convertToSOA(this);
+    tools::Vectorizer::convertToSOA(this);
 #endif
 }
 
@@ -621,7 +621,7 @@ void Branch::backwardEulerStep()
     second_order_cur(this->nt, inputParams->secondorder );
 
     ////// fadvance_core.c : update()
-    Solver::HinesSolver::updateV(this);
+    solver::HinesSolver::updateV(this);
 
     callModFunction(Mechanism::ModFunction::currentCapacitance);
 
@@ -660,8 +660,8 @@ void Branch::backwardEulerStep()
     if (inputParams->algorithm == Algorithm::BackwardEulerDebugWithCommBarrier
      || !inputParams->parallelDataLoading)
     {
-        Input::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
-        Input::Debugger::compareBranch2(this);
+        input::Debugger::fixed_step_minimal(&nrn_threads[this->nt->id], inputParams->secondorder);
+        input::Debugger::compareBranch2(this);
     }
 #endif
 }
@@ -807,12 +807,12 @@ int Branch::finitialize_handler()
 void Branch::setupTreeMatrix()
 {
     //treeset_core.c::nrn_rhs: Set up Right-Hand-Side of Matrix-Vector multiplication
-    Solver::HinesSolver::resetMatrixRHSandD(this);
+    solver::HinesSolver::resetMatrixRHSandD(this);
 
     this->callModFunction(Mechanism::ModFunction::before_breakpoint);
     this->callModFunction(Mechanism::ModFunction::current);
 
-    Solver::HinesSolver::setupMatrixRHS(this);
+    solver::HinesSolver::setupMatrixRHS(this);
 
     //treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector multiplication
     // calculate left hand side of
@@ -828,13 +828,13 @@ void Branch::setupTreeMatrix()
     //by another model has taken effect.
     this->callModFunction(Mechanism::ModFunction::jacobCapacitance);
 
-    Solver::HinesSolver::setupMatrixDiagonal(this);
+    solver::HinesSolver::setupMatrixDiagonal(this);
 }
 
 void Branch::solveTreeMatrix()
 {
-    Solver::HinesSolver::backwardTriangulation(this);
-    Solver::HinesSolver::forwardSubstituion(this);
+    solver::HinesSolver::backwardTriangulation(this);
+    solver::HinesSolver::forwardSubstituion(this);
 }
 
 void Branch::deliverEvents(floble_t til) //til=t+0.5*dt

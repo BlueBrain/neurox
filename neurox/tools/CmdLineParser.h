@@ -12,7 +12,7 @@ enum Algorithm {
     ALL=9 //All, except debug
 };
 
-namespace Tools
+namespace tools
 {
 /**
  * @brief The CmdLineParser class

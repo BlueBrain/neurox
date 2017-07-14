@@ -23,7 +23,7 @@
 #include "neurox/neurox.h"
 
 using namespace std;
-using namespace neurox::Input;
+using namespace neurox::input;
 
 bool Debugger::isEqual(floble_t a, floble_t b, bool roughlyEqual)
 {
@@ -158,14 +158,14 @@ void Debugger::stepAfterStepBackwardEuler(Branch *b, NrnThread * nth, int second
     {
       //Soma waits for AIS to have threshold V value updated
       floble_t thresholdV;
-      Solver::HinesSolver::synchronizeThresholdV(b, &thresholdV);
+      solver::HinesSolver::synchronizeThresholdV(b, &thresholdV);
       if (b->soma->checkAPthresholdAndTransmissionFlag(thresholdV))
           b->soma->sendSpikes(b->nt->_t);
           //TODO sendSpikes LCO must be waited
     }
     else if (b->thvar_ptr)
         //Axon Initial Segment send threshold  V to parent
-        Solver::HinesSolver::synchronizeThresholdV(b);
+        solver::HinesSolver::synchronizeThresholdV(b);
 
     b->nt->_t += .5*dt;
     b->deliverEvents(b->nt->_t);
@@ -255,7 +255,7 @@ void Debugger::compareAllBranches()
 #if !defined(NDEBUG)
     if (inputParams->branchingDepth>0) return;
     message("neurox::Input::CoreNeuron::Debugger::compareBranch...\n");
-    neurox_hpx_call_neurons(Input::Debugger::compareBranch);
+    neurox_hpx_call_neurons(input::Debugger::compareBranch);
 #endif
 }
 

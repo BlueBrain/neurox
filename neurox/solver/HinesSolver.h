@@ -8,7 +8,7 @@
 namespace  neurox {
 
 
-namespace Solver {
+namespace solver {
 
 /**
  * @brief The Hines Solver class

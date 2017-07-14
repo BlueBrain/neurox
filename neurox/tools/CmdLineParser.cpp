@@ -3,7 +3,7 @@
 #include "stdio.h"
 #include "string.h"
 
-using namespace neurox::Tools;
+using namespace neurox::tools;
 
 CmdLineParser::CmdLineParser ():
   //from nrnoptarg.cpp::cn_parameters():

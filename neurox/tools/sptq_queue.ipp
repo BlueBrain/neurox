@@ -31,7 +31,7 @@
 #define tqueue_ipp_
 
 namespace neurox{
-namespace Tools {
+namespace tools {
 
     // splay tree + bin queue limited to fixed step method
     // for event-sets or priority queues

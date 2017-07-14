@@ -4,7 +4,7 @@
 #include <utility>
 
 using namespace neurox;
-using namespace neurox::Solver;
+using namespace neurox::solver;
 
 Neuron::Neuron(neuron_id_t neuronId, floble_t APthreshold):
     gid(neuronId), threshold(APthreshold),

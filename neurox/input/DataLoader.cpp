@@ -23,13 +23,13 @@
 #include "neurox/neurox.h"
 
 using namespace std;
-using namespace neurox::Input;
+using namespace neurox::input;
 
 static FILE *fileNetcons;
 static hpx_t neuronsMutex = HPX_NULL;
 static std::vector<int> * neuronsGids = nullptr;
 
-static Tools::LoadBalancing* loadBalancing = nullptr;
+static tools::LoadBalancing* loadBalancing = nullptr;
 
 neuron_id_t DataLoader::getNeuronIdFromNrnThreadId(int nrn_id)
 {
@@ -570,7 +570,7 @@ int DataLoader::init_handler()
     neuronsMutex = hpx_lco_sema_new(1);
 
     if (hpx_get_my_rank()==0)
-        loadBalancing = new Tools::LoadBalancing();
+        loadBalancing = new tools::LoadBalancing();
 
     if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
        && inputParams->outputNetconsDot)
@@ -1112,7 +1112,7 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             //already allocated
             branchAddr = somaAddr;
             //update benchmark table with this entry
-            hpx_call_sync(HPX_THERE(0), Tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
                           NULL, 0, //output
                           &timeElapsed, sizeof(double),
                           &rank, sizeof(int));
@@ -1123,14 +1123,14 @@ hpx_t DataLoader::createBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             thresholdVoffset = thvar_index; //correct value past by soma
 
             //update benchmark table with this entry
-            hpx_call_sync(HPX_THERE(0), Tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
                           NULL, 0, //output
                           &timeElapsed, sizeof(double),
                           &rank, sizeof(int));
             break;
           case BranchType::Dendrite :
             //get rank where to allocate it (query also updates benchmark table)
-            hpx_call_sync(HPX_THERE(0), Tools::LoadBalancing::queryLoadBalancingTable,
+            hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::queryLoadBalancingTable,
                           &rank, sizeof(int), //output
                           &timeElapsed, sizeof(double));
             //allocate memory on that rank
