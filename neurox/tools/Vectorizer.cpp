@@ -1,16 +1,16 @@
 #include "neurox/neurox.h"
 
+#include <iostream>
+
 using namespace std;
 using namespace neurox;
 
 //TODO replace these functions by Coreneuron's in "coreneuron/nrniv/memory.h"
-#define DUMMY_DATA 123456789
+#define DUMMY_DATA 999999
 
 size_t tools::Vectorizer::SizeOf(size_t size)
 {
-    size_t size_padded = size % NEUROX_MEM_ALIGNMENT ==0 ? size : size + (NEUROX_MEM_ALIGNMENT - size % NEUROX_MEM_ALIGNMENT);
-    assert(size_padded % NEUROX_MEM_ALIGNMENT == 0);
-    return size_padded;
+    return coreneuron::soa_padded_size<NEUROX_SOA_PADDING>(size, LAYOUT);
 }
 
 void tools::Vectorizer::ConvertToSOA(Branch * b)
@@ -26,7 +26,11 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    int N = b->nt->end;
    size_t oldDataSize  = 6*N;
    size_t newDataSize  = 6*SizeOf(N);
-   assert(newDataSize % NEUROX_MEM_ALIGNMENT==0);
+   assert(newDataSize % NEUROX_SOA_PADDING==0);
+
+   fflush(stdout);
+   for (int i=0; i<b->nt->_ndata; i++)
+       std::cout << "## dataOld[" << i << "]=" << b->nt->_data[i] << std::endl;
 
    for (int m=0; m<mechanismsCount; m++)
    {
@@ -88,7 +92,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    }
 
    for (int i=0; i<newDataSize; i++)
-       printf("## dataNew[%d]=%8f\n", i, dataNew[i]);
+       std::cout << "## dataNew[" << i << "]=" << dataNew[i] << std::endl;
    for (int i=0; i<dataOffsets.size(); i++)
        printf("## dataOffsets[%d]=%d\n", i, dataOffsets[i]);
 

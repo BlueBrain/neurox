@@ -301,9 +301,13 @@ void Debugger::CompareBranch2(Branch * branch)
     }
 
     //make sure morphology is correct
+    assert(branch->nt->end == nt.end);
     for (int i=0; i<6; i++) //RHS, D, A, B, V and area
         for (int j=0; j<branch->nt->end; j++) //for all compartments
-           { assert(IsEqual(nt._data[nt.end*i+j], branch->nt->_data[branch->nt->end*i+j], multiMex));}
+        {
+            int offset = tools::Vectorizer::SizeOf(nt.end)*i+j;
+            assert(IsEqual(nt._data[offset], branch->nt->_data[offset], multiMex));
+        }
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {

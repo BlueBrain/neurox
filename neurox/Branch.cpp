@@ -39,9 +39,6 @@ Branch::Branch(offset_t n,
     this->nt = (NrnThread*) malloc(sizeof(NrnThread));
     NrnThread * nt = this->nt;
 
-    for (int i=0; i<dataCount; i++)
-        printf("## data[%d]=%8f\n", i, data[i]);
-
     for (int i=0; i<pdataCount; i++)
         printf("## pdata[%d]=%8f\n", i, pdata[i]);
 

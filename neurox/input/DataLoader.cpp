@@ -150,6 +150,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
         unsigned dataTotalOffset = nrn_soa_padded_size(nt->end, LAYOUT)*6;
         unsigned pointProcTotalOffset=0;
 
+        for (int i=0; i<nt->_ndata; i++)
+            std::cout << "## dataCN[" << i << "]=" << nt->_data[i] << std::endl;
+
         //information about offsets in data and node ifs of all instances of all ions
         vector<DataLoader::IonInstancesInfo> ionsInstancesInfo (Mechanism::Ion::size_all_ions);
 
