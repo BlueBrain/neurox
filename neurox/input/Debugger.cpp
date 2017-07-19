@@ -351,10 +351,24 @@ void Debugger::CompareBranch2(Branch * branch)
         {
             assert(ml->nodeindices[n]==instances.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
-                { assert(IsEqual(ml->data[n*dataSize+i], instances.data[n*dataSize+i], multiMex)); }
+            {
+#if LAYOUT==1
+                int offset = mech->dataSize*n+i;
+#else
+                int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
+#endif
+                assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
+            }
 
             for (int i=0; i<pdataSize; i++)
-                { assert(IsEqual(ml->pdata[n*pdataSize+i], instances.pdata[n*pdataSize+i], multiMex));}
+            {
+#if LAYOUT==1
+                int offset = pdataSize*n+i;
+#else
+                int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
+#endif
+                assert(IsEqual(ml->pdata[offset], instances.pdata[offset], multiMex));
+            }
 
             /* We comment this because it runs for NULL presyn
             if (mechanisms[m]->pntMap)
@@ -371,15 +385,7 @@ void Debugger::CompareBranch2(Branch * branch)
             */
         }
     }
-
-    //make sure data array is correct
-    for (int i=0; i<nt._ndata; i++)
-    {
-        if (!IsEqual(nt._data[i], branch->nt->_data[i], multiMex))
-            printf("ERROR: CN data[%d]=%.15f differs from NX data[%d]=%.15f\n",
-                   i, nt._data[i], i, branch->nt->_data[i]);
-        assert(IsEqual(nt._data[i], branch->nt->_data[i], multiMex));
-    }
+    assert(branch->nt->_ndata == nt._ndata);
 }
 
 hpx_action_t Debugger::FixedStepMinimal = 0;

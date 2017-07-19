@@ -6,12 +6,7 @@ using namespace std;
 using namespace neurox;
 
 //TODO replace these functions by Coreneuron's in "coreneuron/nrniv/memory.h"
-#define DUMMY_DATA 999999
-
-size_t tools::Vectorizer::SizeOf(size_t size)
-{
-    return coreneuron::soa_padded_size<NEUROX_SOA_PADDING>(size, LAYOUT);
-}
+#define DUMMY_DATA 99999
 
 void tools::Vectorizer::ConvertToSOA(Branch * b)
 {
