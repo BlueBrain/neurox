@@ -72,7 +72,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread * nt, double
 #if LAYOUT==1
                 int dataOffset = mech->dataSize*n+i;
 #else
-                int dataOffset = nrn_soa_padded_size(ml->nodecount, LAYOUT)*i+n ;
+                int dataOffset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
                 if (&ml->data[dataOffset] != pd) continue; //if not this variable
 
@@ -147,8 +147,11 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
 
         //======= 2 - reconstructs mechanisms instances ========
         unsigned vdataTotalOffset=0;
-        unsigned dataTotalOffset = nrn_soa_padded_size(nt->end, LAYOUT)*6;
+        unsigned dataTotalOffset = tools::Vectorizer::SizeOf(nt->end)*6;
         unsigned pointProcTotalOffset=0;
+
+        for (int i=0; i<nt->_ndata; i++)
+            std::cout << "## dataCN[" << i << "]=" << nt->_data[i] << std::endl;
 
         //information about offsets in data and node ifs of all instances of all ions
         vector<DataLoader::IonInstancesInfo> ionsInstancesInfo (Mechanism::Ion::size_all_ions);
@@ -167,7 +170,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
 #if LAYOUT==1
                     int dataOffset = mech->dataSize*n+i;
 #else
-                    int dataOffset = nrn_soa_padded_size(ml->nodecount, LAYOUT)*i+n ;
+                    int dataOffset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
                     assert(ml->data[dataOffset]==nt->_data[dataTotalOffset+dataOffset]);
                     data.push_back(ml->data[dataOffset]);
@@ -180,7 +183,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
 #if LAYOUT==1
                     int pdataOffset = mech->pdataSize*n+i;
 #else
-                    int pdataOffset = nrn_soa_padded_size(ml->nodecount, LAYOUT)*i+n ;
+                    int pdataOffset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
                     pdata.push_back(ml->pdata[pdataOffset]);
                 }
@@ -196,7 +199,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     {
                         ionsInstancesInfo[ionOffset].mechType = type;
                         ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
-                        ionsInstancesInfo[ionOffset].dataEnd = nrn_soa_padded_size(ml->nodecount, LAYOUT)*mech->dataSize;
+                        ionsInstancesInfo[ionOffset].dataEnd = tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
                     }
                     ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
                 }
@@ -251,7 +254,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
 
                 vdataTotalOffset += (unsigned) mech->vdataSize;
             }
-            dataTotalOffset +=  nrn_soa_padded_size(ml->nodecount, LAYOUT)*mech->dataSize;
+            dataTotalOffset +=  tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
         }
         for (Compartment* comp : compartments)  comp->ShrinkToFit();
 
@@ -926,7 +929,7 @@ int DataLoader::GetBranchData(
                     assert(pd>=totalPaddedN*5 && pd<totalPaddedN<6);
                     offset_t oldId = pd-totalPaddedN*5;
                     offset_t newId = fromOldToNewCompartmentId.at(oldId);
-                    pdataMechs.at(m).at(p) = nrn_soa_padded_size(n,LAYOUT)*5+newId;
+                    pdataMechs.at(m).at(p) = tools::Vectorizer::SizeOf(n)*5+newId;
                     break;
                 }
                 case -2: //"iontype"
@@ -960,13 +963,13 @@ int DataLoader::GetBranchData(
                         int instanceVariableOffset = (pd-dataStart) % ion->dataSize;
 #else
                         int nodecount = ionInfo.nodeIds.size();
-                        int instanceOffset = (pd-dataStart) % nrn_soa_padded_size(nodecount, LAYOUT);
-                        int instanceVariableOffset =  trunc( (double)(pd-dataStart) / (double) nrn_soa_padded_size(nodecount, LAYOUT));
+                        int instanceOffset = (pd-dataStart) % tools::Vectorizer::SizeOf(nodecount);
+                        int instanceVariableOffset =  trunc( (double)(pd-dataStart) / (double) tools::Vectorizer::SizeOf(nodecount));
 #endif
                         int nodeId = ionInfo.nodeIds.at(instanceOffset);
                         int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                         pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(make_pair(ion->type, newNodeId)) + instanceVariableOffset;
-                        assert(pdataMechs.at(m).at(p)>=nrn_soa_padded_size(n,LAYOUT)*6);
+                        assert(pdataMechs.at(m).at(p)>=tools::Vectorizer::SizeOf(n)*6);
                     }
                     else if (ptype>=1000) //name not preffixed
                     {
@@ -1013,7 +1016,7 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
     vector<offset_t> nodesIndices;
     vector<hpx_t> branches;
     vector<unsigned char> vdata; //Serialized Point Processes and Random123
-    int totalPaddedN = nrn_soa_padded_size(allCompartments.size(), LAYOUT);
+    int totalPaddedN = tools::Vectorizer::SizeOf(allCompartments.size());
 
     //Vector Play instances
     vector<floble_t> vecPlayT;

@@ -269,6 +269,7 @@ void Debugger::CompareBranch2(Branch * branch)
     bool multiMex = branch->mechsGraph != NULL;
 
     assert(branch->nt->_t == nt._t);
+    assert(branch->nt->_ndata == nt._ndata);
     assert(secondorder == inputParams->secondorder);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
     //assert(*(branch->thvar_ptr) == nt._actual_v[nt.presyns[0].thvar_index_]);
@@ -301,9 +302,13 @@ void Debugger::CompareBranch2(Branch * branch)
     }
 
     //make sure morphology is correct
+    assert(branch->nt->end == nt.end);
     for (int i=0; i<6; i++) //RHS, D, A, B, V and area
         for (int j=0; j<branch->nt->end; j++) //for all compartments
-           { assert(IsEqual(nt._data[nt.end*i+j], branch->nt->_data[branch->nt->end*i+j], multiMex));}
+        {
+            int offset = tools::Vectorizer::SizeOf(nt.end)*i+j;
+            assert(IsEqual(nt._data[offset], branch->nt->_data[offset], multiMex));
+        }
 
     for (offset_t i=0; i<branch->nt->end; i++)
     {
@@ -347,10 +352,25 @@ void Debugger::CompareBranch2(Branch * branch)
         {
             assert(ml->nodeindices[n]==instances.nodeindices[n]);
             for (int i=0; i<dataSize; i++)
-                { assert(IsEqual(ml->data[n*dataSize+i], instances.data[n*dataSize+i], multiMex)); }
+            {
+#if LAYOUT==1
+                int offset = mech->dataSize*n+i;
+#else
+                int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
+#endif
+                assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
+            }
 
             for (int i=0; i<pdataSize; i++)
-                { assert(IsEqual(ml->pdata[n*pdataSize+i], instances.pdata[n*pdataSize+i], multiMex));}
+            {
+#if LAYOUT==1
+                int offset = pdataSize*n+i;
+#else
+                int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
+#endif
+                printf ("%d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
+                assert(ml->pdata[offset] == instances.pdata[offset]);
+            }
 
             /* We comment this because it runs for NULL presyn
             if (mechanisms[m]->pntMap)
@@ -366,15 +386,6 @@ void Debugger::CompareBranch2(Branch * branch)
             }
             */
         }
-    }
-
-    //make sure data array is correct
-    for (int i=0; i<nt._ndata; i++)
-    {
-        if (!IsEqual(nt._data[i], branch->nt->_data[i], multiMex))
-            printf("ERROR: CN data[%d]=%.15f differs from NX data[%d]=%.15f\n",
-                   i, nt._data[i], i, branch->nt->_data[i]);
-        assert(IsEqual(nt._data[i], branch->nt->_data[i], multiMex));
     }
 }
 

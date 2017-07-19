@@ -13,8 +13,9 @@
 //typedefs
 typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming)
 
-//Memory alignment for hpx_gas_allocs
+//Memory alignment for hpx_gas_allocs and padding (copied from Coreneuron)
 #define NEUROX_MEM_ALIGNMENT (2 * sizeof(double))
+#define NEUROX_SOA_PADDING 4
 
 #define THREAD_ID hpx_thread_get_tls_id()
 
