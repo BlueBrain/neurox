@@ -269,6 +269,7 @@ void Debugger::CompareBranch2(Branch * branch)
     bool multiMex = branch->mechsGraph != NULL;
 
     assert(branch->nt->_t == nt._t);
+    assert(branch->nt->_ndata == nt._ndata);
     assert(secondorder == inputParams->secondorder);
     assert(branch->soma->threshold   == nt.presyns[0].threshold_);
     //assert(*(branch->thvar_ptr) == nt._actual_v[nt.presyns[0].thvar_index_]);
@@ -367,7 +368,8 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
-                assert(IsEqual(ml->pdata[offset], instances.pdata[offset], multiMex));
+                printf ("%d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
+                assert(ml->pdata[offset] == instances.pdata[offset]);
             }
 
             /* We comment this because it runs for NULL presyn
@@ -385,7 +387,6 @@ void Debugger::CompareBranch2(Branch * branch)
             */
         }
     }
-    assert(branch->nt->_ndata == nt._ndata);
 }
 
 hpx_action_t Debugger::FixedStepMinimal = 0;
