@@ -32,7 +32,9 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
        newDataSize  += b->mechsInstances[m]._nodecount_padded * mechanisms[m]->dataSize;
        oldDataSize  += b->mechsInstances[m].nodecount * mechanisms[m]->dataSize;
    }
-   std::vector<int> dataOffsets(oldDataSize, -99999);
+
+   //old-to-new offset map
+   std::vector<int> dataOffsets( oldDataSize, -99999);
 
    //old thvar offset
    int thvar_idx = b->thvar_ptr ? b->thvar_ptr - &b->nt->_actual_v[0] : -1; //compartment id (typically 2)
@@ -87,6 +89,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
                int oldOffset = mechanisms[m]->dataSize*n+i;
                int newOffset = SizeOf(instances->nodecount)*i+n;
                dataNew[newOffsetAcc+newOffset] = instances->data[oldOffset];
+
                ///////// DATA IS OK!!
                assert(b->nt->_data[oldOffsetAcc+oldOffset] == instances->data[oldOffset]);
                assert(ml->data[newOffset] == dataNew[newOffsetAcc+newOffset]);
@@ -97,21 +100,27 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
 
            for (size_t i=0; i<mechanisms[m]->pdataSize; i++) //for every pointer
            {
+               //padding
                int oldOffset = mechanisms[m]->pdataSize*n+i;     //SoA
                int newOffset = instances->_nodecount_padded*i+n; //AoS
-               int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
-               bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
-               if (isPointer) //true for pointer to area in nt->data, or ion instance data
+               pdataNew[newOffset] = pdataOld[oldOffset];
+
+               //new pointer values (invalid for branching)
+               //without branching, offsets are already with correct value and padding (for both LAYOUTs)
+               if (inputParams->branchingDepth>0)
                {
-                 pdataNew[newOffset] = dataOffsets.at(pdataOld[oldOffset]); //point to new offset
-                 std::cout << "## pdataOld[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << ml->pdata[newOffset]<< std::endl;
-                 std::cout << "## pdataNew[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << pdataNew[newOffset] << std::endl;
-                 assert(dataNew[ml->pdata[newOffset]] == dataOld[pdataOld[oldOffset]]);
-                 assert(ml->pdata[newOffset] == pdataNew[newOffset]);
-                 assert(dataNew[pdataNew[newOffset]] == dataOld[pdataOld[oldOffset]]);
+                 int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
+                 bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
+                 if (isPointer) //true for pointer to area in nt->data, or ion instance data
+                 {
+                   pdataNew[newOffset] = dataOffsets.at(pdataOld[oldOffset]); //point to new offset
+                   std::cout << "## pdataOld[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << ml->pdata[newOffset]<< std::endl;
+                   std::cout << "## pdataNew[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << pdataNew[newOffset] << std::endl;
+                   assert(dataNew[ml->pdata[newOffset]] == dataOld[pdataOld[oldOffset]]);
+                   assert(ml->pdata[newOffset] == pdataNew[newOffset]);
+                   assert(dataNew[pdataNew[newOffset]] == dataOld[pdataOld[oldOffset]]);
+                 }
                }
-               else
-                 pdataNew[newOffset] = pdataOld[oldOffset];
                assert(pdataNew[newOffset] != -99999);
            }
        }
