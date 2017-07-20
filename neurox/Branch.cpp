@@ -89,6 +89,9 @@ Branch::Branch(offset_t n,
     nt->_actual_v    = nt->_data + n*4;
     nt->_actual_area = nt->_data + n*5;
 
+    for (int i=0; i<pdataCount; i++)
+        printf("==== PDATA[%d%]=%d\n", i, pdata[i]);
+
     //AP threshold offset
     this->thvar_ptr = thresholdVoffset==-1 ? NULL : &(this->nt->_actual_v[thresholdVoffset]);
 

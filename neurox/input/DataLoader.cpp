@@ -186,6 +186,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     int pdataOffset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
                     pdata.push_back(ml->pdata[pdataOffset]);
+                    std::cout << "## pdataCN[" << type << ","<< n <<","<< i << "]=" << ml->pdata[pdataOffset] << std::endl;
                 }
                 pdata.shrink_to_fit();
 
@@ -199,7 +200,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     {
                         ionsInstancesInfo[ionOffset].mechType = type;
                         ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
-                        ionsInstancesInfo[ionOffset].dataEnd = tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
+                        ionsInstancesInfo[ionOffset].dataEnd = dataTotalOffset + tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
                     }
                     ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
                 }
@@ -916,11 +917,16 @@ int DataLoader::GetBranchData(
                 vdataOffset += totalVdataSize;
             }
 
-            if (mechInstanceMap) //pdata
+            if (inputParams->branchingDepth>0) //if we need to recalculate offsets or remove padding
             {
               for (int p=pdataOffset; p<pdataOffset+mech->pdataSize; p++)
               {
                 offset_t pd = pdataMechs.at(m).at(p);
+                if (pd==5360)
+                {
+                    int a=1;
+                    a=3;
+                }
                 int ptype = memb_func[mech->type].dparam_semantics[p-pdataOffset];
                 switch (ptype)
                 {
@@ -929,7 +935,12 @@ int DataLoader::GetBranchData(
                     assert(pd>=totalPaddedN*5 && pd<totalPaddedN<6);
                     offset_t oldId = pd-totalPaddedN*5;
                     offset_t newId = fromOldToNewCompartmentId.at(oldId);
-                    pdataMechs.at(m).at(p) = tools::Vectorizer::SizeOf(n)*5+newId;
+                    pdataMechs.at(m).at(p) = n*5+newId;
+                    if (pdataMechs.at(m).at(p)==5360)
+                    {
+                        int a=1;
+                        a=3;
+                    }
                     break;
                 }
                 case -2: //"iontype"
@@ -943,6 +954,11 @@ int DataLoader::GetBranchData(
                 case -6: //"pntproc"
                 case -7: //"bbcorepointer"
                     pdataMechs.at(m).at(p) = (offset_t) vdataPointerOffset++;
+                    if (pdataMechs.at(m).at(p)==5360)
+                    {
+                        int a=1;
+                        a=3;
+                    }
                     break;
                 case -8: //"bbcorepointer"
                     assert(0); //watch condition, not supported
@@ -969,7 +985,12 @@ int DataLoader::GetBranchData(
                         int nodeId = ionInfo.nodeIds.at(instanceOffset);
                         int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                         pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(make_pair(ion->type, newNodeId)) + instanceVariableOffset;
-                        assert(pdataMechs.at(m).at(p)>=tools::Vectorizer::SizeOf(n)*6);
+                        assert(pdataMechs.at(m).at(p)>=n*6);
+                        if (pdataMechs.at(m).at(p)==5360)
+                        {
+                            int a=1;
+                            a=3;
+                        }
                     }
                     else if (ptype>=1000) //name not preffixed
                     {
