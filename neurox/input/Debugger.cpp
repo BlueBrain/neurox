@@ -354,7 +354,7 @@ void Debugger::CompareBranch2(Branch * branch)
             for (int i=0; i<dataSize; i++)
             {
 #if LAYOUT==1
-                int offset = mech->dataSize*n+i;
+                int offset = mechanisms[m]->dataSize*n+i;
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
@@ -375,7 +375,11 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
-                //printf ("pdata %d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
+                printf ("pdata %d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
+                int ptype = memb_func[type].dparam_semantics[i];
+                bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
+                if (isPointer)
+                    assert(nt._data[ml->pdata[offset]] == branch->nt->_data[instances.pdata[offset]]);
                 assert(ml->pdata[offset] == instances.pdata[offset]);
             }
 

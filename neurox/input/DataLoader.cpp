@@ -186,6 +186,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     int pdataOffset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
                     pdata.push_back(ml->pdata[pdataOffset]);
+                    std::cout << "## pdataCN[" << type << ","<< n <<","<< i << "]=" << ml->pdata[pdataOffset] << std::endl;
                 }
                 pdata.shrink_to_fit();
 
@@ -199,7 +200,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
                     {
                         ionsInstancesInfo[ionOffset].mechType = type;
                         ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
-                        ionsInstancesInfo[ionOffset].dataEnd = tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
+                        ionsInstancesInfo[ionOffset].dataEnd = dataTotalOffset + tools::Vectorizer::SizeOf(ml->nodecount)*mech->dataSize;
                     }
                     ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
                 }
@@ -929,7 +930,7 @@ int DataLoader::GetBranchData(
                     assert(pd>=totalPaddedN*5 && pd<totalPaddedN<6);
                     offset_t oldId = pd-totalPaddedN*5;
                     offset_t newId = fromOldToNewCompartmentId.at(oldId);
-                    pdataMechs.at(m).at(p) = tools::Vectorizer::SizeOf(n)*5+newId;
+                    pdataMechs.at(m).at(p) = n*5+newId;
                     break;
                 }
                 case -2: //"iontype"
@@ -969,7 +970,7 @@ int DataLoader::GetBranchData(
                         int nodeId = ionInfo.nodeIds.at(instanceOffset);
                         int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                         pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(make_pair(ion->type, newNodeId)) + instanceVariableOffset;
-                        assert(pdataMechs.at(m).at(p)>=tools::Vectorizer::SizeOf(n)*6);
+                        assert(pdataMechs.at(m).at(p)>=n*6);
                     }
                     else if (ptype>=1000) //name not preffixed
                     {

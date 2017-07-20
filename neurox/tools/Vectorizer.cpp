@@ -21,6 +21,8 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    assert(newDataSize % NEUROX_SOA_PADDING==0);
 
    fflush(stdout);
+   //for (int i=0; i<b->nt->_ndata; i++)
+   //    b->nt->_data[i] = i;  //make sure all numbers are different for debug
    for (int i=0; i<b->nt->_ndata; i++)
        std::cout << "## dataOld[" << i << "]=" << b->nt->_data[i] << std::endl;
 
@@ -37,6 +39,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    assert(thvar_idx==-1 || (thvar_idx>=0 && thvar_idx < N));
 
    double* dataNew = New<double>(newDataSize);
+   double* dataOld = b->nt->_data;
 
    //add padding to data for RHS, D, A, B, V and area
    for (int i=0; i<6; i++)
@@ -61,6 +64,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    //add padding and converting AoS->SoA in nt->data and update ml->data for mechs instances
    unsigned oldOffsetAcc = N*6;
    unsigned newOffsetAcc = SizeOf(N)*6;
+
    for (int m=0; m<neurox::mechanismsCount; m++)
    {
        Memb_list * instances = &b->mechsInstances[m];
@@ -68,6 +72,13 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
 
        int totalPDataSize = instances->_nodecount_padded * mechanisms[m]->pdataSize;
        int* pdataNew = New<int>(totalPDataSize);
+       int* pdataOld = instances->pdata;
+
+       NrnThreadMembList *tml = NULL;
+       for (tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next)
+           if (tml->index==mechanisms[m]->type)
+               break;
+       Memb_list * ml = tml->ml;
 
        for (int n=0; n<instances->nodecount; n++) //for every node
        {
@@ -75,21 +86,32 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
            {
                int oldOffset = mechanisms[m]->dataSize*n+i;
                int newOffset = SizeOf(instances->nodecount)*i+n;
-               assert(b->nt->_data[oldOffsetAcc+oldOffset] == instances->data[oldOffset]);
                dataNew[newOffsetAcc+newOffset] = instances->data[oldOffset];
+               ///////// DATA IS OK!!
+               assert(b->nt->_data[oldOffsetAcc+oldOffset] == instances->data[oldOffset]);
+               assert(ml->data[newOffset] == dataNew[newOffsetAcc+newOffset]);
+               assert(nrn_threads[0]._data[newOffsetAcc+newOffset] == dataNew[newOffsetAcc+newOffset]);
+               assert(nrn_threads[0]._data[newOffsetAcc+newOffset] == dataOld[oldOffsetAcc+oldOffset]);
                dataOffsets.at(oldOffsetAcc+oldOffset)=newOffsetAcc+newOffset;
            }
 
            for (size_t i=0; i<mechanisms[m]->pdataSize; i++) //for every pointer
            {
-               int oldOffset = mechanisms[m]->pdataSize*n+i;
-               int newOffset = SizeOf(instances->nodecount)*i+n;
+               int oldOffset = mechanisms[m]->pdataSize*n+i;     //SoA
+               int newOffset = instances->_nodecount_padded*i+n; //AoS
                int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
                bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
                if (isPointer) //true for pointer to area in nt->data, or ion instance data
-                 pdataNew[newOffset] = dataOffsets.at(instances->pdata[oldOffset]); //point to new offset
+               {
+                 pdataNew[newOffset] = dataOffsets.at(pdataOld[oldOffset]); //point to new offset
+                 std::cout << "## pdataOld[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << ml->pdata[newOffset]<< std::endl;
+                 std::cout << "## pdataNew[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << pdataNew[newOffset] << std::endl;
+                 assert(dataNew[ml->pdata[newOffset]] == dataOld[pdataOld[oldOffset]]);
+                 assert(ml->pdata[newOffset] == pdataNew[newOffset]);
+                 assert(dataNew[pdataNew[newOffset]] == dataOld[pdataOld[oldOffset]]);
+               }
                else
-                 pdataNew[newOffset] = instances->pdata[oldOffset];
+                 pdataNew[newOffset] = pdataOld[oldOffset];
                assert(pdataNew[newOffset] != -99999);
            }
        }
@@ -100,7 +122,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
        //all instances processed, replace pointer by new padded data
        Delete(instances->pdata);
        instances->pdata = pdataNew;
-       instances->data = instanceDataNew;
+       instances->data  = instanceDataNew;
    }
 
    for (int i=0; i<newDataSize; i++)
