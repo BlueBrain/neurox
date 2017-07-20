@@ -358,6 +358,13 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
+                if (type==28)
+                    printf ("mech %d, n=%d, i=%d:: data[0] offset %d vs %d\n",
+                            type, n, i,
+                            &ml->data[offset] - &nt._data[0],
+                            &instances.data[offset] - &branch->nt->_data[0]);
+
+                //printf ("data %f vs %f\n", ml->data[offset], instances.data[offset]);
                 assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
             }
 
@@ -368,7 +375,7 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
-                printf ("%d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
+                //printf ("pdata %d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
                 assert(ml->pdata[offset] == instances.pdata[offset]);
             }
 
