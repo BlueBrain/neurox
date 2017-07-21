@@ -72,7 +72,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
 #endif
 };
 
-int Mechanism::GetIonIndex()
+Mechanism::Ion Mechanism::GetIonIndex()
 {
     assert(this->sym);
     if (strcmp("na_ion",  this->sym)==0) return Mechanism::Ion::na;

@@ -73,7 +73,7 @@ class Mechanism
         netReceiveInit = 18
     };
 
-    int GetIonIndex();
+    Mechanism::Ion GetIonIndex();
 
     void CallModFunction(const void * branch,
                          const Mechanism::ModFunction functionId,

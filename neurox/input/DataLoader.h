@@ -62,7 +62,7 @@ class DataLoader
             deque<Compartment*> & compartments, vector<floble_t> & data,
             vector<offset_t> & pdata, vector<unsigned char> & vdata,
             vector<offset_t> & p, vector<offset_t> & instancesCount,
-            vector<offset_t> & nodesIndices, int totalN,
+            vector<offset_t> & nodesIndices, int N,
             vector<DataLoader::IonInstancesInfo> & ionsInstancesInfo,
             vector<map<int,int>> * mechInstanceMap = NULL);
 
