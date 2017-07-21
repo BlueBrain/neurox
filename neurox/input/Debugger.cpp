@@ -358,13 +358,6 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
-                if (type==28)
-                    printf ("mech %d, n=%d, i=%d:: data[0] offset %d vs %d\n",
-                            type, n, i,
-                            &ml->data[offset] - &nt._data[0],
-                            &instances.data[offset] - &branch->nt->_data[0]);
-
-                //printf ("data %f vs %f\n", ml->data[offset], instances.data[offset]);
                 assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
             }
 
@@ -375,7 +368,6 @@ void Debugger::CompareBranch2(Branch * branch)
 #else
                 int offset = tools::Vectorizer::SizeOf(ml->nodecount)*i+n ;
 #endif
-                printf ("pdata %d vs %d\n", ml->pdata[offset], instances.pdata[offset] );
                 int ptype = memb_func[type].dparam_semantics[i];
                 bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
                 if (isPointer)
@@ -385,7 +377,6 @@ void Debugger::CompareBranch2(Branch * branch)
 
             /* We comment this because it runs for NULL presyn
             if (mechanisms[m]->pntMap)
-            {
                 //compare point_processes (index 1)
                 Point_process * pp = (Point_process *) nt._vdata[vdataOffset+1];
                 Point_process * pp2 = (Point_process *) branch->vdata[vdataOffset+1];

@@ -89,9 +89,6 @@ Branch::Branch(offset_t n,
     nt->_actual_v    = nt->_data + n*4;
     nt->_actual_area = nt->_data + n*5;
 
-    for (int i=0; i<pdataCount; i++)
-        printf("==== PDATA[%d%]=%d\n", i, pdata[i]);
-
     //AP threshold offset
     this->thvar_ptr = thresholdVoffset==-1 ? NULL : &(this->nt->_actual_v[thresholdVoffset]);
 
@@ -252,7 +249,6 @@ Branch::Branch(offset_t n,
         int m = mechanismsMap[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppi.mechInstance*mechanisms[m]->dataSize + ppi.instanceDataOffset]);
-        printf("## PPI value %f\n", *pd);
         floble_t * yvec = new floble_t[size];
         floble_t * tvec = new floble_t[size];
         for (size_t i=0; i<size; i++)

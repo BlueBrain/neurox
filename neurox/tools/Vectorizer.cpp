@@ -20,12 +20,6 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
    size_t newDataSize  = 6*SizeOf(N);
    assert(newDataSize % NEUROX_SOA_PADDING==0);
 
-   fflush(stdout);
-   //for (int i=0; i<b->nt->_ndata; i++)
-   //    b->nt->_data[i] = i;  //make sure all numbers are different for debug
-   for (int i=0; i<b->nt->_ndata; i++)
-       std::cout << "## dataOld[" << i << "]=" << b->nt->_data[i] << std::endl;
-
    for (int m=0; m<mechanismsCount; m++)
    {
        b->mechsInstances[m]._nodecount_padded = SizeOf(b->mechsInstances[m].nodecount);
@@ -76,12 +70,6 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
        int* pdataNew = New<int>(totalPDataSize);
        int* pdataOld = instances->pdata;
 
-       NrnThreadMembList *tml = NULL;
-       for (tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next)
-           if (tml->index==mechanisms[m]->type)
-               break;
-       Memb_list * ml = tml->ml;
-
        for (int n=0; n<instances->nodecount; n++) //for every node
        {
            for (size_t i=0; i<mechanisms[m]->dataSize; i++) //for every variable
@@ -89,12 +77,7 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
                int oldOffset = mechanisms[m]->dataSize*n+i;
                int newOffset = SizeOf(instances->nodecount)*i+n;
                dataNew[newOffsetAcc+newOffset] = instances->data[oldOffset];
-
-               ///////// DATA IS OK!!
                assert(b->nt->_data[oldOffsetAcc+oldOffset] == instances->data[oldOffset]);
-               assert(ml->data[newOffset] == dataNew[newOffsetAcc+newOffset]);
-               assert(nrn_threads[0]._data[newOffsetAcc+newOffset] == dataNew[newOffsetAcc+newOffset]);
-               assert(nrn_threads[0]._data[newOffsetAcc+newOffset] == dataOld[oldOffsetAcc+oldOffset]);
                dataOffsets.at(oldOffsetAcc+oldOffset)=newOffsetAcc+newOffset;
            }
 
@@ -107,17 +90,13 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
 
                //new pointer values (invalid for branching)
                //without branching, offsets are already with correct value and padding (for both LAYOUTs)
-               if (inputParams->branchingDepth>0)
+               //if (inputParams->branchingDepth>0) /***TODO UNCOMMENT THIS*/
                {
                  int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
                  bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
                  if (isPointer) //true for pointer to area in nt->data, or ion instance data
                  {
                    pdataNew[newOffset] = dataOffsets.at(pdataOld[oldOffset]); //point to new offset
-                   std::cout << "## pdataOld[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << ml->pdata[newOffset]<< std::endl;
-                   std::cout << "## pdataNew[" << mechanisms[m]->type << ","<< n <<","<< i << "]=" << pdataNew[newOffset] << std::endl;
-                   assert(dataNew[ml->pdata[newOffset]] == dataOld[pdataOld[oldOffset]]);
-                   assert(ml->pdata[newOffset] == pdataNew[newOffset]);
                    assert(dataNew[pdataNew[newOffset]] == dataOld[pdataOld[oldOffset]]);
                  }
                }
@@ -134,11 +113,6 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
        instances->data  = instanceDataNew;
    }
 
-   for (int i=0; i<newDataSize; i++)
-       std::cout << "## dataNew[" << i << "]=" << dataNew[i] << std::endl;
-   for (int i=0; i<dataOffsets.size(); i++)
-       std::cout << "## dataOffsets[" << i << "]=" << dataOffsets[i] << std::endl;
-
    //convert VecPlay continuous pointers
    for (int v=0; v<b->nt->n_vecplay; v++)
    {
@@ -147,7 +121,6 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
        assert(pd_offset>=0 && pd_offset <= b->nt->_ndata);
        int pd_offset_new = dataOffsets.at(pd_offset);
        vc->pd_ = &dataNew[ pd_offset_new ];
-       printf("### post-vectorize: pd %f (offset %lld -> %lld)\n", *vc->pd_, pd_offset, pd_offset_new);
    }
 
    Delete(b->nt->_data);
