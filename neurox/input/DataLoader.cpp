@@ -995,7 +995,7 @@ int DataLoader::GetBranchData(
                         int nodeId = ionInfo.nodeIds.at(instanceOffset);
                         int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                         pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(make_pair(ion->type, newNodeId)) + instanceVariableOffset;
-                        assert(pdataMechs.at(m).at(p)>=tools::Vectorizer::SizeOf(n)*6);
+                        assert(pdataMechs.at(m).at(p)>=n*6);
                     }
                     else if (ptype>=1000) //name not preffixed
                     {
