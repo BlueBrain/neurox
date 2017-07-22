@@ -4,8 +4,6 @@
 #include <numeric>
 #include <set>
 
-#include "coreneuron/utils/randoms/nrnran123.h" //TODO
-
 using namespace neurox;
 using namespace neurox::solver;
 using namespace neurox::tools;
@@ -842,10 +840,8 @@ void Branch::DeliverEvents(floble_t til) //til=t+0.5*dt
         floble_t & tt = event_it.first;
         Event *& e = event_it.second;
 
-        //TODO if (tt>=0) //until CoreNeuron issue of negative delivery times is fixed
-        //must be delivered in previous half step (not earlier, or it's been missed)
-        //{   assert(tt >= til-0.5*nt->_dt-Neuron::teps && tt<=til+Neuron::teps); }
-        //{   assert(tt >= til-0.5*nt->_dt && tt<=til); }
+        //must have been delivered in the previous half step (not earlier), or it was missed
+        //TODO assert(tt >= til-0.5*nt->_dt && tt<=til);
 
         e->Deliver(tt, this);
         this->eventsQueue.pop();
@@ -1026,10 +1022,9 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread* nt,  Memb_list * ml,
     MechanismsGraph * mg = (MechanismsGraph*) args;
     Mechanism * mech = GetMechanismFromType(type);
     assert(mech->dependencyIonIndex<Mechanism::Ion::size_writeable_ions);
-    hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]); //TODO should mutex be at branch and not mech level?
+    hpx_lco_sema_p(mg->i_didv_mutex[mech->dependencyIonIndex]);
     for (int n=0; n<ml->nodecount; n++)
     {
-        //TODO does it need *_STRIDE to vectorize?
         int & i_offset = ml->_shadow_i_offsets[n];
         int & didv_offset = ml->_shadow_didv_offsets[n];
         assert(i_offset>=0 && didv_offset>=0);

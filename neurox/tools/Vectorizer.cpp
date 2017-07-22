@@ -88,9 +88,8 @@ void tools::Vectorizer::ConvertToSOA(Branch * b)
                int newOffset = instances->_nodecount_padded*i+n; //AoS
                pdataNew[newOffset] = pdataOld[oldOffset];
 
-               //new pointer values (invalid for branching)
-               //without branching, offsets are already with correct value and padding (for both LAYOUTs)
-               //if (inputParams->branchingDepth>0) /***TODO UNCOMMENT THIS*/
+               //get correct pdata offset: without branching, offsets are already correct for both LAYOUTs and padding
+               if (inputParams->branchingDepth>0)
                {
                  int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
                  bool isPointer = ptype==-1 || (ptype>0 && ptype<1000);
