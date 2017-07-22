@@ -389,16 +389,11 @@ int Branch::Init_handler( const int nargs, const void *args[],
         (floble_t *) args[15], sizes[15]/sizeof(floble_t), //netcons weights
         (unsigned char*) args[16], sizes[16]/sizeof(unsigned char)); //serialized vdata
 
-    bool runBenchmarkAndClear=false;
-    if (nargs==18)
-        runBenchmarkAndClear = *(bool*) args[17];
+    bool runBenchmarkAndClear = nargs==18 ? *(bool*) args[17] : false;
     if (runBenchmarkAndClear)
     {
-        //initialize soma (gid irrelevant, APthreshold very high (never spikes)
-        local->soma=new Neuron( -1, 999);
-
-        //initialize datatypes and offsets (required for mechs graph-parallelism shadow vecs)
-        local->Finitialize2();
+        local->soma=new Neuron( -1, 999); //soma (dumb gid, APthreshold high - never spikes)
+        local->Finitialize2(); //initialize datatypes and graph-parallelism shadow vecs offsets
 
         //benchmark execution time of a communication-step time-frame
         hpx_time_t now = hpx_time_now();
