@@ -1,6 +1,8 @@
 #pragma once
 #include "neurox.h"
 
+#define DERIVED_CLASS_NAME BackwardEulerTimeDependencyLCOAlgorithm
+
 using namespace neurox;
 
 namespace neurox
@@ -9,20 +11,20 @@ namespace neurox
 namespace algorithms
 {
 
-class BackwardEulerTimeDependencyLCO : Algorithm
+class DERIVED_CLASS_NAME : public Algorithm
 {
-    virtual AlgorithmType getType() override
-    {
-        return AlgorithmType::BackwardEulerTimeDependencyLCO;
-    };
+  public:
+    DERIVED_CLASS_NAME();
+    ~DERIVED_CLASS_NAME();
 
-    virtual void init(Branch*) override;
-    virtual void clear(Branch*) override;
-    virtual void stepBegin(Branch*) override;
-    virtual void stepEnd(Branch*) override;
-    virtual void commStepBegin(Branch*) override;
-    virtual void commStepEnd(Branch*) override;
-    virtual void afterSpike(Branch*) override;
+    AlgorithmType getType() override;
+    void init(Branch*) override;
+    void clear(Branch*) override;
+    void stepBegin(Branch*) override;
+    void stepEnd(Branch*) override;
+    void commStepBegin(Branch*) override;
+    void commStepEnd(Branch*) override;
+    void afterSpike(Branch*) override;
 };
 
 }; //algorithm
