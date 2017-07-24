@@ -48,88 +48,9 @@ class Neuron
     void AddSynapse(Synapse * target);///> add hpx address of post-synaptic branch
     size_t GetSynapsesCount(); ///> get size of vector synapse
 
-    class CommunicationBarrier
-    {
-      public:
-        CommunicationBarrier();
-        ~CommunicationBarrier();
-
-        hpx_t allSpikesLco; ///> LCO for all spikes of previous Comm Step (for fixed step methods and debug)
-        static constexpr int commStepSize = 4; ///> Fixed communication step size
-    } * commBarrier;
-
-    class TimeDependencies  ///from incoming neuron connections
-    {
-      public:
-        TimeDependencies();
-        ~TimeDependencies();
-
-        void WaitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
-        void SendSteppingNotification(floble_t t, floble_t dt, int gid, std::vector<Synapse*> & synapses); ///> inform my outgoing-connection neurons that I stepped
-        void UpdateTimeDependency(neuron_id_t srcGid, floble_t dependencyNotificationTime, neuron_id_t myGid = -1, bool initialization = false);
-        floble_t GetDependenciesMinTime();
-        size_t GetDependenciesCount();
-        void IncreseDependenciesTime(floble_t t);
-
-        static constexpr floble_t notificationIntervalRatio = 1; ///> ration of notification interval (0,1]
-        static constexpr double teps =1e-8; ///>time-epsilon to correct wrong delivery of events due to floating point rounding
-
-      private:
-        std::map<neuron_id_t, floble_t> dependenciesMap; ///> map to previous structure (pointing to vector values)
-        libhpx_cond_t dependenciesWaitCondition;
-        libhpx_mutex_t dependenciesLock;
-        floble_t dependenciesTimeNeuronWaitsFor;
-
-    } * timeDependencies;
-
-    class SlidingTimeWindow
-    {
-      public:
-        SlidingTimeWindow();
-        ~SlidingTimeWindow();
-
-        //set by initNodeLevelInformaion
-        static int reductionsPerCommStep;
-
-        //for node level reduction only (initialized by initNodeLevelInformaion)
-        class AllReduceLocality
-        {
-          public:
-            static std::vector<hpx_t> * localityNeurons;
-            static hpx_t * allReduceFuture;
-            static hpx_t * allReduceLco;
-            static int * allReduceId;
-
-            static hpx_action_t SubscribeAllReduce;
-            static hpx_action_t UnsubscribeAllReduce;
-
-            static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
-            static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
-        };
-
-        //initiated by constructor (one per neuron)
-        std::queue<hpx_t> spikesLcoQueue;
-        hpx_t *allReduceFuture;
-        hpx_t *allReduceLco;
-        int *allReduceId;
-
-        //all-reduce functions
-        static hpx_action_t Init;
-        static hpx_action_t Reduce;
-        static hpx_action_t SubscribeAllReduce;
-        static hpx_action_t UnsubscribeAllReduce;
-        static hpx_action_t SetReductionsPerCommStep;
-
-        static void Init_handler(const void*, const size_t);
-        static void Reduce_handler(void* rhs, const void* lhs, const size_t);
-        static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
-        static int SetReductionsPerCommStep_handler(const int*, const size_t);
-    } * slidingTimeWindow;
+    algorithms::AlgorithmMetaData* algorithmMetaData;
 
     std::vector<Synapse*> synapses; ///> out-going synapse information
-
-    static void registerHpxActions(); ///> Register all HPX actions
 
   private:
     //the outgoing neuron connections:
