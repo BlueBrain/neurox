@@ -216,6 +216,7 @@ static int Main_handler()
     double totalTimeElapsed = 0;
     if (inputParams->algorithm == AlgorithmType::All)
     {
+        //TODO for this to work, we have to re-set algorothm in all cpus?
         for (int type = 0; type<AlgorithmType::BenchmarkEnd; type++)
         {
             algorithm = Algorithm::New((AlgorithmType) type);
@@ -269,9 +270,9 @@ int Clear_handler()
 
     if (inputParams->allReduceAtLocality)
     {
-        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons->clear();
-        delete Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons;
-        Neuron::SlidingTimeWindow::AllReduceLocality::localityNeurons = nullptr;
+        AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->clear();
+        delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons;
+        AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons = nullptr;
     }
 
 #ifndef NDEBUG
