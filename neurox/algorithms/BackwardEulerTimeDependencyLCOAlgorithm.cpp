@@ -27,9 +27,9 @@ void DERIVED_CLASS_NAME::Init()
                     &allReducesCount, sizeof(int));
 }
 
-void DERIVED_CLASS_NAME::Finalize() {}
+void DERIVED_CLASS_NAME::Clear() {}
 
-double DERIVED_CLASS_NAME::Run()
+double DERIVED_CLASS_NAME::Launch()
 {
     int totalSteps = Algorithm::getTotalStepsCount();
     hpx_time_t now = hpx_time_now();
@@ -53,6 +53,19 @@ void DERIVED_CLASS_NAME::StepBegin(Branch* b)
 void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
 {
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
+}
+
+void DERIVED_CLASS_NAME::afterSpikeReceival(
+        Branch *local, hpx_t target, neuron_id_t preNeuronId,
+        spike_time_t spikeTime, spike_time_t maxTime)
+{
+    //inform soma of this neuron of new time dependency update
+    hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
+    if (local->soma)
+        local->soma->timeDependencies->UpdateTimeDependency(preNeuronId, maxTime);
+    else
+        hpx_call(topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,
+             &preNeuronId, sizeof(neuron_id_t), &maxTime, sizeof(spike_time_t));
 }
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
