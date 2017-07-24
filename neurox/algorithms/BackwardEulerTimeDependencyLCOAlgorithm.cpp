@@ -50,7 +50,10 @@ void DERIVED_CLASS_NAME::StepBegin(Branch* b)
     }
 }
 
-void DERIVED_CLASS_NAME::StepEnd(Branch*, hpx_t) {}
+void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
+{
+    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
+}
 
 void DERIVED_CLASS_NAME::CommStepBegin(Branch*) {}
 
