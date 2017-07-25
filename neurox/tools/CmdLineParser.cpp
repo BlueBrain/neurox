@@ -110,10 +110,10 @@ void CmdLineParser::Parse(int argc, char ** argv)
             throw TCLAP::ArgException("time-step size (ms) should be a positive value", "dt");
         if (this->tstop<=0)
             throw TCLAP::ArgException("execution time (ms) should be a positive value", "tstop");
-        floble_t remainder_tstop_tcomm = fmod(this->tstop, algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize*this->dt);
-        if (! (remainder_tstop_tcomm<0.00001 || remainder_tstop_tcomm> algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize*this->dt-0.00001))
+        floble_t remainder_tstop_tcomm = fmod(this->tstop, algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize*this->dt);
+        if (! (remainder_tstop_tcomm<0.00001 || remainder_tstop_tcomm> algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize*this->dt-0.00001))
             throw TCLAP::ArgException("execution time " +to_string(this->tstop) + "ms  should be a multiple of the communication delay " +
-                                      to_string( algorithms::CoreneuronDebugAlgorithm::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
+                                      to_string( algorithms::CoreneuronAlgorithm::CommunicationBarrier::commStepSize * this->dt) + " ms", "tstop");
     }
     catch (TCLAP::ArgException & e)
     {

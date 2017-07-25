@@ -9,6 +9,8 @@ AlgorithmMetaData* AlgorithmMetaData::New(AlgorithmType type)
     {
     case AlgorithmType::BackwardEulerCoreneuronDebug:
         return new CoreneuronDebugAlgorithm::CommunicationBarrier();
+    case AlgorithmType::BackwardEulerCoreneuron:
+        return new CoreneuronAlgorithm::CommunicationBarrier();
     case AlgorithmType::BackwardEulerAllReduce:
         return new AllReduceAlgorithm::AllReducesInfo();
     case AlgorithmType::BackwardEulerSlidingTimeWindow:
