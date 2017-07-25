@@ -101,7 +101,6 @@ void CmdLineParser::Parse(int argc, char ** argv)
         this->outputCompartmentsDot = outputCompartmentsDot.getValue();
         this->multiMex = multiMex.getValue();
         this->allReduceAtLocality = allReduceAtLocality.getValue();
-        this->parallelDataLoading = coreneuronMpiExecution.getValue();
         this->branchingDepth = branchingDepth.getValue();
         this->algorithm = (algorithms::AlgorithmType) algorithm.getValue();
         neurox::algorithm = algorithms::Algorithm::New(this->algorithm);
