@@ -1,7 +1,7 @@
 #pragma once
 #include "neurox.h"
 
-#define DERIVED_CLASS_NAME CoreneuronDebugAlgorithm
+#define DERIVED_CLASS_NAME DebugAlgorithm
 
 using namespace neurox;
 

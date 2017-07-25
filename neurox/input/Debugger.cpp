@@ -462,7 +462,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b, char secondo
 {
 #if !defined(NDEBUG)
     if (inputParams->parallelDataLoading
-     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerCoreneuronDebug)
+     && algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebug)
         return; //non-debug mode in parallel are compared at the end of execution instead
 
     if (inputParams->branchingDepth>0) return; //can't be compared
