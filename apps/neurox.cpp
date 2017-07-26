@@ -10,11 +10,11 @@ void modl_reg() {} ///No additional mechs, dont register any external
 int main(int argc, char** argv)
 {
     neurox::RegisterHpxActions();
-    neurox::Branch::registerHpxActions();
+    neurox::Branch::RegisterHpxActions();
     neurox::tools::Statistics::RegisterHpxActions();
     neurox::tools::LoadBalancing::RegisterHpxActions();
-    neurox::input::DataLoader::registerHpxActions();
-    neurox::algorithms::AllReduceAlgorithm::AllReducesInfo::registerHpxActions();
+    neurox::input::DataLoader::RegisterHpxActions();
+    neurox::algorithms::AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions();
 #if !defined(NDEBUG)
     neurox::input::Debugger::RegisterHpxActions();
 #endif
@@ -28,22 +28,9 @@ int main(int argc, char** argv)
     //parse command line arguments
     neurox::inputParams = new tools::CmdLineParser(argc, argv);
 
-    if (inputParams->branchingDepth>0 && hpx_get_num_ranks()>1)
-    {
-        //Branches will be split across several localities.
-        //To load and instantiate all mechs in all nodes:
-        //1. load all morphologies on all nodes
-        //2. get and initialize the mechanisms for those neurons
-        //3. clean neurons data and keep mechs
-        //4. perform regular parallel loading of neurons
-        //(This is because mechs have static variables that can't be accessed
-        //by or communicated to other cpus, so mechs info can't be serialized)
+    ///all compute nodes load the data (mechs info is accessible to all)
+    neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false, false);
 
-        neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, true);
-        hpx_run(&neurox::InitMechanismsAndQuit, NULL);
-    }
-
-    neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false);
     int e = hpx_run(&neurox::Main, NULL);
     hpx_finalize();
     return e;

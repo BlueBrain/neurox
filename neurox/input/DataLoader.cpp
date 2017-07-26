@@ -385,9 +385,13 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map)
     nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::InitAndLoadCoreneuronData(int argc, char ** argv, bool run_setup_cleanup)
+void DataLoader::InitAndLoadCoreneuronData(
+        int argc, char ** argv,
+        bool nrnmpi_under_nrncontrol,
+        bool run_setup_cleanup)
 {
-    nrn_init_and_load_data(argc, argv, run_setup_cleanup);
+    //nrnmpi_under_nrncontrol=true allows parallel data loading without "-m" flag, see rnmpi_init()
+    nrn_init_and_load_data(argc, argv, nrnmpi_under_nrncontrol, run_setup_cleanup);
 }
 
 int DataLoader::GetMyNrnNeuronsCount()
@@ -401,6 +405,31 @@ int DataLoader::InitMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
 
+    //Build Mechanisms data (without dependencies) from memb_func
+    neurox::mechanismsCount=0;
+    neurox::mechanismsMap = new int[n_memb_func];
+    for (int type=0; type<n_memb_func; type++)
+    {
+        neurox::mechanismsMap[type]=-1;
+        if (!memb_func[type].alloc) continue;
+        neurox::mechanismsMap[type] = neurox::mechanismsCount++;
+    }
+
+    neurox::mechanisms = new Mechanism*[neurox::mechanismsCount];
+    for (int type=0; type<n_memb_func; type++)
+    {
+        if (neurox::mechanismsMap[type]==-1) continue;
+
+        int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
+        mechanisms[neurox::mechanismsMap[type]] = new
+            Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
+                       nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
+                       symLength, memb_func[type].sym, memb_func[type],
+                       0, nullptr,  //parents will be communicated below
+                       0, nullptr); //children will be communicated below
+    }
+
+    //build dependencies between mechanisms (only available from the morphology)
     int myNeuronsCount = GetMyNrnNeuronsCount();
 
     if (myNeuronsCount==0) neurox_hpx_unpin;
@@ -409,11 +438,10 @@ int DataLoader::InitMechanisms_handler()
     {   assert(nrn_threads[i].ncell == 1); }
 
     // Reconstructs unique data related to each mechanism
-    std::vector<Mechanism> mechsData;
-    std::vector<int> mechsSuccessorsId, mechsDependenciesId;
-    std::vector<char> mechsSym;
+    std::vector<int> successorsCount(neurox::mechanismsCount), dependenciesCount(neurox::mechanismsCount);
+    std::vector<int> successorsIds(1000), dependenciesIds(1000);
 
-    //Different nrn_threads[i] have diff mechanisms sets; we'll get the union of all neurons' mechs
+    //Different nrn_threads[i] have diff mechanisms; we'll get the union of all neurons' mechs
     std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
     std::set<int> uniqueMechIds; //list of unique mechanism ids
 
@@ -447,7 +475,7 @@ int DataLoader::InitMechanisms_handler()
     {
         auto & tml = *tml_it;
         int type = tml->index;
-        vector<int> successorsIds, dependenciesIds;
+        vector<int> successors, dependencies;
         assert(nrn_watch_check[type] == NULL); //not supported yet
 
         if (inputParams->multiMex)
@@ -459,11 +487,11 @@ int DataLoader::InitMechanisms_handler()
             {
               int ptype = memb_func[otherType].dparam_semantics[d];
               if (otherType == type && ptype>0 && ptype<1000)
-                if (std::find(dependenciesIds.begin(), dependenciesIds.end(), ptype) == dependenciesIds.end())
-                  dependenciesIds.push_back(ptype); //parent on dependency graph
+                if (std::find(dependencies.begin(), dependencies.end(), ptype) == dependencies.end())
+                  dependencies.push_back(ptype); //parent on dependency graph
               if (otherType!= type && ptype==type)
-                if (std::find(successorsIds.begin(), successorsIds.end(), otherType) == successorsIds.end())
-                  successorsIds.push_back(otherType); //children on dependency graph
+                if (std::find(successors.begin(), successors.end(), otherType) == successors.end())
+                  successors.push_back(otherType); //children on dependency graph
             }
           }
         }
@@ -473,30 +501,21 @@ int DataLoader::InitMechanisms_handler()
           if (tml->index != uniqueMechs.back()->index)
           {
               auto tml_next_it = std::next(tml_it,1);
-              successorsIds.push_back((*tml_next_it)->index);
+              successors.push_back((*tml_next_it)->index);
           }
           //all except first have one dependency
           if (tml->index != CAP)
           {
               auto tml_prev_it = std::prev(tml_it,1);
-              dependenciesIds.push_back((*tml_prev_it)->index);
+              dependencies.push_back((*tml_prev_it)->index);
           }
         }
 
-        int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
-        if (strcmp(memb_func[type].sym, "PatternStim")==0 && inputParams->patternStim[0]=='\0')
-                continue; //only load PatternStim if path initialized
+        successorsCount.push_back(successors.size());
+        successorsIds.insert(successorsIds.end(), successors.begin(), successors.end());
 
-        mechsData.push_back(
-            Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
-                       nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, nullptr, //sym will be serialized below
-                       dependenciesIds.size(), nullptr, //parents will be serialized below
-                       successorsIds.size(), nullptr)); //children will be serialized below
-
-        mechsSuccessorsId.insert(mechsSuccessorsId.end(), successorsIds.begin(), successorsIds.end());
-        mechsDependenciesId.insert(mechsDependenciesId.end(), dependenciesIds.begin(), dependenciesIds.end());
-        mechsSym.insert(mechsSym.end(), memb_func[type].sym, memb_func[type].sym + symLength);
+        dependenciesCount.push_back(dependencies.size());
+        dependenciesIds.insert(dependenciesIds.end(), dependencies.begin(), dependencies.end());
     }
 
     if (inputParams->patternStim[0]!='\0') //"initialized"
@@ -505,10 +524,26 @@ int DataLoader::InitMechanisms_handler()
         //in the future this should be contidtional (once we get rid of coreneuron data loading)
     }
 
-    //set mechanisms
-    SetMechanisms(mechsData.size(), mechsData.data(), mechsDependenciesId.data(),
-                   mechsSuccessorsId.data(), mechsSym.data());
-    mechsData.clear(); mechsSuccessorsId.clear(); mechsSym.clear();
+    //set mechanisms dependencies
+    if (neurox::ParallelExecution() && inputParams->branchingDepth>0)
+    {
+        //broadcast dependencies, most complete dependency graph will be used across the network
+        //(this solves issue of localities loading morphologies without all mechanisms,
+        //and processing branches of other localities with the missing mechanisms)
+        hpx_bcast_rsync(DataLoader::UpdateMechanismsDependencies,
+                        successorsCount.data(),   sizeof(int)*successorsCount.size(),
+                        successorsIds.data(),     sizeof(int)*successorsIds.size(),
+                        dependenciesCount.data(), sizeof(int)*dependenciesCount.size(),
+                        dependenciesIds.data(),   sizeof(int)*dependenciesIds.size()
+                        );
+    }
+    else
+    {
+        //regular setting of mechanisms: all localities have the dependency graph for their morphologies
+        neurox::SetMechanismsDependencies(
+                dependenciesCount.data(), dependenciesIds.data(),
+                successorsCount.data(),   successorsIds.data());
+    }
     neurox_hpx_unpin;
 }
 
@@ -523,7 +558,7 @@ int DataLoader::Init_handler()
     if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
         loadBalancing = new tools::LoadBalancing();
 
-    if (  inputParams->parallelDataLoading //disable output of netcons for parallel loading
+    if (neurox::ParallelExecution() //disable output of netcons for parallel loading
        && inputParams->outputNetconsDot)
     {
         inputParams->outputNetconsDot=false;
@@ -550,40 +585,40 @@ int DataLoader::Init_handler()
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
       fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
       fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            GetMechanismFromType(CAP)->sym, CAP);
+            GetMechanismFromType(CAP)->membFunc.sym, CAP);
       if (!inputParams->multiMex)
       {
         fprintf(fileMechs, "end -> start [color=transparent];\n");
-        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->sym, CAP);
+        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->membFunc.sym, CAP);
       }
       for (int m =0; m< mechanismsCount; m++)
       {
         Mechanism * mech = neurox::mechanisms[m];
 
         if (mech->pntMap > 0) //if is point process make it dotted
-            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->sym, mech->type);
+            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
 
         if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
-            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->sym, mech->type);
+            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
 
         if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
-            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->sym, mech->type, "end");
+            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
 
         for (int s=0; s<mech->successorsCount; s++)
         {
             Mechanism * successor = GetMechanismFromType(mech->successors[s]);
             fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
-                    mech->sym, mech->type, successor->sym, successor->type);
+                    mech->membFunc.sym, mech->type, successor->membFunc.sym, successor->type);
         }
 
         if (inputParams->multiMex)
         for (int d=0; d<mech->dependenciesCount; d++)
         {
             Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
-            if (strcmp("SK_E2", mech->sym)==0 && strcmp("ca_ion", parent->sym)==0) continue; //TODO: hardcoded exception
+            if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO: hardcoded exception
             if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
                 fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
-                        mech->sym, mech->type, parent->sym, parent->type);
+                        mech->membFunc.sym, mech->type, parent->membFunc.sym, parent->type);
         }
       }
       fprintf(fileMechs, "}\n");
@@ -592,22 +627,22 @@ int DataLoader::Init_handler()
 
     neurox_hpx_unpin;
 }
+
 hpx_action_t DataLoader::InitNeurons = 0;
 int DataLoader::InitNeurons_handler()
 {
     neurox_hpx_pin(uint64_t);
 
-    //if serial loading, and done by someone else, continue;
-    if (!inputParams->parallelDataLoading && hpx_get_my_rank()> 0) neurox_hpx_unpin;
-
     int myNeuronsCount =  GetMyNrnNeuronsCount();
+
+    if (myNeuronsCount==0) neurox_hpx_unpin;
 
 #if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
     if (inputParams->outputCompartmentsDot)
     {
       for (int i=0; i<myNeuronsCount; i++)
       {
-        neuron_id_t neuronId = getNeuronIdFromNrnThreadId(i);
+        neuron_id_t neuronId = GetNeuronIdFromNrnThreadId(i);
         FILE *fileCompartments = fopen(string("compartments_"+to_string(neuronId)+"_NrnThread.dot").c_str(), "wt");
         fprintf(fileCompartments, "graph G%d\n{  node [shape=cylinder];\n", neuronId );
 
@@ -623,7 +658,7 @@ int DataLoader::InitNeurons_handler()
 
     //allocate HPX memory space for neurons
     hpx_t myNeuronsGas = HPX_NULL;
-    if (inputParams->parallelDataLoading) //if shared pre-balanced loading, store neurons locally
+    if (neurox::ParallelExecution()) //if shared pre-balanced loading, store neurons locally
         myNeuronsGas = hpx_gas_calloc_local(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
     else //if I'm the only one loading data... spread it
         myNeuronsGas = hpx_gas_calloc_cyclic(myNeuronsCount, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
@@ -644,6 +679,7 @@ int DataLoader::InitNeurons_handler()
 
     //If there is branch parallelism, neurons are generated in serial
     //(otherwise branches benchmark is affected by scheduler and running threads)
+    //TODO I dont think so, a benchmark thread will run until it finishes!
     if (inputParams->branchingDepth>0)
         for (int i=0; i<myNeuronsCount; i++)
             CreateNeuron(i, myNeuronsTargets);
@@ -687,6 +723,22 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[], const si
     neurox_hpx_unpin;
 }
 
+hpx_action_t DataLoader::UpdateMechanismsDependencies = 0;
+int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void *args[], const size_t[])
+{
+    /**
+     * nargs=4 where
+     * args[0] = successors count per mechanism
+     * args[1] = successors ids
+     * args[2] = dependendencies count per mechanism
+     * args[3] = dependendencies ids
+     */
+
+    neurox_hpx_pin(uint64_t);
+    assert(nargs==4);
+
+    neurox_hpx_unpin;
+}
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler()
 {
@@ -1252,7 +1304,7 @@ int DataLoader::AddSynapse_handler(
     neurox_hpx_unpin;
 }
 
-void DataLoader::registerHpxActions()
+void DataLoader::RegisterHpxActions()
 {
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::Init);
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::InitMechanisms);
@@ -1261,4 +1313,5 @@ void DataLoader::registerHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::Finalize);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddSynapse);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddNeurons);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::UpdateMechanismsDependencies);
 }
