@@ -15,7 +15,7 @@ Mechanism::Mechanism(const int type, const short int dataSize,
     type(type), dataSize(dataSize), pdataSize(pdataSize), vdataSize(0),
     successorsCount(successorsCount), dependenciesCount(dependenciesCount),
     symLength(symLength), pntMap(pntMap), isArtificial(isArtificial),
-    isIon(isIon), dependencies(nullptr), successors(nullptr)
+    isIon(isIon), dependencies(nullptr), successors(nullptr), isUsed(false)
 {
 
     //to be set by neuronx::UpdateMechanismsDependencies
@@ -117,6 +117,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
     assert(branch);
     NrnThread * nrnThread = branch->nt;
     assert(nrnThread);
+    assert(this->isUsed);
 
     if (functionId == Mechanism::ModFunction::netReceive
      || functionId == Mechanism::ModFunction::netReceiveInit)
@@ -159,7 +160,7 @@ void Mechanism::CallModFunction(const void * branch_ptr,
             assert(type != CAP);
             if (membFunc.current) //has a current function
             {
-                if (branch->mechsGraph //parallel execution
+                if (inputParams->multiMex //parallel execution
                  && strcmp(this->membFunc.sym, "CaDynamics_E2")!=0 //not CaDynamics_E2 (no updates in cur function)
                  && !this->isIon) //not ion (updates in nrn_cur_ion function)
                 {
