@@ -471,7 +471,6 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
           {
             if (mechanisms[m]->type == CAP)   continue; //not capacitance
             if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branch
-            if (!mechanisms[m]->isUsed) continue; //not used
             hpx_lco_set(this->mechsGraph->mechsLCOs[m],
                         sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
           }
@@ -481,13 +480,13 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
         else //serial
         {
             for (int m=0; m<mechanismsCount; m++)
-
+            {
                 if ( mechanisms[m]->type == CAP
                    && (  functionId == Mechanism::ModFunction::current
                       || functionId == Mechanism::ModFunction::jacob))
                     continue;
-                else if (mechanisms[m]->isUsed)
-                    mechanisms[m]->CallModFunction(this, functionId);
+                mechanisms[m]->CallModFunction(this, functionId);
+            }
         }
     }
 }
@@ -820,19 +819,13 @@ int Branch::BranchTree::InitLCOs_handler()
 
 Branch::MechanismsGraph::MechanismsGraph()
 {
-    int usedMechanismsCount =0;
-    for (int m=0; m<neurox::mechanismsCount; m++)
-         if (neurox::mechanisms[m]->isUsed)
-             usedMechanismsCount++;
-
     //initializes mechanisms graphs (capacitance is excluded from graph)
-    this->graphLCO  = hpx_lco_and_new(usedMechanismsCount-1); //excludes 'capacitance'
+    this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
     this->mechsLCOs = new hpx_t[mechanismsCount];
     size_t terminalMechanismsCount=0;
     for (size_t m=0; m<mechanismsCount; m++)
     {
       this->mechsLCOs[m] = HPX_NULL;
-      if (!mechanisms[m]->isUsed) continue;
       if (mechanisms[m]->type == CAP) continue; //exclude capacitance
 
       this->mechsLCOs[m] = hpx_lco_reduce_new(
@@ -855,7 +848,6 @@ void Branch::MechanismsGraph::InitMechsGraph(hpx_t branchHpxAddr)
     for (size_t m=0; m<mechanismsCount; m++)
     {
       if (mechanisms[m]->type == CAP) continue; //exclude capacitance
-      if (!mechanisms[m]->isUsed) continue; //not used
       hpx_call(branchHpxAddr, Branch::MechanismsGraph::MechFunction,
                this->graphLCO, &mechanisms[m]->type, sizeof(int));
     }
@@ -885,7 +877,6 @@ int Branch::MechanismsGraph::MechFunction_handler(
     assert(type!=CAP); //capacitance should be outside mechanisms graph
     assert(local->mechsGraph->mechsLCOs[mechanismsMap[type]] != HPX_NULL);
     Mechanism * mech = GetMechanismFromType(type);
-    assert(mech->isUsed);
 
     Mechanism::ModFunction functionId;
     while (local->mechsGraph->graphLCO != HPX_NULL)
