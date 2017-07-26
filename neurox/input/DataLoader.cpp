@@ -176,6 +176,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void * targets)
             int type = tml->index;
             Memb_list * ml = tml->ml; //Mechanisms application to each compartment
             Mechanism * mech = GetMechanismFromType(type);
+            assert(mech->type==type);
             int ionOffset = mech->GetIonIndex();
             for (int n=0; n<ml->nodecount; n++) //for every mech instance (or compartment this mech is applied to)
             {
@@ -405,31 +406,7 @@ int DataLoader::InitMechanisms_handler()
 {
     neurox_hpx_pin(uint64_t);
 
-    //Build Mechanisms data (without dependencies) from memb_func
-    neurox::mechanismsCount=0;
-    neurox::mechanismsMap = new int[n_memb_func];
-    for (int type=0; type<n_memb_func; type++)
-    {
-        neurox::mechanismsMap[type]=-1;
-        if (!memb_func[type].alloc) continue;
-        neurox::mechanismsMap[type] = neurox::mechanismsCount++;
-    }
-
-    neurox::mechanisms = new Mechanism*[neurox::mechanismsCount];
-    for (int type=0; type<n_memb_func; type++)
-    {
-        if (neurox::mechanismsMap[type]==-1) continue;
-
-        int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
-        mechanisms[neurox::mechanismsMap[type]] = new
-            Mechanism (type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
-                       nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
-                       symLength, memb_func[type].sym, memb_func[type],
-                       0, nullptr,  //parents will be communicated below
-                       0, nullptr); //children will be communicated below
-    }
-
-    //build dependencies between mechanisms (only available from the morphology)
+    //To insert mechanisms in the right order, we must first calculate dependencies
     int myNeuronsCount = GetMyNrnNeuronsCount();
 
     if (myNeuronsCount==0) neurox_hpx_unpin;
@@ -437,31 +414,27 @@ int DataLoader::InitMechanisms_handler()
     for (int i=0; i<myNeuronsCount; i++)
     {   assert(nrn_threads[i].ncell == 1); }
 
-    // Reconstructs unique data related to each mechanism
-    std::vector<int> successorsCount(neurox::mechanismsCount), dependenciesCount(neurox::mechanismsCount);
-    std::vector<int> successorsIds(1000), dependenciesIds(1000);
-
     //Different nrn_threads[i] have diff mechanisms; we'll get the union of all neurons' mechs
-    std::list<NrnThreadMembList*> uniqueMechs; //list of unique mechanisms
+    std::list<NrnThreadMembList*> orderedMechs; //list of unique mechanisms
     std::set<int> uniqueMechIds; //list of unique mechanism ids
 
     //insert all mechs from first neuron
     for (NrnThreadMembList* tml = nrn_threads[0].tml; tml!=NULL; tml = tml->next)
     {
-        uniqueMechs.push_back(tml);
+        orderedMechs.push_back(tml);
         uniqueMechIds.insert(tml->index);
     }
 
-    //insert all mechs from other neurons that do not yet exist
+    //insert all mechs from other neurons that do not yet exist, in the right order
     for (int i=1; i<myNeuronsCount; i++)
         for (NrnThreadMembList* tml = nrn_threads[i].tml; tml->next!=NULL; tml = tml->next)
             if (uniqueMechIds.find(tml->next->index) == uniqueMechIds.end()) //if next mech does not exist
             {   //find correct position in list and insert it there:
-                for (auto it = uniqueMechs.begin(); it != uniqueMechs.end(); it++) //...for all existing mechs
+                for (auto it = orderedMechs.begin(); it != orderedMechs.end(); it++) //...for all existing mechs
                     if ((*it)->index == tml->index)
                     {
                         auto it_next = std::next(it,1);
-                        uniqueMechs.insert(it_next,tml->next); //reminder: .insert adds elements in position before iterator
+                        orderedMechs.insert(it_next,tml->next); //reminder: .insert adds elements in position before iterator
                         //we have it -> it_new -> it_next. Now we will set the value of next pointer
                         //auto it_new = std::prev(it_next,1);
                         //(*it)->next = *it_new; //Do not change next pointers or neuron is incorrect
@@ -470,35 +443,48 @@ int DataLoader::InitMechanisms_handler()
                         break;
                     }
             }
+    assert(uniqueMechIds.size()==orderedMechs.size());
 
-    for (auto tml_it = uniqueMechs.begin(); tml_it != uniqueMechs.end(); tml_it++)
+    std::vector<int> mechIds_serial;
+    std::vector<int> dependenciesCount_serial;
+    std::vector<int> successorsCount_serial;
+    std::vector<int> dependencies_serial;
+    std::vector<int> successors_serial;
+
+    for (auto tml_it = orderedMechs.begin(); tml_it != orderedMechs.end(); tml_it++)
     {
         auto & tml = *tml_it;
         int type = tml->index;
-        vector<int> successors, dependencies;
+
+        vector<int> successors  ;
+        vector<int> dependencies;
         assert(nrn_watch_check[type] == NULL); //not supported yet
 
         if (inputParams->multiMex)
         {
-          for (auto & tml2 : uniqueMechs)
+          for (auto & tml2 : orderedMechs)
           {
             int otherType = tml2->index;
             for (int d=0; d<nrn_prop_dparam_size_[otherType]; d++)
             {
               int ptype = memb_func[otherType].dparam_semantics[d];
               if (otherType == type && ptype>0 && ptype<1000)
+              {
                 if (std::find(dependencies.begin(), dependencies.end(), ptype) == dependencies.end())
                   dependencies.push_back(ptype); //parent on dependency graph
+              }
               if (otherType!= type && ptype==type)
+              {
                 if (std::find(successors.begin(), successors.end(), otherType) == successors.end())
                   successors.push_back(otherType); //children on dependency graph
+              }
             }
           }
         }
         else
         {
           //all except last have one successor
-          if (tml->index != uniqueMechs.back()->index)
+          if (tml->index != orderedMechs.back()->index)
           {
               auto tml_next_it = std::next(tml_it,1);
               successors.push_back((*tml_next_it)->index);
@@ -511,11 +497,12 @@ int DataLoader::InitMechanisms_handler()
           }
         }
 
-        successorsCount.push_back(successors.size());
-        successorsIds.insert(successorsIds.end(), successors.begin(), successors.end());
-
-        dependenciesCount.push_back(dependencies.size());
-        dependenciesIds.insert(dependenciesIds.end(), dependencies.begin(), dependencies.end());
+        //serialize data
+        mechIds_serial.push_back(type);
+        dependenciesCount_serial.push_back(dependencies.size());
+        successorsCount_serial.push_back(successors.size());
+        dependencies_serial.insert(dependencies_serial.end(), dependencies.begin(), dependencies.end());
+        successors_serial.insert(successors_serial.end(), successors.begin(), successors.end());
     }
 
     if (inputParams->patternStim[0]!='\0') //"initialized"
@@ -529,20 +516,22 @@ int DataLoader::InitMechanisms_handler()
     {
         //broadcast dependencies, most complete dependency graph will be used across the network
         //(this solves issue of localities loading morphologies without all mechanisms,
-        //and processing branches of other localities with the missing mechanisms)
-        hpx_bcast_rsync(DataLoader::UpdateMechanismsDependencies,
-                        successorsCount.data(),   sizeof(int)*successorsCount.size(),
-                        successorsIds.data(),     sizeof(int)*successorsIds.size(),
-                        dependenciesCount.data(), sizeof(int)*dependenciesCount.size(),
-                        dependenciesIds.data(),   sizeof(int)*dependenciesIds.size()
+        //and processing branches of other localities where those missing mechanisms exist)
+        hpx_bcast_rsync(DataLoader::SetMechanisms,
+                        mechIds_serial.data(),           sizeof(int)*mechIds_serial.size(),
+                        dependenciesCount_serial.data(), sizeof(int)*dependenciesCount_serial.size(),
+                        dependencies_serial.data(),   sizeof(int)*dependencies_serial.size(),
+                        successorsCount_serial.data(),   sizeof(int)*successorsCount_serial.size(),
+                        successors_serial.data(),     sizeof(int)*successors_serial.size()
                         );
     }
     else
     {
         //regular setting of mechanisms: all localities have the dependency graph for their morphologies
-        neurox::SetMechanismsDependencies(
-                dependenciesCount.data(), dependenciesIds.data(),
-                successorsCount.data(),   successorsIds.data());
+        DataLoader::SetMechanisms2(
+                    mechIds_serial.size(), mechIds_serial.data(),
+                    dependenciesCount_serial.data(), dependencies_serial.data(),
+                    successorsCount_serial.data(), successors_serial.data());
     }
     neurox_hpx_unpin;
 }
@@ -575,56 +564,6 @@ int DataLoader::Init_handler()
         fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
       #endif
     }
-
-    if (inputParams->outputMechanismsDot)
-    {
-      FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
-      fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", DOT_PNG_BACKGROUND_COLOR,
-              !inputParams->multiMex ? "layout=circo; scale=0.23;" : "");
-      fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
-      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
-      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
-      fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            GetMechanismFromType(CAP)->membFunc.sym, CAP);
-      if (!inputParams->multiMex)
-      {
-        fprintf(fileMechs, "end -> start [color=transparent];\n");
-        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->membFunc.sym, CAP);
-      }
-      for (int m =0; m< mechanismsCount; m++)
-      {
-        Mechanism * mech = neurox::mechanisms[m];
-
-        if (mech->pntMap > 0) //if is point process make it dotted
-            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
-
-        if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
-            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
-
-        if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
-            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
-
-        for (int s=0; s<mech->successorsCount; s++)
-        {
-            Mechanism * successor = GetMechanismFromType(mech->successors[s]);
-            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
-                    mech->membFunc.sym, mech->type, successor->membFunc.sym, successor->type);
-        }
-
-        if (inputParams->multiMex)
-        for (int d=0; d<mech->dependenciesCount; d++)
-        {
-            Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
-            if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO: hardcoded exception
-            if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
-                fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
-                        mech->membFunc.sym, mech->type, parent->membFunc.sym, parent->type);
-        }
-      }
-      fprintf(fileMechs, "}\n");
-      fclose(fileMechs);
-    }
-
     neurox_hpx_unpin;
 }
 
@@ -723,22 +662,105 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[], const si
     neurox_hpx_unpin;
 }
 
-hpx_action_t DataLoader::UpdateMechanismsDependencies = 0;
-int DataLoader::UpdateMechanismsDependencies_handler(const int nargs, const void *args[], const size_t[])
+hpx_action_t DataLoader::SetMechanisms = 0;
+int DataLoader::SetMechanisms_handler(const int nargs, const void *args[], const size_t sizes[])
 {
     /**
-     * nargs=4 where
-     * args[0] = successors count per mechanism
-     * args[1] = successors ids
-     * args[2] = dependendencies count per mechanism
-     * args[3] = dependendencies ids
+     * nargs=5 where
+     * args[0] = mechanisms ids (in the correct dependency order)
+     * args[1] = successors count per mechanism
+     * args[2] = successors ids
+     * args[3] = dependendencies count per mechanism
+     * args[4] = dependendencies ids
      */
 
     neurox_hpx_pin(uint64_t);
-    assert(nargs==4);
+    assert(nargs==5);
+
+    const int * orderedMechs      = (const int*) args[0];
+    const int * dependenciesCount = (const int*) args[1];
+    const int * dependencies      = (const int*) args[2];
+    const int * successorsCount   = (const int*) args[3];
+    const int * successors        = (const int*) args[4];
+
+    const int mechsCount = sizes[0]/sizeof(int);
+
+    SetMechanisms2( mechsCount, orderedMechs,
+                    dependenciesCount, dependencies,
+                    successorsCount, successors);
 
     neurox_hpx_unpin;
 }
+
+void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
+                   const int *dependenciesCount, const int * dependencies,
+                   const int *successorsCount  , const int * successors)
+{
+    hpx_lco_sema_p(neuronsMutex);
+
+    //if I'm receiving new information, rebuild mechanisms
+    if (mechsCount>neurox::mechanismsCount)
+    {
+        //delete existing data (if any)
+        if (neurox::mechanismsCount>0)
+        {
+            for (int m=0; m<neurox::mechanismsCount; m++)
+                delete mechanisms[m];
+            delete [] neurox::mechanisms;
+            delete [] neurox::mechanismsMap;
+        }
+
+        neurox::mechanismsCount = mechsCount;
+        neurox::mechanismsMap = new int[n_memb_func];
+        neurox::mechanisms = new Mechanism*[mechsCount];
+
+        for (int i=0; i<n_memb_func; i++)
+            neurox::mechanismsMap[i]=-1;
+
+        int dependenciesOffset =0;
+        int successorsOffset =0;
+        for (int m=0; m<mechsCount; m++)
+        {
+            int type = mechIds[m];
+            neurox::mechanismsMap[type] = m;
+
+            int symLength = memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
+            const int * mechDependencies = dependenciesCount[m] == 0 ? nullptr : &dependencies[dependenciesOffset];
+            const int * mechSuccessors   = successorsCount[m] ==0    ? nullptr : &successors[successorsOffset];
+            Mechanism * mech = new Mechanism (
+                        type, nrn_prop_param_size_[type], nrn_prop_dparam_size_[type],
+                        nrn_is_artificial_[type], pnt_map[type], nrn_is_ion(type),
+                        symLength, memb_func[type].sym, memb_func[type],
+                        dependenciesCount[m], mechDependencies,
+                        successorsCount[m], mechSuccessors);
+            neurox::mechanisms[m] = mech;
+
+            successorsOffset   += successorsCount[m];
+            dependenciesOffset += dependenciesCount[m];
+        }
+
+        //set parent ion index
+        for (int m=0; m<mechsCount; m++)
+        {
+            if (inputParams->multiMex)
+            {
+                Mechanism * mech = neurox::mechanisms[m];
+                for (int d=0; d<mech->dependenciesCount; d++)
+                {
+                    Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
+                    if (strcmp("SK_E2", mech->membFunc.sym)==0
+                     && strcmp("ca_ion", parent->membFunc.sym)==0)
+                        continue; //TODO hard coded exception
+
+                    if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions)
+                        mech->dependencyIonIndex = parent->GetIonIndex();
+                }
+            }
+        }
+    }
+    hpx_lco_sema_v_sync(neuronsMutex);
+}
+
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler()
 {
@@ -749,6 +771,69 @@ int DataLoader::Finalize_handler()
       fprintf(fileNetcons, "}\n");
       fclose(fileNetcons);
     }
+
+    if (inputParams->outputMechanismsDot)
+    {
+      FILE *fileMechs = fopen(string("mechanisms_"+std::to_string(hpx_get_my_rank())+".dot").c_str(), "wt");
+      fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", DOT_PNG_BACKGROUND_COLOR,
+              !inputParams->multiMex ? "layout=circo; scale=0.23;" : "");
+      fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "start");
+      fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n", "end");
+      fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
+            GetMechanismFromType(CAP)->membFunc.sym, CAP);
+      if (!inputParams->multiMex)
+      {
+        fprintf(fileMechs, "end -> start [color=transparent];\n");
+        fprintf(fileMechs, "start -> \"%s (%d)\";\n", GetMechanismFromType(CAP)->membFunc.sym, CAP);
+      }
+      for (int m =0; m< mechanismsCount; m++)
+      {
+        Mechanism * mech = neurox::mechanisms[m];
+
+        if (mech->pntMap > 0) //if is point process make it dotted
+            fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym, mech->type);
+
+        if (mech->dependenciesCount==0 && mech->type!=CAP) //top mechanism
+            fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym, mech->type);
+
+        if (mech->successorsCount==0 && mech->type!= CAP) //bottom mechanism
+            fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym, mech->type, "end");
+
+        for (int s=0; s<mech->successorsCount; s++)
+        {
+            Mechanism * successor = GetMechanismFromType(mech->successors[s]);
+            fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
+                    mech->membFunc.sym, mech->type, successor->membFunc.sym, successor->type);
+        }
+
+        if (inputParams->multiMex)
+        for (int d=0; d<mech->dependenciesCount; d++)
+        {
+            Mechanism * parent = GetMechanismFromType(mech->dependencies[d]);
+            if (strcmp("SK_E2", mech->membFunc.sym)==0 && strcmp("ca_ion", parent->membFunc.sym)==0) continue; //TODO: hardcoded exception
+            if (parent->GetIonIndex() < Mechanism::Ion::size_writeable_ions) //ie is writeable
+                fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
+                        mech->membFunc.sym, mech->type, parent->membFunc.sym, parent->type);
+        }
+      }
+      fprintf(fileMechs, "}\n");
+      fclose(fileMechs);
+    }
+
+#ifndef NDEBUG
+    if (HPX_LOCALITY_ID ==0)
+    {
+        for (int m=0; m<neurox::mechanismsCount; m++)
+        {
+            Mechanism * mech = neurox::mechanisms[m];
+            printf("- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
+                   "isIon %d, symLength %d, %d successors, %d dependencies\n",
+                   mech->membFunc.sym, mech->type, mech->dataSize, mech->pdataSize, mech->isArtificial, mech->pntMap,
+                   mech->isIon, mech->symLength, mech->successorsCount, mech->dependenciesCount);
+        }
+    }
+#endif
 
     neuronsGids->clear();  delete neuronsGids;  neuronsGids  = nullptr;
     nrn_setup_cleanup();
@@ -893,11 +978,11 @@ int DataLoader::GetBranchData(
     }
 
     ////// Mechanisms instances: merge all instances of all compartments into instances of the branch
-    vector<vector<floble_t>> dataMechs (mechanismsCount);
-    vector<vector<offset_t>> pdataMechs (mechanismsCount);
-    vector<vector<offset_t>> nodesIndicesMechs (mechanismsCount);
-    vector<vector<unsigned char>> vdataMechs (mechanismsCount);
-    vector<deque<int>> mechsInstancesIds (mechanismsCount); //mech-offset -> list of pointers to mech instance value
+    vector<vector<floble_t>> dataMechs (neurox::mechanismsCount);
+    vector<vector<offset_t>> pdataMechs (neurox::mechanismsCount);
+    vector<vector<offset_t>> nodesIndicesMechs (neurox::mechanismsCount);
+    vector<vector<unsigned char>> vdataMechs (neurox::mechanismsCount);
+    vector<deque<int>> mechsInstancesIds (neurox::mechanismsCount); //mech-offset -> list of pointers to mech instance value
 
     map< pair<int, offset_t>, offset_t> ionInstanceToDataOffset; //from pair of < ion mech type, OLD node id> to ion offset in NEW representation
 
@@ -938,9 +1023,9 @@ int DataLoader::GetBranchData(
 
     //merge all mechanisms vectors in the final one
     //store the offset of each mechanism data (for later)
-    for (int m=0; m<mechanismsCount; m++)
+    for (int m=0; m<neurox::mechanismsCount; m++)
     {
-        Mechanism * mech = mechanisms[m];
+        Mechanism * mech = neurox::mechanisms[m];
         int dataOffset=0;
         int pdataOffset=0;
         int vdataOffset=0;
@@ -1313,5 +1398,5 @@ void DataLoader::RegisterHpxActions()
     neurox_hpx_register_action(neurox_zero_var_action,     DataLoader::Finalize);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddSynapse);
     neurox_hpx_register_action(neurox_several_vars_action, DataLoader::AddNeurons);
-    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::UpdateMechanismsDependencies);
+    neurox_hpx_register_action(neurox_several_vars_action, DataLoader::SetMechanisms);
 }
