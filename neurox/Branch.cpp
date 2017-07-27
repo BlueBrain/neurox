@@ -69,9 +69,9 @@ Branch::Branch(offset_t n,
     nt->_nidata = -1;
 
     //assignemnts start here
-    nt->_dt = inputParams->dt;
-    nt->_t  = inputParams->tstart;
-    nt->cj = (inputParams->secondorder ? 2.0 : 1.0 ) / inputParams->dt;
+    nt->_dt = input_params->dt;
+    nt->_t  = input_params->tstart;
+    nt->cj = (input_params->secondorder ? 2.0 : 1.0 ) / input_params->dt;
     nt->end = n;
 
     nt->_data = dataCount==0 ? nullptr : Vectorizer::New<floble_t>(dataCount);
@@ -108,18 +108,18 @@ Branch::Branch(offset_t n,
     }
 
     // reconstruct mechanisms
-    assert (recvMechanismsCount <= mechanismsCount);
+    assert (recvMechanismsCount <= mechanisms_count);
     offset_t dataOffset=6*n;
     offset_t pdataOffset=0;
     offset_t instancesOffset=0;
-    this->mechsInstances = new Memb_list[mechanismsCount];
+    this->mechsInstances = new Memb_list[mechanisms_count];
 
     int maxMechId = 0;
 
     vector<void*> vdataPtrs;
     offset_t vdataOffset=0;
 
-    for (offset_t m=0; m<mechanismsCount; m++)
+    for (offset_t m=0; m<mechanisms_count; m++)
     {
         Memb_list & instance = this->mechsInstances[m];
         Mechanism * mech = mechanisms[m];
@@ -228,7 +228,7 @@ Branch::Branch(offset_t n,
 
 
     int ionsCount=0;
-    for (offset_t m=0; m<mechanismsCount; m++)
+    for (offset_t m=0; m<mechanisms_count; m++)
     {
         Mechanism * mech = mechanisms[m];
         Memb_list & instances = this->mechsInstances[m];
@@ -246,7 +246,7 @@ Branch::Branch(offset_t n,
     {
         PointProcInfo & ppi = vecplayPPI[v];
         size_t size =  ppi.size;
-        int m = mechanismsMap[ppi.mechType];
+        int m = mechanisms_map[ppi.mechType];
         floble_t *instancesData = this->mechsInstances[m].data;
         floble_t *pd = &(instancesData[ppi.mechInstance*mechanisms[m]->dataSize + ppi.instanceDataOffset]);
         floble_t * yvec = new floble_t[size];
@@ -265,7 +265,7 @@ Branch::Branch(offset_t n,
     this->nt->_shadow_d=NULL;
     this->nt->_shadow_rhs=NULL;
 
-    for (int m=0; m<mechanismsCount; m++)
+    for (int m=0; m<mechanisms_count; m++)
     {
         int shadowSize = 0;
         if (mechanisms[m]->membFunc.current && !mechanisms[m]->isIon) //ions have no updates
@@ -310,11 +310,11 @@ Branch::Branch(offset_t n,
     assert(weightsCount == weightsOffset);
 
     //create data structure that defines branching
-    if (inputParams->branchingDepth>0)
+    if (input_params->branchingDepth>0)
         this->branchTree = new Branch::BranchTree(topBranchAddr, branches,branchesCount);
 
     //create data structure that defines the graph of mechanisms
-    if (inputParams->multiMex)
+    if (input_params->multiMex)
     {
         this->mechsGraph = new Branch::MechanismsGraph();
         this->mechsGraph->InitMechsGraph(branchHpxAddr);
@@ -333,7 +333,7 @@ Branch::~Branch()
     delete [] this->nt->_ml_list;
 
     hpx_lco_delete_sync(this->eventsQueueMutex);
-    for (int m=0; m<mechanismsCount; m++)
+    for (int m=0; m<mechanisms_count; m++)
     {
         Memb_list & instance = this->mechsInstances[m];
         if (mechanisms[m]->membFunc.thread_cleanup_)
@@ -459,7 +459,7 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
     if (functionId == Mechanism::ModFunction::currentCapacitance
      || functionId == Mechanism::ModFunction::jacobCapacitance)
     {
-      mechanisms[mechanismsMap[CAP]]->CallModFunction(this, functionId);
+      mechanisms[mechanisms_map[CAP]]->CallModFunction(this, functionId);
     }
     //for all others except capacitance (mechanisms graph)
     else
@@ -467,7 +467,7 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
         if (this->mechsGraph!=NULL) //parallel
         {
           //launch execution on top nodes of the branch
-          for (int m=0; m<mechanismsCount;m++)
+          for (int m=0; m<mechanisms_count;m++)
           {
             if (mechanisms[m]->type == CAP)   continue; //not capacitance
             if (mechanisms[m]->dependenciesCount > 0) continue; //not a top branch
@@ -479,7 +479,7 @@ void Branch::CallModFunction(const Mechanism::ModFunction functionId)
         }
         else //serial
         {
-            for (int m=0; m<mechanismsCount; m++)
+            for (int m=0; m<mechanisms_count; m++)
             {
                 if ( mechanisms[m]->type == CAP
                    && (  functionId == Mechanism::ModFunction::current
@@ -497,7 +497,7 @@ int Branch::AddSpikeEvent_handler(
         const int nargs, const void *args[], const size_t[] )
 {
     neurox_hpx_pin(Branch);
-    assert(nargs == (inputParams->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? 3 : 2));
+    assert(nargs == (input_params->algorithm == AlgorithmType::BackwardEulerTimeDependencyLCO ? 3 : 2));
 
     const neuron_id_t preNeuronId = *(const neuron_id_t *) args[0];
     const spike_time_t spikeTime  = *(const spike_time_t*) args[1];
@@ -544,14 +544,14 @@ void Branch::Finitialize2()
     double t = this->nt->_t;
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
-    assert(inputParams->secondorder < sizeof(char));
+    assert(input_params->secondorder < sizeof(char));
     CallModFunction(Mechanism::ModFunction::threadTableCheck);
     InitVecPlayContinous();
     DeliverEvents(t);
 
     //set up by finitialize.c:nrn_finitialize(): if (setv)
     for (int n=0; n<this->nt->end; n++)
-        v[n]=inputParams->voltage;
+        v[n]=input_params->voltage;
 
     // the INITIAL blocks are ordered so that mechanisms that write
     // concentrations are after ions and before mechanisms that read
@@ -595,7 +595,7 @@ void Branch::BackwardEulerStep()
     FixedPlayContinuous();
     SetupTreeMatrix();
     SolveTreeMatrix();
-    second_order_cur(this->nt, inputParams->secondorder );
+    second_order_cur(this->nt, input_params->secondorder );
 
     ////// fadvance_core.c : update()
     solver::HinesSolver::UpdateV(this);
@@ -612,7 +612,7 @@ void Branch::BackwardEulerStep()
     DeliverEvents(t); //delivers events in the second HALF of the step
 
     //if we are at the output time instant output to file
-    if (fmod(t, inputParams->dt_io) == 0) {}
+    if (fmod(t, input_params->dt_io) == 0) {}
 
     algorithm->StepEnd(this, spikesLco);
 }
@@ -631,9 +631,9 @@ hpx_action_t Branch::BackwardEulerOnLocality = 0;
 int Branch::BackwardEulerOnLocality_handler(const int * steps_ptr, const size_t size)
 {
     neurox_hpx_pin(uint64_t);
-    assert(inputParams->allReduceAtLocality);
-    assert(inputParams->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
-        || inputParams->algorithm == AlgorithmType::BackwardEulerAllReduce);
+    assert(input_params->allReduceAtLocality);
+    assert(input_params->algorithm == AlgorithmType::BackwardEulerSlidingTimeWindow
+        || input_params->algorithm == AlgorithmType::BackwardEulerAllReduce);
 
     const int localityNeuronsCount = AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons->size();
     const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
@@ -820,10 +820,10 @@ int Branch::BranchTree::InitLCOs_handler()
 Branch::MechanismsGraph::MechanismsGraph()
 {
     //initializes mechanisms graphs (capacitance is excluded from graph)
-    this->graphLCO  = hpx_lco_and_new(mechanismsCount-1); //excludes 'capacitance'
-    this->mechsLCOs = new hpx_t[mechanismsCount];
+    this->graphLCO  = hpx_lco_and_new(mechanisms_count-1); //excludes 'capacitance'
+    this->mechsLCOs = new hpx_t[mechanisms_count];
     size_t terminalMechanismsCount=0;
-    for (size_t m=0; m<mechanismsCount; m++)
+    for (size_t m=0; m<mechanisms_count; m++)
     {
       this->mechsLCOs[m] = HPX_NULL;
       if (mechanisms[m]->type == CAP) continue; //exclude capacitance
@@ -845,7 +845,7 @@ Branch::MechanismsGraph::MechanismsGraph()
 
 void Branch::MechanismsGraph::InitMechsGraph(hpx_t branchHpxAddr)
 {
-    for (size_t m=0; m<mechanismsCount; m++)
+    for (size_t m=0; m<mechanisms_count; m++)
     {
       if (mechanisms[m]->type == CAP) continue; //exclude capacitance
       hpx_call(branchHpxAddr, Branch::MechanismsGraph::MechFunction,
@@ -858,7 +858,7 @@ Branch::MechanismsGraph::~MechanismsGraph()
     hpx_lco_delete_sync(endLCO);
     hpx_lco_delete_sync(graphLCO);
 
-    for (int i=0; i<mechanismsCount; i++)
+    for (int i=0; i<mechanisms_count; i++)
         if (mechsLCOs[i] != HPX_NULL)
             hpx_lco_delete_sync(mechsLCOs[i]);
     delete [] mechsLCOs;
@@ -875,7 +875,7 @@ int Branch::MechanismsGraph::MechFunction_handler(
     neurox_hpx_pin(Branch);
     int type = *mechType_ptr;
     assert(type!=CAP); //capacitance should be outside mechanisms graph
-    assert(local->mechsGraph->mechsLCOs[mechanismsMap[type]] != HPX_NULL);
+    assert(local->mechsGraph->mechsLCOs[mechanisms_map[type]] != HPX_NULL);
     Mechanism * mech = GetMechanismFromType(type);
 
     Mechanism::ModFunction functionId;
@@ -884,7 +884,7 @@ int Branch::MechanismsGraph::MechFunction_handler(
       //wait until all dependencies have completed, and get the argument
       //(function id) from the hpx_lco_set
       hpx_lco_get_reset(
-              local->mechsGraph->mechsLCOs[mechanismsMap[type]],
+              local->mechsGraph->mechsLCOs[mechanisms_map[type]],
               sizeof(Mechanism::ModFunction), &functionId);
       assert(functionId!=Mechanism::ModFunction::jacobCapacitance);
       assert(functionId!=Mechanism::ModFunction::currentCapacitance);
@@ -895,7 +895,7 @@ int Branch::MechanismsGraph::MechFunction_handler(
       else
         for (int c=0; c<mech->successorsCount; c++)
           hpx_lco_set(
-              local->mechsGraph->mechsLCOs[mechanismsMap[mech->successors[c]]],
+              local->mechsGraph->mechsLCOs[mechanisms_map[mech->successors[c]]],
               sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
     }
     neurox_hpx_unpin;
