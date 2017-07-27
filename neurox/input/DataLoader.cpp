@@ -543,7 +543,8 @@ int DataLoader::Init_handler()
     all_neurons_gids  = new std::vector<int>();
     all_neurons_mutex   = hpx_lco_sema_new(1);
 
-    if (hpx_get_my_rank()==0 && input_params->loadBalancing)
+    //even without load balancing, we may require the benchmark info for outputting statistics
+    if (hpx_get_my_rank()==0 && (input_params->loadBalancing || input_params->outputStatistics))
         loadBalancing = new tools::LoadBalancing();
 
     if (neurox::ParallelExecution() //disable output of netcons for parallel loading
@@ -1196,7 +1197,7 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaBranchAddr,
     }
 
     int neuronRank = hpx_get_my_rank();
-    if (input_params->loadBalancing)
+    if (input_params->loadBalancing || input_params->outputStatistics)
     {
         //Benchmark and assign this branch to least busy compute node (except soma and AIS)
         //Note: we do this after children creation so that we use top (lighter) branches to balance work load
@@ -1228,10 +1229,21 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaBranchAddr,
         assert(timeElapsed>0);
         hpx_gas_clear_affinity(tempBranchAddr);
 
-        //ask master rank to query load balancing table and tell me where to allocate this branch
-        hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
+        if (input_params->loadBalancing)
+        {
+          //ask master rank to query load balancing table and tell me where to allocate this branch
+          hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                       &neuronRank, sizeof(int), //output
-                      &timeElapsed, sizeof(double)); //input
+                      &timeElapsed, sizeof(double)); //input [0]
+        }
+        else if (input_params->outputStatistics) //no load balancing
+        {
+          //compute node already decided, tell master rank to store benchmark info, to be able to output statistics
+          hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
+                      nullptr, 0, //output
+                      &timeElapsed, sizeof(double), //input[0]
+                      &neuronRank, sizeof(int)); //input[1]
+        }
 
 #ifndef NDEBUG
         printf("- %s of neuron nrn_id %d allocated to rank %d (%.6f ms)\n",
