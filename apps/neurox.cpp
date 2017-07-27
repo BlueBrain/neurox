@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     }
 
     //parse command line arguments
-    neurox::inputParams = new tools::CmdLineParser(argc, argv);
+    neurox::input_params = new tools::CmdLineParser(argc, argv);
 
     ///all compute nodes load the data (mechs info is accessible to all)
     neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false, false);

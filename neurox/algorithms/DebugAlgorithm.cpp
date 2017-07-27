@@ -69,7 +69,7 @@ void DebugAlgorithm::StepBegin(Branch*) {}
 
 void DebugAlgorithm::StepEnd(Branch* b, hpx_t)
 {
-    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
+    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, input_params->secondorder);
 }
 
 void DebugAlgorithm::Run(Branch* b, const void* args)
