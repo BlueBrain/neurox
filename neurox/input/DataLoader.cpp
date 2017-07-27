@@ -841,11 +841,11 @@ int DataLoader::Finalize_handler()
 
 #if defined(NDEBUG) 
     DataLoader::CleanCoreneuronData(); //if not on debug, there's no CoreNeuron comparison, so data can be cleaned-up now
-#else
-    //print Load Balancing table
-    if (hpx_get_my_rank()==0 && inputParams->branchingDepth>0)
-        loadBalancing->PrintTable();
 #endif
+
+    if (inputParams->outputStatistics)
+        tools::LoadBalancing::LoadBalancing::PrintTable();
+
     delete loadBalancing; loadBalancing = nullptr;
     neurox_hpx_unpin;
 }
@@ -1273,7 +1273,7 @@ hpx_t DataLoader::CreateBranch(int nrnThreadId, hpx_t somaAddr, BranchType branc
             break;
         }
 #ifndef NDEBUG
-        printf("-- %s branch of neuron nrn_id %d allocated to rank %d (%.6f ms)\n",
+        printf("- %s of neuron nrn_id %d allocated to rank %d (%.6f ms)\n",
                branchType==BranchType::Soma ? "soma" : (branchType==BranchType::AxonInitSegment ? "AIS" : "dendrite"),
                nrnThreadId, rank, timeElapsed);
 #endif

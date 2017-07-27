@@ -44,9 +44,7 @@ static int Main_handler()
 
     if (neurox::inputParams->outputStatistics)
     {
-      DebugMessage("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
       tools::Statistics::OutputMechanismsDistribution();
-      DebugMessage("neurox::tools::Statistics::OutputSimulationSize...\n");
       tools::Statistics::OutputSimulationSize();
       //hpx_exit(0,NULL);
     }
