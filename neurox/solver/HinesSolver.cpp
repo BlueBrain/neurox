@@ -261,7 +261,7 @@ void HinesSolver::UpdateV(Branch *local)
     floble_t *rhs = local->nt->_actual_rhs;
     floble_t *v   = local->nt->_actual_v;
 
-    floble_t secondOrderMultiplier = inputParams->secondorder ? 2 : 1;
+    floble_t secondOrderMultiplier = input_params->secondorder ? 2 : 1;
     for (int i=0; i<local->nt->end; i++)
         v[i] += secondOrderMultiplier * rhs[i];
 }
