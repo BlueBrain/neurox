@@ -1,8 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-#define DERIVED_CLASS_NAME SlidingTimeWindowAlgorithm
-
 using namespace neurox;
 
 namespace neurox
@@ -11,11 +9,11 @@ namespace neurox
 namespace algorithms
 {
 
-class DERIVED_CLASS_NAME : public Algorithm
+class SlidingTimeWindowAlgorithm : public Algorithm
 {
   public:
-    DERIVED_CLASS_NAME();
-    ~DERIVED_CLASS_NAME();
+    SlidingTimeWindowAlgorithm();
+    ~SlidingTimeWindowAlgorithm();
 
     const AlgorithmType getType() override;
     const char* getTypeString() override;
