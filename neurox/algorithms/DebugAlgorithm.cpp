@@ -3,43 +3,43 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-DERIVED_CLASS_NAME::DERIVED_CLASS_NAME() {}
+DebugAlgorithm::DebugAlgorithm() {}
 
-DERIVED_CLASS_NAME::~DERIVED_CLASS_NAME() {}
+DebugAlgorithm::~DebugAlgorithm() {}
 
 
-DERIVED_CLASS_NAME::CommunicationBarrier::CommunicationBarrier()
+DebugAlgorithm::CommunicationBarrier::CommunicationBarrier()
 {
     this->allSpikesLco = HPX_NULL;
     assert(CoreneuronAlgorithm::CommunicationBarrier::commStepSize <= 4);
 }
 
-DERIVED_CLASS_NAME::CommunicationBarrier::~CommunicationBarrier()
+DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier()
 {
     if (allSpikesLco != HPX_NULL)
         hpx_lco_delete_sync(allSpikesLco);
 }
 
-const AlgorithmType DERIVED_CLASS_NAME::getType()
+const AlgorithmType DebugAlgorithm::getType()
 {
     return AlgorithmType::BackwardEulerDebug;
 }
 
-const char* DERIVED_CLASS_NAME::getTypeString()
+const char* DebugAlgorithm::getTypeString()
 {
     return "BackwardEulerCoreneuronDebug";
 }
 
-void DERIVED_CLASS_NAME::Init()
+void DebugAlgorithm::Init()
 {
     const int allReducesCount = 0;
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
                     &allReducesCount, sizeof(int));
 }
 
-void DERIVED_CLASS_NAME::Clear() {}
+void DebugAlgorithm::Clear() {}
 
-double DERIVED_CLASS_NAME::Launch()
+double DebugAlgorithm::Launch()
 {
     int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::commStepSize;
     int totalSteps = Algorithm::getTotalStepsCount();
@@ -65,14 +65,14 @@ double DERIVED_CLASS_NAME::Launch()
     return elapsedTime;
 }
 
-void DERIVED_CLASS_NAME::StepBegin(Branch*) {}
+void DebugAlgorithm::StepBegin(Branch*) {}
 
-void DERIVED_CLASS_NAME::StepEnd(Branch* b, hpx_t)
+void DebugAlgorithm::StepEnd(Branch* b, hpx_t)
 {
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b, inputParams->secondorder);
 }
 
-void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
+void DebugAlgorithm::Run(Branch* b, const void* args)
 {
     int steps = *(int*)args;
     for (int step=0; step<steps; step++)
@@ -87,7 +87,7 @@ void DERIVED_CLASS_NAME::Run(Branch* b, const void* args)
     }
 }
 
-hpx_t DERIVED_CLASS_NAME::SendSpikes(Neuron* neuron, double tt, double)
+hpx_t DebugAlgorithm::SendSpikes(Neuron* neuron, double tt, double)
 {
     CommunicationBarrier * commBarrier = (CommunicationBarrier *) neuron->algorithmMetaData;
     if (commBarrier->allSpikesLco == HPX_NULL) //first use
