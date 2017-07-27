@@ -50,11 +50,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif
 
-//Registration of external mechanisms (if any):
-//- if ADDITIONAL_MECHS is set, it's generated at compilation time as coreneuron/mod_func.c.
-//- Otherwise: defined in apps/coreneuron.cpp as a dummy function that does nothing;
-extern void modl_reg(void);
-
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c
 extern mod_f_t get_init_function(const char* sym);
