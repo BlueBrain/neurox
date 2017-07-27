@@ -58,16 +58,15 @@ typedef hpx_addr_t hpx_t;   ///> hpx address (just rephrased with shorter naming
 //hpx wrappers to call methods in all neurons (no args, or only static args)
 #define neurox_hpx_call_neurons(Func, ...) \
     hpx_par_for_sync( [&] (int i, void*) -> int \
-        {  hpx_call_sync(neurox::neurons->at(i), Func, HPX_NULL, 0,  ##__VA_ARGS__); \
-        }, 0, neurox::neurons->size(), NULL);
+        {  hpx_call_sync(neurox::neurons[i], Func, HPX_NULL, 0,  ##__VA_ARGS__); \
+        }, 0, neurox::neurons_count, NULL);
 
 //hpx wrappers to call methods in all neurons (witg args args)
 #define neurox_hpx_call_neurons_lco(Func, ...) \
 { \
-    size_t neurons_size = neurons->size(); \
-    hpx_t LCO = hpx_lco_and_new(neurons_size); \
-    for (size_t i=0; i< neurons_size; i++) \
-        hpx_call(neurox::neurons->at(i), Func, LCO, ##__VA_ARGS__); \
+    hpx_t LCO = hpx_lco_and_new(neurox::neurons_count); \
+    for (size_t i=0; i< neurox::neurons_count; i++) \
+        hpx_call(neurox::neurons[i], Func, LCO, ##__VA_ARGS__); \
     hpx_lco_wait_reset(LCO); \
     hpx_lco_delete_sync(LCO); \
 }
