@@ -32,7 +32,7 @@ class DataLoader
             int argc, char ** argv,
             bool nrnmpi_under_nrncontrol=false,
             bool run_setup_cleanup=false); ///> call coreneuron nrn_init_and_load_data
-    static void CleanCoreneuronData(const bool clean_ion_global_map = false); ///>removes all Nrn data structures
+    static void CleanCoreneuronData(const bool clean_ion_global_map = true); ///>removes all Nrn data structures
     static void RegisterHpxActions();
 
     static hpx_action_t Init;
