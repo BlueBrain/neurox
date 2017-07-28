@@ -26,10 +26,10 @@ class Algorithm {
   void PrintStartInfo();
 
   /// Returns class type
-  const virtual AlgorithmType getType() = 0;
+  const virtual AlgorithmType GetType() = 0;
 
   /// Returns class type as string
-  const virtual char* getTypeString() = 0;
+  const virtual char* GetTypeString() = 0;
 
   /// Launch simulation on all neurons or localities
   virtual double Launch() = 0;
