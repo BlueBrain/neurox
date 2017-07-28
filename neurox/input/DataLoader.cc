@@ -143,7 +143,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     FILE *fileCompartments = fopen(
         string("compartments_" + to_string(neuronId) + ".dot").c_str(), "wt");
     fprintf(fileCompartments, "graph G_%d\n{ bgcolor=%s; \n", neuronId,
-            DOT_PNG_BACKGROUND_COLOR);
+            "transparent");
     fprintf(fileCompartments,
             "graph [fontname=helvetica, style=filled, color=blue, "
             "fillcolor=floralwhite];\n");
@@ -256,11 +256,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
       if (mech->pntMap > 0 || mech->vdataSize > 0)  // vdata
       {
-        assert((type == IClamp && mech->vdataSize == 1 &&
+        assert((type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
                 mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == StochKv && mech->vdataSize == 1 &&
+               (type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
                 mech->pdataSize == 5 && mech->pntMap == 0) ||
-               ((type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS) &&
+               ((type == NEUROX_PROBAMPANMDA_EMS_ ||
+                 type == NEUROX_PROBGABAAB_EMS_) &&
                 mech->vdataSize == 2 && mech->pdataSize == 3 &&
                 mech->pntMap > 0));
 
@@ -276,8 +277,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         // pdata[3]: offset for RNG in vdata[0]
         // pdata[4]: offset in data (area)
 
-        if (type == IClamp || type == ProbAMPANMDA_EMS ||
-            type == ProbGABAAB_EMS) {
+        if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+            type == NEUROX_PROBGABAAB_EMS_) {
           const int pointProcOffsetInPdata = 1;
           Point_process *ppn = &nt->pntprocs[pointProcTotalOffset++];
           assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
@@ -287,16 +288,16 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                                           sizeof(Point_process));
         }
 
-        if (type == StochKv || type == ProbAMPANMDA_EMS ||
-            type == ProbGABAAB_EMS) {
-          int rngOffsetInPdata = mech->type == StochKv ? 3 : 2;
-          int rngOffsetInVdata = mech->type == StochKv ? 0 : 1;
+        if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+            type == NEUROX_PROBGABAAB_EMS_) {
+          int rngOffsetInPdata = mech->type == NEUROX_STOCHKV_ ? 3 : 2;
+          int rngOffsetInVdata = mech->type == NEUROX_STOCHKV_ ? 0 : 1;
           assert(nt->_vdata[pdata[rngOffsetInPdata]] ==
                  vdata[rngOffsetInVdata]);
           nrnran123_State *RNG = (nrnran123_State *)vdata[rngOffsetInVdata];
 
           // TODO: manual hack: StochKv's current state has NULL pointers, why?
-          if (RNG == NULL && type == StochKv)
+          if (RNG == NULL && type == NEUROX_STOCHKV_)
             compartment->AddSerializedVdata(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
           else {
@@ -363,7 +364,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                 neuronId, nc.second.size(), minDelay);
       }
     }
-#if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS == true
+#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS_ == true
     if (netConsFromOthers > 0)
       fprintf(fileNetcons,
               "%s -> %d [label=\"%d\" fontcolor=gray color=gray arrowhead=vee "
@@ -426,13 +427,13 @@ int DataLoader::GetMyNrnThreadsCount() {
 
 hpx_action_t DataLoader::InitMechanisms = 0;
 int DataLoader::InitMechanisms_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
 
   // To insert mechanisms in the right order, we must first calculate
   // dependencies
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) neurox_hpx_unpin;
+  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN_;
 
   for (int i = 0; i < myNrnThreadsCount; i++) {
     assert(nrn_threads[i].ncell == 1);
@@ -564,12 +565,12 @@ int DataLoader::InitMechanisms_handler() {
         dependenciesCount_serial.data(), dependencies_serial.data(),
         successorsCount_serial.data(), successors_serial.data());
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t DataLoader::Init = 0;
 int DataLoader::Init_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   all_neurons_gids = new std::vector<int>();
   all_neurons_mutex = hpx_lco_sema_new(1);
 
@@ -591,23 +592,23 @@ int DataLoader::Init_handler() {
     assert(HPX_LOCALITIES == 1);
     fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n",
-            DOT_PNG_BACKGROUND_COLOR);
-#if NETCONS_DOT_OUTPUT_NETCONS_FROM_EXTERNAL_NEURONS == true
+            "transparent");
+#if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS_ == true
     fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
 #endif
   }
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t DataLoader::InitNeurons = 0;
 int DataLoader::InitNeurons_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
 
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) neurox_hpx_unpin;
+  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN_;
 
-#if COMPARTMENTS_DOT_OUTPUT_CORENEURON_STRUCTURE == true
+#if NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS_ == true
   if (inputParams->outputCompartmentsDot) {
     for (int i = 0; i < myNrnThreadsCount; i++) {
       neuron_id_t neuronId = GetNeuronIdFromNrnThreadId(i);
@@ -655,7 +656,7 @@ int DataLoader::InitNeurons_handler() {
                                my_neurons_addr->end());
   }
 
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t DataLoader::AddNeurons = 0;
@@ -667,7 +668,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
    * args[2] = neurons hpx addr
    */
 
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   assert(nargs == 2);
   assert(sizes[0] / sizeof(int) == sizes[1] / sizeof(hpx_t));
 
@@ -692,7 +693,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   assert(all_neurons_gids->size() == neurox::neurons_count);
   hpx_lco_sema_v_sync(all_neurons_mutex);
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t DataLoader::SetMechanisms = 0;
@@ -707,7 +708,7 @@ int DataLoader::SetMechanisms_handler(const int nargs, const void *args[],
    * args[4] = dependendencies ids
    */
 
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
   assert(nargs == 5);
 
   const int *orderedMechs = (const int *)args[0];
@@ -721,7 +722,7 @@ int DataLoader::SetMechanisms_handler(const int nargs, const void *args[],
   SetMechanisms2(mechsCount, orderedMechs, dependenciesCount, dependencies,
                  successorsCount, successors);
 
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
@@ -791,7 +792,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
 
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
-  neurox_hpx_pin(uint64_t);
+  NEUROX_MEM_PIN_(uint64_t);
 
   if (input_params->allReduceAtLocality)
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
@@ -808,8 +809,7 @@ int DataLoader::Finalize_handler() {
         fopen(string("mechanisms_" + std::to_string(hpx_get_my_rank()) + ".dot")
                   .c_str(),
               "wt");
-    fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n",
-            DOT_PNG_BACKGROUND_COLOR,
+    fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
             !input_params->multiMex ? "layout=circo; scale=0.23;" : "");
     fprintf(fileMechs, "graph [ratio=0.3];\n", "start");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
@@ -895,7 +895,7 @@ int DataLoader::Finalize_handler() {
 
   delete loadBalancing;
   loadBalancing = nullptr;
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void DataLoader::GetAllChildrenCompartments(deque<Compartment *> &subSection,
@@ -1059,20 +1059,21 @@ int DataLoader::GetBranchData(
       compDataOffset += mech->dataSize;
       compPdataOffset += mech->pdataSize;
       if (mech->pntMap > 0 || mech->vdataSize > 0) {
-        assert((type == IClamp && mech->vdataSize == 1 &&
+        assert((type == NEUROX_ICLAMP_ && mech->vdataSize == 1 &&
                 mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == StochKv && mech->vdataSize == 1 &&
+               (type == NEUROX_STOCHKV_ && mech->vdataSize == 1 &&
                 mech->pdataSize == 5 && mech->pntMap == 0) ||
-               ((type == ProbAMPANMDA_EMS || type == ProbGABAAB_EMS) &&
+               ((type == NEUROX_PROBAMPANMDA_EMS_ ||
+                 type == NEUROX_PROBGABAAB_EMS_) &&
                 mech->vdataSize == 2 && mech->pdataSize == 3 &&
                 mech->pntMap > 0));
 
         size_t totalVdataSize = 0;
-        if (type == IClamp || type == ProbAMPANMDA_EMS ||
-            type == ProbGABAAB_EMS)
+        if (type == NEUROX_ICLAMP_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+            type == NEUROX_PROBGABAAB_EMS_)
           totalVdataSize += sizeof(Point_process);
-        if (type == StochKv || type == ProbAMPANMDA_EMS ||
-            type == ProbGABAAB_EMS)
+        if (type == NEUROX_STOCHKV_ || type == NEUROX_PROBAMPANMDA_EMS_ ||
+            type == NEUROX_PROBGABAAB_EMS_)
           totalVdataSize += sizeof(nrnran123_State);
         vdataMechs[mechOffset].insert(
             vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset],
@@ -1105,11 +1106,13 @@ int DataLoader::GetBranchData(
 
       if (mech->pntMap > 0 || mech->vdataSize > 0) {
         int totalVdataSize = 0;
-        if (mech->type == IClamp || mech->type == ProbAMPANMDA_EMS ||
-            mech->type == ProbGABAAB_EMS)
+        if (mech->type == NEUROX_ICLAMP_ ||
+            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
+            mech->type == NEUROX_PROBGABAAB_EMS_)
           totalVdataSize += sizeof(Point_process);
-        if (mech->type == StochKv || mech->type == ProbAMPANMDA_EMS ||
-            mech->type == ProbGABAAB_EMS)
+        if (mech->type == NEUROX_STOCHKV_ ||
+            mech->type == NEUROX_PROBAMPANMDA_EMS_ ||
+            mech->type == NEUROX_PROBGABAAB_EMS_)
           totalVdataSize += sizeof(nrnran123_State);
         assert(totalVdataSize > 0);
         vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset],
@@ -1286,7 +1289,7 @@ hpx_t DataLoader::CreateBranch(
     // Note: we do this after children creation so that we use top (lighter)
     // branches to balance work load
     hpx_t tempBranchAddr =
-        hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
+        hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT_);
     bool runBenchmarkAndClear = true;
     int dumbThresholdOffset = 0;
     double timeElapsed = -1;
@@ -1345,7 +1348,7 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate and initialize branch on the respective owner
   hpx_t branchAddr = hpx_gas_alloc_local_at_sync(
-      1, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_THERE(neuronRank));
+      1, sizeof(Branch), NEUROX_MEM_ALIGNMENT_, HPX_THERE(neuronRank));
 
   // update hpx address of soma
   somaBranchAddr = isSoma ? branchAddr : somaBranchAddr;
@@ -1405,8 +1408,8 @@ hpx_t DataLoader::CreateBranch(
 
 hpx_action_t DataLoader::InitNetcons = 0;
 int DataLoader::InitNetcons_handler() {
-  neurox_hpx_pin(Branch);
-  neurox_hpx_recursive_branch_async_call(DataLoader::InitNetcons);
+  NEUROX_MEM_PIN_(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL_(DataLoader::InitNetcons);
 
   if (local->soma && input_params->outputNetconsDot)
     fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n",
@@ -1478,14 +1481,14 @@ int DataLoader::InitNetcons_handler() {
   hpx_lco_wait_reset(dependenciesLCO);
   hpx_lco_delete_sync(dependenciesLCO);
 
-  neurox_hpx_recursive_branch_async_wait;
-  neurox_hpx_unpin;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT_;
+  NEUROX_MEM_UNPIN_;
 }
 
 hpx_action_t DataLoader::AddSynapse = 0;
 int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {
-  neurox_hpx_pin(Branch);
+  NEUROX_MEM_PIN_(Branch);
   assert(local->soma);
   assert(nargs == 4);
   hpx_t addr = *(const hpx_t *)args[0];
@@ -1494,20 +1497,17 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   int destinationGid = *(const int *)args[3];
   local->soma->AddSynapse(
       new Neuron::Synapse(addr, minDelay, topBranchAddr, destinationGid));
-  neurox_hpx_unpin;
+  NEUROX_MEM_UNPIN_;
 }
 
 void DataLoader::RegisterHpxActions() {
-  neurox_hpx_register_action(neurox_zero_var_action, DataLoader::Init);
-  neurox_hpx_register_action(neurox_zero_var_action,
-                             DataLoader::InitMechanisms);
-  neurox_hpx_register_action(neurox_zero_var_action, DataLoader::InitNeurons);
-  neurox_hpx_register_action(neurox_zero_var_action, DataLoader::InitNetcons);
-  neurox_hpx_register_action(neurox_zero_var_action, DataLoader::Finalize);
-  neurox_hpx_register_action(neurox_several_vars_action,
-                             DataLoader::AddSynapse);
-  neurox_hpx_register_action(neurox_several_vars_action,
-                             DataLoader::AddNeurons);
-  neurox_hpx_register_action(neurox_several_vars_action,
-                             DataLoader::SetMechanisms);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::Init);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitMechanisms);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitNeurons);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::InitNetcons);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_ZERO_VAR_, DataLoader::Finalize);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, DataLoader::AddSynapse);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_, DataLoader::AddNeurons);
+  NEUROX_REGISTER_ACTION_(NEUROX_ACTION_MULTIPLE_VARS_,
+                          DataLoader::SetMechanisms);
 }
