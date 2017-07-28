@@ -75,7 +75,7 @@ void Debugger::CompareMechanismsFunctions() {
 }
 
 void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
-  b->CallModFunction(Mechanism::ModFunction::threadTableCheck);
+  b->CallModFunction(Mechanism::ModFunction::kThreadTableCheck);
   b->InitVecPlayContinous();
 
   // coreneuron
@@ -99,13 +99,13 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::before_initialize);
+  b->CallModFunction(Mechanism::ModFunction::kBeforeInitialize);
 
   nrn_ba(nth, BEFORE_INITIAL);
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::initialize);
+  b->CallModFunction(Mechanism::ModFunction::kInitialize);
 
   NrnThreadMembList *tml;
   for (tml = nth->tml; tml; tml = tml->next) {
@@ -118,7 +118,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::after_initialize);
+  b->CallModFunction(Mechanism::ModFunction::kAfterInitialize);
   b->DeliverEvents(b->nt->_t);
 
   // coreneuron
@@ -134,7 +134,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::before_step);
+  b->CallModFunction(Mechanism::ModFunction::kBeforeStep);
   b->DeliverEvents(b->nt->_t);
 
   nrn_ba(nth, BEFORE_STEP);
@@ -148,7 +148,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   double dt = b->nt->_dt;
   if (b->soma &&
       input_params->algorithm ==
-          neurox::algorithms::AlgorithmType::BackwardEulerTimeDependencyLCO) {
+          neurox::algorithms::AlgorithmType::kBackwardEulerTimeDependencyLCO) {
     TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
         (TimeDependencyLCOAlgorithm::TimeDependencies *)
             b->soma->algorithmMetaData;
@@ -194,7 +194,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   floble_t secondOrderMultiplier = input_params->secondorder ? 2.0 : 1.0;
   for (int i = 0; i < b->nt->end; i++)
     b->nt->_actual_v[i] += secondOrderMultiplier * b->nt->_actual_rhs[i];
-  b->CallModFunction(Mechanism::ModFunction::currentCapacitance);
+  b->CallModFunction(Mechanism::ModFunction::kCurrentCapacitance);
 
   second_order_cur(nth, secondorder);
   update(nth);
@@ -209,14 +209,14 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::state);
+  b->CallModFunction(Mechanism::ModFunction::kState);
 
   nonvint(nth);
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->CallModFunction(Mechanism::ModFunction::after_solve);
-  b->CallModFunction(Mechanism::ModFunction::before_step);
+  b->CallModFunction(Mechanism::ModFunction::kAfterSolve);
+  b->CallModFunction(Mechanism::ModFunction::kBeforeStep);
   b->DeliverEvents(b->nt->_t);
 
   nrn_ba(nth, AFTER_SOLVE);
@@ -462,7 +462,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (neurox::ParallelExecution() &&
-      algorithm->getType() != algorithms::AlgorithmType::BackwardEulerDebug)
+      algorithm->GetType() != algorithms::AlgorithmType::kBackwardEulerDebug)
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 
