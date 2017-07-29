@@ -26,15 +26,12 @@ using namespace std;
 using namespace neurox::input;
 using namespace neurox::algorithms;
 
-static FILE *fileNetcons;
-static hpx_t all_neurons_mutex = HPX_NULL;
-
-static std::vector<hpx_t> *my_neurons_addr = nullptr;
-static std::vector<int> *my_neurons_gids = nullptr;
-
-static std::vector<int> *all_neurons_gids = nullptr;
-
-static tools::LoadBalancing *loadBalancing = nullptr;
+FILE *DataLoader::fileNetcons = nullptr;
+hpx_t DataLoader::all_neurons_mutex = HPX_NULL;
+std::vector<hpx_t> *DataLoader::my_neurons_addr = nullptr;
+std::vector<int> *DataLoader::my_neurons_gids = nullptr;
+std::vector<int> *DataLoader::all_neurons_gids = nullptr;
+tools::LoadBalancing *DataLoader::loadBalancing = nullptr;
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
