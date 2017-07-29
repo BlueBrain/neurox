@@ -1,4 +1,4 @@
-#include "neurox/algorithms/TimeDependencyLCOAlgorithm.h"
+#include "neurox/algorithms/time_dependency_lco_algorithm.h"
 
 using namespace neurox;
 using namespace neurox::algorithms;

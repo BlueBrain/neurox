@@ -364,7 +364,7 @@ Branch::~Branch() {
   delete[] mechsInstances;
 
   for (int i = 0; i < this->nt->_nvdata; i++) delete nt->_vdata[i];
-  delete[] this->nt->_vdata;
+  delete[] this->nt->_vdata; //TODO deleting void* in undefined!
 
   for (int i = 0; i < this->nt->n_vecplay; i++)
     delete (VecPlayContinuousX *)nt->_vecplay[i];
