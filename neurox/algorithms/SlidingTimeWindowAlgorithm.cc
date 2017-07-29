@@ -7,7 +7,7 @@ hpx_t* SlidingTimeWindowAlgorithm::allReduces = nullptr;
 
 SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
   AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep =
-      SlidingTimeWindowAlgorithm::allReducesCount;
+      SlidingTimeWindowAlgorithm::kAllReducesCount;
 }
 
 SlidingTimeWindowAlgorithm::~SlidingTimeWindowAlgorithm() {}
@@ -23,13 +23,13 @@ const char* SlidingTimeWindowAlgorithm::GetTypeString() {
 void SlidingTimeWindowAlgorithm::Init() {
   AllReduceAlgorithm::SubscribeAllReduces(
       SlidingTimeWindowAlgorithm::allReduces,
-      SlidingTimeWindowAlgorithm::allReducesCount);
+      SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 void SlidingTimeWindowAlgorithm::Clear() {
   AllReduceAlgorithm::UnsubscribeAllReduces(
       SlidingTimeWindowAlgorithm::allReduces,
-      SlidingTimeWindowAlgorithm::allReducesCount);
+      SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 double SlidingTimeWindowAlgorithm::Launch() {
@@ -38,7 +38,7 @@ double SlidingTimeWindowAlgorithm::Launch() {
   if (input_params->allReduceAtLocality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
-    NEUROX_CALL_ALL_NEURONS_LCO_(Branch::BackwardEuler, &totalSteps,
+    NEUROX_CALL_ALL_NEURONS_LCO(Branch::BackwardEuler, &totalSteps,
                                  sizeof(int));
   double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
