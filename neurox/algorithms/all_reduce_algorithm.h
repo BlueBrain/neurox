@@ -25,7 +25,8 @@ class AllReduceAlgorithm : public Algorithm {
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   static void SubscribeAllReduces(hpx_t*& allReduces, size_t kAllReducesCount);
-  static void UnsubscribeAllReduces(hpx_t*& allReduces, size_t kAllReducesCount);
+  static void UnsubscribeAllReduces(hpx_t*& allReduces,
+                                    size_t kAllReducesCount);
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikesLco);
   static hpx_t SendSpikes2(Neuron*, double);
   static void Run2(Branch*, const void*);

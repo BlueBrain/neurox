@@ -253,7 +253,7 @@ void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params->branchingDepth > 0 || input_params->loadBalancing) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
-  NEUROX_CALL_ALL_NEURONS(input::Debugger::CompareBranch);
+  neurox::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
 }
 
@@ -479,6 +479,5 @@ void Debugger::RegisterHpxActions() {
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::Finitialize);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::NrnSpikeExchange);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::ThreadTableCheck);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          Debugger::FixedStepMinimal);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Debugger::FixedStepMinimal);
 }

@@ -364,7 +364,7 @@ Branch::~Branch() {
   delete[] mechsInstances;
 
   for (int i = 0; i < this->nt->_nvdata; i++) delete nt->_vdata[i];
-  delete[] this->nt->_vdata; //TODO deleting void* in undefined!
+  delete[] this->nt->_vdata;  // TODO deleting void* in undefined!
 
   for (int i = 0; i < this->nt->n_vecplay; i++)
     delete (VecPlayContinuousX *)nt->_vecplay[i];
@@ -423,8 +423,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
 
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
-         i++)
+    for (int i = 0;
+         i < CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize; i++)
       local->BackwardEulerStep();
     double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
@@ -951,20 +951,19 @@ void Branch::RegisterHpxActions() {
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Clear);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Finitialize);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::ThreadTableCheck);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR,
-                          Branch::BranchTree::InitLCOs);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::BranchTree::InitLCOs);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Branch::BackwardEuler);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          Branch::BackwardEulerOnLocality);
+                         Branch::BackwardEulerOnLocality);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          Branch::MechanismsGraph::MechFunction);
+                         Branch::MechanismsGraph::MechFunction);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::Init);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::InitSoma);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::AddSpikeEvent);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
-                          Branch::UpdateTimeDependency);
+                         Branch::UpdateTimeDependency);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
-                          Branch::MechanismsGraph::Init);
+                         Branch::MechanismsGraph::Init);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
-                          Branch::MechanismsGraph::Reduce);
+                         Branch::MechanismsGraph::Reduce);
 }
