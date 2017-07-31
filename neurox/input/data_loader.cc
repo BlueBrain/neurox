@@ -1510,5 +1510,5 @@ void DataLoader::RegisterHpxActions() {
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddSynapse);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddNeurons);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
-                          DataLoader::SetMechanisms);
+                         DataLoader::SetMechanisms);
 }

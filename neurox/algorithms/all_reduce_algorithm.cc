@@ -36,8 +36,7 @@ double AllReduceAlgorithm::Launch() {
   if (input_params->allReduceAtLocality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
-    NEUROX_CALL_ALL_NEURONS_LCO(Branch::BackwardEuler, &totalSteps,
-                                 sizeof(int));
+    neurox::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
   double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   return elapsedTime;
@@ -75,7 +74,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
                         SubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
   else
-    NEUROX_CALL_ALL_NEURONS_LCO(
+    neurox::CallAllNeurons(
         AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce, allReduces,
         sizeof(hpx_t) * allReducesCount);
 
@@ -91,7 +90,7 @@ void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
                         UnsubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
   else
-    NEUROX_CALL_ALL_NEURONS_LCO(
+    neurox::CallAllNeurons(
         AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce, allReduces,
         sizeof(hpx_t) * allReducesCount);
 
@@ -287,17 +286,16 @@ void AllReduceAlgorithm::AllReducesInfo::Reduce_handler(void*, const void*,
 
 void AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions() {
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          AllReducesInfo::SubscribeAllReduce);
+                         AllReducesInfo::SubscribeAllReduce);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          AllReducesInfo::UnsubscribeAllReduce);
-  NEUROX_REGISTER_ACTION(
-      NEUROX_ACTION_SINGLE_VAR,
-      AllReducesInfo::AllReduceLocality::SubscribeAllReduce);
+                         AllReducesInfo::UnsubscribeAllReduce);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
+                         AllReducesInfo::AllReduceLocality::SubscribeAllReduce);
   NEUROX_REGISTER_ACTION(
       NEUROX_ACTION_SINGLE_VAR,
       AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                          AllReducesInfo::SetReductionsPerCommStep);
+                         AllReducesInfo::SetReductionsPerCommStep);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP, AllReducesInfo::Init);
   NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP, AllReducesInfo::Reduce);
 }

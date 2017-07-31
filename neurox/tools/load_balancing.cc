@@ -68,6 +68,5 @@ void tools::LoadBalancing::PrintTable() {
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
-                          QueryLoadBalancingTable);
+  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, QueryLoadBalancingTable);
 }

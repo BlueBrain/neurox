@@ -12,6 +12,29 @@ using namespace neurox::algorithms;
 
 namespace neurox {
 
+/*
+template<typename T, typename... ArgTypes>
+int CountVars(T t, ArgTypes... args)
+{
+  return 1+CountVars(args...);
+}
+template<> int CountVars() {return 0;}
+
+template<typename... Args>
+hpx_status_t CallAllNeurons(hpx_action_t f, Args... args)
+{
+  va_list ap;
+  hpx_t lco= hpx_lco_and_new(neurox::neurons_count);
+  int e = HPX_SUCCESS;
+  int n = neurox::CountVars(args...);
+  for (size_t i = 0; i < neurox::neurons_count; i++)
+    e += _hpx_call(neurox::neurons[i], f, lco, n, args...);
+  hpx_lco_wait_reset(lco);
+  hpx_lco_delete_sync(lco);
+  return e;
+}
+*/
+
 hpx_t *neurons = nullptr;
 int neurons_count = 0;
 int mechanisms_count = -1;
@@ -31,17 +54,17 @@ static int Main_handler() {
          hpx_get_num_ranks(), hpx_get_num_threads(),
          LAYOUT == 0 ? "SoA" : "AoS");
   DebugMessage("neurox::Input::DataLoader::Init...\n");
-  hpx_bcast_rsync(neurox::input::DataLoader::Init);
+  neurox::CallAllLocalities(neurox::input::DataLoader::Init);
   DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-  hpx_bcast_rsync(neurox::input::DataLoader::InitMechanisms);
+  neurox::CallAllLocalities(neurox::input::DataLoader::InitMechanisms);
   DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
-  hpx_bcast_rsync(neurox::input::DataLoader::InitNeurons);
+  neurox::CallAllLocalities(neurox::input::DataLoader::InitNeurons);
   DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
-  NEUROX_CALL_ALL_NEURONS(neurox::input::DataLoader::InitNetcons);
+  neurox::CallAllNeurons(neurox::input::DataLoader::InitNetcons);
   DebugMessage("neurox::Input::DataLoader::Finalize...\n");
-  hpx_bcast_rsync(neurox::input::DataLoader::Finalize);
+  neurox::CallAllLocalities(neurox::input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
-  NEUROX_CALL_ALL_NEURONS(Branch::BranchTree::InitLCOs);
+  neurox::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
   if (neurox::input_params->outputStatistics) {
     tools::Statistics::OutputMechanismsDistribution();
@@ -53,14 +76,14 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 
   DebugMessage("neurox::Branch::Finitialize...\n");
-  NEUROX_CALL_ALL_NEURONS(Branch::Finitialize);
+  neurox::CallAllNeurons(Branch::Finitialize);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
   neurox::input::Debugger::CompareAllBranches();
 #endif
 
   DebugMessage("neurox::Branch::threadTableCheck...\n");
-  NEUROX_CALL_ALL_NEURONS(Branch::ThreadTableCheck);
+  neurox::CallAllNeurons(Branch::ThreadTableCheck);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
   neurox::input::Debugger::CompareAllBranches();
@@ -103,7 +126,7 @@ static int Main_handler() {
       "secs).\n",
       neurox::neurons_count, input_params->tstop / 1000.0, totalTimeElapsed);
 
-  NEUROX_CALL_ALL_NEURONS(Branch::Clear);
+  neurox::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);
 }

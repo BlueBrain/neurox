@@ -23,13 +23,13 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #define NEUROX_NUM_RANKS hpx_get_num_ranks()
 
 /// hpx wrappers for the pin operation
-#define NEUROX_MEM_PIN(Type)                 \
+#define NEUROX_MEM_PIN(Type)                  \
   hpx_t target = hpx_thread_current_target(); \
   Type *local = NULL;                         \
   if (!hpx_gas_try_pin(target, (void **)&local)) return HPX_RESEND;
 
 /// hpx wrappers for the unpin operation
-#define NEUROX_MEM_UNPIN  \
+#define NEUROX_MEM_UNPIN   \
   {                        \
     hpx_gas_unpin(target); \
     return HPX_SUCCESS;    \
@@ -37,14 +37,14 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 /// hpx wrappers for the unpin operation and a return value
 #define NEUROX_MEM_UNPIN_CONTINUE(Var) \
-  {                                     \
-    hpx_gas_unpin(target);              \
-    return HPX_THREAD_CONTINUE(Var);    \
+  {                                    \
+    hpx_gas_unpin(target);             \
+    return HPX_THREAD_CONTINUE(Var);   \
   }
 
 /// hpx wrappers for async call a function to all children branches (phase 1 -
 /// launch threads)
-#define NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Func, ...)              \
+#define NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Func, ...)               \
   hpx_addr_t lco_branches =                                         \
       local->branchTree && local->branchTree->branchesCount         \
           ? hpx_lco_and_new(local->branchTree->branchesCount)       \
@@ -57,14 +57,14 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 /// hpx wrappers for async call a function to all children branches (phase 2 -
 /// wait for threads)
-#define NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT                    \
+#define NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT                     \
   if (local->branchTree && local->branchTree->branchesCount) { \
     hpx_lco_wait(lco_branches);                                \
     hpx_lco_delete(lco_branches, HPX_NULL);                    \
   }
 
 // hpx wrappers to call methods in all neurons (no args, or only static args)
-#define NEUROX_CALL_ALL_NEURONS(Func, ...)                                  \
+#define NEUROX_CALL_ALL_NEURONS(Func, ...)                                   \
   hpx_par_for_sync(                                                          \
       [&](int i, void *) -> int {                                            \
         hpx_call_sync(neurox::neurons[i], Func, HPX_NULL, 0, ##__VA_ARGS__); \
@@ -72,7 +72,7 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
       0, neurox::neurons_count, NULL);
 
 // hpx wrappers to call methods in all neurons (witg args args)
-#define NEUROX_CALL_ALL_NEURONS_LCO(Func, ...)               \
+#define NEUROX_CALL_ALL_NEURONS_LCO(Func, ...)                \
   {                                                           \
     hpx_t LCO = hpx_lco_and_new(neurox::neurons_count);       \
     for (size_t i = 0; i < neurox::neurons_count; i++)        \

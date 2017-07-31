@@ -61,7 +61,7 @@ class Algorithm {
 
 };  // neurox
 
-//TODO can we get rid of this?
+// TODO can we get rid of this?
 #include "neurox/algorithms/all_reduce_algorithm.h"
 #include "neurox/algorithms/coreneuron_algorithm.h"
 #include "neurox/algorithms/debug_algorithm.h"
