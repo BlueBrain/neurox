@@ -253,7 +253,7 @@ void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params->branchingDepth > 0 || input_params->loadBalancing) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
-  neurox::CallAllNeurons(input::Debugger::CompareBranch);
+  neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
 }
 

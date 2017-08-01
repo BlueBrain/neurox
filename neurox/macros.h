@@ -1,21 +1,4 @@
-/**
- * @file NeuroX_hpx.h
- * Includes:
- * - wrappers around HPX functions that are applicable to our use case;
- * - typedefs for HPX related data types
- * - #defines for memory alignment;
- */
-
 #pragma once
-
-#include "hpx/hpx.h"
-
-// typedefs
-typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
-
-// Memory alignment for hpx_gas_allocs and padding (copied from Coreneuron)
-#define NEUROX_MEM_ALIGNMENT (2 * sizeof(double))
-#define NEUROX_SOA_PADDING 4
 
 // Threading and locality ids
 #define NEUROX_THREAD_ID hpx_thread_get_tls_id()

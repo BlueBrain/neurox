@@ -1290,7 +1290,7 @@ hpx_t DataLoader::CreateBranch(
     // Note: we do this after children creation so that we use top (lighter)
     // branches to balance work load
     hpx_t tempBranchAddr =
-        hpx_gas_alloc_local(1, sizeof(Branch), NEUROX_MEM_ALIGNMENT);
+        hpx_gas_alloc_local(1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment);
     bool runBenchmarkAndClear = true;
     int dumbThresholdOffset = 0;
     double timeElapsed = -1;
@@ -1349,7 +1349,7 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate and initialize branch on the respective owner
   hpx_t branchAddr = hpx_gas_alloc_local_at_sync(
-      1, sizeof(Branch), NEUROX_MEM_ALIGNMENT, HPX_THERE(neuronRank));
+      1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment, HPX_THERE(neuronRank));
 
   // update hpx address of soma
   somaBranchAddr = isSoma ? branchAddr : somaBranchAddr;

@@ -36,7 +36,7 @@ double AllReduceAlgorithm::Launch() {
   if (input_params->allReduceAtLocality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
-    neurox::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
+    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
   double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   return elapsedTime;
@@ -74,7 +74,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
                         SubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
   else
-    neurox::CallAllNeurons(
+    neurox::wrappers::CallAllNeurons(
         AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce, allReduces,
         sizeof(hpx_t) * allReducesCount);
 
@@ -90,7 +90,7 @@ void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
                         UnsubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
   else
-    neurox::CallAllNeurons(
+    neurox::wrappers::CallAllNeurons(
         AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce, allReduces,
         sizeof(hpx_t) * allReducesCount);
 

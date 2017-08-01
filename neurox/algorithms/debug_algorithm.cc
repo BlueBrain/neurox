@@ -45,9 +45,9 @@ double DebugAlgorithm::Launch() {
               .c_str());
 #endif
 
-    // Reduction at locality is not implemented (this mode is for debugging
+    // Reduction at locality not implemented (this is for debugging
     // only)
-    neurox::CallAllNeurons(Branch::BackwardEuler, &commStepSize, sizeof(int));
+    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &commStepSize, sizeof(int));
 
 #ifndef NDEBUG
     if (neurox::ParallelExecution())  // if parallel execution... spike exchange

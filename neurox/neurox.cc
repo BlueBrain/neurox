@@ -54,17 +54,17 @@ static int Main_handler() {
          hpx_get_num_ranks(), hpx_get_num_threads(),
          LAYOUT == 0 ? "SoA" : "AoS");
   DebugMessage("neurox::Input::DataLoader::Init...\n");
-  neurox::CallAllLocalities(neurox::input::DataLoader::Init);
+  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Init);
   DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-  neurox::CallAllLocalities(neurox::input::DataLoader::InitMechanisms);
+  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::InitMechanisms);
   DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
-  neurox::CallAllLocalities(neurox::input::DataLoader::InitNeurons);
+  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::InitNeurons);
   DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
-  neurox::CallAllNeurons(neurox::input::DataLoader::InitNetcons);
+  neurox::wrappers::CallAllNeurons(neurox::input::DataLoader::InitNetcons);
   DebugMessage("neurox::Input::DataLoader::Finalize...\n");
-  neurox::CallAllLocalities(neurox::input::DataLoader::Finalize);
+  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
-  neurox::CallAllNeurons(Branch::BranchTree::InitLCOs);
+  neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
   if (neurox::input_params->outputStatistics) {
     tools::Statistics::OutputMechanismsDistribution();
@@ -76,14 +76,14 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 
   DebugMessage("neurox::Branch::Finitialize...\n");
-  neurox::CallAllNeurons(Branch::Finitialize);
+  neurox::wrappers::CallAllNeurons(Branch::Finitialize);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
   neurox::input::Debugger::CompareAllBranches();
 #endif
 
   DebugMessage("neurox::Branch::threadTableCheck...\n");
-  neurox::CallAllNeurons(Branch::ThreadTableCheck);
+  neurox::wrappers::CallAllNeurons(Branch::ThreadTableCheck);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
   neurox::input::Debugger::CompareAllBranches();
@@ -126,7 +126,7 @@ static int Main_handler() {
       "secs).\n",
       neurox::neurons_count, input_params->tstop / 1000.0, totalTimeElapsed);
 
-  neurox::CallAllNeurons(Branch::Clear);
+  neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);
 }
