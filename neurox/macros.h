@@ -9,8 +9,7 @@
 #define NEUROX_MEM_PIN(Type)                  \
   hpx_t target = hpx_thread_current_target(); \
   Type *local = NULL;                         \
-  if (!hpx_gas_try_pin(target, (void **)&local)) \
-    return HPX_RESEND;
+  if (!hpx_gas_try_pin(target, (void **)&local)) return HPX_RESEND;
 
 /// hpx wrappers for the unpin operation
 #define NEUROX_MEM_UNPIN   \

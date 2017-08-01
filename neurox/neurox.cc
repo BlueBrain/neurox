@@ -56,7 +56,8 @@ static int Main_handler() {
   DebugMessage("neurox::Input::DataLoader::Init...\n");
   neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Init);
   DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::InitMechanisms);
+  neurox::wrappers::CallAllLocalities(
+      neurox::input::DataLoader::InitMechanisms);
   DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
   neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::InitNeurons);
   DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
@@ -163,8 +164,9 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, neurox::Main);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, neurox::Clear);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Main, Main_handler);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Clear,
+                                                           Clear_handler);
 }
 
 };  // neurox

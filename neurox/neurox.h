@@ -6,7 +6,7 @@
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
 typedef double spike_time_t;  ///> spikes timing unit
 typedef int offset_t;         ///> ushort or uint (p vector, nodes indices)
-typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
+typedef int neuron_id_t;   ///> neuron gid type (gid_t or id_t already defined)
 typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Coreneuron basic datatypes, input methods, and mechs functions
@@ -92,9 +92,8 @@ static int Clear_handler();
 
 /// HPX-actions registration
 void RegisterHpxActions();
-
 };
 
 // hpx macros and hp	x-wrapperss
-#include "neurox/wrappers.h"
 #include "neurox/macros.h"
+#include "neurox/wrappers.h"

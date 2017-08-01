@@ -428,7 +428,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       local->BackwardEulerStep();
     double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    return neurox::wrappers::MemoryUnpin(target,timeElapsed);
+    return neurox::wrappers::MemoryUnpin(target, timeElapsed);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -948,22 +948,35 @@ void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunctions *lhs,
 }
 
 void Branch::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Clear);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::Finitialize);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::ThreadTableCheck);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Branch::BranchTree::InitLCOs);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Branch::BackwardEuler);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         Branch::BackwardEulerOnLocality);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         Branch::MechanismsGraph::MechFunction);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::Init);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::InitSoma);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, Branch::AddSpikeEvent);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
-                         Branch::UpdateTimeDependency);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
-                         Branch::MechanismsGraph::Init);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP,
-                         Branch::MechanismsGraph::Reduce);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Clear,
+                                                           Clear_handler);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Finitialize,
+                                                           Finitialize_handler);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(
+      ThreadTableCheck, ThreadTableCheck_handler);
+  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(
+      BranchTree::InitLCOs, BranchTree::InitLCOs_handler);
+
+  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
+      BackwardEuler, BackwardEuler_handler);
+  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
+      BackwardEulerOnLocality, BackwardEulerOnLocality_handler);
+  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
+      MechanismsGraph::MechFunction, MechanismsGraph::MechFunction_handler);
+
+  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(Init,
+                                                                Init_handler);
+  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
+      InitSoma, InitSoma_handler);
+  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
+      AddSpikeEvent, AddSpikeEvent_handler);
+  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
+      UpdateTimeDependency, UpdateTimeDependency_handler);
+
+  wrappers::Actions<wrappers::ActionTypes::kAllReduceInit>::init<
+      Mechanism::ModFunctions>(MechanismsGraph::Init,
+                               MechanismsGraph::Init_handler);
+  wrappers::Actions<wrappers::ActionTypes::kAllReduceReduce>::init<
+      Mechanism::ModFunctions>(MechanismsGraph::Reduce,
+                               MechanismsGraph::Reduce_handler);
 }

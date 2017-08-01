@@ -38,7 +38,8 @@ double SlidingTimeWindowAlgorithm::Launch() {
   if (input_params->allReduceAtLocality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
-    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
+    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
+                                     sizeof(int));
   double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   return elapsedTime;

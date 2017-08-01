@@ -34,7 +34,8 @@ void TimeDependencyLCOAlgorithm::Clear() {}
 double TimeDependencyLCOAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
+  neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
+                                   sizeof(int));
   double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   return elapsedTime;
