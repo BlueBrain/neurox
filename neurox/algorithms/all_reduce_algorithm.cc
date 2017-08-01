@@ -193,7 +193,7 @@ int AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce_handler(
     stw->allReduceId[i] = hpx_process_collective_allreduce_subscribe(
         allreduces[i], hpx_lco_set_action, stw->allReduceFuture[i]);
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce = 0;
@@ -213,7 +213,7 @@ int AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce_handler(
   stw->allReduceFuture = nullptr;
   delete[] stw->allReduceId;
   stw->allReduceId = nullptr;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 int AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep = -1;
@@ -232,7 +232,7 @@ int AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep_handler(
     const int* val, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
   reductionsPerCommStep = *val;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t
@@ -254,7 +254,7 @@ int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     allReduceId[i] = hpx_process_collective_allreduce_subscribe(
         allreduces[i], hpx_lco_set_action, allReduceFuture[i]);
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
@@ -273,7 +273,7 @@ int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
   allReduceFuture = nullptr;
   delete[] allReduceId;
   allReduceId = nullptr;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::Init = 0;

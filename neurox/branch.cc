@@ -428,9 +428,9 @@ int Branch::Init_handler(const int nargs, const void *args[],
       local->BackwardEulerStep();
     double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    NEUROX_MEM_UNPIN_CONTINUE(timeElapsed);
+    return neurox::wrappers::MemoryUnpin(target,timeElapsed);
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::InitSoma = 0;
@@ -441,7 +441,7 @@ int Branch::InitSoma_handler(const int nargs, const void *args[],
   const neuron_id_t neuronId = *(const neuron_id_t *)args[0];
   const floble_t APthreshold = *(const floble_t *)args[1];
   local->soma = new Neuron(neuronId, APthreshold);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::Clear = 0;
@@ -450,7 +450,7 @@ int Branch::Clear_handler() {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
   delete local;
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void Branch::InitVecPlayContinous() {
@@ -524,7 +524,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   hpx_lco_sema_v_sync(local->eventsQueueMutex);
 
   algorithm->AfterReceiveSpikes(local, target, preNeuronId, spikeTime, maxTime);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::UpdateTimeDependency = 0;
@@ -546,7 +546,7 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   timeDependencies->UpdateTimeDependency(preNeuronId, (floble_t)maxTime,
                                          local->soma ? local->soma->gid : -1,
                                          initPhase);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void Branch::Finitialize2() {
@@ -631,7 +631,7 @@ int Branch::BackwardEuler_handler(const int *steps_ptr, const size_t size) {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::BackwardEuler, steps_ptr, size);
   algorithm->Run(local, steps_ptr);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::BackwardEulerOnLocality = 0;
@@ -680,7 +680,7 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
     }
   }
   hpx_lco_delete_sync(localityNeuronsLCO);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::ThreadTableCheck = 0;
@@ -689,7 +689,7 @@ int Branch::ThreadTableCheck_handler() {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::ThreadTableCheck);
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Branch::Finitialize = 0;
@@ -702,7 +702,7 @@ int Branch::Finitialize_handler() {
 // &nrn_threads[local->nt->id]);
 #endif
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void Branch::SetupTreeMatrix() {
@@ -826,9 +826,9 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma)  // send my LCO to parent
-      NEUROX_MEM_UNPIN_CONTINUE(branchTree->withParentLCO);
+      return neurox::wrappers::MemoryUnpin(target, branchTree->withParentLCO);
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
@@ -905,7 +905,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
             local->mechsGraph->mechsLCOs[mechanisms_map[mech->successors[c]]],
             sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void Branch::MechanismsGraph::AccumulateRHSandD(NrnThread *nt, Memb_list *ml,

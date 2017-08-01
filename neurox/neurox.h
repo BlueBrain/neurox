@@ -95,7 +95,6 @@ void RegisterHpxActions();
 
 };
 
-
 // hpx macros and hp	x-wrapperss
 #include "neurox/wrappers.h"
 #include "neurox/macros.h"

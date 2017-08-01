@@ -51,7 +51,7 @@ Mechanism *GetMechanismFromType(int type) {
 hpx_action_t Main = 0;
 static int Main_handler() {
   printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
-         hpx_get_num_ranks(), hpx_get_num_threads(),
+         neurox::wrappers::NumRanks(), neurox::wrappers::NumThreads(),
          LAYOUT == 0 ? "SoA" : "AoS");
   DebugMessage("neurox::Input::DataLoader::Init...\n");
   neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Init);
@@ -150,7 +150,7 @@ int Clear_handler() {
 #ifndef NDEBUG
   neurox::input::DataLoader::CleanCoreneuronData(true);
 #endif
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void DebugMessage(const char *str) {

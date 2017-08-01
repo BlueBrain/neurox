@@ -5,21 +5,29 @@ namespace wrappers {
 
 /// Memory pinning from an hpx memorry address to a local pointer
 template <typename T>
-bool MemoryPin(T *&local, hpx_t &target) {
-  target = hpx_thread_current_target();
+inline hpx_t MemoryPin(T) {
+  hpx_t target = hpx_thread_current_target();
+  T* local = NULL;
   return hpx_gas_try_pin(target, (void **)&local);
 }
 
 /// Memory UNpinning from an hpx memorry address to a local pointer
-template <typename T>
-hpx_status_t MemoryUnpin(hpx_t target) {
+inline hpx_status_t MemoryUnpin(hpx_t target) {
   hpx_gas_unpin(target);
   return HPX_SUCCESS;
 }
 
+/// Memory UNpinning from an hpx memorry address to a local pointer
+/// with the return of a value
+template <typename T>
+inline hpx_status_t MemoryUnpin(hpx_t target, const T & var) {
+  hpx_gas_unpin(target);
+  return HPX_THREAD_CONTINUE(var);
+}
+
 /// call action (with arguments) on all localities
 template <typename... Args>
-hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
+inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
   return hpx_bcast_rsync(f, args...);
 }
 
@@ -38,7 +46,7 @@ inline int CountArgs() {
 
 /// calls method (with arguments) on all neurons in neurox::neurons
 template <typename... Args>
-hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
+inline hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
   hpx_t lco = hpx_lco_and_new(neurox::neurons_count);
   int e = HPX_SUCCESS;
   int n = neurox::wrappers::CountArgs(args...);
@@ -47,6 +55,30 @@ hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
   hpx_lco_wait_reset(lco);
   hpx_lco_delete_sync(lco);
   return e;
+}
+
+/// get running thread Id
+inline int MyThreadId()
+{
+    return hpx_thread_get_tls_id();
+}
+
+/// get current locality Id on the network
+inline int MyRank()
+{
+    return hpx_get_my_rank();
+}
+
+/// get number of localities in the network
+inline int NumRanks()
+{
+    return hpx_get_num_ranks();
+}
+
+/// get number of threads in current locality
+inline int NumThreads()
+{
+    return hpx_get_num_threads();
 }
 
 }; //namespace wrappers;

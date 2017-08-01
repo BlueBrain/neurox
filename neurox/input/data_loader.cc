@@ -432,7 +432,8 @@ int DataLoader::InitMechanisms_handler() {
   // dependencies
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN;
+  if (myNrnThreadsCount == 0)
+    return neurox::wrappers::MemoryUnpin(target);
 
   for (int i = 0; i < myNrnThreadsCount; i++) {
     assert(nrn_threads[i].ncell == 1);
@@ -564,7 +565,7 @@ int DataLoader::InitMechanisms_handler() {
         dependenciesCount_serial.data(), dependencies_serial.data(),
         successorsCount_serial.data(), successors_serial.data());
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t DataLoader::Init = 0;
@@ -596,7 +597,7 @@ int DataLoader::Init_handler() {
     fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
 #endif
   }
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t DataLoader::InitNeurons = 0;
@@ -605,7 +606,8 @@ int DataLoader::InitNeurons_handler() {
 
   int myNrnThreadsCount = GetMyNrnThreadsCount();
 
-  if (myNrnThreadsCount == 0) NEUROX_MEM_UNPIN;
+  if (myNrnThreadsCount == 0)
+      return neurox::wrappers::MemoryUnpin(target);
 
 #if NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS == true
   if (inputParams->outputCompartmentsDot) {
@@ -655,7 +657,7 @@ int DataLoader::InitNeurons_handler() {
                                my_neurons_addr->end());
   }
 
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t DataLoader::AddNeurons = 0;
@@ -692,7 +694,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   assert(all_neurons_gids->size() == neurox::neurons_count);
   hpx_lco_sema_v_sync(all_neurons_mutex);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t DataLoader::SetMechanisms = 0;
@@ -721,7 +723,7 @@ int DataLoader::SetMechanisms_handler(const int nargs, const void *args[],
   SetMechanisms2(mechsCount, orderedMechs, dependenciesCount, dependencies,
                  successorsCount, successors);
 
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
@@ -894,7 +896,7 @@ int DataLoader::Finalize_handler() {
 
   delete loadBalancing;
   loadBalancing = nullptr;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void DataLoader::GetAllChildrenCompartments(deque<Compartment *> &subSection,
@@ -1483,7 +1485,7 @@ int DataLoader::InitNetcons_handler() {
   hpx_lco_delete_sync(dependenciesLCO);
 
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t DataLoader::AddSynapse = 0;
@@ -1498,7 +1500,7 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   int destinationGid = *(const int *)args[3];
   local->soma->AddSynapse(
       new Neuron::Synapse(addr, minDelay, topBranchAddr, destinationGid));
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void DataLoader::RegisterHpxActions() {

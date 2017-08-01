@@ -401,14 +401,14 @@ int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
   for (int n = 0; n < nrn_nthread; n++)
     for (int i = 0; i < *steps_ptr; i++)
       Debugger::FixedStepMinimal2(&nrn_threads[n], input_params->secondorder);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
   NEUROX_MEM_PIN(uint64_t);
   nrn_finitialize(input_params->voltage != 1000., input_params->voltage);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::ThreadTableCheck = 0;
@@ -417,23 +417,23 @@ int Debugger::ThreadTableCheck_handler() {
   NEUROX_MEM_PIN(uint64_t);
   dt2thread(dt);  // does nothing
   nrn_thread_table_check();
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
   NEUROX_MEM_PIN(uint64_t);
   nrn_spike_exchange(nrn_threads);
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
   if (input_params->branchingDepth > 0 || input_params->loadBalancing)
-    NEUROX_MEM_UNPIN;
+    return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
-  NEUROX_MEM_UNPIN;
+  return neurox::wrappers::MemoryUnpin(target);
 }
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
