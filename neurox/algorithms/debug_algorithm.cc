@@ -8,12 +8,12 @@ DebugAlgorithm::DebugAlgorithm() {}
 DebugAlgorithm::~DebugAlgorithm() {}
 
 DebugAlgorithm::CommunicationBarrier::CommunicationBarrier() {
-  this->allSpikesLco = HPX_NULL;
+  this->all_spikes_lco_ = HPX_NULL;
   assert(CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize <= 4);
 }
 
 DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
-  if (allSpikesLco != HPX_NULL) hpx_lco_delete_sync(allSpikesLco);
+  if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
 const AlgorithmType DebugAlgorithm::GetType() {
@@ -26,18 +26,18 @@ const char* DebugAlgorithm::GetTypeString() {
 
 void DebugAlgorithm::Init() {
   const int allReducesCount = 0;
-  hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
+  hpx_bcast_rsync(AllreduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
                   &allReducesCount, sizeof(int));
 }
 
 void DebugAlgorithm::Clear() {}
 
 double DebugAlgorithm::Launch() {
-  int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
-  int totalSteps = Algorithm::getTotalStepsCount();
+  int comm_step_size = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+  int total_steps = Algorithm::GetTotalStepsCount();
 
   hpx_time_t now = hpx_time_now();
-  for (int s = 0; s < totalSteps; s += commStepSize) {
+  for (int s = 0; s < total_steps; s += comm_step_size) {
 #ifdef NEUROX_TIME_STEPPING_VERBOSE
     if (hpx_get_my_rank() == 0)
       DebugMessage(
@@ -45,25 +45,26 @@ double DebugAlgorithm::Launch() {
               .c_str());
 #endif
 
-    // Reduction at locality is not implemented (this mode is for debugging
+    // Reduction at locality not implemented (this is for debugging
     // only)
-    neurox::CallAllNeurons(Branch::BackwardEuler, &commStepSize, sizeof(int));
+    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &comm_step_size,
+                                     sizeof(int));
 
 #ifndef NDEBUG
     if (neurox::ParallelExecution())  // if parallel execution... spike exchange
       hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
 #endif
   }
-  double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
+  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::CompareAllBranches();
-  return elapsedTime;
+  return elapsed_time;
 }
 
 void DebugAlgorithm::StepBegin(Branch*) {}
 
 void DebugAlgorithm::StepEnd(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params_->second_order_);
 }
 
 void DebugAlgorithm::Run(Branch* b, const void* args) {
@@ -72,28 +73,29 @@ void DebugAlgorithm::Run(Branch* b, const void* args) {
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
   // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
-  if (b->soma)  // end of comm-step (steps is the number of steps per commSize)
+  if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
-    CommunicationBarrier* commBarrier =
-        (CommunicationBarrier*)b->soma->algorithmMetaData;
-    if (commBarrier->allSpikesLco != HPX_NULL)  // was set/used once
-      hpx_lco_wait(commBarrier->allSpikesLco);  // wait if needed
+    CommunicationBarrier* comm_barrier =
+        (CommunicationBarrier*)b->soma_->algorithm_metadata_;
+    if (comm_barrier->all_spikes_lco_ != HPX_NULL)  // was set/used once
+      hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
 }
 
 hpx_t DebugAlgorithm::SendSpikes(Neuron* neuron, double tt, double) {
-  CommunicationBarrier* commBarrier =
-      (CommunicationBarrier*)neuron->algorithmMetaData;
-  if (commBarrier->allSpikesLco == HPX_NULL)  // first use
-    commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses.size());
+  CommunicationBarrier* comm_barrier =
+      (CommunicationBarrier*)neuron->algorithm_metadata_;
+  if (comm_barrier->all_spikes_lco_ == HPX_NULL)  // first use
+    comm_barrier->all_spikes_lco_ = hpx_lco_and_new(neuron->synapses_.size());
   else
-    hpx_lco_reset_sync(commBarrier->allSpikesLco);  // reset to use after
+    hpx_lco_reset_sync(comm_barrier->all_spikes_lco_);  // reset to use after
 
-  for (Neuron::Synapse*& s : neuron->synapses)
+  for (Neuron::Synapse*& s : neuron->synapses_)
     // deliveryTime (t+delay) is handled on post-syn side (diff value for every
     // NetCon)
-    hpx_call(s->branchAddr, Branch::AddSpikeEvent, commBarrier->allSpikesLco,
-             &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent,
+             comm_barrier->all_spikes_lco_, &neuron->gid_, sizeof(neuron_id_t),
+             &tt, sizeof(spike_time_t));
 
   return HPX_NULL;
 }

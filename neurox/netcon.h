@@ -9,40 +9,40 @@ namespace neurox {
  * Equivalent to Coreneuron's NetCon in netcon.h
  * Includes the synaptic information at the post-synaptic neuron
  */
-class NetConX : Event {
+class NetconX : Event {
  public:
-  NetConX();
-  NetConX(int mechType, offset_t mechInstance, floble_t delay,
-          offset_t weightIndex, unsigned short weightsCount, bool active);
-  ~NetConX();
+  NetconX();
+  NetconX(int mech_type, offset_t mech_instance, floble_t delay_,
+          offset_t weight_index, unsigned short weights_count, bool active_);
+  ~NetconX();
 
   void Deliver(floble_t t, Branch* branch) override;  // event method
                                                       // (inherited)
 
   EventTypes Type() { return EventTypes::kNetCon; }
 
-  int mechType;                 ///> mechanism type associated with this synapse
-  unsigned short weightsCount;  ///> size of variable args
-  bool active;                  ///> decides whether NetCon is active (or not)
+  int mech_type_;  ///> mechanism type associated with this synapse
+  unsigned short weights_count_;  ///> size of variable args
+  bool active_;                   ///> decides whether NetCon is active (or not)
 
   /// synaptic delay (soma-bouton distance + transmitters release delay)
-  floble_t delay;
+  floble_t delay_;
 
   ///  net_receive arguments (equivalent to weights in Coreneuron's NetCon)
-  offset_t weightIndex;
+  offset_t weight_index_;
 
   /// mechanism instance, from the mechanism type
-  offset_t mechInstance;
+  offset_t mech_instance_;
 
  private:
 };
 
 /// temp wrapper for point process
 struct PointProcInfo {
-  offset_t nodeId;  // compartment id
-  int mechType;
-  offset_t mechInstance;
-  offset_t instanceDataOffset;
+  offset_t node_id;  // compartment id
+  int mech_type;
+  offset_t mech_instance;
+  offset_t instance_data_offset;
   size_t size;
 };
 }

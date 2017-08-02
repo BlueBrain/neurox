@@ -27,35 +27,36 @@ class Branch {
   static void* operator new(size_t bytes, void* addr);
   static void operator delete(void* worker);
 
-  Branch(offset_t n, int nrnThreadId, int thresholdVoffset, hpx_t branchHpxAddr,
-         floble_t* data, size_t dataCount, offset_t* pdata, size_t pdataCount,
-         offset_t* instancesCount,
-         size_t instancesCountCount,  // same tipe as pdata
-         offset_t* nodesIndices, size_t nodesIndicesCount, hpx_t topBranchAddr,
-         hpx_t* branches, size_t branchesCount, offset_t* p, size_t pCount,
-         floble_t* vecplayT, size_t vecplayTCount, floble_t* vecplayY,
-         size_t vecplayYCount, PointProcInfo* vecplayInfo, size_t vecplayCount,
-         NetConX* netcons, size_t netconsCount, neuron_id_t* netConsPreId,
-         size_t netConsPreIdsCount, floble_t* branchWeights,
-         size_t branchWeightsCount, unsigned char* vdataSerialized,
-         size_t vdataSerializedCount);
+  Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
+         hpx_t branch_hpx_addr, floble_t* data, size_t data_count,
+         offset_t* pdata, size_t pdata_count, offset_t* instances_count,
+         size_t recv_mechs_count, offset_t* nodes_indices,
+         size_t nodes_indices_count, hpx_t top_branch_addr, hpx_t* branches,
+         size_t branches_count, offset_t* p, size_t p_count,
+         floble_t* vecplay_t, size_t vecplay_t_Count, floble_t* vecplay_y,
+         size_t vecplay_y_count, PointProcInfo* vecplay_ppi,
+         size_t vecplay_ppi_count, NetconX* netcons_, size_t netcons_count,
+         neuron_id_t* netcons_pre_ids, size_t netcons_pre_ids_count,
+         floble_t* weights, size_t weights_count,
+         unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
-  NrnThread* nt;              ///> compartments metadata
-  Memb_list* mechsInstances;  ///> Arrays of mechanism instances
-  Neuron* soma;               ///> if top branch, it's populated, otherwise NULL
-  floble_t* thvar_ptr;  ///> pointer to var holding AP threshold var,if any
+  NrnThread* nt_;               ///> compartments metadata
+  Memb_list* mechs_instances_;  ///> Arrays of mechanism instances
+  Neuron* soma_;         ///> if top branch, it's populated, otherwise NULL
+  floble_t* thvar_ptr_;  ///> pointer to var holding AP threshold var,if any
 
   class MechanismsGraph {
    public:
     MechanismsGraph();
     ~MechanismsGraph();
-    void InitMechsGraph(
-        hpx_t branchHpxAddr);  ///> Launch HPX-threads for dorment mechs-graph
 
-    hpx_t* mechsLCOs;  ///> HPX address of the and-gate of each mechanism
-    hpx_t endLCO;      ///> represents the bottom of the graph
-    hpx_t graphLCO;    ///> controls all active threads on the mechanisms graph
+    /// Launches HPX-threads for dorment mechs-graph
+    void InitMechsGraph(hpx_t branch_hpx_addr);
+
+    hpx_t* mechs_lcos_;  ///> HPX address of the and-gate of each mechanism
+    hpx_t end_lco_;      ///> represents the bottom of the graph
+    hpx_t graph_lco_;  ///> controls all active threads on the mechanisms graph
 
     /// init function for hpx_reduce of mechanisms graphs
     static hpx_action_t Init;
@@ -66,55 +67,55 @@ class Branch {
     /// represents the action of the nodes in the mechanisms graph
     static hpx_action_t MechFunction;
 
-    static int MechFunction_handler(const int* mechType_ptr, const size_t);
+    static int MechFunction_handler(const int* mech_type_ptr, const size_t);
     static void Init_handler(Mechanism::ModFunctions* func_ptr, const size_t);
     static void Reduce_handler(Mechanism::ModFunctions* lhs,
                                const Mechanism::ModFunctions* rhs,
                                const size_t);
 
     // for current function accumulation of shadow arrays
-    hpx_t rhs_d_mutex;
-    hpx_t i_didv_mutex[Mechanism::IonTypes::kSizeWriteableIons];
+    hpx_t rhs_d_mutex_;
+    hpx_t i_didv_mutex_[Mechanism::IonTypes::kSizeWriteableIons];
     static void AccumulateRHSandD(NrnThread* nt, Memb_list* ml, int,
                                   void* args);
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
-  } * mechsGraph;  ///> represents the parallel computation graph of mechanisms
+  } * mechs_graph_;  ///> parallel computation graph of mechanisms
 
   class BranchTree {
    public:
     BranchTree() = delete;
-    BranchTree(hpx_t topBranchAddr, hpx_t* branches, size_t branchesCount);
+    BranchTree(hpx_t top_branch_addr, hpx_t* branches, size_t branches_count);
     ~BranchTree();
 
-    hpx_t topBranchAddr;   ///> hpx address of the some branch
-    hpx_t* branches;       ///> hpx address of children branches
-    size_t branchesCount;  ///> number of branches (>0)
+    hpx_t top_branch_addr_;  ///> hpx address of the some branch
+    hpx_t* branches_;        ///> hpx address of children branches
+    size_t branches_count_;  ///> number of branches (>0)
 
     ///  size of futures arrays (used in Gaussian elimination and AP threshold
-    static constexpr size_t futuresSize = 7;
+    static constexpr size_t kFuturesSize = 7;
 
     /// LCO to to communicate variables with parent
-    hpx_t withParentLCO[futuresSize];
+    hpx_t with_parent_lco_[kFuturesSize];
 
     /// LCO to communicate variables with children (NULL if no children)
-    hpx_t (*withChildrenLCOs)[futuresSize];
+    hpx_t (*with_children_lcos_)[kFuturesSize];
 
     static hpx_action_t InitLCOs;  ///> Initializes neuronTree
     static int InitLCOs_handler();
-  } * branchTree;  ///> represents the tree structure (or NULL if none)
+  } * branch_tree_;  ///> represents the tree structure (or NULL if none)
 
-  std::map<neuron_id_t, std::vector<NetConX*> >
-      netcons;  ///> map of incoming netcons per pre-synaptic gid
+  /// map of incoming netcons per pre-synaptic gid
+  std::map<neuron_id_t, std::vector<NetconX*> > netcons_;
 
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
                       std::greater_equal<TimedEvent> >
-      eventsQueue;
+      events_queue_;
 
-  ///> mutex to protect the memory access to eventsQueue
-  hpx_t eventsQueueMutex;
+  /// mutex to protect the memory access to eventsQueue
+  hpx_t events_queue_mutex_;
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 

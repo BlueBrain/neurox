@@ -31,10 +31,10 @@ class LoadBalancing {
 
  private:
   /// computation (ms) per compute node
-  static double *loadBalancingTable;
+  static double *load_balancing_table_;
 
   /// mutex for loadBalancingTable
-  static hpx_t loadBalancingMutex;
+  static hpx_t load_balancing_mutex_;
 };
 
 };  // Tools

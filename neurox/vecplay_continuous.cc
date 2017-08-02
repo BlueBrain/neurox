@@ -5,7 +5,7 @@
 
 using namespace neurox;
 
-VecPlayContinuousX::VecPlayContinuousX(double* pd, size_t size, floble_t* yvec,
+VecplayContinuousX::VecplayContinuousX(double* pd, size_t size, floble_t* yvec,
                                        floble_t* tvec, floble_t* discon)
     : pd_(pd),
       size_(size),
@@ -16,7 +16,7 @@ VecPlayContinuousX::VecPlayContinuousX(double* pd, size_t size, floble_t* yvec,
       discon_index_(0),
       ubound_index_(0) {}
 
-void VecPlayContinuousX::PlayInit(Branch* branch) {
+void VecplayContinuousX::PlayInit(Branch* branch) {
   last_index_ = 0;
   discon_index_ = 0;
   if (discon_indices_) {
@@ -32,14 +32,14 @@ void VecPlayContinuousX::PlayInit(Branch* branch) {
   }
 }
 
-VecPlayContinuousX::~VecPlayContinuousX() {
+VecplayContinuousX::~VecplayContinuousX() {
   delete[] y_;
   delete[] t_;
 };
 
-void VecPlayContinuousX::Continuous(double tt) { *pd_ = Interpolate(tt); }
+void VecplayContinuousX::Continuous(double tt) { *pd_ = Interpolate(tt); }
 
-double VecPlayContinuousX::Interpolate(double tt) {
+double VecplayContinuousX::Interpolate(double tt) {
   if (tt >= t_[ubound_index_]) {
     last_index_ = ubound_index_;
     if (last_index_ == 0) {
@@ -61,7 +61,7 @@ double VecPlayContinuousX::Interpolate(double tt) {
   return Interp((tt - t0) / (t1 - t0), x0, x1);
 }
 
-void VecPlayContinuousX::Search(double tt) {
+void VecplayContinuousX::Search(double tt) {
   while (tt < t_[last_index_]) {
     --last_index_;
   }
@@ -70,7 +70,7 @@ void VecPlayContinuousX::Search(double tt) {
   }
 }
 
-void VecPlayContinuousX::Deliver(floble_t tt, Branch* branch) {
+void VecplayContinuousX::Deliver(floble_t tt, Branch* branch) {
   last_index_ = ubound_index_;
   if (discon_indices_) {
     if (discon_index_ < size_) {

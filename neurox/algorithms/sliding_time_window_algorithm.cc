@@ -3,10 +3,10 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-hpx_t* SlidingTimeWindowAlgorithm::allReduces = nullptr;
+hpx_t* SlidingTimeWindowAlgorithm::allreduces = nullptr;
 
 SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
-  AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep =
+  AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ =
       SlidingTimeWindowAlgorithm::kAllReducesCount;
 }
 
@@ -21,42 +21,43 @@ const char* SlidingTimeWindowAlgorithm::GetTypeString() {
 }
 
 void SlidingTimeWindowAlgorithm::Init() {
-  AllReduceAlgorithm::SubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allReduces,
+  AllreduceAlgorithm::SubscribeAllReduces(
+      SlidingTimeWindowAlgorithm::allreduces,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 void SlidingTimeWindowAlgorithm::Clear() {
-  AllReduceAlgorithm::UnsubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allReduces,
+  AllreduceAlgorithm::UnsubscribeAllReduces(
+      SlidingTimeWindowAlgorithm::allreduces,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 double SlidingTimeWindowAlgorithm::Launch() {
-  int totalSteps = Algorithm::getTotalStepsCount();
+  int total_steps = Algorithm::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->allReduceAtLocality)
-    hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
+  if (input_params_->allreduce_at_locality_)
+    hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &total_steps, sizeof(int));
   else
-    neurox::CallAllNeurons(Branch::BackwardEuler, &totalSteps, sizeof(int));
-  double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
+    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &total_steps,
+                                     sizeof(int));
+  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
-  return elapsedTime;
+  return elapsed_time;
 }
 
 void SlidingTimeWindowAlgorithm::StepBegin(Branch*) {}
 
 void SlidingTimeWindowAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
-  AllReduceAlgorithm::WaitForSpikesDelivery(b, spikesLco);
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  AllreduceAlgorithm::WaitForSpikesDelivery(b, spikesLco);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params_->second_order_);
 }
 
 void SlidingTimeWindowAlgorithm::Run(Branch* b, const void* args) {
-  AllReduceAlgorithm::Run2(b, args);
+  AllreduceAlgorithm::Run2(b, args);
 }
 
 hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* neuron, double tt,
                                              double) {
-  return AllReduceAlgorithm::SendSpikes2(neuron, tt);
+  return AllreduceAlgorithm::SendSpikes2(neuron, tt);
 }

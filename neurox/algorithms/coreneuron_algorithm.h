@@ -24,7 +24,7 @@ class CoreneuronAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public AlgorithmMetaData {
+  class CommunicationBarrier : public AlgorithmMetadata {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();

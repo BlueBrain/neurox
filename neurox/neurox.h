@@ -1,16 +1,16 @@
 #pragma once
 
+#include "hpx/hpx.h"
+
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
 typedef double spike_time_t;  ///> spikes timing unit
 typedef int offset_t;         ///> ushort or uint (p vector, nodes indices)
-typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
+typedef int neuron_id_t;   ///> neuron gid type (gid_t or id_t already defined)
+typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Coreneuron basic datatypes, input methods, and mechs functions
 #include "coreneuron/coreneuron.h"
-
-// hpx macros and typedefs
-#include "neurox/hpx.h"
 
 // Definition of meta data specific to a given algorithm
 #include "neurox/algorithms/algorithm_metadata.h"
@@ -18,8 +18,8 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 // auxiliary classes defining events, synapses and mechanisms
 #include "neurox/event.h"
 #include "neurox/mechanism.h"
-#include "neurox/net_con.h"
-#include "neurox/vec_play_continuous.h"
+#include "neurox/netcon.h"
+#include "neurox/vecplay_continuous.h"
 
 // morphology classes (branches and soma)
 #include "neurox/branch.h"
@@ -43,31 +43,31 @@ typedef int neuron_id_t;  ///> neuron gid type (gid_t or id_t already defined)
 #include "neurox/input/debugger.h"
 
 // Debug flags
-//#define NEUROX_PRINT_TIME_DEPENDENCY
-//#define NDEBUG
+// #define NEUROX_PRINT_TIME_DEPENDENCY
+// #define NDEBUG
 
 namespace neurox {
 
 ///  hpx address of all neurons
-extern hpx_t *neurons;
+extern hpx_t *neurons_;
 
 /// length of neurox::neurons
-extern int neurons_count;
+extern int neurons_count_;
 
 /// array to all existing mechanisms
-extern neurox::Mechanism **mechanisms;
+extern neurox::Mechanism **mechanisms_;
 
 /// length of neuronx::mechanisms
-extern int mechanisms_count;
+extern int mechanisms_count_;
 
 /// map of mechanisms offset in 'mechanisms' by 'mechanism type'
-extern int *mechanisms_map;
+extern int *mechanisms_map_;
 
 /// Parameters parsed from command line
-extern tools::CmdLineParser *input_params;
+extern tools::CmdLineParser *input_params_;
 
 /// algorithm instance
-extern algorithms::Algorithm *algorithm;
+extern algorithms::Algorithm *algorithm_;
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);
@@ -92,50 +92,9 @@ static int Clear_handler();
 
 /// HPX-actions registration
 void RegisterHpxActions();
-
-/// Memory pinning from an hpx memorry address to a local pointer
-template <typename T>
-bool MemoryPin(T *&local, hpx_t &target) {
-  target = hpx_thread_current_target();
-  return hpx_gas_try_pin(target, (void **)&local);
-}
-
-/// Memory UNpinning from an hpx memorry address to a local pointer
-template <typename T>
-hpx_status_t MemoryUnpin(hpx_t target) {
-  hpx_gas_unpin(target);
-  return HPX_SUCCESS;
-}
-
-/// call action (with arguments) on all localities
-template <typename... Args>
-hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
-  return hpx_bcast_rsync(f, args...);
-}
-
-/// count the number of arguments
-template <typename... ArgTypes>
-inline int CountArgs(ArgTypes... args);
-
-template <typename T, typename... ArgTypes>
-inline int CountArgs(T t, ArgTypes... args) {
-  return 1 + CountArgs(args...);
-}
-template <>
-inline int CountArgs() {
-  return 0;
-}
-
-/// calls method (with arguments) on all neurons in neurox::neurons
-template <typename... Args>
-hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
-  hpx_t lco = hpx_lco_and_new(neurox::neurons_count);
-  int e = HPX_SUCCESS;
-  int n = neurox::CountArgs(args...);
-  for (size_t i = 0; i < neurox::neurons_count; i++)
-    e += _hpx_call(neurox::neurons[i], f, lco, n, args...);
-  hpx_lco_wait_reset(lco);
-  hpx_lco_delete_sync(lco);
-  return e;
-}
 };
+
+// hpx macros and hpx-wrapperss
+// TODO can we move this somewhere else?
+#include "neurox/macros.h"
+#include "neurox/wrappers.h"

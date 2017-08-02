@@ -17,7 +17,7 @@ class Algorithm {
   virtual ~Algorithm(){};
 
   /// Returns total count of steps of fixed size defined by user
-  static int getTotalStepsCount();
+  static int GetTotalStepsCount();
 
   /// Returns an instantiated class of the given type
   static Algorithm* New(AlgorithmType);
@@ -61,8 +61,8 @@ class Algorithm {
 
 };  // neurox
 
-// TODO can we get rid of this?
-#include "neurox/algorithms/all_reduce_algorithm.h"
+// TODO can we move this somewhere else?
+#include "neurox/algorithms/allreduce_algorithm.h"
 #include "neurox/algorithms/coreneuron_algorithm.h"
 #include "neurox/algorithms/debug_algorithm.h"
 #include "neurox/algorithms/sliding_time_window_algorithm.h"

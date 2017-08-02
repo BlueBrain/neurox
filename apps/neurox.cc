@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
   neurox::tools::Statistics::RegisterHpxActions();
   neurox::tools::LoadBalancing::RegisterHpxActions();
   neurox::input::DataLoader::RegisterHpxActions();
-  neurox::algorithms::AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions();
+  neurox::algorithms::AllreduceAlgorithm::AllReducesInfo::RegisterHpxActions();
 #if !defined(NDEBUG)
   neurox::input::Debugger::RegisterHpxActions();
 #endif
@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   }
 
   // parse command line arguments
-  neurox::input_params = new tools::CmdLineParser(argc, argv);
+  neurox::input_params_ = new tools::CmdLineParser(argc, argv);
 
   /// all compute nodes load the data (mechs info is accessible to all)
   neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false,

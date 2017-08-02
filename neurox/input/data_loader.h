@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS false
-#define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS false
+#define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS true
+#define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS true
 
 using namespace std;
 
@@ -25,15 +25,18 @@ class DataLoader {
   DataLoader() = delete;
   ~DataLoader() = delete;
 
-  static void loadData(int argc,
-                       char **argv);  ///> Copies Coreneuron data structs to HPX
-  static void InitAndLoadCoreneuronData(
-      int argc, char **argv, bool nrnmpi_under_nrncontrol = false,
-      bool run_setup_cleanup =
-          false);  ///> call coreneuron nrn_init_and_load_data
-  static void CleanCoreneuronData(
-      const bool clean_ion_global_map =
-          true);  ///>removes all Nrn data structures
+  /// Copies Coreneuron data structs to HPX memory
+  static void loadData(int argc, char **argv);
+
+  /// Calls coreneuron nrn_init_and_load_data
+  static void InitAndLoadCoreneuronData(int argc, char **argv,
+                                        bool nrnmpi_under_nrncontrol = false,
+                                        bool run_setup_cleanup = false);
+
+  /// removes all data structures loaded for coreneuron
+  static void CleanCoreneuronData(const bool clean_ion_global_map = true);
+
+  /// Registers all HPX actions
   static void RegisterHpxActions();
 
   static hpx_action_t Init;
@@ -43,76 +46,78 @@ class DataLoader {
   static hpx_action_t InitNetcons;
   static hpx_action_t Finalize;
 
-  class IonInstancesInfo {
+  /// holds information about offsets of instances of mechanisms
+  struct IonInstancesInfo {
    public:
-    int mechType;
-    offset_t dataStart,
-        dataEnd;          ///> beginning and end offsets of instances in data
-    vector<int> nodeIds;  ///> compartments ids for each instance
+    int mech_type;
+    offset_t data_start;   ///> beginning offset of instances in data
+    offset_t data_end;     ///> end offset of instances in data
+    vector<int> node_ids;  ///> compartments ids for each instance
   };
 
  private:
   /// pointer of netcons.dot file
-  static FILE *fileNetcons;
+  static FILE *file_netcons_;
 
   /// mutex controlling multi-threaded write of data structs
-  static hpx_t all_neurons_mutex;
+  static hpx_t all_neurons_mutex_;
 
   /// temporary hpx address of neurons read by this locality
-  static std::vector<hpx_t> *my_neurons_addr;
+  static std::vector<hpx_t> *my_neurons_addr_;
 
   /// temporary gid of neurons read by this locality
-  static std::vector<int> *my_neurons_gids;
+  static std::vector<int> *my_neurons_gids_;
 
   /// gids of all neurons in the system
-  static std::vector<int> *all_neurons_gids;
+  static std::vector<int> *all_neurons_gids_;
 
   /// pointer to load balancing instantiated class (if any)
-  static tools::LoadBalancing *loadBalancing;
+  static tools::LoadBalancing *load_balancing_;
 
   static hpx_t CreateBranch(
-      int nrnThreadId, hpx_t somaBranchAddr,
-      deque<Compartment *> &allCompartments, Compartment *topCompartment,
-      vector<DataLoader::IonInstancesInfo> &ionsInstancesInfo,
-      int branchingDepth, int thvar_index = -1 /*AIS*/,
-      floble_t APthreshold = 0 /*AIS*/);
+      int nrn_thread_id, hpx_t soma_branch_addr,
+      deque<Compartment *> &all_compartments, Compartment *top_compartment,
+      vector<DataLoader::IonInstancesInfo> &ions_instances_info,
+      int branching_depth, int thvar_index = -1 /*AIS*/,
+      floble_t ap_threshold = 0 /*AIS*/);
 
   static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
-  static void getMechTypeAndInstanceForBranch(int &mechType, int &mechInstance);
+  static void getMechTypeAndInstanceForBranch(int &mech_type,
+                                              int &mech_instance);
 
   static int GetBranchData(
       deque<Compartment *> &compartments, vector<floble_t> &data,
       vector<offset_t> &pdata, vector<unsigned char> &vdata,
-      vector<offset_t> &p, vector<offset_t> &instancesCount,
-      vector<offset_t> &nodesIndices, int N,
-      vector<DataLoader::IonInstancesInfo> &ionsInstancesInfo,
-      vector<map<int, int>> *mechInstanceMap = NULL);
+      vector<offset_t> &p, vector<offset_t> &instances_count,
+      vector<offset_t> &nodes_indices, int N,
+      vector<DataLoader::IonInstancesInfo> &ions_instances_info,
+      vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetVecPlayBranchData(
-      deque<Compartment *> &compartments, vector<floble_t> &vecPlayTdata,
-      vector<floble_t> &vecPlayYdata, vector<PointProcInfo> &vecPlayInfo,
-      vector<map<int, int>> *mechInstanceMap = NULL);
+      deque<Compartment *> &compartments, vector<floble_t> &vecplay_t_data,
+      vector<floble_t> &vecplay_y_data, vector<PointProcInfo> &vecplay_info,
+      vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetNetConsBranchData(
-      deque<Compartment *> &compartments, vector<NetConX> &branchNetCons,
-      vector<neuron_id_t> &branchNetConsPreId,
-      vector<floble_t> &branchNetConsArgs,
-      vector<map<int, int>> *mechInstanceMap = NULL);
+      deque<Compartment *> &compartments, vector<NetconX> &branch_netcons,
+      vector<neuron_id_t> &branch_netcons_pre_id,
+      vector<floble_t> &branch_netcons_args,
+      vector<map<int, int>> *mech_instance_map = NULL);
 
-  static void GetAllChildrenCompartments(deque<Compartment *> &subSection,
-                                         Compartment *topCompartment);
+  static void GetAllChildrenCompartments(deque<Compartment *> &sub_section,
+                                         Compartment *top_compartment);
 
   static void GetMechInstanceMap(deque<Compartment *> &compartments,
-                                 vector<map<int, int>> &mechsInstancesMap);
+                                 vector<map<int, int>> &mechs_instance_map);
 
-  static void SetMechanisms2(const int mechsCount, const int *mechsIds,
-                             const int *dependenciesCount,
+  static void SetMechanisms2(const int mechs_count, const int *mechs_ids,
+                             const int *dependencies_count,
                              const int *dependencies,
-                             const int *successorsCount,
+                             const int *successors_count,
                              const int *successors);  ///> Set Mechanisms
 
-  static void PrintSubClustersToFile(FILE *fileCompartments,
-                                     Compartment *topCompartment);
+  static void PrintSubClustersToFile(FILE *file_compartments,
+                                     Compartment *top_compartment);
 
   static PointProcInfo GetPointProcInfoFromDataPointer(NrnThread *nt,
                                                        double *pd, size_t size);

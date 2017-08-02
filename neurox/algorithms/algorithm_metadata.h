@@ -15,9 +15,9 @@ enum AlgorithmType {
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 
-class AlgorithmMetaData {
+class AlgorithmMetadata {
  public:
-  static AlgorithmMetaData* New(AlgorithmType);
+  static AlgorithmMetadata* New(AlgorithmType);
 };
 
 };  // algorithms

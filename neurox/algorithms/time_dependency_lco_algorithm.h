@@ -25,12 +25,12 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
   void StepEnd(Branch*, hpx_t) override;
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
-  void AfterReceiveSpikes(Branch* local, hpx_t target, neuron_id_t preNeuronId,
-                          spike_time_t spikeTime,
-                          spike_time_t maxTime) override;
+  void AfterReceiveSpikes(Branch* local, hpx_t target,
+                          neuron_id_t pre_neuron_id, spike_time_t spike_time,
+                          spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public AlgorithmMetaData {
+  class TimeDependencies : public AlgorithmMetadata {
    public:
     TimeDependencies();
     ~TimeDependencies();
@@ -42,9 +42,9 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
                                   std::vector<Neuron::Synapse*>& synapses);
 
     /// update time of a given dependency
-    void UpdateTimeDependency(neuron_id_t srcGid,
-                              floble_t dependencyNotificationTime,
-                              neuron_id_t myGid = -1,
+    void UpdateTimeDependency(neuron_id_t src_gid,
+                              floble_t dependency_notification_time,
+                              neuron_id_t my_gid = -1,
                               bool initialization = false);
 
     /// get smallest time across all dependencies
@@ -57,18 +57,18 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
     void IncreseDependenciesTime(floble_t t);
 
     /// ratio of notification interval (0,1]
-    static floble_t notificationIntervalRatio;
+    static constexpr const floble_t kNotificationIntervalRatio = 1;
 
     /// time-epsilon to correct wrong delivery of events due to floating point
     /// rounding
-    static double teps;
+    static constexpr const double kTEps = 1e-8;
 
    private:
     ///> map of actual time per dependency if
-    std::map<neuron_id_t, floble_t> dependenciesMap;
-    libhpx_cond_t dependenciesWaitCondition;
-    libhpx_mutex_t dependenciesLock;
-    floble_t dependenciesTimeNeuronWaitsFor;
+    std::map<neuron_id_t, floble_t> dependencies_map_;
+    libhpx_cond_t dependencies_wait_condition_;
+    libhpx_mutex_t dependencies_lock_;
+    floble_t dependencies_time_neuron_waits_for_;
   };
 };
 

@@ -7,10 +7,10 @@ namespace neurox {
 
 namespace algorithms {
 
-class AllReduceAlgorithm : public Algorithm {
+class AllreduceAlgorithm : public Algorithm {
  public:
-  AllReduceAlgorithm();
-  ~AllReduceAlgorithm();
+  AllreduceAlgorithm();
+  ~AllreduceAlgorithm();
 
   const AlgorithmType GetType() override;
   const char* GetTypeString() override;
@@ -24,17 +24,17 @@ class AllReduceAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  static void SubscribeAllReduces(hpx_t*& allReduces, size_t kAllReducesCount);
-  static void UnsubscribeAllReduces(hpx_t*& allReduces,
-                                    size_t kAllReducesCount);
-  static void WaitForSpikesDelivery(Branch* b, hpx_t spikesLco);
+  static void SubscribeAllReduces(hpx_t*& allreduces, size_t allreduces_count);
+  static void UnsubscribeAllReduces(hpx_t*& allreduces,
+                                    size_t allreduces_count);
+  static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
   static hpx_t SendSpikes2(Neuron*, double);
   static void Run2(Branch*, const void*);
 
   const size_t kAllReducesCount = 1;
-  static hpx_t* allReduces;
+  static hpx_t* allreduces_;
 
-  class AllReducesInfo : public AlgorithmMetaData {
+  class AllReducesInfo : public AlgorithmMetadata {
    public:
     AllReducesInfo();
     ~AllReducesInfo();
@@ -42,15 +42,15 @@ class AllReduceAlgorithm : public Algorithm {
     static void RegisterHpxActions();  ///> Register all HPX actions
 
     // set by initNodeLevelInformaion
-    static int reductionsPerCommStep;
+    static int reductions_per_comm_step_;
 
     // for node level reduction only (initialized by initNodeLevelInformaion)
     class AllReduceLocality {
      public:
-      static std::vector<hpx_t>* localityNeurons;
-      static hpx_t* allReduceFuture;
-      static hpx_t* allReduceLco;
-      static int* allReduceId;
+      static std::vector<hpx_t>* locality_neurons_;
+      static hpx_t* allreduce_future_;
+      static hpx_t* allreduce_lco_;
+      static int* allreduce_id_;
 
       static hpx_action_t SubscribeAllReduce;
       static hpx_action_t UnsubscribeAllReduce;
@@ -60,10 +60,10 @@ class AllReduceAlgorithm : public Algorithm {
     };
 
     // initiated by constructor (one per neuron)
-    std::queue<hpx_t> spikesLcoQueue;
-    hpx_t* allReduceFuture;
-    hpx_t* allReduceLco;
-    int* allReduceId;
+    std::queue<hpx_t> spikes_lco_queue_;
+    hpx_t* allreduce_future_;
+    hpx_t* allreduce_lco_;
+    int* allreduce_id_;
 
     // all-reduce functions
     static hpx_action_t Init;
@@ -72,7 +72,7 @@ class AllReduceAlgorithm : public Algorithm {
     static hpx_action_t UnsubscribeAllReduce;
     static hpx_action_t SetReductionsPerCommStep;
 
-    static void Init_handler(const void*, const size_t);
+    static void Init_handler(void*, const size_t);
     static void Reduce_handler(void* rhs, const void* lhs, const size_t);
     static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
     static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);

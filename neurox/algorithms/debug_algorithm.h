@@ -24,13 +24,13 @@ class DebugAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public AlgorithmMetaData {
+  class CommunicationBarrier : public AlgorithmMetadata {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();
 
     /// LCO for all spikes of previous Comm Step (for fixed step methods)
-    hpx_t allSpikesLco;
+    hpx_t all_spikes_lco_;
   };
 };
 

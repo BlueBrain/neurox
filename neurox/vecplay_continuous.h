@@ -11,12 +11,12 @@ namespace neurox {
  * Equivalent to Coreneuron's VecPlayContinuous in nrniv/vrecitem.h
  * Includes/stores (?) information about continuous events
  */
-class VecPlayContinuousX : Event {
+class VecplayContinuousX : Event {
  public:
-  VecPlayContinuousX() = delete;
-  VecPlayContinuousX(double*, size_t size_, floble_t* yvec, floble_t* tvec,
+  VecplayContinuousX() = delete;
+  VecplayContinuousX(double*, size_t size_, floble_t* yvec, floble_t* tvec,
                      floble_t* discon);
-  ~VecPlayContinuousX();
+  ~VecplayContinuousX();
 
   /// delivers this event at a given branch and time
   void Deliver(floble_t t, Branch* branch);
