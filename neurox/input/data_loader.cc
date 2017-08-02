@@ -26,12 +26,12 @@ using namespace std;
 using namespace neurox::input;
 using namespace neurox::algorithms;
 
-FILE *DataLoader::fileNetcons = nullptr;
-hpx_t DataLoader::all_neurons_mutex = HPX_NULL;
-std::vector<hpx_t> *DataLoader::my_neurons_addr = nullptr;
-std::vector<int> *DataLoader::my_neurons_gids = nullptr;
-std::vector<int> *DataLoader::all_neurons_gids = nullptr;
-tools::LoadBalancing *DataLoader::loadBalancing = nullptr;
+FILE *DataLoader::file_netcons_ = nullptr;
+hpx_t DataLoader::all_neurons_mutex_ = HPX_NULL;
+std::vector<hpx_t> *DataLoader::my_neurons_addr_ = nullptr;
+std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
+std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
+tools::LoadBalancing *DataLoader::loa_balancing_ = nullptr;
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
@@ -197,12 +197,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     {
       if (mech->is_ion_) {
         if (n == 0) {
-          ionsInstancesInfo[ionOffset].mechType = type;
-          ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
-          ionsInstancesInfo[ionOffset].dataEnd =
+          ionsInstancesInfo[ionOffset].mech_type = type;
+          ionsInstancesInfo[ionOffset].data_start = dataTotalOffset;
+          ionsInstancesInfo[ionOffset].data_end =
               dataTotalOffset + ml->nodecount * mech->data_size_;
         }
-        ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
+        ionsInstancesInfo[ionOffset].node_ids.push_back(ml->nodeindices[n]);
       }
 
       std::vector<double> data;
@@ -355,14 +355,14 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     int netConsFromOthers = 0;
     for (auto nc : netcons) {
       int srcGid = nc.first;
-      if (std::find(all_neurons_gids->begin(), all_neurons_gids->end(),
-                    srcGid) == all_neurons_gids->end())
+      if (std::find(all_neurons_gids_->begin(), all_neurons_gids_->end(),
+                    srcGid) == all_neurons_gids_->end())
         netConsFromOthers++;
       else {
         floble_t minDelay = 99999;
         for (auto ncv : nc.second)  // get minimum delay between neurons
           minDelay = std::min(minDelay, ncv->delay_);
-        fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
+        fprintf(file_netcons_, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
                 neuronId, nc.second.size(), minDelay);
       }
     }
@@ -574,14 +574,14 @@ int DataLoader::InitMechanisms_handler() {
 hpx_action_t DataLoader::Init = 0;
 int DataLoader::Init_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  all_neurons_gids = new std::vector<int>();
-  all_neurons_mutex = hpx_lco_sema_new(1);
+  all_neurons_gids_ = new std::vector<int>();
+  all_neurons_mutex_ = hpx_lco_sema_new(1);
 
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
   if (hpx_get_my_rank() == 0 &&
       (input_params_->load_balancing_ || input_params_->output_statistics_))
-    loadBalancing = new tools::LoadBalancing();
+    loa_balancing_ = new tools::LoadBalancing();
 
   if (neurox::ParallelExecution()  // disable output of netcons for parallel
                                    // loading
@@ -593,8 +593,8 @@ int DataLoader::Init_handler() {
 
   if (input_params_->output_netcons_dot) {
     assert(HPX_LOCALITIES == 1);
-    fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
-    fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n",
+    file_netcons_ = fopen(string("netcons.dot").c_str(), "wt");
+    fprintf(file_netcons_, "digraph G\n{ bgcolor=%s; layout=circo;\n",
             "transparent");
 #if NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS == true
     fprintf(fileNetcons, "external [color=gray fontcolor=gray];\n");
@@ -632,31 +632,31 @@ int DataLoader::InitNeurons_handler() {
   }
 #endif
 
-  my_neurons_addr = new std::vector<hpx_t>();
-  my_neurons_gids = new std::vector<int>();
+  my_neurons_addr_ = new std::vector<hpx_t>();
+  my_neurons_gids_ = new std::vector<int>();
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, myNrnThreadsCount, nullptr);
 
   // all neurons created, advertise them
-  hpx_bcast_rsync(DataLoader::AddNeurons, my_neurons_gids->data(),
-                  sizeof(int) * my_neurons_gids->size(),
-                  my_neurons_addr->data(),
-                  sizeof(hpx_t) * my_neurons_addr->size());
+  hpx_bcast_rsync(DataLoader::AddNeurons, my_neurons_gids_->data(),
+                  sizeof(int) * my_neurons_gids_->size(),
+                  my_neurons_addr_->data(),
+                  sizeof(hpx_t) * my_neurons_addr_->size());
 
-  my_neurons_gids->clear();
-  delete my_neurons_gids;
-  my_neurons_gids = nullptr;
-  my_neurons_addr->clear();
-  delete my_neurons_addr;
-  my_neurons_addr = nullptr;
+  my_neurons_gids_->clear();
+  delete my_neurons_gids_;
+  my_neurons_gids_ = nullptr;
+  my_neurons_addr_->clear();
+  delete my_neurons_addr_;
+  my_neurons_addr_ = nullptr;
 
   if (input_params_->allreduce_at_locality_) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
     AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        new std::vector<hpx_t>(my_neurons_addr->begin(),
-                               my_neurons_addr->end());
+        new std::vector<hpx_t>(my_neurons_addr_->begin(),
+                               my_neurons_addr_->end());
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -679,10 +679,10 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
   const int *neurons_gids = (const int *)args[0];
   const hpx_t *neurons_addr = (const hpx_t *)args[1];
 
-  hpx_lco_sema_p(all_neurons_mutex);
+  hpx_lco_sema_p(all_neurons_mutex_);
 
-  all_neurons_gids->insert(all_neurons_gids->end(), neurons_gids,
-                           neurons_gids + recv_neurons_count);
+  all_neurons_gids_->insert(all_neurons_gids_->end(), neurons_gids,
+                            neurons_gids + recv_neurons_count);
 
   // add the values to neurox::neurons
   hpx_t *neurons_new = new hpx_t[neurox::neurons_count_ + recv_neurons_count];
@@ -695,8 +695,8 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
   neurox::neurons_count_ += recv_neurons_count;
   neurox::neurons_ = neurons_new;
 
-  assert(all_neurons_gids->size() == neurox::neurons_count_);
-  hpx_lco_sema_v_sync(all_neurons_mutex);
+  assert(all_neurons_gids_->size() == neurox::neurons_count_);
+  hpx_lco_sema_v_sync(all_neurons_mutex_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -734,7 +734,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
                                 const int *dependencies,
                                 const int *successorsCount,
                                 const int *successors) {
-  hpx_lco_sema_p(all_neurons_mutex);
+  hpx_lco_sema_p(all_neurons_mutex_);
 
   // if I'm receiving new information, rebuild mechanisms
   if (mechsCount > neurox::mechanisms_count_) {
@@ -791,7 +791,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
       }
     }
   }
-  hpx_lco_sema_v_sync(all_neurons_mutex);
+  hpx_lco_sema_v_sync(all_neurons_mutex_);
 }
 
 hpx_action_t DataLoader::Finalize = 0;
@@ -805,8 +805,8 @@ int DataLoader::Finalize_handler() {
       locality_neurons_;
 
   if (input_params_->output_netcons_dot) {
-    fprintf(fileNetcons, "}\n");
-    fclose(fileNetcons);
+    fprintf(file_netcons_, "}\n");
+    fclose(file_netcons_);
   }
 
   if (input_params_->output_mechanisms_dot_) {
@@ -887,12 +887,12 @@ int DataLoader::Finalize_handler() {
   }
 #endif
 
-  all_neurons_gids->clear();
-  delete all_neurons_gids;
-  all_neurons_gids = nullptr;
+  all_neurons_gids_->clear();
+  delete all_neurons_gids_;
+  all_neurons_gids_ = nullptr;
 
   nrn_setup_cleanup();
-  hpx_lco_delete_sync(all_neurons_mutex);
+  hpx_lco_delete_sync(all_neurons_mutex_);
 
 #if defined(NDEBUG)
   // if not on debug, there's no CoreNeuron comparison, so data can be
@@ -903,8 +903,8 @@ int DataLoader::Finalize_handler() {
   if (input_params_->output_statistics_)
     tools::LoadBalancing::LoadBalancing::PrintTable();
 
-  delete loadBalancing;
-  loadBalancing = nullptr;
+  delete loa_balancing_;
+  loa_balancing_ = nullptr;
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -1176,13 +1176,13 @@ int DataLoader::GetBranchData(
                 Mechanism::IonTypes ionOffset = ion->GetIonIndex();
                 IonInstancesInfo &ionInfo =
                     ionsInstancesInfo.at((int)ionOffset);
-                int dataStart = ionInfo.dataStart;
-                assert(pd >= dataStart && pd < ionInfo.dataEnd);
+                int dataStart = ionInfo.data_start;
+                assert(pd >= dataStart && pd < ionInfo.data_end);
 
                 int instanceOffset =
                     trunc((double)(pd - dataStart) / (double)ion->data_size_);
                 int instanceVariableOffset = (pd - dataStart) % ion->data_size_;
-                int nodeId = ionInfo.nodeIds.at(instanceOffset);
+                int nodeId = ionInfo.node_ids.at(instanceOffset);
                 int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                 pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(
                                              make_pair(ion->type_, newNodeId)) +
@@ -1416,10 +1416,10 @@ hpx_t DataLoader::CreateBranch(
     hpx_call_sync(branchAddr, Branch::InitSoma, NULL, 0, &neuronId,
                   sizeof(neuron_id_t), &APthreshold, sizeof(floble_t));
 
-    hpx_lco_sema_p(all_neurons_mutex);
-    my_neurons_addr->push_back(branchAddr);
-    my_neurons_gids->push_back(neuronId);
-    hpx_lco_sema_v_sync(all_neurons_mutex);
+    hpx_lco_sema_p(all_neurons_mutex_);
+    my_neurons_addr_->push_back(branchAddr);
+    my_neurons_gids_->push_back(neuronId);
+    hpx_lco_sema_v_sync(all_neurons_mutex_);
   }
   return branchAddr;
 }
@@ -1430,7 +1430,7 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
   if (local->soma_ && input_params_->output_netcons_dot)
-    fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n",
+    fprintf(file_netcons_, "%d [style=filled, shape=ellipse];\n",
             local->soma_->gid_);
 
   std::deque<std::pair<hpx_t, floble_t>>
@@ -1439,10 +1439,10 @@ int DataLoader::InitNetcons_handler() {
       dependencies;  // set of <srcGid, nextNotificationtime> for dependencies
 
   const floble_t impossiblyLargeDelay = 99999999;
-  for (int i = 0; i < all_neurons_gids->size();
+  for (int i = 0; i < all_neurons_gids_->size();
        i++)  // loop through all neurons
   {
-    neuron_id_t srcGid = all_neurons_gids->at(i);
+    neuron_id_t srcGid = all_neurons_gids_->at(i);
 
     // if I'm connected to it (ie is not artificial or non-existent)
     if (local->netcons_.find(srcGid) != local->netcons_.end()) {
@@ -1453,7 +1453,7 @@ int DataLoader::InitNetcons_handler() {
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE == true
       if (input_params_->output_netcons_dot && minDelay != impossiblyLargeDelay)
-        fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
+        fprintf(file_netcons_, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
                 local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
 #endif
 
