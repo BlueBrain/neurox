@@ -33,7 +33,9 @@ Neuron::~Neuron() {
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
                          hpx_t topBranchAddr, int destinationGid)
-    : branch_addr_(branchAddr), min_delay_(minDelay), top_branch_addr_(topBranchAddr) {
+    : branch_addr_(branchAddr),
+      min_delay_(minDelay),
+      top_branch_addr_(topBranchAddr) {
   const double& teps = TimeDependencyLCOAlgorithm::TimeDependencies::teps;
   const double& notification_ratio =
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
@@ -49,8 +51,7 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
 }
 
 Neuron::Synapse::~Synapse() {
-  if (previous_spike_lco_ != HPX_NULL)
-      hpx_lco_delete_sync(previous_spike_lco_);
+  if (previous_spike_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_spike_lco_);
 }
 
 size_t Neuron::GetSynapsesCount() {

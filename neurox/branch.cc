@@ -88,8 +88,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // AP threshold offset
   this->thvar_ptr_ = threshold_v_offset == -1
-                        ? NULL
-                        : &(this->nt_->_actual_v[threshold_v_offset]);
+                         ? NULL
+                         : &(this->nt_->_actual_v[threshold_v_offset]);
 
   // events mutex
   this->events_queue_mutex_ = hpx_lco_sema_new(1);
@@ -156,21 +156,24 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       assert(data_offset <= data_count);
       assert(vdata_offset <= vdata_serialized_count);
       floble_t *instance_data = (floble_t *)&this->nt_->_data[data_offset];
-      floble_t *instance_data_2 = (floble_t *)&instance.data[i * mech->data_size_];
+      floble_t *instance_data_2 =
+          (floble_t *)&instance.data[i * mech->data_size_];
       offset_t *instance_pdata =
           (offset_t *)&instance.pdata[i * mech->pdata_size_];
       assert(instance_data =
                  instance_data_2);  // Make sure data offsets are good so far
 
       if (mech->vdata_size_ > 0 || mech->pnt_map_ > 0) {
-        assert(
-            (mech->type_ == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-             mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-            (mech->type_ == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-             mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-            ((mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-              mech->type_ == MechanismTypes::kProbGABAAB_EMS) &&
-             mech->vdata_size_ == 2 && mech->pdata_size_ == 3 && mech->pnt_map_ > 0));
+        assert((mech->type_ == MechanismTypes::kIClamp &&
+                mech->vdata_size_ == 1 && mech->pdata_size_ == 2 &&
+                mech->pnt_map_ > 0) ||
+               (mech->type_ == MechanismTypes::kStochKv &&
+                mech->vdata_size_ == 1 && mech->pdata_size_ == 5 &&
+                mech->pnt_map_ == 0) ||
+               ((mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+                 mech->type_ == MechanismTypes::kProbGABAAB_EMS) &&
+                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
+                mech->pnt_map_ > 0));
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -205,7 +208,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         if (mech->type_ == MechanismTypes::kStochKv ||
             mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
             mech->type_ == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata = mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
+          int rng_offset_in_pdata =
+              mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
           nrnran123_State *rng =
               (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
           nrnran123_State *rngcopy = new nrnran123_State;
@@ -260,8 +264,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     size_t size = ppi.size;
     int m = mechanisms_map_[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
-    floble_t *pd = &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
-                                   ppi.instance_data_offset]);
+    floble_t *pd =
+        &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
+                         ppi.instance_data_offset]);
     floble_t *yvec = new floble_t[size];
     floble_t *tvec = new floble_t[size];
     for (size_t i = 0; i < size; i++) {
@@ -317,9 +322,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // reconstructs netcons
   offset_t weights_offset = 0;
   for (offset_t nc = 0; nc < netcons_count; nc++) {
-    this->netcons_[netcons_pre_ids[nc]].push_back(new NetconX(
-        netcons[nc].mech_type_, netcons[nc].mech_instance_, netcons[nc].delay_,
-        netcons[nc].weight_index_, netcons[nc].weights_count_, netcons[nc].active_));
+    this->netcons_[netcons_pre_ids[nc]].push_back(
+        new NetconX(netcons[nc].mech_type_, netcons[nc].mech_instance_,
+                    netcons[nc].delay_, netcons[nc].weight_index_,
+                    netcons[nc].weights_count_, netcons[nc].active_));
     assert(weights_offset == netcons[nc].weight_index_);
     weights_offset += netcons[nc].weights_count_;
   }
@@ -483,8 +489,9 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
     {
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count_; m++) {
-        if (mechanisms_[m]->type_ == CAP) continue;            // not capacitance
-        if (mechanisms_[m]->dependencies_count_ > 0) continue;  // not a top branch
+        if (mechanisms_[m]->type_ == CAP) continue;  // not capacitance
+        if (mechanisms_[m]->dependencies_count_ > 0)
+          continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
                     &function_id, HPX_NULL, HPX_NULL);
       }
@@ -526,7 +533,8 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   }
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
-  algorithm_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time, max_time);
+  algorithm_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
+                                 max_time);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -546,9 +554,9 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   TimeDependencyLCOAlgorithm::TimeDependencies *time_dependencies =
       (TimeDependencyLCOAlgorithm::TimeDependencies *)
           local->soma_->algorithm_metadata_;
-  time_dependencies->UpdateTimeDependency(pre_neuron_id, (floble_t)max_time,
-                                         local->soma_ ? local->soma_->gid_ : -1,
-                                         init_phase);
+  time_dependencies->UpdateTimeDependency(
+      pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
+      init_phase);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -677,8 +685,8 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
       for (int i = 0; i < locality_neurons_count; i++)
         hpx_call(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                      localityNeurons->at(i),
-                 Branch::BackwardEuler, locality_neurons_lco, &steps_per_reduction,
-                 sizeof(int));
+                 Branch::BackwardEuler, locality_neurons_lco,
+                 &steps_per_reduction, sizeof(int));
       hpx_lco_wait_reset(locality_neurons_lco);
     }
   }
@@ -748,7 +756,8 @@ void Branch::DeliverEvents(floble_t til)  // til=t+0.5*dt
   // delivers events in the preivous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
-  while (!this->events_queue_.empty() && this->events_queue_.top().first <= til) {
+  while (!this->events_queue_.empty() &&
+         this->events_queue_.top().first <= til) {
     auto event_it = this->events_queue_.top();
     floble_t &tt = event_it.first;
     Event *&e = event_it.second;
@@ -804,7 +813,7 @@ int Branch::BranchTree::InitLCOs_handler() {
           local->soma_ ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
     branch_tree->with_children_lcos_ =
         branches_count ? new hpx_t[branches_count][BranchTree::kFuturesSize]
-                      : nullptr;
+                       : nullptr;
 
     // send my LCOs to children, and receive theirs
     if (branches_count > 0) {
@@ -829,7 +838,8 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma_)  // send my LCO to parent
-      return neurox::wrappers::MemoryUnpin(target, branch_tree->with_parent_lco_);
+      return neurox::wrappers::MemoryUnpin(target,
+                                           branch_tree->with_parent_lco_);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -904,9 +914,9 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
       hpx_lco_set(local->mechs_graph_->end_lco_, 0, NULL, HPX_NULL, HPX_NULL);
     else
       for (int c = 0; c < mech->successors_count_; c++)
-        hpx_lco_set(
-            local->mechs_graph_->mechs_lcos_[mechanisms_map_[mech->successors_[c]]],
-            sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
+        hpx_lco_set(local->mechs_graph_
+                        ->mechs_lcos_[mechanisms_map_[mech->successors_[c]]],
+                    sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }

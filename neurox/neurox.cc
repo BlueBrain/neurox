@@ -102,7 +102,8 @@ static int Main_handler() {
   printf(
       "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
       "secs).\n",
-      neurox::neurons_count_, input_params_->tstop_ / 1000.0, total_time_elapsed);
+      neurox::neurons_count_, input_params_->tstop_ / 1000.0,
+      total_time_elapsed);
 
   neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);

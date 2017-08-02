@@ -70,8 +70,8 @@ void TimeDependencyLCOAlgorithm::StepBegin(Branch* b) {
     TimeDependencies* timeDependencies =
         (TimeDependencies*)b->soma_->algorithm_metadata_;
     // inform time dependants that must be notified in this step
-    timeDependencies->SendSteppingNotification(b->nt_->_t, b->nt_->_dt,
-                                               b->soma_->gid_, b->soma_->synapses_);
+    timeDependencies->SendSteppingNotification(
+        b->nt_->_t, b->nt_->_dt, b->soma_->gid_, b->soma_->synapses_);
     // wait until Im sure I can start and finalize this step at t+dt
     timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
                                                    b->soma_->gid_);
@@ -278,8 +278,9 @@ void TimeDependencyLCOAlgorithm::TimeDependencies::SendSteppingNotification(
       // wait for previous synapse to be delivered (if any) before telling
       // post-syn neuron to proceed in time
       hpx_lco_wait(s->previous_spike_lco_);
-      hpx_call(s->top_branch_addr_, Branch::UpdateTimeDependency, HPX_NULL, &gid,
-               sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
+      hpx_call(s->top_branch_addr_, Branch::UpdateTimeDependency, HPX_NULL,
+               &gid, sizeof(neuron_id_t), &maxTimeAllowed,
+               sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
       printf("## %d notifies %d he can proceed up to %.6fms\n", gid,

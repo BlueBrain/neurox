@@ -55,7 +55,7 @@ class Branch {
 
     hpx_t* mechs_lcos_;  ///> HPX address of the and-gate of each mechanism
     hpx_t end_lco_;      ///> represents the bottom of the graph
-    hpx_t graph_lco_;    ///> controls all active threads on the mechanisms graph
+    hpx_t graph_lco_;  ///> controls all active threads on the mechanisms graph
 
     /// init function for hpx_reduce of mechanisms graphs
     static hpx_action_t Init;
@@ -80,7 +80,8 @@ class Branch {
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
-  } * mechs_graph_;  ///> represents the parallel computation graph of mechanisms
+  } * mechs_graph_;  ///> represents the parallel computation graph of
+                     ///mechanisms
 
   class BranchTree {
    public:

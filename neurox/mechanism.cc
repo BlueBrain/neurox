@@ -9,10 +9,11 @@ using namespace neurox;
 
 Mechanism::Mechanism(const int type, const short int data_size,
                      const short int pdata_size, const char is_artificial,
-                     char pnt_map, const char is_ion, const short int sym_length,
-                     const char *sym, Memb_func &memb_func,
-                     const short int dependencies_count, const int *dependencies,
-                     const short int successors_count, const int *successors)
+                     char pnt_map, const char is_ion,
+                     const short int sym_length, const char *sym,
+                     Memb_func &memb_func, const short int dependencies_count,
+                     const int *dependencies, const short int successors_count,
+                     const int *successors)
     : type_(type),
       data_size_(data_size),
       pdata_size_(pdata_size),
@@ -96,7 +97,8 @@ Mechanism::IonTypes Mechanism::GetIonIndex() {
   assert(this->memb_func_.sym);
   if (strcmp("na_ion", this->memb_func_.sym) == 0)
     return Mechanism::IonTypes::kNa;
-  if (strcmp("k_ion", this->memb_func_.sym) == 0) return Mechanism::IonTypes::kK;
+  if (strcmp("k_ion", this->memb_func_.sym) == 0)
+    return Mechanism::IonTypes::kK;
   if (strcmp("ttx_ion", this->memb_func_.sym) == 0)
     return Mechanism::IonTypes::kTTX;
   if (strcmp("ca_ion", this->memb_func_.sym) == 0)
@@ -144,7 +146,8 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     return;
   }
 
-  Memb_list *memb_list = &branch->mechs_instances_[mechanisms_map_[this->type_]];
+  Memb_list *memb_list =
+      &branch->mechs_instances_[mechanisms_map_[this->type_]];
   assert(memb_list);
   if (memb_list->nodecount > 0) switch (function_id) {
       case Mechanism::kBeforeInitialize:
@@ -153,7 +156,8 @@ void Mechanism::CallModFunction(const void *branch_ptr,
       case Mechanism::kAfterSolve:
       case Mechanism::kBeforeStep:
         if (before_after_functions_[(int)function_id])
-          before_after_functions_[(int)function_id](nrn_thread, memb_list, type_);
+          before_after_functions_[(int)function_id](nrn_thread, memb_list,
+                                                    type_);
         break;
       case Mechanism::ModFunctions::kAlloc:
         if (memb_func_.alloc)
@@ -207,7 +211,8 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         }
         break;
       case Mechanism::ModFunctions::kInitialize:
-        if (memb_func_.initialize) memb_func_.initialize(nrn_thread, memb_list, type_);
+        if (memb_func_.initialize)
+          memb_func_.initialize(nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kDestructor:
         if (memb_func_.destructor) memb_func_.destructor();
@@ -219,9 +224,9 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         break;
       case Mechanism::ModFunctions::kThreadTableCheck:
         if (memb_func_.thread_table_check_)
-          memb_func_.thread_table_check_(0, memb_list->nodecount, memb_list->data,
-                                       memb_list->pdata, memb_list->_thread,
-                                       nrn_thread, type_);
+          memb_func_.thread_table_check_(0, memb_list->nodecount,
+                                         memb_list->data, memb_list->pdata,
+                                         memb_list->_thread, nrn_thread, type_);
         break;
       case Mechanism::ModFunctions::kThreadCleanup:
         assert(0);  // should only be called by destructor ~Branch(...)

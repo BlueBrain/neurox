@@ -21,9 +21,9 @@ class NetconX : Event {
 
   EventTypes Type() { return EventTypes::kNetCon; }
 
-  int mech_type_;                 ///> mechanism type associated with this synapse
+  int mech_type_;  ///> mechanism type associated with this synapse
   unsigned short weights_count_;  ///> size of variable args
-  bool active_;                  ///> decides whether NetCon is active (or not)
+  bool active_;                   ///> decides whether NetCon is active (or not)
 
   /// synaptic delay (soma-bouton distance + transmitters release delay)
   floble_t delay_;

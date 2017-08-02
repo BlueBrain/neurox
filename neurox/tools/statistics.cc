@@ -64,7 +64,8 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
             neuron_size.neuron_id_, neuron_size.compartments_count_,
             neuron_size.branches_count_, neuron_size.mechs_instances_count_,
             neuron_size.getTotalSize(), neuron_size.morphologies_,
-            neuron_size.mechanisms_, neuron_size.synapses_, neuron_size.metadata_);
+            neuron_size.mechanisms_, neuron_size.synapses_,
+            neuron_size.metadata_);
     sim_size += neuron_size;
   }
 
@@ -96,8 +97,7 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
   printf("- Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
          sim_size.global_vars_, sim_size.global_vars_ / HPX_LOCALITIES,
          HPX_LOCALITIES);
-  if (write_to_file)
-      fclose(outstream);
+  if (write_to_file) fclose(outstream);
 }
 
 hpx_action_t Statistics::GetNeuronSize = 0;
@@ -133,7 +133,8 @@ int Statistics::GetNeuronSize_handler() {
 
     branch_size.mechs_instances_count_ += local->mechs_instances_[m].nodecount;
     branch_size.mechanisms_ +=
-        (double)(sizeof(offset_t) * local->mechs_instances_[m].nodecount) / 1024;
+        (double)(sizeof(offset_t) * local->mechs_instances_[m].nodecount) /
+        1024;
     if (mechanisms_[m]->data_size_ > 0)
       branch_size.mechanisms_ +=
           (double)(sizeof(floble_t) * mechanisms_[m]->data_size_ *
@@ -184,12 +185,13 @@ int Statistics::GetNeuronSize_handler() {
     delete[] addrs;
     delete[] sizes;
 
-    for (int c = 0; c < branches_count; c++) branch_size += sub_branches_size[c];
+    for (int c = 0; c < branches_count; c++)
+      branch_size += sub_branches_size[c];
 
     delete[] sub_branches_size;
   }
 
-  NEUROX_MEM_UNPIN_CONTINUE(branch_size); //TODO
+  NEUROX_MEM_UNPIN_CONTINUE(branch_size);  // TODO
 }
 
 void Statistics::OutputMechanismsDistribution(bool write_to_file) {
@@ -262,10 +264,11 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
       for (int m = 0; m < mechanisms_count_; m++)
         mechs_count_per_Type[m] += mechs_count_per_type_child[c][m];
 
-    for (int c = 0; c < branches_count; c++) delete[] mechs_count_per_type_child[c];
+    for (int c = 0; c < branches_count; c++)
+      delete[] mechs_count_per_type_child[c];
     delete[] mechs_count_per_type_child;
   }
-  NEUROX_MEM_UNPIN_CONTINUE(mechs_count_per_Type); //TODO
+  NEUROX_MEM_UNPIN_CONTINUE(mechs_count_per_Type);  // TODO
 }
 
 void Statistics::RegisterHpxActions() {

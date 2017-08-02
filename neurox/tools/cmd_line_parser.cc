@@ -41,11 +41,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg all_reduce_at_locality("R", "reduce-by-locality",
-                                         "perform HPX all-reduce operation at "
-                                         "locality level instead of neuron "
-                                         "level (better for small cluster).",
-                                         cmd, false);
+    TCLAP::SwitchArg all_reduce_at_locality(
+        "R", "reduce-by-locality",
+        "perform HPX all-reduce operation at "
+        "locality level instead of neuron "
+        "level (better for small cluster).",
+        cmd, false);
     TCLAP::SwitchArg output_statistics(
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
@@ -116,8 +117,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "string");
     cmd.add(pattern_stim);
     TCLAP::ValueArg<std::string> input_path("d", "inputpath",
-                                           "Path to input files directory",
-                                           true, "./input", "string");
+                                            "Path to input files directory",
+                                            true, "./input", "string");
     cmd.add(input_path);
     TCLAP::ValueArg<std::string> output_path(
         "o", "outputpath",

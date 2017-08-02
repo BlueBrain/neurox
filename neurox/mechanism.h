@@ -38,18 +38,17 @@ class Mechanism {
   ~Mechanism();
 
   Mechanism(const int type_, const short int data_size,
-            const short int pdata_size, const char is_artificial,
-            char pnt_map, const char is_ion, const short int sym_length,
-            const char *sym, Memb_func &memb_func_,
-            const short int dependencies_count = 0,
+            const short int pdata_size, const char is_artificial, char pnt_map,
+            const char is_ion, const short int sym_length, const char *sym,
+            Memb_func &memb_func_, const short int dependencies_count = 0,
             const int *dependencies_ = nullptr,
             const short int successors_count = 0,
-            const int *successors_ = nullptr );
+            const int *successors_ = nullptr);
 
   int type_;
   short data_size_, pdata_size_, vdata_size_;
   short successors_count_;    ///> number of mechanisms succedding this one on a
-                            /// parallel execution
+                              /// parallel execution
   short dependencies_count_;  ///> number of mechanisms it depends on
   short sym_length_;          ///> length of the name of the mechanism;
   char pnt_map_, is_artificial_;

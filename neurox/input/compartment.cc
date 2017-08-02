@@ -47,9 +47,9 @@ void Compartment::AddSerializedVdata(unsigned char *data, size_t size) {
 void Compartment::AddNetCon(int preSynNrnThreadId, NetconX *nc,
                             floble_t *weights) {
   this->netconsPreSynIds.push_back(preSynNrnThreadId);
-  this->netcons.push_back(NetconX(nc->mech_type_, nc->mech_instance_, nc->delay_,
-                                  nc->weight_index_, nc->weights_count_,
-                                  nc->active_));
+  this->netcons.push_back(NetconX(nc->mech_type_, nc->mech_instance_,
+                                  nc->delay_, nc->weight_index_,
+                                  nc->weights_count_, nc->active_));
   for (int i = 0; i < nc->weights_count_; i++)
     this->netconsWeights.push_back(weights[i]);
 }

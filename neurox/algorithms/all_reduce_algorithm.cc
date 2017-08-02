@@ -122,8 +122,8 @@ void AllReduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikesLco) {
 hpx_t AllReduceAlgorithm::SendSpikes2(Neuron* neuron, double tt) {
   hpx_t newSynapsesLco = hpx_lco_and_new(neuron->synapses_.size());
   for (Neuron::Synapse*& s : neuron->synapses_)
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, newSynapsesLco, &neuron->gid_,
-             sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, newSynapsesLco,
+             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   return newSynapsesLco;
 }
 

@@ -40,10 +40,10 @@
 
 /// hpx wrappers for async call a function to all children branches (phase 2 -
 /// wait for threads)
-#define NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT                            \
-  if (local->branch_tree_ && local->branch_tree_->branches_count_) {  \
-    hpx_lco_wait(lco_branches);                                       \
-    hpx_lco_delete(lco_branches, HPX_NULL);                           \
+#define NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT                           \
+  if (local->branch_tree_ && local->branch_tree_->branches_count_) { \
+    hpx_lco_wait(lco_branches);                                      \
+    hpx_lco_delete(lco_branches, HPX_NULL);                          \
   }
 
 // hpx wrappers to call methods in all neurons (no args, or only static args)

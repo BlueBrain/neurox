@@ -109,7 +109,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // only used for branched neurons, otherwise pointers for padded and
   // non-padded layouts are the same
   std::vector<int> dataOffsets(
-      input_params_->branch_parallelism_depth_ > 0 ? dataSizePadded : 0, -99999);
+      input_params_->branch_parallelism_depth_ > 0 ? dataSizePadded : 0,
+      -99999);
 
   if (input_params_->branch_parallelism_depth_ > 0)
     for (int n = 0; n < N; n++)
@@ -289,8 +290,10 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         if (type == MechanismTypes::kStochKv ||
             type == MechanismTypes::kProbAMPANMDA_EMS ||
             type == MechanismTypes::kProbGABAAB_EMS) {
-          int rngOffsetInPdata = mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
-          int rngOffsetInVdata = mech->type_ == MechanismTypes::kStochKv ? 0 : 1;
+          int rngOffsetInPdata =
+              mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
+          int rngOffsetInVdata =
+              mech->type_ == MechanismTypes::kStochKv ? 0 : 1;
           assert(nt->_vdata[pdata[rngOffsetInPdata]] ==
                  vdata[rngOffsetInVdata]);
           nrnran123_State *RNG = (nrnran123_State *)vdata[rngOffsetInVdata];
@@ -396,8 +399,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   CreateBranch(nt->id, HPX_NULL, compartments, compartments.at(0),
-               ionsInstancesInfo, input_params_->branch_parallelism_depth_, thvar_index,
-               APthreshold);
+               ionsInstancesInfo, input_params_->branch_parallelism_depth_,
+               thvar_index, APthreshold);
 
   for (auto c : compartments) delete c;
   for (auto nc : netcons)
@@ -541,7 +544,8 @@ int DataLoader::InitMechanisms_handler() {
   }
 
   // set mechanisms dependencies
-  if (neurox::ParallelExecution() && input_params_->branch_parallelism_depth_ > 0) {
+  if (neurox::ParallelExecution() &&
+      input_params_->branch_parallelism_depth_ > 0) {
     // broadcast dependencies, most complete dependency graph will be used
     // across the network
     //(this solves issue of localities loading morphologies without all
@@ -682,7 +686,8 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   // add the values to neurox::neurons
   hpx_t *neurons_new = new hpx_t[neurox::neurons_count_ + recv_neurons_count];
-  copy(neurox::neurons_, neurox::neurons_ + neurox::neurons_count_, neurons_new);
+  copy(neurox::neurons_, neurox::neurons_ + neurox::neurons_count_,
+       neurons_new);
   copy(neurons_addr, neurons_addr + recv_neurons_count,
        neurons_new + neurox::neurons_count_);
 
@@ -808,8 +813,9 @@ int DataLoader::Finalize_handler() {
         fopen(string("mechanisms_" + std::to_string(hpx_get_my_rank()) + ".dot")
                   .c_str(),
               "wt");
-    fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
-            !input_params_->mechs_parallelism_ ? "layout=circo; scale=0.23;" : "");
+    fprintf(
+        fileMechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
+        !input_params_->mechs_parallelism_ ? "layout=circo; scale=0.23;" : "");
     fprintf(fileMechs, "graph [ratio=0.3];\n");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
             "start");
@@ -826,21 +832,24 @@ int DataLoader::Finalize_handler() {
       Mechanism *mech = neurox::mechanisms_[m];
 
       if (mech->pnt_map_ > 0)  // if is point process make it dotted
-        fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->memb_func_.sym,
-                mech->type_);
+        fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n",
+                mech->memb_func_.sym, mech->type_);
 
-      if (mech->dependencies_count_ == 0 && mech->type_ != CAP)  // top mechanism
-        fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->memb_func_.sym,
-                mech->type_);
+      if (mech->dependencies_count_ == 0 &&
+          mech->type_ != CAP)  // top mechanism
+        fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start",
+                mech->memb_func_.sym, mech->type_);
 
-      if (mech->successors_count_ == 0 && mech->type_ != CAP)  // bottom mechanism
+      if (mech->successors_count_ == 0 &&
+          mech->type_ != CAP)  // bottom mechanism
         fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->memb_func_.sym,
                 mech->type_, "end");
 
       for (int s = 0; s < mech->successors_count_; s++) {
         Mechanism *successor = GetMechanismFromType(mech->successors_[s]);
-        fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n", mech->memb_func_.sym,
-                mech->type_, successor->memb_func_.sym, successor->type_);
+        fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n",
+                mech->memb_func_.sym, mech->type_, successor->memb_func_.sym,
+                successor->type_);
       }
 
       if (input_params_->mechs_parallelism_)
@@ -869,9 +878,10 @@ int DataLoader::Finalize_handler() {
       printf(
           "- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
           "isIon %d, symLength %d, %d successors, %d dependencies\n",
-          mech->memb_func_.sym, mech->type_, mech->data_size_, mech->pdata_size_,
-          mech->is_artificial_, mech->pnt_map_, mech->is_ion_, mech->sym_length_,
-          mech->successors_count_, mech->dependencies_count_);
+          mech->memb_func_.sym, mech->type_, mech->data_size_,
+          mech->pdata_size_, mech->is_artificial_, mech->pnt_map_,
+          mech->is_ion_, mech->sym_length_, mech->successors_count_,
+          mech->dependencies_count_);
     }
   }
 #endif
@@ -950,8 +960,9 @@ void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
   // convert mech instance id from neuron to branch level
   if (mechInstanceMap)
     for (NetconX &nc : branchNetCons)
-      nc.mech_instance_ = (*mechInstanceMap)[neurox::mechanisms_map_[nc.mech_type_]]
-                                          [nc.mech_instance_];
+      nc.mech_instance_ =
+          (*mechInstanceMap)[neurox::mechanisms_map_[nc.mech_type_]]
+                            [nc.mech_instance_];
 }
 
 void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
@@ -1028,7 +1039,7 @@ int DataLoader::GetBranchData(
   vector<vector<unsigned char>> vdataMechs(neurox::mechanisms_count_);
   vector<deque<int>> mechsInstancesIds(
       neurox::mechanisms_count_);  // mech-offset -> list of pointers to mech
-                                  // instance value
+                                   // instance value
 
   map<pair<int, offset_t>, offset_t> ionInstanceToDataOffset;  // from pair of <
                                                                // ion mech type,
@@ -1097,7 +1108,8 @@ int DataLoader::GetBranchData(
                  make_pair(mech->type_, nodesIndicesMechs[m][i])) ==
              ionInstanceToDataOffset.end());
       if (mech->is_ion_ &&
-          input_params_->branch_parallelism_depth_ > 0)  // for pdata calculation
+          input_params_->branch_parallelism_depth_ >
+              0)  // for pdata calculation
         ionInstanceToDataOffset[make_pair(
             mech->type_, nodesIndicesMechs[m][i])] = data.size();
       data.insert(data.end(), &dataMechs[m][dataOffset],
@@ -1246,7 +1258,8 @@ hpx_t DataLoader::CreateBranch(
                          NULL);
     GetNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId,
                          branchWeights, NULL);
-  } else if (input_params_->branch_parallelism_depth_ > 0)  // branch-parallelism
+  } else if (input_params_->branch_parallelism_depth_ >
+             0)  // branch-parallelism
   {
     deque<Compartment *> subSection;
     if (branchingDepth > 0)  // node of a tree, with branches
@@ -1271,9 +1284,9 @@ hpx_t DataLoader::CreateBranch(
 
     // create sub-section of branch
     vector<map<int, int>> mechInstanceMap(mechanisms_count_);  // mech-offset ->
-                                                              // ( map[old
-                                                              // instance]->to
-                                                              // new instance )
+                                                               // ( map[old
+                                                               // instance]->to
+                                                               // new instance )
     GetMechInstanceMap(subSection, mechInstanceMap);
     n = GetBranchData(subSection, data, pdata, vdata, p, instancesCount,
                       nodesIndices, N, ionsInstancesInfo, &mechInstanceMap);
@@ -1330,7 +1343,7 @@ hpx_t DataLoader::CreateBranch(
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &neuronRank, sizeof(int),       // output
                     &timeElapsed, sizeof(double));  // input [0]
-    } else if (input_params_->output_statistics_)      // no load balancing
+    } else if (input_params_->output_statistics_)   // no load balancing
     {
       // compute node already decided, tell master rank to store benchmark info,
       // to be able to output statistics
@@ -1365,7 +1378,8 @@ hpx_t DataLoader::CreateBranch(
                            : -1)); /*offset in AIS = offset in soma - nt->end */
 
   // if branching, soma has not threshold var (it was past to AIS above)
-  thvar_index = isSoma && input_params_->branch_parallelism_depth_ > 0 ? -1 : thvar_index;
+  thvar_index =
+      isSoma && input_params_->branch_parallelism_depth_ > 0 ? -1 : thvar_index;
 
   hpx_call_sync(
       branchAddr, Branch::Init, NULL, 0,  // no timing

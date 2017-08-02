@@ -24,7 +24,8 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
         SizeOf(b->mechs_instances_[m].nodecount);
     new_data_size +=
         b->mechs_instances_[m]._nodecount_padded * mechanisms_[m]->data_size_;
-    old_data_size += b->mechs_instances_[m].nodecount * mechanisms_[m]->data_size_;
+    old_data_size +=
+        b->mechs_instances_[m].nodecount * mechanisms_[m]->data_size_;
   }
 
   // old-to-new offset map
@@ -32,7 +33,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
 
   // old thvar offset
   int thvar_idx = b->thvar_ptr_ ? b->thvar_ptr_ - &b->nt_->_actual_v[0]
-                               : -1;  // compartment id (typically 2)
+                                : -1;  // compartment id (typically 2)
   assert(thvar_idx == -1 || (thvar_idx >= 0 && thvar_idx < N));
 
   double* data_new = New<double>(new_data_size);
@@ -81,14 +82,15 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
         data_new[new_offset_acc + new_offset] = instances->data[old_offset];
         assert(b->nt_->_data[old_offset_acc + old_offset] ==
                instances->data[old_offset]);
-        data_offsets.at(old_offset_acc + old_offset) = new_offset_acc + new_offset;
+        data_offsets.at(old_offset_acc + old_offset) =
+            new_offset_acc + new_offset;
       }
 
       for (size_t i = 0; i < mechanisms_[m]->pdata_size_;
            i++)  // for every pointer
       {
         // padding
-        int old_offset = mechanisms_[m]->pdata_size_ * n + i;      // SoA
+        int old_offset = mechanisms_[m]->pdata_size_ * n + i;   // SoA
         int new_offset = instances->_nodecount_padded * i + n;  // AoS
         pdata_new[new_offset] = pdata_old[old_offset];
 
@@ -98,7 +100,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
           int ptype = memb_func[mechanisms_[m]->type_].dparam_semantics[i];
           bool is_pointer = ptype == -1 || (ptype > 0 && ptype < 1000);
           if (is_pointer)  // true for pointer to area in nt->data, or ion
-                          // instance data
+                           // instance data
           {
             pdata_new[new_offset] =
                 data_offsets.at(pdata_old[old_offset]);  // point to new offset
