@@ -17,34 +17,35 @@ class Compartment {
   ~Compartment();
 
   void AddChild(Compartment* child);
-  void AddMechanismInstance(int mechId, int mechsInstance, double* data,
-                            int dataSize, Datum* pdata, int pdataSize);
-  void AddVecPlay(double* t, double* y, PointProcInfo& ppi);
-  void AddSerializedVdata(unsigned char* data, size_t size);
-  void AddNetCon(int preSynNrnThreadId, NetconX* nc, floble_t* weights);
+  void AddMechanismInstance(int mech_type, int mech_instances,
+                            double *data, int dataSize, Datum *pdata,
+                            int pdata_size);
+  void AddVecplay(double* t, double* y, PointProcInfo& ppi);
+  void AddSerializedVData(unsigned char* data, size_t size);
+  void AddNetcon(int preSynNrnThreadId, NetconX* nc, floble_t* weights);
   void ShrinkToFit();
 
-  offset_t id;
-  vector<Compartment*> branches;
-  floble_t a, b, d, v, rhs, area;
-  offset_t p;
-  vector<int> mechsTypes;
-  vector<int> mechsInstances;
+  offset_t id_;
+  vector<Compartment*> branches_;
+  floble_t a_, b_, d_, v_, rhs_, area_;
+  offset_t p_;
+  vector<int> mechs_types_;
+  vector<int> mechs_instances_;
   vector<floble_t> data;
   vector<Datum> pdata;
 
   // vecplay data
-  vector<PointProcInfo> vecPlayInfo;
-  vector<floble_t> vecPlayTdata;
-  vector<floble_t> vecPlayYdata;
+  vector<PointProcInfo> vecplay_info_;
+  vector<floble_t> vecplay_tdata_;
+  vector<floble_t> vecplay_ydata_;
 
   // vdata (serialized)
-  vector<unsigned char> vdata;
+  vector<unsigned char> vdata_;
 
   // netcons
-  vector<NetconX> netcons;
-  vector<floble_t> netconsWeights;
-  vector<neuron_id_t> netconsPreSynIds;
+  vector<NetconX> netcons_;
+  vector<floble_t> netcons_weights_;
+  vector<neuron_id_t> netcons_pre_syn_ids_;
 
  private:
 };

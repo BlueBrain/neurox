@@ -41,18 +41,18 @@ void DataLoader::PrintSubClustersToFile(FILE *fileCompartments,
                                         Compartment *topCompartment) {
   if (input_params_->output_compartments_dot) {
     assert(topCompartment != NULL);
-    fprintf(fileCompartments, "subgraph cluster_%d { ", topCompartment->id);
-    if (topCompartment->id == 0)
+    fprintf(fileCompartments, "subgraph cluster_%d { ", topCompartment->id_);
+    if (topCompartment->id_ == 0)
       fprintf(fileCompartments, "label=\"SOMA\"; ");
-    else if (topCompartment->id == 2)
+    else if (topCompartment->id_ == 2)
       fprintf(fileCompartments, "label=\"AIS\"; ");
     Compartment *comp = NULL;
-    for (comp = topCompartment; comp->branches.size() == 1;
-         comp = comp->branches.front())
-      fprintf(fileCompartments, "%d; ", comp->id);
-    fprintf(fileCompartments, "%d };\n", comp->id);
-    for (int c = 0; c < comp->branches.size(); c++)
-      PrintSubClustersToFile(fileCompartments, comp->branches[c]);
+    for (comp = topCompartment; comp->branches_.size() == 1;
+         comp = comp->branches_.front())
+      fprintf(fileCompartments, "%d; ", comp->id_);
+    fprintf(fileCompartments, "%d };\n", comp->id_);
+    for (int c = 0; c < comp->branches_.size(); c++)
+      PrintSubClustersToFile(fileCompartments, comp->branches_[c]);
   }
 }
 
@@ -152,22 +152,22 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     PrintSubClustersToFile(fileCompartments,
                            compartments.at(0));  // add subclusters
     for (Compartment *comp : compartments)       // draw edges
-      for (int c = 0; c < comp->branches.size(); c++) {
-        bool isSoma = comp->id == 1;  // bottom of soma
-        Compartment *child = comp->branches.at(c);
+      for (int c = 0; c < comp->branches_.size(); c++) {
+        bool isSoma = comp->id_ == 1;  // bottom of soma
+        Compartment *child = comp->branches_.at(c);
         if ((isSoma && c == 0)  // connection from some to AIS
             ||
-            axonInitSegmentCompartments.find(comp->id) !=
+            axonInitSegmentCompartments.find(comp->id_) !=
                 axonInitSegmentCompartments
                     .end())  // connection to any AIS compartment
         {
           // reverse connection, so that it plots AIS on top of soma in dot file
-          fprintf(fileCompartments, "%d -- %d%s;\n", child->id, comp->id,
-                  comp->branches.size() == 1 ? "" : " [color=black]");
-          axonInitSegmentCompartments.insert(child->id);
+          fprintf(fileCompartments, "%d -- %d%s;\n", child->id_, comp->id_,
+                  comp->branches_.size() == 1 ? "" : " [color=black]");
+          axonInitSegmentCompartments.insert(child->id_);
         } else
-          fprintf(fileCompartments, "%d -- %d%s;\n", comp->id, child->id,
-                  comp->branches.size() == 1 ? "" : " [color=black]");
+          fprintf(fileCompartments, "%d -- %d%s;\n", comp->id_, child->id_,
+                  comp->branches_.size() == 1 ? "" : " [color=black]");
       }
     fprintf(fileCompartments, "}\n");
     fclose(fileCompartments);
@@ -250,7 +250,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
       void **vdata = &nt->_vdata[vdataTotalOffset];
       Compartment *compartment = compartments.at(ml->nodeindices[n]);
-      assert(compartment->id == ml->nodeindices[n]);
+      assert(compartment->id_ == ml->nodeindices[n]);
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
@@ -283,7 +283,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
           assert(nt->_vdata[pdata[pointProcOffsetInPdata]] == ppn);
           Point_process *pp = (Point_process *)vdata[0];
           assert(pp != NULL);
-          compartment->AddSerializedVdata((unsigned char *)(void *)pp,
+          compartment->AddSerializedVData((unsigned char *)(void *)pp,
                                           sizeof(Point_process));
         }
 
@@ -300,11 +300,11 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
           // TODO: manual hack: StochKv's current state has NULL pointers, why?
           if (RNG == NULL && type == MechanismTypes::kStochKv)
-            compartment->AddSerializedVdata(
+            compartment->AddSerializedVData(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
           else {
             assert(RNG != NULL);
-            compartment->AddSerializedVdata((unsigned char *)(void *)RNG,
+            compartment->AddSerializedVData((unsigned char *)(void *)RNG,
                                             sizeof(nrnran123_State));
           }
         }
@@ -347,7 +347,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                               (floble_t)nc->delay_, weightsOffset, weightscount,
                               nc->active_);
     double *weights = &nt->weights[weightsOffset];
-    comp->AddNetCon(srcgid, nx, weights);
+    comp->AddNetcon(srcgid, nx, weights);
     netcons[srcgid].push_back(nx);
   }
 
@@ -389,7 +389,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     PointProcInfo ppi =
         GetPointProcInfoFromDataPointer(nt, vec->pd_, vec->y_->size());
     compartments.at(ppi.node_id)
-        ->AddVecPlay(vec->t_->data(), vec->y_->data(), ppi);
+        ->AddVecplay(vec->t_->data(), vec->y_->data(), ppi);
   }
 
   //======= 5 - recursively create branches tree ===========
@@ -911,8 +911,8 @@ void DataLoader::GetAllChildrenCompartments(deque<Compartment *> &subSection,
                                             Compartment *topCompartment) {
   // parent added first, to respect solvers logic, of parents' ids first
   subSection.push_back(topCompartment);
-  for (int c = 0; c < topCompartment->branches.size(); c++)
-    GetAllChildrenCompartments(subSection, topCompartment->branches.at(c));
+  for (int c = 0; c < topCompartment->branches_.size(); c++)
+    GetAllChildrenCompartments(subSection, topCompartment->branches_.at(c));
 }
 
 void DataLoader::GetMechInstanceMap(deque<Compartment *> &compartments,
@@ -920,11 +920,11 @@ void DataLoader::GetMechInstanceMap(deque<Compartment *> &compartments,
   vector<deque<int>> mechsInstancesIds(
       neurox::mechanisms_count_);  // mech offset -> list of mech instance id
   for (Compartment *comp : compartments)
-    for (int m = 0; m < comp->mechsTypes.size(); m++)  // for all instances
+    for (int m = 0; m < comp->mechs_types_.size(); m++)  // for all instances
     {
-      int type = comp->mechsTypes.at(m);
+      int type = comp->mechs_types_.at(m);
       int mechOffset = neurox::mechanisms_map_[type];
-      mechsInstancesIds[mechOffset].push_back(comp->mechsInstances[m]);
+      mechsInstancesIds[mechOffset].push_back(comp->mechs_instances_[m]);
     }
 
   // convert neuron mech-instances ids from neuron- to branch-level
@@ -941,13 +941,13 @@ void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
                                       vector<floble_t> &branchWeights,
                                       vector<map<int, int>> *mechInstanceMap) {
   for (auto &comp : compartments) {
-    branchNetCons.insert(branchNetCons.end(), comp->netcons.begin(),
-                         comp->netcons.end());
+    branchNetCons.insert(branchNetCons.end(), comp->netcons_.begin(),
+                         comp->netcons_.end());
     branchNetConsPreId.insert(branchNetConsPreId.end(),
-                              comp->netconsPreSynIds.begin(),
-                              comp->netconsPreSynIds.end());
-    branchWeights.insert(branchWeights.end(), comp->netconsWeights.begin(),
-                         comp->netconsWeights.end());
+                              comp->netcons_pre_syn_ids_.begin(),
+                              comp->netcons_pre_syn_ids_.end());
+    branchWeights.insert(branchWeights.end(), comp->netcons_weights_.begin(),
+                         comp->netcons_weights_.end());
   }
 
   // correct weighIndex variables
@@ -975,7 +975,7 @@ void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
   if (mechInstanceMap) {
     std::map<int, int> fromOldToNewCompartmentId;
     for (int n = 0; n < compartments.size(); n++)
-      fromOldToNewCompartmentId[compartments.at(n)->id] = n;
+      fromOldToNewCompartmentId[compartments.at(n)->id_] = n;
 
     for (int p = 0; p < vecPlayInfo.size(); p++) {
       PointProcInfo &ppi = vecPlayInfo[p];
@@ -987,12 +987,12 @@ void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
   }
 
   for (auto comp : compartments) {
-    vecPlayTdata.insert(vecPlayTdata.end(), comp->vecPlayTdata.begin(),
-                        comp->vecPlayTdata.end());
-    vecPlayYdata.insert(vecPlayYdata.end(), comp->vecPlayYdata.begin(),
-                        comp->vecPlayYdata.end());
-    vecPlayInfo.insert(vecPlayInfo.end(), comp->vecPlayInfo.begin(),
-                       comp->vecPlayInfo.end());
+    vecPlayTdata.insert(vecPlayTdata.end(), comp->vecplay_tdata_.begin(),
+                        comp->vecplay_tdata_.end());
+    vecPlayYdata.insert(vecPlayYdata.end(), comp->vecplay_ydata_.begin(),
+                        comp->vecplay_ydata_.end());
+    vecPlayInfo.insert(vecPlayInfo.end(), comp->vecplay_info_.begin(),
+                       comp->vecplay_info_.end());
   }
 }
 
@@ -1010,19 +1010,19 @@ int DataLoader::GetBranchData(
   int vdataPointerOffset = 0;
 
   ////// Basic information for RHS, D, A, B, V and area
-  for (auto comp : compartments) data.push_back(comp->rhs);
-  for (auto comp : compartments) data.push_back(comp->d);
-  for (auto comp : compartments) data.push_back(comp->a);
-  for (auto comp : compartments) data.push_back(comp->b);
-  for (auto comp : compartments) data.push_back(comp->v);
-  for (auto comp : compartments) data.push_back(comp->area);
-  for (auto comp : compartments) p.push_back(comp->p);
+  for (auto comp : compartments) data.push_back(comp->rhs_);
+  for (auto comp : compartments) data.push_back(comp->d_);
+  for (auto comp : compartments) data.push_back(comp->a_);
+  for (auto comp : compartments) data.push_back(comp->b_);
+  for (auto comp : compartments) data.push_back(comp->v_);
+  for (auto comp : compartments) data.push_back(comp->area_);
+  for (auto comp : compartments) p.push_back(comp->p_);
 
   ////// Tree of neurons: convert from neuron- to branch-level
   std::map<int, int> fromOldToNewCompartmentId;
   for (Compartment *comp : compartments) {
-    fromOldToNewCompartmentId[comp->id] = n;
-    comp->id = n;
+    fromOldToNewCompartmentId[comp->id_] = n;
+    comp->id_ = n;
     n++;
   }
   if (mechInstanceMap) {
@@ -1052,9 +1052,9 @@ int DataLoader::GetBranchData(
     int compDataOffset = 0;
     int compPdataOffset = 0;
     int compVdataOffset = 0;
-    for (int m = 0; m < comp->mechsTypes.size(); m++)  // for all instances
+    for (int m = 0; m < comp->mechs_types_.size(); m++)  // for all instances
     {
-      int type = comp->mechsTypes[m];
+      int type = comp->mechs_types_[m];
       int mechOffset = mechanisms_map_[type];
       assert(mechOffset >= 0 && mechOffset < mechanisms_count_);
       Mechanism *mech = mechanisms_[mechOffset];
@@ -1064,7 +1064,7 @@ int DataLoader::GetBranchData(
       pdataMechs[mechOffset].insert(
           pdataMechs[mechOffset].end(), &comp->pdata[compPdataOffset],
           &comp->pdata[compPdataOffset + mech->pdata_size_]);
-      nodesIndicesMechs[mechOffset].push_back(comp->id);
+      nodesIndicesMechs[mechOffset].push_back(comp->id_);
       instancesCount[mechOffset]++;
       compDataOffset += mech->data_size_;
       compPdataOffset += mech->pdata_size_;
@@ -1088,8 +1088,8 @@ int DataLoader::GetBranchData(
             type == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(nrnran123_State);
         vdataMechs[mechOffset].insert(
-            vdataMechs[mechOffset].end(), &comp->vdata[compVdataOffset],
-            &comp->vdata[compVdataOffset + totalVdataSize]);
+            vdataMechs[mechOffset].end(), &comp->vdata_[compVdataOffset],
+            &comp->vdata_[compVdataOffset + totalVdataSize]);
         compVdataOffset += totalVdataSize;
       }
     }
@@ -1217,7 +1217,7 @@ int DataLoader::GetBranchData(
 }
 
 bool CompareCompartmentsPtrsIds(Compartment *a, Compartment *b) {
-  return a->id < b->id;
+  return a->id_ < b->id_;
 }
 
 hpx_t DataLoader::CreateBranch(
@@ -1268,9 +1268,9 @@ hpx_t DataLoader::CreateBranch(
       // bifurcation
       subSection.push_back(topCompartment);
       for (bottomCompartment = topCompartment;
-           bottomCompartment->branches.size() == 1;
-           bottomCompartment = bottomCompartment->branches.front())
-        subSection.push_back(bottomCompartment->branches.front());
+           bottomCompartment->branches_.size() == 1;
+           bottomCompartment = bottomCompartment->branches_.front())
+        subSection.push_back(bottomCompartment->branches_.front());
     } else  // leaf of the tree
     {
       // subsection is the set of all children compartments (recursively)
@@ -1370,10 +1370,10 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate children branches recursively (if any)
   if (bottomCompartment)
-    for (size_t c = 0; c < bottomCompartment->branches.size(); c++)
+    for (size_t c = 0; c < bottomCompartment->branches_.size(); c++)
       branches.push_back(CreateBranch(
           nrnThreadId, somaBranchAddr, allCompartments,
-          bottomCompartment->branches[c], ionsInstancesInfo, branchingDepth - 1,
+          bottomCompartment->branches_[c], ionsInstancesInfo, branchingDepth - 1,
           isSoma && c == 0 ? thvar_index - n
                            : -1)); /*offset in AIS = offset in soma - nt->end */
 
