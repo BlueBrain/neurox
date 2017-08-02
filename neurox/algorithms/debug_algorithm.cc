@@ -63,8 +63,8 @@ double DebugAlgorithm::Launch() {
 void DebugAlgorithm::StepBegin(Branch*) {}
 
 void DebugAlgorithm::StepEnd(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params->second_order_);
 }
 
 void DebugAlgorithm::Run(Branch* b, const void* args) {
@@ -73,10 +73,10 @@ void DebugAlgorithm::Run(Branch* b, const void* args) {
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
   // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
-  if (b->soma)  // end of comm-step (steps is the number of steps per commSize)
+  if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* commBarrier =
-        (CommunicationBarrier*)b->soma->algorithmMetaData;
+        (CommunicationBarrier*)b->soma_->algorithmMetaData;
     if (commBarrier->allSpikesLco != HPX_NULL)  // was set/used once
       hpx_lco_wait(commBarrier->allSpikesLco);  // wait if needed
   }

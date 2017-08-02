@@ -38,7 +38,7 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
   const double& notifRatio =
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
   this->nextNotificationTime =
-      input_params->tstart + teps + this->minDelay * notifRatio;
+      input_params->tstart_ + teps + this->minDelay * notifRatio;
   this->previousSpikeLco = hpx_lco_future_new(0);
   hpx_lco_set_rsync(
       this->previousSpikeLco, 0,

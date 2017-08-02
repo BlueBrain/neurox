@@ -35,7 +35,7 @@ void SlidingTimeWindowAlgorithm::Clear() {
 double SlidingTimeWindowAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
@@ -49,8 +49,8 @@ void SlidingTimeWindowAlgorithm::StepBegin(Branch*) {}
 
 void SlidingTimeWindowAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
   AllReduceAlgorithm::WaitForSpikesDelivery(b, spikesLco);
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params->second_order_);
 }
 
 void SlidingTimeWindowAlgorithm::Run(Branch* b, const void* args) {

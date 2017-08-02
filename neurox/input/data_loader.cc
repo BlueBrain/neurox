@@ -39,7 +39,7 @@ neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
 
 void DataLoader::PrintSubClustersToFile(FILE *fileCompartments,
                                         Compartment *topCompartment) {
-  if (input_params->outputCompartmentsDot) {
+  if (input_params->output_compartments_dot) {
     assert(topCompartment != NULL);
     fprintf(fileCompartments, "subgraph cluster_%d { ", topCompartment->id);
     if (topCompartment->id == 0)
@@ -109,9 +109,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // only used for branched neurons, otherwise pointers for padded and
   // non-padded layouts are the same
   std::vector<int> dataOffsets(
-      input_params->branchingDepth > 0 ? dataSizePadded : 0, -99999);
+      input_params->branch_parallelism_depth_ > 0 ? dataSizePadded : 0, -99999);
 
-  if (input_params->branchingDepth > 0)
+  if (input_params->branch_parallelism_depth_ > 0)
     for (int n = 0; n < N; n++)
       for (int i = 0; i < 6; i++) {
         int offsetPadded = tools::Vectorizer::SizeOf(N) * i + n;
@@ -135,7 +135,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     parentCompartment->AddChild(compartments.at(n));
   }
 
-  if (input_params->outputCompartmentsDot) {
+  if (input_params->output_compartments_dot) {
     set<int> axonInitSegmentCompartments;
     FILE *fileCompartments = fopen(
         string("compartments_" + to_string(neuronId) + ".dot").c_str(), "wt");
@@ -216,7 +216,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         data.push_back(ml->data[offsetPadded]);
         assert(ml->data[offsetPadded] ==
                nt->_data[dataTotalPaddedOffset + offsetPadded]);
-        if (input_params->branchingDepth > 0)
+        if (input_params->branch_parallelism_depth_ > 0)
           dataOffsets[dataTotalPaddedOffset + offsetPadded] =
               dataTotalOffset + offsetNonPadded;
 #endif
@@ -236,7 +236,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
         // remove extra space added by padding (for pointer to area or ion mech
         // instance)
-        if (input_params->branchingDepth > 0 &&
+        if (input_params->branch_parallelism_depth_ > 0 &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
           assert(dataOffsets.at(pd) != -99999);
           pdata.push_back(dataOffsets.at(pd));  // offset to non-padded SoA
@@ -348,7 +348,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     netcons[srcgid].push_back(nx);
   }
 
-  if (input_params->outputNetconsDot) {
+  if (input_params->output_netcons_dot) {
     int netConsFromOthers = 0;
     for (auto nc : netcons) {
       int srcGid = nc.first;
@@ -396,7 +396,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   CreateBranch(nt->id, HPX_NULL, compartments, compartments.at(0),
-               ionsInstancesInfo, input_params->branchingDepth, thvar_index,
+               ionsInstancesInfo, input_params->branch_parallelism_depth_, thvar_index,
                APthreshold);
 
   for (auto c : compartments) delete c;
@@ -492,7 +492,7 @@ int DataLoader::InitMechanisms_handler() {
     vector<int> dependencies;
     assert(nrn_watch_check[type] == NULL);  // not supported yet
 
-    if (input_params->multiMex) {
+    if (input_params->mechs_parallelism_) {
       for (auto &tml2 : orderedMechs) {
         int otherType = tml2->index;
         for (int d = 0; d < nrn_prop_dparam_size_[otherType]; d++) {
@@ -532,7 +532,7 @@ int DataLoader::InitMechanisms_handler() {
                              successors.end());
   }
 
-  if (input_params->patternStim[0] != '\0')  //"initialized"
+  if (input_params->pattern_stim_[0] != '\0')  //"initialized"
   {
     assert(0);  // not an error: should be initialized already by coreneuron
                 // (and above)
@@ -541,7 +541,7 @@ int DataLoader::InitMechanisms_handler() {
   }
 
   // set mechanisms dependencies
-  if (neurox::ParallelExecution() && input_params->branchingDepth > 0) {
+  if (neurox::ParallelExecution() && input_params->branch_parallelism_depth_ > 0) {
     // broadcast dependencies, most complete dependency graph will be used
     // across the network
     //(this solves issue of localities loading morphologies without all
@@ -576,18 +576,18 @@ int DataLoader::Init_handler() {
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
   if (hpx_get_my_rank() == 0 &&
-      (input_params->loadBalancing || input_params->outputStatistics))
+      (input_params->load_balancing || input_params->output_statistics_))
     loadBalancing = new tools::LoadBalancing();
 
   if (neurox::ParallelExecution()  // disable output of netcons for parallel
                                    // loading
-      && input_params->outputNetconsDot) {
-    input_params->outputNetconsDot = false;
+      && input_params->output_netcons_dot) {
+    input_params->output_netcons_dot = false;
     if (hpx_get_my_rank() == 0)
       printf("Warning: output of netcons.dot disabled for parallel loading\n");
   }
 
-  if (input_params->outputNetconsDot) {
+  if (input_params->output_netcons_dot) {
     assert(HPX_LOCALITIES == 1);
     fileNetcons = fopen(string("netcons.dot").c_str(), "wt");
     fprintf(fileNetcons, "digraph G\n{ bgcolor=%s; layout=circo;\n",
@@ -646,7 +646,7 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr;
   my_neurons_addr = nullptr;
 
-  if (input_params->allReduceAtLocality) {
+  if (input_params->all_reduce_at_locality) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
@@ -772,7 +772,7 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
 
     // set parent ion index
     for (int m = 0; m < mechsCount; m++) {
-      if (input_params->multiMex) {
+      if (input_params->mechs_parallelism_) {
         Mechanism *mech = neurox::mechanisms[m];
         for (int d = 0; d < mech->dependenciesCount; d++) {
           Mechanism *parent = GetMechanismFromType(mech->dependencies[d]);
@@ -793,23 +793,23 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
         ->clear();
   delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons;
 
-  if (input_params->outputNetconsDot) {
+  if (input_params->output_netcons_dot) {
     fprintf(fileNetcons, "}\n");
     fclose(fileNetcons);
   }
 
-  if (input_params->outputMechanismsDot) {
+  if (input_params->output_mechanisms_dot_) {
     FILE *fileMechs =
         fopen(string("mechanisms_" + std::to_string(hpx_get_my_rank()) + ".dot")
                   .c_str(),
               "wt");
     fprintf(fileMechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
-            !input_params->multiMex ? "layout=circo; scale=0.23;" : "");
+            !input_params->mechs_parallelism_ ? "layout=circo; scale=0.23;" : "");
     fprintf(fileMechs, "graph [ratio=0.3];\n");
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
             "start");
@@ -817,7 +817,7 @@ int DataLoader::Finalize_handler() {
             "end");
     fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
             GetMechanismFromType(CAP)->membFunc.sym, CAP);
-    if (!input_params->multiMex) {
+    if (!input_params->mechs_parallelism_) {
       fprintf(fileMechs, "end -> start [color=transparent];\n");
       fprintf(fileMechs, "start -> \"%s (%d)\";\n",
               GetMechanismFromType(CAP)->membFunc.sym, CAP);
@@ -843,7 +843,7 @@ int DataLoader::Finalize_handler() {
                 mech->type, successor->membFunc.sym, successor->type);
       }
 
-      if (input_params->multiMex)
+      if (input_params->mechs_parallelism_)
         for (int d = 0; d < mech->dependenciesCount; d++) {
           Mechanism *parent = GetMechanismFromType(mech->dependencies[d]);
           if (strcmp("SK_E2", mech->membFunc.sym) == 0 &&
@@ -889,7 +889,7 @@ int DataLoader::Finalize_handler() {
   DataLoader::CleanCoreneuronData(false);
 #endif
 
-  if (input_params->outputStatistics)
+  if (input_params->output_statistics_)
     tools::LoadBalancing::LoadBalancing::PrintTable();
 
   delete loadBalancing;
@@ -1097,7 +1097,7 @@ int DataLoader::GetBranchData(
                  make_pair(mech->type, nodesIndicesMechs[m][i])) ==
              ionInstanceToDataOffset.end());
       if (mech->isIon &&
-          input_params->branchingDepth > 0)  // for pdata calculation
+          input_params->branch_parallelism_depth_ > 0)  // for pdata calculation
         ionInstanceToDataOffset[make_pair(
             mech->type, nodesIndicesMechs[m][i])] = data.size();
       data.insert(data.end(), &dataMechs[m][dataOffset],
@@ -1121,7 +1121,7 @@ int DataLoader::GetBranchData(
         vdataOffset += totalVdataSize;
       }
 
-      if (input_params->branchingDepth >
+      if (input_params->branch_parallelism_depth_ >
           0)  // if we need to recalculate offsets or remove padding
       {
         for (int p = pdataOffset; p < pdataOffset + mech->pdataSize; p++) {
@@ -1238,7 +1238,7 @@ hpx_t DataLoader::CreateBranch(
 
   Compartment *bottomCompartment = nullptr;  // iterator for subsections
 
-  if (input_params->branchingDepth == 0)  // Flat a la Coreneuron
+  if (input_params->branch_parallelism_depth_ == 0)  // Flat a la Coreneuron
   {
     n = GetBranchData(allCompartments, data, pdata, vdata, p, instancesCount,
                       nodesIndices, N, ionsInstancesInfo, NULL);
@@ -1246,7 +1246,7 @@ hpx_t DataLoader::CreateBranch(
                          NULL);
     GetNetConsBranchData(allCompartments, branchNetCons, branchNetConsPreId,
                          branchWeights, NULL);
-  } else if (input_params->branchingDepth > 0)  // branch-parallelism
+  } else if (input_params->branch_parallelism_depth_ > 0)  // branch-parallelism
   {
     deque<Compartment *> subSection;
     if (branchingDepth > 0)  // node of a tree, with branches
@@ -1284,7 +1284,7 @@ hpx_t DataLoader::CreateBranch(
   }
 
   int neuronRank = hpx_get_my_rank();
-  if (input_params->loadBalancing || input_params->outputStatistics) {
+  if (input_params->load_balancing || input_params->output_statistics_) {
     // Benchmark and assign this branch to least busy compute node (except soma
     // and AIS)
     // Note: we do this after children creation so that we use top (lighter)
@@ -1324,13 +1324,13 @@ hpx_t DataLoader::CreateBranch(
     assert(timeElapsed > 0);
     hpx_gas_clear_affinity(tempBranchAddr);
 
-    if (input_params->loadBalancing) {
+    if (input_params->load_balancing) {
       // ask master rank to query load balancing table and tell me where to
       // allocate this branch
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &neuronRank, sizeof(int),       // output
                     &timeElapsed, sizeof(double));  // input [0]
-    } else if (input_params->outputStatistics)      // no load balancing
+    } else if (input_params->output_statistics_)      // no load balancing
     {
       // compute node already decided, tell master rank to store benchmark info,
       // to be able to output statistics
@@ -1365,7 +1365,7 @@ hpx_t DataLoader::CreateBranch(
                            : -1)); /*offset in AIS = offset in soma - nt->end */
 
   // if branching, soma has not threshold var (it was past to AIS above)
-  thvar_index = isSoma && input_params->branchingDepth > 0 ? -1 : thvar_index;
+  thvar_index = isSoma && input_params->branch_parallelism_depth_ > 0 ? -1 : thvar_index;
 
   hpx_call_sync(
       branchAddr, Branch::Init, NULL, 0,  // no timing
@@ -1413,9 +1413,9 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
-  if (local->soma && input_params->outputNetconsDot)
+  if (local->soma_ && input_params->output_netcons_dot)
     fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n",
-            local->soma->gid);
+            local->soma_->gid);
 
   std::deque<std::pair<hpx_t, floble_t>>
       netcons;  // set of <srcAddr, minDelay> synapses to notify
@@ -1429,14 +1429,14 @@ int DataLoader::InitNetcons_handler() {
     neuron_id_t srcGid = all_neurons_gids->at(i);
 
     // if I'm connected to it (ie is not artificial or non-existent)
-    if (local->netcons.find(srcGid) != local->netcons.end()) {
+    if (local->netcons_.find(srcGid) != local->netcons_.end()) {
       hpx_t srcAddr = neurox::neurons[i];
       floble_t minDelay = impossiblyLargeDelay;
-      for (NetConX *&nc : local->netcons.at(srcGid))
+      for (NetConX *&nc : local->netcons_.at(srcGid))
         if (nc->active) minDelay = min(minDelay, nc->delay);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE == true
-      if (input_params->outputNetconsDot && minDelay != impossiblyLargeDelay)
+      if (input_params->output_netcons_dot && minDelay != impossiblyLargeDelay)
         fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
                 local->soma->gid, local->netcons.at(srcGid).size(), minDelay);
 #endif
@@ -1453,7 +1453,7 @@ int DataLoader::InitNetcons_handler() {
             input_params->algorithm ==
                 AlgorithmType::kBackwardEulerTimeDependencyLCO) {
           spike_time_t notificationTime =
-              input_params->tstart +
+              input_params->tstart_ +
               minDelay * TimeDependencyLCOAlgorithm::TimeDependencies::
                              notificationIntervalRatio;
           dependencies.push_back(make_pair(srcGid, notificationTime));
@@ -1464,8 +1464,9 @@ int DataLoader::InitNetcons_handler() {
 
   // inform pre-syn neuron that he connects to me
   hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
-  hpx_t topBranchAddr = local->soma ? target : local->branchTree->topBranchAddr;
-  int myGid = local->soma ? local->soma->gid : -1;
+  hpx_t topBranchAddr =
+      local->soma_ ? target : local->branch_tree_->top_branch_addr_;
+  int myGid = local->soma_ ? local->soma_->gid : -1;
   for (std::pair<hpx_t, floble_t> &nc : netcons)
     hpx_call(nc.first, DataLoader::AddSynapse, netconsLCO, &target,
              sizeof(hpx_t), &nc.second, sizeof(nc.second), &topBranchAddr,
@@ -1491,25 +1492,32 @@ hpx_action_t DataLoader::AddSynapse = 0;
 int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(local->soma);
+  assert(local->soma_);
   assert(nargs == 4);
   hpx_t addr = *(const hpx_t *)args[0];
   floble_t minDelay = *(const floble_t *)args[1];
   hpx_t topBranchAddr = *(const hpx_t *)args[2];
   int destinationGid = *(const int *)args[3];
-  local->soma->AddSynapse(
+  local->soma_->AddSynapse(
       new Neuron::Synapse(addr, minDelay, topBranchAddr, destinationGid));
   return neurox::wrappers::MemoryUnpin(target);
 }
 
 void DataLoader::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
-  wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms, DataLoader::InitMechanisms_handler);
-  wrappers::RegisterZeroVarAction(DataLoader::InitNeurons, DataLoader::InitNeurons_handler);
-  wrappers::RegisterZeroVarAction(DataLoader::InitNetcons, DataLoader::InitNetcons_handler);
-  wrappers::RegisterZeroVarAction(DataLoader::Finalize, DataLoader::Finalize_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms,
+                                  DataLoader::InitMechanisms_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitNeurons,
+                                  DataLoader::InitNeurons_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitNetcons,
+                                  DataLoader::InitNetcons_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::Finalize,
+                                  DataLoader::Finalize_handler);
 
-  wrappers::RegisterMultipleVarAction(DataLoader::AddSynapse, DataLoader::AddSynapse_handler);
-  wrappers::RegisterMultipleVarAction(DataLoader::AddNeurons, DataLoader::AddNeurons_handler);
-  wrappers::RegisterMultipleVarAction(DataLoader::SetMechanisms, DataLoader::SetMechanisms_handler);
+  wrappers::RegisterMultipleVarAction(DataLoader::AddSynapse,
+                                      DataLoader::AddSynapse_handler);
+  wrappers::RegisterMultipleVarAction(DataLoader::AddNeurons,
+                                      DataLoader::AddNeurons_handler);
+  wrappers::RegisterMultipleVarAction(DataLoader::SetMechanisms,
+                                      DataLoader::SetMechanisms_handler);
 }

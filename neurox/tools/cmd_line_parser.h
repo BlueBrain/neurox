@@ -16,34 +16,34 @@ class CmdLineParser {
   ~CmdLineParser();
 
   // Execution parameters (cn_input_parameters)
-  char secondorder;  ///> 0 means crank-nicolson. 2 means currents adjusted to
+  char second_order_;  ///> 0 means crank-nicolson. 2 means currents adjusted to
                      /// t+dt/2
   neuron_id_t prcellgid;  ///> gid of cell for prcellstate
-  floble_t dt;            ///> time step ie delta-t (msecs)
-  floble_t rev_dt;        ///> reverse of delta t (1/msecs)
-  floble_t celsius;       ///> celsius temperature (degrees)
-  floble_t tstart;        ///> start time of simulation in msec*/
-  floble_t tstop;         ///> stop time of simulation in msec*/
-  floble_t dt_io;         ///> i/o timestep to use in msec*/
-  floble_t voltage;       ///> initial voltage set on all neurons
-  floble_t forwardSkip;   ///> forward skip time
+  floble_t dt_;            ///> time step ie delta-t (msecs)
+  floble_t rev_dt_;        ///> reverse of delta t (1/msecs)
+  floble_t celsius_;       ///> celsius temperature (degrees)
+  floble_t tstart_;        ///> start time of simulation in msec*/
+  floble_t tstop_;         ///> stop time of simulation in msec*/
+  floble_t dt_io_;         ///> i/o timestep to use in msec*/
+  floble_t voltage_;       ///> initial voltage set on all neurons
+  floble_t forwardSkip_;   ///> forward skip time
 
-  char inputPath[512];    ///> path of input directory
-  char outputPath[512];   ///> path of output directory
-  char patternStim[512];  ///> patternStim file path (the filename of an
+  char input_path_[512];    ///> path of input directory
+  char output_path_[512];   ///> path of output directory
+  char pattern_stim_[512];  ///> patternStim file path (the filename of an
                           /// output_spikes.h format raster file.)
 
   // neurox specific options
-  bool outputStatistics;       ///> outputs statistics file
-  bool outputMechanismsDot;    ///> outputs mechanisms.dot file
-  bool outputNetconsDot;       ///> outputs netcons.dot file
-  bool outputCompartmentsDot;  ///> outputs compartments*.dot files
-  bool multiMex;               ///> graph-based parallelism of mechanisms
-  bool allReduceAtLocality;    ///> whether to perform HPX all-reduce LCOs at
-                               /// neuron or node level
-  bool loadBalancing;  ///> Whether to perform dynamic load balancing of bodes
+  bool output_statistics_;       ///> outputs statistics file
+  bool output_mechanisms_dot_;   ///> outputs mechanisms.dot file
+  bool output_netcons_dot;       ///> outputs netcons.dot file
+  bool output_compartments_dot;  ///> outputs compartments*.dot files
+  bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
+  bool all_reduce_at_locality;   ///> whether to perform HPX all-reduce LCOs at
+                                 /// neuron or node level
+  bool load_balancing;  ///> Whether to perform dynamic load balancing of bodes
                        /// and branches
-  int branchingDepth;  ///> depth tree-based parallelism of morphologies
+  int branch_parallelism_depth_;  ///> depth tree-based parallelism of morphologies
   neurox::algorithms::AlgorithmType
       algorithm;  ///> neurons sychronization algorithm
 

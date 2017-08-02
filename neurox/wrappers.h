@@ -12,7 +12,7 @@ inline hpx_t MemoryPin(T) {
 }
 
 /// Memory UNpinning from an hpx memorry address to a local pointer
-inline hpx_status_t MemoryUnpin(hpx_t target) {
+inline hpx_status_t MemoryUnpin(hpx_t& target) {
   hpx_gas_unpin(target);
   return HPX_SUCCESS;
 }
@@ -20,10 +20,19 @@ inline hpx_status_t MemoryUnpin(hpx_t target) {
 /// Memory UNpinning from an hpx memorry address to a local pointer
 /// with the return of a value
 template <typename T>
-inline hpx_status_t MemoryUnpin(hpx_t target, const T& var) {
+inline hpx_status_t MemoryUnpin(hpx_t& target, const T& var) {
   hpx_gas_unpin(target);
   return HPX_THREAD_CONTINUE(var);
 }
+
+/*
+/// Memory UNpinning from an hpx memorry address to a local pointer
+/// with the return of an array of values (no pointer)
+template <typename T>
+inline hpx_status_t MemoryUnpin(hpx_t& target, const T var[]) {
+  hpx_gas_unpin(target);
+  return HPX_THREAD_CONTINUE(var);
+}*/
 
 /// count the number of arguments
 template <typename... ArgTypes>

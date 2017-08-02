@@ -20,7 +20,7 @@ const char* TimeDependencyLCOAlgorithm::GetTypeString() {
 }
 
 void TimeDependencyLCOAlgorithm::Init() {
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependencyLCO with allReduceAtLocality\n");
 
@@ -44,16 +44,16 @@ double TimeDependencyLCOAlgorithm::Launch() {
 void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
 
-  if (b->soma) {
+  if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithmMetaData;
 
     // fixes crash for Algorithm::All when TimeDependency algorithm starts at
     // t=inputParams->tend*2
     // increase notification and dependencies time
-    for (Neuron::Synapse*& s : b->soma->synapses)
-      s->nextNotificationTime += b->nt->_t;
-    timeDependencies->IncreseDependenciesTime(b->nt->_t);
+    for (Neuron::Synapse*& s : b->soma_->synapses)
+      s->nextNotificationTime += b->nt_->_t;
+    timeDependencies->IncreseDependenciesTime(b->nt_->_t);
   }
 
   for (int step = 0; step < steps; step++) b->BackwardEulerStep();
@@ -61,26 +61,26 @@ void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
 // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
 #ifndef NDEBUG
-  if (b->soma) printf("-- neuron %d finished\n", b->soma->gid);
+  if (b->soma_) printf("-- neuron %d finished\n", b->soma_->gid);
 #endif
 }
 
 void TimeDependencyLCOAlgorithm::StepBegin(Branch* b) {
-  if (b->soma) {
+  if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithmMetaData;
     // inform time dependants that must be notified in this step
-    timeDependencies->SendSteppingNotification(b->nt->_t, b->nt->_dt,
-                                               b->soma->gid, b->soma->synapses);
+    timeDependencies->SendSteppingNotification(b->nt_->_t, b->nt_->_dt,
+                                               b->soma_->gid, b->soma_->synapses);
     // wait until Im sure I can start and finalize this step at t+dt
-    timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, b->nt->_dt,
-                                                   b->soma->gid);
+    timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
+                                                   b->soma_->gid);
   }
 }
 
 void TimeDependencyLCOAlgorithm::StepEnd(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params->second_order_);
 }
 
 void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -88,10 +88,10 @@ void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
                                                     spike_time_t spikeTime,
                                                     spike_time_t maxTime) {
   // inform soma of this neuron of new time dependency update
-  hpx_t topBranchAddr = b->soma ? target : b->branchTree->topBranchAddr;
-  if (b->soma) {
+  hpx_t topBranchAddr = b->soma_ ? target : b->branch_tree_->top_branch_addr_;
+  if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithmMetaData;
     timeDependencies->UpdateTimeDependency(preNeuronId, maxTime);
   } else
     hpx_call(topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,

@@ -36,12 +36,15 @@ class Vectorizer {
   }
 
   // C++11 does not support memory-aligned new[]/delete, this is a work around
+
+  /// memory-aligned memory allocation
   template <typename T>
   static T* New(size_t count) {
     return (T*)coreneuron::ecalloc_align(SizeOf(count), kMemoryAlignment,
                                          sizeof(T));
   }
 
+  /// delete for the New method
   template <typename T>
   static void Delete(T* ptr) {
     free(ptr);

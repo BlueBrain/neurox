@@ -3,8 +3,8 @@
 using namespace std;
 using namespace neurox;
 
-double *tools::LoadBalancing::loadBalancingTable = nullptr;
-hpx_t tools::LoadBalancing::loadBalancingMutex = HPX_NULL;
+double *tools::LoadBalancing::load_balancing_table_ = nullptr;
+hpx_t tools::LoadBalancing::load_balancing_mutex_ = HPX_NULL;
 
 hpx_action_t tools::LoadBalancing::QueryLoadBalancingTable = 0;
 int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
@@ -19,27 +19,27 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
   assert(nargs == 1 || nargs == 2);
   assert(hpx_get_my_rank() ==
          0);  // only one loadBalancingTable and only in rank zero
-  const double elapsedTime = *(const double *)args[0];
+  const double elapsed_time = *(const double *)args[0];
 
   if (nargs ==
       2)  // this neuron already has a rank allocated, update it's entry
   {
     const int rank = *(const int *)args[1];
-    hpx_lco_sema_p(loadBalancingMutex);
-    loadBalancingTable[rank] += elapsedTime;
-    hpx_lco_sema_v_sync(loadBalancingMutex);
+    hpx_lco_sema_p(load_balancing_mutex_);
+    load_balancing_table_[rank] += elapsed_time;
+    hpx_lco_sema_v_sync(load_balancing_mutex_);
     NEUROX_MEM_UNPIN;
   } else {
-    double minElapsedTime = 99999999999;
+    double min_elapsed_time = 99999999999;
     int rank = -1;
-    hpx_lco_sema_p(loadBalancingMutex);
+    hpx_lco_sema_p(load_balancing_mutex_);
     for (int r = 0; r < hpx_get_num_ranks(); r++)
-      if (loadBalancingTable[r] < minElapsedTime) {
-        minElapsedTime = loadBalancingTable[r];
+      if (load_balancing_table_[r] < min_elapsed_time) {
+        min_elapsed_time = load_balancing_table_[r];
         rank = r;
       }
-    loadBalancingTable[rank] += elapsedTime;
-    hpx_lco_sema_v_sync(loadBalancingMutex);
+    load_balancing_table_[rank] += elapsed_time;
+    hpx_lco_sema_v_sync(load_balancing_mutex_);
     NEUROX_MEM_UNPIN_CONTINUE(rank);
   }
   NEUROX_MEM_UNPIN;
@@ -47,24 +47,24 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
 
 tools::LoadBalancing::LoadBalancing() {
   if (hpx_get_my_rank() == 0) {
-    loadBalancingMutex = hpx_lco_sema_new(1);
-    loadBalancingTable = new double[hpx_get_num_ranks()];
-    for (int r = 0; r < hpx_get_num_ranks(); r++) loadBalancingTable[r] = 0;
+    load_balancing_mutex_ = hpx_lco_sema_new(1);
+    load_balancing_table_ = new double[hpx_get_num_ranks()];
+    for (int r = 0; r < hpx_get_num_ranks(); r++) load_balancing_table_[r] = 0;
   }
 }
 
 tools::LoadBalancing::~LoadBalancing() {
-  hpx_lco_delete_sync(loadBalancingMutex);
-  delete[] loadBalancingTable;
+  hpx_lco_delete_sync(load_balancing_mutex_);
+  delete[] load_balancing_table_;
 }
 
 void tools::LoadBalancing::PrintTable() {
-  if (loadBalancingTable == nullptr) return;
+  if (load_balancing_table_ == nullptr) return;
   if (hpx_get_my_rank() != 0) return;
 
   printf("neurox::tools::LoadBalancing::PrintTable()\n");
   for (int r = 0; r < hpx_get_num_ranks(); r++)
-    printf("- rank %d : %.6f ms\n", r, loadBalancingTable[r]);
+    printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {

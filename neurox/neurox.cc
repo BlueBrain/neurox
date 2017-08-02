@@ -67,7 +67,7 @@ static int Main_handler() {
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
-  if (neurox::input_params->outputStatistics) {
+  if (neurox::input_params->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
     tools::Statistics::OutputSimulationSize();
     // hpx_exit(0,NULL);
@@ -125,7 +125,7 @@ static int Main_handler() {
   printf(
       "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
       "secs).\n",
-      neurox::neurons_count, input_params->tstop / 1000.0, totalTimeElapsed);
+      neurox::neurons_count, input_params->tstop_ / 1000.0, totalTimeElapsed);
 
   neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
@@ -139,7 +139,7 @@ int Clear_handler() {
   delete[] neurox::neurons;
   delete[] neurox::mechanisms_map;
 
-  if (input_params->allReduceAtLocality) {
+  if (input_params->all_reduce_at_locality) {
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
         ->clear();
     delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::

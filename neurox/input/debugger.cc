@@ -27,7 +27,7 @@ using namespace neurox::input;
 using namespace neurox::algorithms;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
-  const double epsilon = input_params->multiMex ? 5e-4 : 1e-8;
+  const double epsilon = input_params->mechs_parallelism_ ? 5e-4 : 1e-8;
   // NOTE: current functions for mechs SK_E2 (144) andNap_Et2 (123) depends on
   // V that change opening vars that change V and so on... after few steps this
   // causes high difference in results;
@@ -88,14 +88,14 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->DeliverEvents(b->nt->_t);
-  for (int n = 0; n < b->nt->end; n++)
-    b->nt->_actual_v[n] = input_params->voltage;
+  b->DeliverEvents(b->nt_->_t);
+  for (int n = 0; n < b->nt_->end; n++)
+    b->nt_->_actual_v[n] = input_params->voltage_;
 
   // coreneuron
   nrn_deliver_events(nth); /* The play events at t=0 */
 
-  for (int i = 0; i < nth->end; ++i) nth->_actual_v[i] = input_params->voltage;
+  for (int i = 0; i < nth->end; ++i) nth->_actual_v[i] = input_params->voltage_;
 
   /****************/ CompareBranch2(b); /*****************/
 
@@ -119,7 +119,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
   /****************/ CompareBranch2(b); /*****************/
 
   b->CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
-  b->DeliverEvents(b->nt->_t);
+  b->DeliverEvents(b->nt_->_t);
 
   // coreneuron
 
@@ -135,7 +135,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
   /****************/ CompareBranch2(b); /*****************/
 
   b->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  b->DeliverEvents(b->nt->_t);
+  b->DeliverEvents(b->nt_->_t);
 
   nrn_ba(nth, BEFORE_STEP);
   nrn_deliver_events(nth);
@@ -145,33 +145,33 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
 void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
-  double dt = b->nt->_dt;
-  if (b->soma &&
+  double dt = b->nt_->_dt;
+  if (b->soma_ &&
       input_params->algorithm ==
           neurox::algorithms::AlgorithmType::kBackwardEulerTimeDependencyLCO) {
     TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
         (TimeDependencyLCOAlgorithm::TimeDependencies *)
-            b->soma->algorithmMetaData;
-    timeDependencies->SendSteppingNotification(b->nt->_t, dt, b->soma->gid,
-                                               b->soma->synapses);
-    timeDependencies->WaitForTimeDependencyNeurons(b->nt->_t, dt, b->soma->gid);
+            b->soma_->algorithmMetaData;
+    timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid,
+                                               b->soma_->synapses);
+    timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, dt, b->soma_->gid);
   }
-  if (b->soma) {
+  if (b->soma_) {
     // Soma waits for AIS to have threshold V value updated
     floble_t thresholdV;
     solver::HinesSolver::SynchronizeThresholdV(b, &thresholdV);
-    if (b->soma->CheckAPthresholdAndTransmissionFlag(thresholdV))
-      b->soma->SendSpikes(b->nt->_t);
+    if (b->soma_->CheckAPthresholdAndTransmissionFlag(thresholdV))
+      b->soma_->SendSpikes(b->nt_->_t);
     // TODO sendSpikes LCO must be waited
-  } else if (b->thvar_ptr)
+  } else if (b->thvar_ptr_)
     // Axon Initial Segment send threshold  V to parent
     solver::HinesSolver::SynchronizeThresholdV(b);
 
-  b->nt->_t += .5 * dt;
-  b->DeliverEvents(b->nt->_t);
+  b->nt_->_t += .5 * dt;
+  b->DeliverEvents(b->nt_->_t);
 
   // coreneuron
-  assert(b->nt->cj == nth->cj);
+  assert(b->nt_->cj == nth->cj);
   dt2thread(dt);
   ;
   deliver_net_events(nth);
@@ -190,10 +190,10 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   /****************/ CompareBranch2(b); /*****************/
 
-  second_order_cur(b->nt, input_params->secondorder);
-  floble_t secondOrderMultiplier = input_params->secondorder ? 2.0 : 1.0;
-  for (int i = 0; i < b->nt->end; i++)
-    b->nt->_actual_v[i] += secondOrderMultiplier * b->nt->_actual_rhs[i];
+  second_order_cur(b->nt_, input_params->second_order_);
+  floble_t secondOrderMultiplier = input_params->second_order_ ? 2.0 : 1.0;
+  for (int i = 0; i < b->nt_->end; i++)
+    b->nt_->_actual_v[i] += secondOrderMultiplier * b->nt_->_actual_rhs[i];
   b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   second_order_cur(nth, secondorder);
@@ -201,7 +201,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->nt->_t += .5 * dt;
+  b->nt_->_t += .5 * dt;
   b->FixedPlayContinuous();
 
   nth->_t += .5 * nth->_dt;  // nrn_fixed_step_lastpart(nth);
@@ -217,7 +217,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   b->CallModFunction(Mechanism::ModFunctions::kAfterSolve);
   b->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  b->DeliverEvents(b->nt->_t);
+  b->DeliverEvents(b->nt_->_t);
 
   nrn_ba(nth, AFTER_SOLVE);
   nrn_ba(nth, BEFORE_STEP);
@@ -251,38 +251,38 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branchingDepth > 0 || input_params->loadBalancing) return;
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
 }
 
 void Debugger::CompareBranch2(Branch *branch) {
-  assert(branch->soma);  // only non-branched neurons
-  int nrnThreadId = branch->nt->id;
+  assert(branch->soma_);  // only non-branched neurons
+  int nrnThreadId = branch->nt_->id;
   assert(sizeof(floble_t) == sizeof(double));  // only works with doubles!
   NrnThread &nt = nrn_threads[nrnThreadId];
 
-  bool multiMex = branch->mechsGraph != NULL;
+  bool multiMex = branch->mechs_graph_ != NULL;
 
-  assert(branch->nt->_t == nt._t);
-  assert(branch->nt->_ndata == nt._ndata);
-  assert(secondorder == input_params->secondorder);
-  assert(branch->soma->threshold == nt.presyns[0].threshold_);
-  assert(branch->soma->gid == nt.presyns[0].gid_);
-  assert(IsEqual(*(branch->thvar_ptr), nt._actual_v[nt.presyns[0].thvar_index_],
+  assert(branch->nt_->_t == nt._t);
+  assert(branch->nt_->_ndata == nt._ndata);
+  assert(secondorder == input_params->second_order_);
+  assert(branch->soma_->threshold == nt.presyns[0].threshold_);
+  assert(branch->soma_->gid == nt.presyns[0].gid_);
+  assert(IsEqual(*(branch->thvar_ptr_), nt._actual_v[nt.presyns[0].thvar_index_],
                  multiMex));
 
   // vecplay
-  assert(branch->nt->n_vecplay == nt.n_vecplay);
+  assert(branch->nt_->n_vecplay == nt.n_vecplay);
   for (int i = 0; i < nt.n_vecplay; i++) {
-    void *vpx_ptr = branch->nt->_vecplay[i];
+    void *vpx_ptr = branch->nt_->_vecplay[i];
     VecPlayContinuousX *vpx = reinterpret_cast<VecPlayContinuousX *>(vpx_ptr);
 
     PlayRecord *prc = (PlayRecord *)nt._vecplay[i];
     VecPlayContinuous *vpc = (VecPlayContinuous *)prc;
 
-    assert(prc->ith_ == branch->nt->id);  // single neuron per NrnThread
+    assert(prc->ith_ == branch->nt_->id);  // single neuron per NrnThread
     assert(vpx->last_index_ == vpc->last_index_);
     assert(vpx->discon_index_ == vpc->discon_index_);
     assert(vpx->size_ == vpc->y_->size());
@@ -299,12 +299,12 @@ void Debugger::CompareBranch2(Branch *branch) {
   }
 
   // make sure morphology is correct
-  assert(branch->nt->end == nt.end);
+  assert(branch->nt_->end == nt.end);
   for (int i = 0; i < 6; i++)                  // RHS, D, A, B, V and area
-    for (int j = 0; j < branch->nt->end; j++)  // for all compartments
+    for (int j = 0; j < branch->nt_->end; j++)  // for all compartments
     {
       int offset = tools::Vectorizer::SizeOf(nt.end) * i + j;
-      assert(IsEqual(nt._data[offset], branch->nt->_data[offset], multiMex));
+      assert(IsEqual(nt._data[offset], branch->nt_->_data[offset], multiMex));
     }
 
   // dparam_semantics
@@ -316,26 +316,26 @@ void Debugger::CompareBranch2(Branch *branch) {
     }
   }
 
-  for (offset_t i = 0; i < branch->nt->end; i++) {
-    assert(nt._actual_a[i] == branch->nt->_actual_a[i]);        // constants
-    assert(nt._actual_b[i] == branch->nt->_actual_b[i]);        // constants
-    assert(nt._actual_area[i] == branch->nt->_actual_area[i]);  // constants
-    assert(IsEqual(nt._actual_d[i], branch->nt->_actual_d[i], multiMex));
-    assert(IsEqual(nt._actual_v[i], branch->nt->_actual_v[i], multiMex));
-    assert(IsEqual(nt._actual_rhs[i], branch->nt->_actual_rhs[i], multiMex));
-    if (branch->nt->_v_parent_index) {
-      assert(nt._v_parent_index[i] == branch->nt->_v_parent_index[i]);
+  for (offset_t i = 0; i < branch->nt_->end; i++) {
+    assert(nt._actual_a[i] == branch->nt_->_actual_a[i]);        // constants
+    assert(nt._actual_b[i] == branch->nt_->_actual_b[i]);        // constants
+    assert(nt._actual_area[i] == branch->nt_->_actual_area[i]);  // constants
+    assert(IsEqual(nt._actual_d[i], branch->nt_->_actual_d[i], multiMex));
+    assert(IsEqual(nt._actual_v[i], branch->nt_->_actual_v[i], multiMex));
+    assert(IsEqual(nt._actual_rhs[i], branch->nt_->_actual_rhs[i], multiMex));
+    if (branch->nt_->_v_parent_index) {
+      assert(nt._v_parent_index[i] == branch->nt_->_v_parent_index[i]);
     }
   }
 
   // make sure weights are correct
-  assert(nt.n_weight == branch->nt->n_weight);
+  assert(nt.n_weight == branch->nt_->n_weight);
   // for (int n=0; n< nt.n_weight; n++)
   //{   assert(nt.weights[n] == branch->nt->weights[n]); } //order is changed!
 
   // make sure netcons are correct
   size_t netconsCount = 0;
-  for (auto nc_it : branch->netcons) {
+  for (auto nc_it : branch->netcons_) {
     int srcGid = nc_it.first;
     netconsCount += nc_it.second.size();
   }
@@ -348,7 +348,7 @@ void Debugger::CompareBranch2(Branch *branch) {
     int type = tml->index;
     int m = mechanisms_map[type];
     Memb_list *ml = tml->ml;  // Mechanisms application to each compartment
-    Memb_list &instances = branch->mechsInstances[m];
+    Memb_list &instances = branch->mechs_instances_[m];
     assert(ml->nodecount == instances.nodecount);
     short dataSize = mechanisms[m]->dataSize;
     short pdataSize = mechanisms[m]->pdataSize;
@@ -374,7 +374,7 @@ void Debugger::CompareBranch2(Branch *branch) {
         bool isPointer = ptype == -1 || (ptype > 0 && ptype < 1000);
         if (isPointer) {
           assert(IsEqual(nt._data[ml->pdata[offset]],
-                         branch->nt->_data[instances.pdata[offset]], multiMex));
+                         branch->nt_->_data[instances.pdata[offset]], multiMex));
         }
         assert(ml->pdata[offset] == instances.pdata[offset]);
       }
@@ -400,14 +400,14 @@ int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
   for (int n = 0; n < nrn_nthread; n++)
     for (int i = 0; i < *steps_ptr; i++)
-      Debugger::FixedStepMinimal2(&nrn_threads[n], input_params->secondorder);
+      Debugger::FixedStepMinimal2(&nrn_threads[n], input_params->second_order_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  nrn_finitialize(input_params->voltage != 1000., input_params->voltage);
+  nrn_finitialize(input_params->voltage_ != 1000., input_params->voltage_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -430,7 +430,7 @@ int Debugger::NrnSpikeExchange_handler() {
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if (input_params->branchingDepth > 0 || input_params->loadBalancing)
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
@@ -438,7 +438,7 @@ int Debugger::CompareBranch_handler() {
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branchingDepth > 0 || input_params->loadBalancing) return;
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing) return;
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
@@ -466,7 +466,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 
-  if (input_params->branchingDepth > 0 || input_params->loadBalancing)
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing)
     return;  // can't be compared
 
   input::Debugger::FixedStepMinimal2(nt, secondorder);
@@ -475,14 +475,17 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
 }
 
 void Debugger::RegisterHpxActions() {
-    wrappers::RegisterZeroVarAction(Debugger::CompareBranch, Debugger::CompareBranch_handler);
-    wrappers::RegisterZeroVarAction(Debugger::Finitialize, Debugger::Finitialize_handler);
-    wrappers::RegisterZeroVarAction(Debugger::NrnSpikeExchange, Debugger::NrnSpikeExchange_handler);
-    wrappers::RegisterZeroVarAction(Debugger::ThreadTableCheck, Debugger::ThreadTableCheck_handler);
-    wrappers::RegisterSingleVarAction<int>(Debugger::FixedStepMinimal, Debugger::FixedStepMinimal_handler);
-//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::CompareBranch);
-//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::Finitialize);
-//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::NrnSpikeExchange);
-//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::ThreadTableCheck);
-//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Debugger::FixedStepMinimal);
+  wrappers::RegisterZeroVarAction(Debugger::CompareBranch,
+                                  Debugger::CompareBranch_handler);
+  wrappers::RegisterZeroVarAction(Debugger::Finitialize,
+                                  Debugger::Finitialize_handler);
+  wrappers::RegisterZeroVarAction(Debugger::NrnSpikeExchange,
+                                  Debugger::NrnSpikeExchange_handler);
+  wrappers::RegisterZeroVarAction(Debugger::ThreadTableCheck,
+                                  Debugger::ThreadTableCheck_handler);
+  wrappers::RegisterSingleVarAction<int>(Debugger::FixedStepMinimal,
+                                         Debugger::FixedStepMinimal_handler);
+  //  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::CompareBranch);
+  //  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
+  //  Debugger::FixedStepMinimal);
 }

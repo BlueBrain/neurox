@@ -126,7 +126,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
                                 ) {
   Branch *branch = (Branch *)branch_ptr;
   assert(branch);
-  NrnThread *nrnThread = branch->nt;
+  NrnThread *nrnThread = branch->nt_;
   assert(nrnThread);
 
   if (functionId == Mechanism::ModFunctions::kNetReceive ||
@@ -135,7 +135,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     assert(this->pnt_receive);
 
     Memb_list *membList =
-        &branch->mechsInstances[mechanisms_map[netcon->mechType]];
+        &branch->mechs_instances_[mechanisms_map[netcon->mechType]];
     assert(membList);
     int iml = netcon->mechInstance;
     int weightIndex = netcon->weightIndex;
@@ -144,7 +144,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     return;
   }
 
-  Memb_list *membList = &branch->mechsInstances[mechanisms_map[this->type]];
+  Memb_list *membList = &branch->mechs_instances_[mechanisms_map[this->type]];
   assert(membList);
   if (membList->nodecount > 0) switch (functionId) {
       case Mechanism::kBeforeInitialize:
@@ -168,7 +168,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         assert(type != CAP);
         if (membFunc.current)  // has a current function
         {
-          if (input_params->multiMex  // parallel execution
+          if (input_params->mechs_parallelism_  // parallel execution
               &&
               strcmp(this->membFunc.sym, "CaDynamics_E2") !=
                   0  // not CaDynamics_E2 (no updates in cur function)
@@ -179,13 +179,13 @@ void Mechanism::CallModFunction(const void *branch_ptr,
                   nrnThread, membList, type,
                   Branch::MechanismsGraph::AccumulateRHSandD,
                   Branch::MechanismsGraph::AccumulateIandDIDV,
-                  branch->mechsGraph);
+                  branch->mechs_graph_);
             else
               membFunc.current_parallel(
                   nrnThread, membList, type,
                   Branch::MechanismsGraph::AccumulateRHSandD,
                   NULL,  // no accummulation of i and di/dv
-                  branch->mechsGraph);
+                  branch->mechs_graph_);
           } else  // regular version
             membFunc.current(nrnThread, membList, type);
         }

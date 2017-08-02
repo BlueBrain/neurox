@@ -33,7 +33,7 @@ void AllReduceAlgorithm::Clear() {
 double AllReduceAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
@@ -47,8 +47,8 @@ void AllReduceAlgorithm::StepBegin(Branch*) {}
 
 void AllReduceAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt->id], b,
-                                              input_params->secondorder);
+  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                              input_params->second_order_);
 }
 
 void AllReduceAlgorithm::Run(Branch* b, const void* args) { Run2(b, args); }
@@ -70,7 +70,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
         0, AllReduceAlgorithm::AllReducesInfo::Init,
         AllReduceAlgorithm::AllReducesInfo::Reduce);
 
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         SubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -86,7 +86,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
 void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
                                                size_t allReducesCount) {
   assert(allReduces != nullptr);
-  if (input_params->allReduceAtLocality)
+  if (input_params->all_reduce_at_locality)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         UnsubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -104,8 +104,8 @@ void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
 
 void AllReduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikesLco) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
-  if (b->soma) {
-    AllReducesInfo* stw = (AllReducesInfo*)b->soma->algorithmMetaData;
+  if (b->soma_) {
+    AllReducesInfo* stw = (AllReducesInfo*)b->soma_->algorithmMetaData;
     std::queue<hpx_t> q = stw->spikesLcoQueue;
     assert(stw->spikesLcoQueue.size() ==
            CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize - 1);
@@ -135,19 +135,19 @@ void AllReduceAlgorithm::Run2(Branch* b, const void* args) {
       CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
   const int stepsPerReduction = commStepSize / reductionsPerCommStep;
   const AllReducesInfo* stw =
-      b->soma ? (AllReducesInfo*)b->soma->algorithmMetaData : nullptr;
+      b->soma_ ? (AllReducesInfo*)b->soma_->algorithmMetaData : nullptr;
 
   for (int s = 0; s < steps; s += commStepSize)  // for every communication step
   {
 #ifndef NDEBUG
-    if (hpx_get_my_rank() == 0 && b->nt->id == 0 && b->soma) {
-      printf("-- t=%.4f ms\n", input_params->dt * s);
+    if (hpx_get_my_rank() == 0 && b->nt_->id == 0 && b->soma_) {
+      printf("-- t=%.4f ms\n", input_params->dt_ * s);
       fflush(stdout);
     }
 #endif
     for (int r = 0; r < reductionsPerCommStep; r++)  // for every reduction step
     {
-      if (b->soma) {
+      if (b->soma_) {
         if (s >= commStepSize)  // first comm-window does not wait
           hpx_lco_wait_reset(stw->allReduceFuture[r]);
         else
@@ -184,7 +184,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce = 0;
 int AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce_handler(
     const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(Branch);
-  AllReducesInfo* stw = (AllReducesInfo*)local->soma->algorithmMetaData;
+  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithmMetaData;
   stw->allReduceFuture = new hpx_t[AllReducesInfo::reductionsPerCommStep];
   stw->allReduceLco = new hpx_t[AllReducesInfo::reductionsPerCommStep];
   stw->allReduceId = new int[AllReducesInfo::reductionsPerCommStep];
@@ -201,7 +201,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce = 0;
 int AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce_handler(
     const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(Branch);
-  AllReducesInfo* stw = (AllReducesInfo*)local->soma->algorithmMetaData;
+  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithmMetaData;
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i],
                                                  stw->allReduceId[i]);
@@ -242,7 +242,7 @@ hpx_action_t
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     SubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->allReduceAtLocality);
+  assert(input_params->all_reduce_at_locality);
   AllReduceLocality::allReduceLco =
       new hpx_t[AllReducesInfo::reductionsPerCommStep];
   AllReduceLocality::allReduceFuture =
@@ -263,7 +263,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     UnsubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->allReduceAtLocality);
+  assert(input_params->all_reduce_at_locality);
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i], allReduceId[i]);
     hpx_lco_delete_sync(allReduceFuture[i]);
@@ -278,20 +278,29 @@ int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
 }
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::Init = 0;
-void AllReduceAlgorithm::AllReducesInfo::Init_handler(void*,
-                                                      const size_t) {}
+void AllReduceAlgorithm::AllReducesInfo::Init_handler(void*, const size_t) {}
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::Reduce = 0;
 void AllReduceAlgorithm::AllReducesInfo::Reduce_handler(void*, const void*,
                                                         const size_t) {}
 
 void AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions() {
-    wrappers::RegisterSingleVarAction<hpx_t>(SubscribeAllReduce, SubscribeAllReduce_handler);
-    wrappers::RegisterSingleVarAction<hpx_t>(UnsubscribeAllReduce, UnsubscribeAllReduce_handler);
-    wrappers::RegisterSingleVarAction<hpx_t>(AllReduceLocality::SubscribeAllReduce, AllReduceLocality::SubscribeAllReduce_handler);
-    wrappers::RegisterSingleVarAction<hpx_t>(AllReduceLocality::UnsubscribeAllReduce, AllReduceLocality::UnsubscribeAllReduce_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(SubscribeAllReduce,
+                                           SubscribeAllReduce_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(UnsubscribeAllReduce,
+                                           UnsubscribeAllReduce_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(
+      AllReduceLocality::SubscribeAllReduce,
+      AllReduceLocality::SubscribeAllReduce_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(
+      AllReduceLocality::UnsubscribeAllReduce,
+      AllReduceLocality::UnsubscribeAllReduce_handler);
 
-    wrappers::RegisterSingleVarAction<int>(AllReducesInfo::SetReductionsPerCommStep, AllReducesInfo::SetReductionsPerCommStep_handler);
-    wrappers::RegisterAllReduceInitAction<void>(AllReducesInfo::Init, AllReducesInfo::Init_handler);
-    wrappers::RegisterAllReduceReduceAction<void>(AllReducesInfo::Reduce, AllReducesInfo::Reduce_handler);
+  wrappers::RegisterSingleVarAction<int>(
+      AllReducesInfo::SetReductionsPerCommStep,
+      AllReducesInfo::SetReductionsPerCommStep_handler);
+  wrappers::RegisterAllReduceInitAction<void>(AllReducesInfo::Init,
+                                              AllReducesInfo::Init_handler);
+  wrappers::RegisterAllReduceReduceAction<void>(AllReducesInfo::Reduce,
+                                                AllReducesInfo::Reduce_handler);
 }
