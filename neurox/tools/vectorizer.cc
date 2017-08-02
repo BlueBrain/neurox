@@ -121,7 +121,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
 
   // convert VecPlay continuous pointers
   for (int v = 0; v < b->nt_->n_vecplay; v++) {
-    VecPlayContinuousX* vc = (VecPlayContinuousX*)b->nt_->_vecplay[v];
+    VecplayContinuousX* vc = (VecplayContinuousX*)b->nt_->_vecplay[v];
     int pd_offset = vc->pd_ - &b->nt_->_data[0];
     assert(pd_offset >= 0 && pd_offset <= b->nt_->_ndata);
     int pd_offset_new = data_offsets.at(pd_offset);

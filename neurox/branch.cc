@@ -268,7 +268,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       yvec[i] = vecplay_y[v_offset + i];
       tvec[i] = vecplay_t[v_offset + i];
     }
-    nt->_vecplay[v] = new VecPlayContinuousX(pd, size, yvec, tvec, NULL);
+    nt->_vecplay[v] = new VecplayContinuousX(pd, size, yvec, tvec, NULL);
     v_offset += size;
   }
 
@@ -370,7 +370,7 @@ Branch::~Branch() {
   delete[] this->nt_->_vdata;  // TODO deleting void* in undefined!
 
   for (int i = 0; i < this->nt_->n_vecplay; i++)
-    delete (VecPlayContinuousX *)nt_->_vecplay[i];
+    delete (VecplayContinuousX *)nt_->_vecplay[i];
   delete[] this->nt_->_vecplay;
 
   free(this->nt_);
@@ -459,8 +459,8 @@ int Branch::Clear_handler() {
 void Branch::InitVecPlayContinous() {
   // nrn_play_init
   for (size_t v = 0; v < this->nt_->n_vecplay; v++) {
-    VecPlayContinuousX *vecplay =
-        reinterpret_cast<VecPlayContinuousX *>(this->nt_->_vecplay[v]);
+    VecplayContinuousX *vecplay =
+        reinterpret_cast<VecplayContinuousX *>(this->nt_->_vecplay[v]);
     vecplay->PlayInit(this);
   }
 }
@@ -768,8 +768,8 @@ void Branch::FixedPlayContinuous() {
   double t = this->nt_->_t;
   for (int v = 0; v < this->nt_->n_vecplay; v++) {
     void *vecplay_void = this->nt_->_vecplay[v];
-    VecPlayContinuousX *vecplay =
-        reinterpret_cast<VecPlayContinuousX *>(vecplay_void);
+    VecplayContinuousX *vecplay =
+        reinterpret_cast<VecplayContinuousX *>(vecplay_void);
     vecplay->Continuous(t);
   }
 }

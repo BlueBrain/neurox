@@ -277,7 +277,7 @@ void Debugger::CompareBranch2(Branch *branch) {
   assert(branch->nt_->n_vecplay == nt.n_vecplay);
   for (int i = 0; i < nt.n_vecplay; i++) {
     void *vpx_ptr = branch->nt_->_vecplay[i];
-    VecPlayContinuousX *vpx = reinterpret_cast<VecPlayContinuousX *>(vpx_ptr);
+    VecplayContinuousX *vpx = reinterpret_cast<VecplayContinuousX *>(vpx_ptr);
 
     PlayRecord *prc = (PlayRecord *)nt._vecplay[i];
     VecPlayContinuous *vpc = (VecPlayContinuous *)prc;

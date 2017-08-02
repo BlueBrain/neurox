@@ -28,7 +28,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
     hpx_lco_sema_p(load_balancing_mutex_);
     load_balancing_table_[rank] += elapsed_time;
     hpx_lco_sema_v_sync(load_balancing_mutex_);
-    NEUROX_MEM_UNPIN;
+    return wrappers::MemoryUnpin(target);
   } else {
     double min_elapsed_time = 99999999999;
     int rank = -1;
@@ -40,9 +40,9 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
       }
     load_balancing_table_[rank] += elapsed_time;
     hpx_lco_sema_v_sync(load_balancing_mutex_);
-    NEUROX_MEM_UNPIN_CONTINUE(rank);
+    return wrappers::MemoryUnpin(target, rank);
   }
-  NEUROX_MEM_UNPIN;
+  return wrappers::MemoryUnpin(target);
 }
 
 tools::LoadBalancing::LoadBalancing() {
