@@ -91,7 +91,7 @@ static int Main_handler() {
 #endif
 
   double totalTimeElapsed = 0;
-  if (input_params->algorithm == AlgorithmType::kBenchmarkAll) {
+  if (input_params->algorithm_ == AlgorithmType::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
       algorithm = Algorithm::New((AlgorithmType)type);
@@ -114,7 +114,7 @@ static int Main_handler() {
 #endif
     }
   } else {
-    algorithm = Algorithm::New(input_params->algorithm);
+    algorithm = Algorithm::New(input_params->algorithm_);
     algorithm->Init();
     algorithm->PrintStartInfo();
     totalTimeElapsed = algorithm->Launch();
@@ -139,7 +139,7 @@ int Clear_handler() {
   delete[] neurox::neurons;
   delete[] neurox::mechanisms_map;
 
-  if (input_params->all_reduce_at_locality) {
+  if (input_params->all_reduce_at_locality_) {
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
         ->clear();
     delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::

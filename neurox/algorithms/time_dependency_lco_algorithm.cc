@@ -20,7 +20,7 @@ const char* TimeDependencyLCOAlgorithm::GetTypeString() {
 }
 
 void TimeDependencyLCOAlgorithm::Init() {
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependencyLCO with allReduceAtLocality\n");
 
@@ -46,13 +46,13 @@ void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
 
   if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma_->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithm_metadata_;
 
     // fixes crash for Algorithm::All when TimeDependency algorithm starts at
     // t=inputParams->tend*2
     // increase notification and dependencies time
-    for (Neuron::Synapse*& s : b->soma_->synapses)
-      s->nextNotificationTime += b->nt_->_t;
+    for (Neuron::Synapse*& s : b->soma_->synapses_)
+      s->next_notification_time_ += b->nt_->_t;
     timeDependencies->IncreseDependenciesTime(b->nt_->_t);
   }
 
@@ -61,20 +61,20 @@ void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
 // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
 #ifndef NDEBUG
-  if (b->soma_) printf("-- neuron %d finished\n", b->soma_->gid);
+  if (b->soma_) printf("-- neuron %d finished\n", b->soma_->gid_);
 #endif
 }
 
 void TimeDependencyLCOAlgorithm::StepBegin(Branch* b) {
   if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma_->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithm_metadata_;
     // inform time dependants that must be notified in this step
     timeDependencies->SendSteppingNotification(b->nt_->_t, b->nt_->_dt,
-                                               b->soma_->gid, b->soma_->synapses);
+                                               b->soma_->gid_, b->soma_->synapses_);
     // wait until Im sure I can start and finalize this step at t+dt
     timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
-                                                   b->soma_->gid);
+                                                   b->soma_->gid_);
   }
 }
 
@@ -91,7 +91,7 @@ void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
   hpx_t topBranchAddr = b->soma_ ? target : b->branch_tree_->top_branch_addr_;
   if (b->soma_) {
     TimeDependencies* timeDependencies =
-        (TimeDependencies*)b->soma_->algorithmMetaData;
+        (TimeDependencies*)b->soma_->algorithm_metadata_;
     timeDependencies->UpdateTimeDependency(preNeuronId, maxTime);
   } else
     hpx_call(topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL,
@@ -104,18 +104,18 @@ hpx_t TimeDependencyLCOAlgorithm::SendSpikes(Neuron* neuron, double tt,
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
   const double teps = TimeDependencyLCOAlgorithm::TimeDependencies::teps;
 
-  for (Neuron::Synapse*& s : neuron->synapses) {
-    s->nextNotificationTime =
-        t + (s->minDelay + neuron->refractoryPeriod) * notifRatio;
+  for (Neuron::Synapse*& s : neuron->synapses_) {
+    s->next_notification_time_ =
+        t + (s->min_delay_ + neuron->refractory_period_) * notifRatio;
     spike_time_t maxTimeAllowed =
-        t + teps + s->minDelay + neuron->refractoryPeriod;
+        t + teps + s->min_delay_ + neuron->refractory_period_;
 
-    hpx_lco_wait_reset(s->previousSpikeLco);  // reset LCO to be used next
+    hpx_lco_wait_reset(s->previous_spike_lco_);  // reset LCO to be used next
     // any spike or step notification happening after must wait for this spike
     // delivery
 
-    hpx_call(s->branchAddr, Branch::AddSpikeEvent, s->previousSpikeLco,
-             &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, s->previous_spike_lco_,
+             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
              &maxTimeAllowed, sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -265,20 +265,20 @@ void TimeDependencyLCOAlgorithm::TimeDependencies::WaitForTimeDependencyNeurons(
 void TimeDependencyLCOAlgorithm::TimeDependencies::SendSteppingNotification(
     floble_t t, floble_t dt, int gid, std::vector<Neuron::Synapse*>& synapses) {
   for (Neuron::Synapse*& s : synapses)
-    if (s->nextNotificationTime - teps <= t + dt)  // if in this time step
+    if (s->next_notification_time_ - teps <= t + dt)  // if in this time step
     //(-teps to give or take few nanosecs for correction of floating point time
     // roundings)
     {
-      assert(s->nextNotificationTime >=
+      assert(s->next_notification_time_ >=
              t);  // must have been covered by previous steps
-      s->nextNotificationTime =
-          t + s->minDelay * TimeDependencies::notificationIntervalRatio;
-      spike_time_t maxTimeAllowed = t + TimeDependencies::teps + s->minDelay;
+      s->next_notification_time_ =
+          t + s->min_delay_ * TimeDependencies::notificationIntervalRatio;
+      spike_time_t maxTimeAllowed = t + TimeDependencies::teps + s->min_delay_;
 
       // wait for previous synapse to be delivered (if any) before telling
       // post-syn neuron to proceed in time
-      hpx_lco_wait(s->previousSpikeLco);
-      hpx_call(s->topBranchAddr, Branch::UpdateTimeDependency, HPX_NULL, &gid,
+      hpx_lco_wait(s->previous_spike_lco_);
+      hpx_call(s->top_branch_addr_, Branch::UpdateTimeDependency, HPX_NULL, &gid,
                sizeof(neuron_id_t), &maxTimeAllowed, sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)

@@ -76,7 +76,7 @@ void DebugAlgorithm::Run(Branch* b, const void* args) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* commBarrier =
-        (CommunicationBarrier*)b->soma_->algorithmMetaData;
+        (CommunicationBarrier*)b->soma_->algorithm_metadata_;
     if (commBarrier->allSpikesLco != HPX_NULL)  // was set/used once
       hpx_lco_wait(commBarrier->allSpikesLco);  // wait if needed
   }
@@ -84,17 +84,17 @@ void DebugAlgorithm::Run(Branch* b, const void* args) {
 
 hpx_t DebugAlgorithm::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* commBarrier =
-      (CommunicationBarrier*)neuron->algorithmMetaData;
+      (CommunicationBarrier*)neuron->algorithm_metadata_;
   if (commBarrier->allSpikesLco == HPX_NULL)  // first use
-    commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses.size());
+    commBarrier->allSpikesLco = hpx_lco_and_new(neuron->synapses_.size());
   else
     hpx_lco_reset_sync(commBarrier->allSpikesLco);  // reset to use after
 
-  for (Neuron::Synapse*& s : neuron->synapses)
+  for (Neuron::Synapse*& s : neuron->synapses_)
     // deliveryTime (t+delay) is handled on post-syn side (diff value for every
     // NetCon)
-    hpx_call(s->branchAddr, Branch::AddSpikeEvent, commBarrier->allSpikesLco,
-             &neuron->gid, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, commBarrier->allSpikesLco,
+             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
 
   return HPX_NULL;
 }

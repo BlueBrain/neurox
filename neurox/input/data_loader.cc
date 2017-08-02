@@ -576,7 +576,7 @@ int DataLoader::Init_handler() {
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
   if (hpx_get_my_rank() == 0 &&
-      (input_params->load_balancing || input_params->output_statistics_))
+      (input_params->load_balancing_ || input_params->output_statistics_))
     loadBalancing = new tools::LoadBalancing();
 
   if (neurox::ParallelExecution()  // disable output of netcons for parallel
@@ -646,7 +646,7 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr;
   my_neurons_addr = nullptr;
 
-  if (input_params->all_reduce_at_locality) {
+  if (input_params->all_reduce_at_locality_) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
@@ -793,7 +793,7 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
         ->clear();
   delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons;
@@ -1284,7 +1284,7 @@ hpx_t DataLoader::CreateBranch(
   }
 
   int neuronRank = hpx_get_my_rank();
-  if (input_params->load_balancing || input_params->output_statistics_) {
+  if (input_params->load_balancing_ || input_params->output_statistics_) {
     // Benchmark and assign this branch to least busy compute node (except soma
     // and AIS)
     // Note: we do this after children creation so that we use top (lighter)
@@ -1324,7 +1324,7 @@ hpx_t DataLoader::CreateBranch(
     assert(timeElapsed > 0);
     hpx_gas_clear_affinity(tempBranchAddr);
 
-    if (input_params->load_balancing) {
+    if (input_params->load_balancing_) {
       // ask master rank to query load balancing table and tell me where to
       // allocate this branch
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
@@ -1415,7 +1415,7 @@ int DataLoader::InitNetcons_handler() {
 
   if (local->soma_ && input_params->output_netcons_dot)
     fprintf(fileNetcons, "%d [style=filled, shape=ellipse];\n",
-            local->soma_->gid);
+            local->soma_->gid_);
 
   std::deque<std::pair<hpx_t, floble_t>>
       netcons;  // set of <srcAddr, minDelay> synapses to notify
@@ -1449,8 +1449,8 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(srcAddr, minDelay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params->algorithm == AlgorithmType::kBenchmarkAll ||
-            input_params->algorithm ==
+        if (input_params->algorithm_ == AlgorithmType::kBenchmarkAll ||
+            input_params->algorithm_ ==
                 AlgorithmType::kBackwardEulerTimeDependencyLCO) {
           spike_time_t notificationTime =
               input_params->tstart_ +
@@ -1466,7 +1466,7 @@ int DataLoader::InitNetcons_handler() {
   hpx_t netconsLCO = hpx_lco_and_new(netcons.size());
   hpx_t topBranchAddr =
       local->soma_ ? target : local->branch_tree_->top_branch_addr_;
-  int myGid = local->soma_ ? local->soma_->gid : -1;
+  int myGid = local->soma_ ? local->soma_->gid_ : -1;
   for (std::pair<hpx_t, floble_t> &nc : netcons)
     hpx_call(nc.first, DataLoader::AddSynapse, netconsLCO, &target,
              sizeof(hpx_t), &nc.second, sizeof(nc.second), &topBranchAddr,

@@ -14,7 +14,7 @@ CmdLineParser::CmdLineParser()
       celsius_(34),
       voltage_(-65),
       forwardSkip_(0),
-      prcellgid(-1) {
+      prcellgid_(-1) {
   // TODO: missing some inits
   memset(pattern_stim_, '\0', 512);
   memset(input_path_, '\0', 512);
@@ -137,7 +137,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->dt_ = dt.getValue();
     this->dt_io_ = dt_io.getValue();
     this->celsius_ = celsius.getValue();
-    this->prcellgid = prcellgid.getValue();
+    this->prcellgid_ = prcellgid.getValue();
     this->forwardSkip_ = forwardskip.getValue();
     this->voltage_ = DEF_vrest;
     this->second_order_ = (char)DEF_secondorder;
@@ -149,11 +149,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot = output_compartments_dot.getValue();
     this->mechs_parallelism_ = mechs_parallelism.getValue();
-    this->all_reduce_at_locality = all_reduce_at_locality.getValue();
-    this->load_balancing = load_balancing.getValue();
+    this->all_reduce_at_locality_ = all_reduce_at_locality.getValue();
+    this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->algorithm = (algorithms::AlgorithmType)algorithm.getValue();
-    neurox::algorithm = algorithms::Algorithm::New(this->algorithm);
+    this->algorithm_ = (algorithms::AlgorithmType)algorithm.getValue();
+    neurox::algorithm = algorithms::Algorithm::New(this->algorithm_);
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",

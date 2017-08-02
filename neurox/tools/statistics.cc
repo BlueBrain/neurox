@@ -107,7 +107,7 @@ int Statistics::GetNeuronSize_handler() {
   SizeInfo branch_size;
   int n = local->nt_->end;
   if (local->soma_) {
-    branch_size.neuron_id_ += local->soma_->gid;
+    branch_size.neuron_id_ += local->soma_->gid_;
     branch_size.metadata_ += (double)sizeof(Neuron) / 1024;
     branch_size.synapses_ +=
         (double)(local->soma_->GetSynapsesCount() * sizeof(Neuron::Synapse)) /

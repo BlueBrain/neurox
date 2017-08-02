@@ -147,14 +147,14 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
   if (b->soma_ &&
-      input_params->algorithm ==
+      input_params->algorithm_ ==
           neurox::algorithms::AlgorithmType::kBackwardEulerTimeDependencyLCO) {
     TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
         (TimeDependencyLCOAlgorithm::TimeDependencies *)
-            b->soma_->algorithmMetaData;
-    timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid,
-                                               b->soma_->synapses);
-    timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, dt, b->soma_->gid);
+            b->soma_->algorithm_metadata_;
+    timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid_,
+                                               b->soma_->synapses_);
+    timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, dt, b->soma_->gid_);
   }
   if (b->soma_) {
     // Soma waits for AIS to have threshold V value updated
@@ -251,7 +251,7 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing) return;
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
@@ -268,8 +268,8 @@ void Debugger::CompareBranch2(Branch *branch) {
   assert(branch->nt_->_t == nt._t);
   assert(branch->nt_->_ndata == nt._ndata);
   assert(secondorder == input_params->second_order_);
-  assert(branch->soma_->threshold == nt.presyns[0].threshold_);
-  assert(branch->soma_->gid == nt.presyns[0].gid_);
+  assert(branch->soma_->threshold_ == nt.presyns[0].threshold_);
+  assert(branch->soma_->gid_ == nt.presyns[0].gid_);
   assert(IsEqual(*(branch->thvar_ptr_), nt._actual_v[nt.presyns[0].thvar_index_],
                  multiMex));
 
@@ -430,7 +430,7 @@ int Debugger::NrnSpikeExchange_handler() {
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing)
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
@@ -438,7 +438,7 @@ int Debugger::CompareBranch_handler() {
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing) return;
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_) return;
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
@@ -466,7 +466,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing)
+  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_)
     return;  // can't be compared
 
   input::Debugger::FixedStepMinimal2(nt, secondorder);

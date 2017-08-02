@@ -3,7 +3,7 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-AlgorithmMetaData* AlgorithmMetaData::New(AlgorithmType type) {
+AlgorithmMetadata* AlgorithmMetadata::New(AlgorithmType type) {
   switch (type) {
     case AlgorithmType::kBackwardEulerDebug:
       return new DebugAlgorithm::CommunicationBarrier();

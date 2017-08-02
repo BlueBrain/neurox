@@ -34,7 +34,7 @@ class AllReduceAlgorithm : public Algorithm {
   const size_t kAllReducesCount = 1;
   static hpx_t* allReduces;
 
-  class AllReducesInfo : public AlgorithmMetaData {
+  class AllReducesInfo : public AlgorithmMetadata {
    public:
     AllReducesInfo();
     ~AllReducesInfo();

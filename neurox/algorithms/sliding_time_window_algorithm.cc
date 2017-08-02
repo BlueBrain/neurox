@@ -35,7 +35,7 @@ void SlidingTimeWindowAlgorithm::Clear() {
 double SlidingTimeWindowAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,

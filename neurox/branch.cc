@@ -508,7 +508,7 @@ hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == (input_params->algorithm ==
+  assert(nargs == (input_params->algorithm_ ==
                            AlgorithmType::kBackwardEulerTimeDependencyLCO
                        ? 3
                        : 2));
@@ -542,12 +542,12 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
 
   assert(local->soma_);
-  assert(local->soma_->algorithmMetaData);
+  assert(local->soma_->algorithm_metadata_);
   TimeDependencyLCOAlgorithm::TimeDependencies *time_dependencies =
       (TimeDependencyLCOAlgorithm::TimeDependencies *)
-          local->soma_->algorithmMetaData;
+          local->soma_->algorithm_metadata_;
   time_dependencies->UpdateTimeDependency(pre_neuron_id, (floble_t)max_time,
-                                         local->soma_ ? local->soma_->gid : -1,
+                                         local->soma_ ? local->soma_->gid_ : -1,
                                          init_phase);
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -641,10 +641,10 @@ hpx_action_t Branch::BackwardEulerOnLocality = 0;
 int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->all_reduce_at_locality);
-  assert(input_params->algorithm ==
+  assert(input_params->all_reduce_at_locality_);
+  assert(input_params->algorithm_ ==
              AlgorithmType::kBackwardEulerSlidingTimeWindow ||
-         input_params->algorithm == AlgorithmType::kBackwardEulerAllReduce);
+         input_params->algorithm_ == AlgorithmType::kBackwardEulerAllReduce);
 
   const int locality_neurons_count =
       AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons

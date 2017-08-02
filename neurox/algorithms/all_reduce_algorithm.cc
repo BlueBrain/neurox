@@ -33,7 +33,7 @@ void AllReduceAlgorithm::Clear() {
 double AllReduceAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
@@ -70,7 +70,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
         0, AllReduceAlgorithm::AllReducesInfo::Init,
         AllReduceAlgorithm::AllReducesInfo::Reduce);
 
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         SubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -86,7 +86,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
 void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
                                                size_t allReducesCount) {
   assert(allReduces != nullptr);
-  if (input_params->all_reduce_at_locality)
+  if (input_params->all_reduce_at_locality_)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         UnsubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -105,7 +105,7 @@ void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
 void AllReduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikesLco) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
   if (b->soma_) {
-    AllReducesInfo* stw = (AllReducesInfo*)b->soma_->algorithmMetaData;
+    AllReducesInfo* stw = (AllReducesInfo*)b->soma_->algorithm_metadata_;
     std::queue<hpx_t> q = stw->spikesLcoQueue;
     assert(stw->spikesLcoQueue.size() ==
            CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize - 1);
@@ -120,9 +120,9 @@ void AllReduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikesLco) {
 }
 
 hpx_t AllReduceAlgorithm::SendSpikes2(Neuron* neuron, double tt) {
-  hpx_t newSynapsesLco = hpx_lco_and_new(neuron->synapses.size());
-  for (Neuron::Synapse*& s : neuron->synapses)
-    hpx_call(s->branchAddr, Branch::AddSpikeEvent, newSynapsesLco, &neuron->gid,
+  hpx_t newSynapsesLco = hpx_lco_and_new(neuron->synapses_.size());
+  for (Neuron::Synapse*& s : neuron->synapses_)
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, newSynapsesLco, &neuron->gid_,
              sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   return newSynapsesLco;
 }
@@ -135,7 +135,7 @@ void AllReduceAlgorithm::Run2(Branch* b, const void* args) {
       CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
   const int stepsPerReduction = commStepSize / reductionsPerCommStep;
   const AllReducesInfo* stw =
-      b->soma_ ? (AllReducesInfo*)b->soma_->algorithmMetaData : nullptr;
+      b->soma_ ? (AllReducesInfo*)b->soma_->algorithm_metadata_ : nullptr;
 
   for (int s = 0; s < steps; s += commStepSize)  // for every communication step
   {
@@ -184,7 +184,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce = 0;
 int AllReduceAlgorithm::AllReducesInfo::SubscribeAllReduce_handler(
     const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(Branch);
-  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithmMetaData;
+  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithm_metadata_;
   stw->allReduceFuture = new hpx_t[AllReducesInfo::reductionsPerCommStep];
   stw->allReduceLco = new hpx_t[AllReducesInfo::reductionsPerCommStep];
   stw->allReduceId = new int[AllReducesInfo::reductionsPerCommStep];
@@ -201,7 +201,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce = 0;
 int AllReduceAlgorithm::AllReducesInfo::UnsubscribeAllReduce_handler(
     const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(Branch);
-  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithmMetaData;
+  AllReducesInfo* stw = (AllReducesInfo*)local->soma_->algorithm_metadata_;
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i],
                                                  stw->allReduceId[i]);
@@ -242,7 +242,7 @@ hpx_action_t
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     SubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->all_reduce_at_locality);
+  assert(input_params->all_reduce_at_locality_);
   AllReduceLocality::allReduceLco =
       new hpx_t[AllReducesInfo::reductionsPerCommStep];
   AllReduceLocality::allReduceFuture =
@@ -263,7 +263,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     UnsubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->all_reduce_at_locality);
+  assert(input_params->all_reduce_at_locality_);
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i], allReduceId[i]);
     hpx_lco_delete_sync(allReduceFuture[i]);
