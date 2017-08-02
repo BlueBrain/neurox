@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS false
-#define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS false
+#define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS true
+#define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS true
 
 using namespace std;
 
@@ -72,7 +72,7 @@ class DataLoader {
   static std::vector<int> *all_neurons_gids_;
 
   /// pointer to load balancing instantiated class (if any)
-  static tools::LoadBalancing *loa_balancing_;
+  static tools::LoadBalancing *load_balancing_;
 
   static hpx_t CreateBranch(
       int nrn_thread_id, hpx_t soma_branch_addr,

@@ -48,18 +48,22 @@ class Neuron {
     hpx_t previous_spike_lco_;  ///>lco controlling spikes delivery
   };
 
-  hpx_t SendSpikes(floble_t t);  ///> fires AP, returns LCO for sent synapses
+  /// fires AP, returns LCO for sent synapses
+  hpx_t SendSpikes(floble_t t);
+
+  /// add hpx address of post-synaptic branch
   void AddSynapse(
-      Synapse* target);       ///> add hpx address of post-synaptic branch
-  size_t GetSynapsesCount();  ///> get size of vector synapse
+      Synapse* target);
+
+  /// get size of vector synapse
+  size_t GetSynapsesCount();
 
   algorithms::AlgorithmMetadata* algorithm_metadata_;
 
-  std::vector<Synapse*> synapses_;  ///> out-going synapse information
-
+  /// the outgoing neuron connections:
+  std::vector<Synapse*> synapses_;
  private:
-  // the outgoing neuron connections:
-  hpx_t synapses_mutex_;  ///> protects synapses
+  hpx_t synapses_mutex_;  ///> mutex protecting synapses
 
   ///  PreSynHelper* psh->flag (whether spikes for a given AP have been sent)
   bool synapses_transmission_flag_;

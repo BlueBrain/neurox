@@ -50,8 +50,9 @@ class Branch {
    public:
     MechanismsGraph();
     ~MechanismsGraph();
-    void InitMechsGraph(
-        hpx_t branch_hpx_addr);  ///> Launch HPX-threads for dorment mechs-graph
+
+    /// Launches HPX-threads for dorment mechs-graph
+    void InitMechsGraph(hpx_t branch_hpx_addr);
 
     hpx_t* mechs_lcos_;  ///> HPX address of the and-gate of each mechanism
     hpx_t end_lco_;      ///> represents the bottom of the graph
@@ -80,8 +81,7 @@ class Branch {
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
-  } * mechs_graph_;  ///> represents the parallel computation graph of
-                     /// mechanisms
+  } * mechs_graph_;  ///> parallel computation graph of mechanisms
 
   class BranchTree {
    public:
@@ -106,15 +106,15 @@ class Branch {
     static int InitLCOs_handler();
   } * branch_tree_;  ///> represents the tree structure (or NULL if none)
 
-  std::map<neuron_id_t, std::vector<NetconX*> >
-      netcons_;  ///> map of incoming netcons per pre-synaptic gid
+  /// map of incoming netcons per pre-synaptic gid
+  std::map<neuron_id_t, std::vector<NetconX*> > netcons_;
 
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
                       std::greater_equal<TimedEvent> >
       events_queue_;
 
-  ///> mutex to protect the memory access to eventsQueue
+  /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching

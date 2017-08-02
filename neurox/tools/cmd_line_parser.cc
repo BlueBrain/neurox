@@ -148,7 +148,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->output_statistics_ = output_statistics.getValue();
     this->output_mechanisms_dot_ = output_mechanisms_dot.getValue();
     this->output_netcons_dot = output_netcons_dot.getValue();
-    this->output_compartments_dot = output_compartments_dot.getValue();
+    this->output_compartments_dot_ = output_compartments_dot.getValue();
     this->mechs_parallelism_ = mechs_parallelism.getValue();
     this->allreduce_at_locality_ = allreduce_at_locality.getValue();
     this->load_balancing_ = load_balancing.getValue();
