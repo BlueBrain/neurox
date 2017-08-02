@@ -30,7 +30,7 @@ class DebugAlgorithm : public Algorithm {
     ~CommunicationBarrier();
 
     /// LCO for all spikes of previous Comm Step (for fixed step methods)
-    hpx_t allSpikesLco;
+    hpx_t all_spikes_lco_;
   };
 };
 

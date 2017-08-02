@@ -72,7 +72,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
     for (int n = 0; n < ml->nodecount; n++)
       for (int i = 0; i < mech->data_size_; i++) {
 #if LAYOUT == 1
-        int dataOffset = mech->dataSize * n + i;
+        int dataOffset = mech->data_size_ * n + i;
 #else
         int dataOffset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
 #endif
@@ -227,7 +227,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       std::vector<int> pdata;
       for (int i = 0; i < mech->pdata_size_; i++) {
 #if LAYOUT == 1
-        int pdataOffsetNonPadded = mech->pdataSize * n + i;
+        int pdataOffsetNonPadded = mech->pdata_size_ * n + i;
         pdata.push_back(ml->pdata[pdataOffsetNonPadded]);
 #else
         int pdataOffsetPadded =
@@ -650,11 +650,11 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr;
   my_neurons_addr = nullptr;
 
-  if (input_params_->all_reduce_at_locality_) {
+  if (input_params_->allreduce_at_locality_) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
-    AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons =
+    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
         new std::vector<hpx_t>(my_neurons_addr->begin(),
                                my_neurons_addr->end());
   }
@@ -798,10 +798,11 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (input_params_->all_reduce_at_locality_)
-    AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
+  if (input_params_->allreduce_at_locality_)
+    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-  delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons;
+  delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+      locality_neurons_;
 
   if (input_params_->output_netcons_dot) {
     fprintf(fileNetcons, "}\n");
@@ -1373,7 +1374,8 @@ hpx_t DataLoader::CreateBranch(
     for (size_t c = 0; c < bottomCompartment->branches_.size(); c++)
       branches.push_back(CreateBranch(
           nrnThreadId, somaBranchAddr, allCompartments,
-          bottomCompartment->branches_[c], ionsInstancesInfo, branchingDepth - 1,
+          bottomCompartment->branches_[c], ionsInstancesInfo,
+          branchingDepth - 1,
           isSoma && c == 0 ? thvar_index - n
                            : -1)); /*offset in AIS = offset in soma - nt->end */
 
@@ -1469,7 +1471,7 @@ int DataLoader::InitNetcons_handler() {
           spike_time_t notificationTime =
               input_params_->tstart_ +
               minDelay * TimeDependencyLCOAlgorithm::TimeDependencies::
-                             notificationIntervalRatio;
+                             kNotificationIntervalRatio;
           dependencies.push_back(make_pair(srcGid, notificationTime));
         }
       }

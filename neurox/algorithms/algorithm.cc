@@ -10,7 +10,7 @@ Algorithm* Algorithm::New(AlgorithmType type) {
     case AlgorithmType::kBackwardEulerCoreneuron:
       return new CoreneuronAlgorithm();
     case AlgorithmType::kBackwardEulerAllReduce:
-      return new AllReduceAlgorithm();
+      return new AllreduceAlgorithm();
     case AlgorithmType::kBackwardEulerSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
     case AlgorithmType::kBackwardEulerTimeDependencyLCO:
@@ -28,6 +28,6 @@ void Algorithm::PrintStartInfo() {
   fflush(stdout);
 }
 
-int Algorithm::getTotalStepsCount() {
+int Algorithm::GetTotalStepsCount() {
   return (input_params_->tstop_ - input_params_->tstart_) / input_params_->dt_;
 }

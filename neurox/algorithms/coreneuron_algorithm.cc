@@ -26,13 +26,13 @@ void CoreneuronAlgorithm::Init() { assert(0); }
 void CoreneuronAlgorithm::Clear() {}
 
 double CoreneuronAlgorithm::Launch() {
-  int commStepSize = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
-  int totalSteps = Algorithm::getTotalStepsCount();
+  int comm_step_size = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+  int total_steps = Algorithm::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
   assert(0);
-  double elapsedTime = hpx_time_elapsed_ms(now) / 1e3;
+  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::CompareAllBranches();
-  return elapsedTime;
+  return elapsed_time;
 }
 
 void CoreneuronAlgorithm::StepBegin(Branch*) { assert(0); }

@@ -81,7 +81,7 @@ class Branch {
                                    void* args);
 
   } * mechs_graph_;  ///> represents the parallel computation graph of
-                     ///mechanisms
+                     /// mechanisms
 
   class BranchTree {
    public:

@@ -19,7 +19,8 @@ class HinesSolver {
   HinesSolver() = delete;
   ~HinesSolver();
 
-  static void SynchronizeThresholdV(Branch *local, floble_t *threshold_v = NULL);
+  static void SynchronizeThresholdV(Branch *local,
+                                    floble_t *threshold_v = NULL);
   static void ResetMatrixRHSandD(Branch *local);
   static void SetupMatrixRHS(Branch *local);
   static void SetupMatrixDiagonal(Branch *local);

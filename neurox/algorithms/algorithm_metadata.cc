@@ -10,9 +10,9 @@ AlgorithmMetadata* AlgorithmMetadata::New(AlgorithmType type) {
     case AlgorithmType::kBackwardEulerCoreneuron:
       return new CoreneuronAlgorithm::CommunicationBarrier();
     case AlgorithmType::kBackwardEulerAllReduce:
-      return new AllReduceAlgorithm::AllReducesInfo();
+      return new AllreduceAlgorithm::AllReducesInfo();
     case AlgorithmType::kBackwardEulerSlidingTimeWindow:
-      return new AllReduceAlgorithm::AllReducesInfo();
+      return new AllreduceAlgorithm::AllReducesInfo();
     case AlgorithmType::kBackwardEulerTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm::TimeDependencies();
     default:

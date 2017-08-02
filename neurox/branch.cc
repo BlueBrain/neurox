@@ -649,42 +649,43 @@ hpx_action_t Branch::BackwardEulerOnLocality = 0;
 int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params_->all_reduce_at_locality_);
+  assert(input_params_->allreduce_at_locality_);
   assert(input_params_->algorithm_ ==
              AlgorithmType::kBackwardEulerSlidingTimeWindow ||
          input_params_->algorithm_ == AlgorithmType::kBackwardEulerAllReduce);
 
   const int locality_neurons_count =
-      AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
+      AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
           ->size();
   const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
   const int comm_step_size =
       CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
   const int reductions_per_comm_step =
-      AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
+      AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_;
   const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
   const int steps = *steps_ptr;
 
   for (int s = 0; s < steps; s += comm_step_size) {
     for (int r = 0; r < reductions_per_comm_step; r++) {
       if (s >= comm_step_size)  // first comm-window does not wait
-        hpx_lco_wait_reset(AllReduceAlgorithm::AllReducesInfo::
-                               AllReduceLocality::allReduceFuture[r]);
+        hpx_lco_wait_reset(AllreduceAlgorithm::AllReducesInfo::
+                               AllReduceLocality::allreduce_future_[r]);
       else
         // fixes crash for Algorithm::ALL when running two hpx-reduce -based
         // algorithms in a row
-        hpx_lco_reset_sync(AllReduceAlgorithm::AllReducesInfo::
-                               AllReduceLocality::allReduceFuture[r]);
+        hpx_lco_reset_sync(AllreduceAlgorithm::AllReducesInfo::
+                               AllReduceLocality::allreduce_future_[r]);
 
       hpx_process_collective_allreduce_join(
-          AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceLco
+          AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::allreduce_lco_
               [r],
-          AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceId[r],
+          AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::allreduce_id_
+              [r],
           NULL, 0);
 
       for (int i = 0; i < locality_neurons_count; i++)
-        hpx_call(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
-                     localityNeurons->at(i),
+        hpx_call(AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+                     locality_neurons_->at(i),
                  Branch::BackwardEuler, locality_neurons_lco,
                  &steps_per_reduction, sizeof(int));
       hpx_lco_wait_reset(locality_neurons_lco);

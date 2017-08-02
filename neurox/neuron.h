@@ -36,7 +36,7 @@ class Neuron {
     ~Synapse();
     hpx_t branch_addr_;      ///> address of destination
     hpx_t top_branch_addr_;  ///> addres of top-branch (soma) of destination
-                             ///neuron
+                             /// neuron
 #ifndef NDEBUG
     int destination_gid_;
 #endif

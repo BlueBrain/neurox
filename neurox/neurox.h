@@ -43,8 +43,8 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/input/debugger.h"
 
 // Debug flags
-//#define NEUROX_PRINT_TIME_DEPENDENCY
-//#define NDEBUG
+// #define NEUROX_PRINT_TIME_DEPENDENCY
+// #define NDEBUG
 
 namespace neurox {
 
@@ -94,6 +94,7 @@ static int Clear_handler();
 void RegisterHpxActions();
 };
 
-// hpx macros and hp	x-wrapperss
+// hpx macros and hpx-wrapperss
+// TODO can we move this somewhere else?
 #include "neurox/macros.h"
 #include "neurox/wrappers.h"

@@ -5,9 +5,6 @@
 #include <iostream>
 #include <map>
 
-#include "coreneuron/nrniv/nrn_stats.h"
-#include "coreneuron/nrniv/nrniv_decl.h"
-
 using namespace neurox::algorithms;
 
 namespace neurox {
@@ -74,19 +71,19 @@ static int Main_handler() {
       algorithm_ = Algorithm::New((AlgorithmType)type);
       algorithm_->Init();
       algorithm_->PrintStartInfo();
-      double timeElapsed = algorithm_->Launch();
-      total_time_elapsed += timeElapsed;
+      double time_elapsed = algorithm_->Launch();
+      total_time_elapsed += time_elapsed;
       algorithm_->Clear();
       delete algorithm_;
 
 #ifdef NDEBUG
       // output benchmark info
-      printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurox::neurons_count,
+      printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurox::neurons_count_,
              hpx_get_num_ranks(), hpx_get_num_threads(),
-             neurox::neurons_count / (double)hpx_get_num_ranks(),
-             input_params->tstop, algorithm->getType(),
-             input_params->multiMex ? 1 : 0, input_params->branchingDepth,
-             input_params->allReduceAtLocality ? 1 : 0, timeElapsed);
+             neurox::neurons_count_ / (double)hpx_get_num_ranks(),
+             input_params_->tstop_, algorithm_->GetType(),
+             input_params_->mechs_parallelism_ ? 1 : 0, input_params_->branch_parallelism_depth_,
+             input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
       fflush(stdout);
 #endif
     }
@@ -117,12 +114,12 @@ int Clear_handler() {
   delete[] neurox::neurons_;
   delete[] neurox::mechanisms_map_;
 
-  if (input_params_->all_reduce_at_locality_) {
-    AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
+  if (input_params_->allreduce_at_locality_) {
+    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-    delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
-        localityNeurons;
-    AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons =
+    delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+        locality_neurons_;
+    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
         nullptr;
   }
 

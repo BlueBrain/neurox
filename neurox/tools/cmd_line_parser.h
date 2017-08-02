@@ -39,12 +39,12 @@ class CmdLineParser {
   bool output_netcons_dot;       ///> outputs netcons.dot file
   bool output_compartments_dot;  ///> outputs compartments*.dot files
   bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
-  bool all_reduce_at_locality_;  ///> whether to perform HPX all-reduce LCOs at
+  bool allreduce_at_locality_;   ///> whether to perform HPX all-reduce LCOs at
                                  /// neuron or node level
   bool load_balancing_;  ///> Whether to perform dynamic load balancing of bodes
-                         ///and branches
+                         /// and branches
   int branch_parallelism_depth_;  ///> depth tree-based parallelism of
-                                  ///morphologies
+                                  /// morphologies
   neurox::algorithms::AlgorithmType
       algorithm_;  ///> neurons sychronization algorithm
 

@@ -362,7 +362,7 @@ void Debugger::CompareBranch2(Branch *branch) {
       assert(ml->nodeindices[n] == instances.nodeindices[n]);
       for (int i = 0; i < dataSize; i++) {
 #if LAYOUT == 1
-        int offset = mechanisms[m]->dataSize * n + i;
+        int offset = neurox::mechanisms_[m]->data_size_ * n + i;
 #else
         int offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
 #endif
@@ -452,7 +452,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
-    int totalSteps = algorithms::Algorithm::getTotalStepsCount();
+    int totalSteps = algorithms::Algorithm::GetTotalStepsCount();
     int commStepSize =
         algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
     DebugMessage(

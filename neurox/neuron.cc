@@ -16,12 +16,12 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->algorithm_metadata_ = AlgorithmMetadata::New(input_params_->algorithm_);
   assert(this->algorithm_metadata_ != nullptr);
   assert(
-      TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio >
+      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio >
           0 &&
-      TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio <=
-          1);
+      TimeDependencyLCOAlgorithm::TimeDependencies::
+              kNotificationIntervalRatio <= 1);
   assert(CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize %
-             AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep ==
+             AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ ==
          0);
 }
 
@@ -36,9 +36,9 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
     : branch_addr_(branchAddr),
       min_delay_(minDelay),
       top_branch_addr_(topBranchAddr) {
-  const double& teps = TimeDependencyLCOAlgorithm::TimeDependencies::teps;
+  const double& teps = TimeDependencyLCOAlgorithm::TimeDependencies::kTEps;
   const double& notification_ratio =
-      TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
+      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio;
   this->next_notification_time_ =
       input_params_->tstart_ + teps + this->min_delay_ * notification_ratio;
   this->previous_spike_lco_ = hpx_lco_future_new(0);

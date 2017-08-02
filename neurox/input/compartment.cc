@@ -48,8 +48,8 @@ void Compartment::AddNetcon(int pre_syn_nrn_thread_id, NetconX *nc,
                             floble_t *weights) {
   this->netcons_pre_syn_ids_.push_back(pre_syn_nrn_thread_id);
   this->netcons_.push_back(NetconX(nc->mech_type_, nc->mech_instance_,
-                                  nc->delay_, nc->weight_index_,
-                                  nc->weights_count_, nc->active_));
+                                   nc->delay_, nc->weight_index_,
+                                   nc->weights_count_, nc->active_));
   for (int i = 0; i < nc->weights_count_; i++)
     this->netcons_weights_.push_back(weights[i]);
 }
