@@ -72,7 +72,7 @@ class AllReduceAlgorithm : public Algorithm {
     static hpx_action_t UnsubscribeAllReduce;
     static hpx_action_t SetReductionsPerCommStep;
 
-    static void Init_handler(const void*, const size_t);
+    static void Init_handler(void*, const size_t);
     static void Reduce_handler(void* rhs, const void* lhs, const size_t);
     static int SubscribeAllReduce_handler(const hpx_t*, const size_t);
     static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);

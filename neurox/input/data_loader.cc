@@ -1503,13 +1503,13 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
 }
 
 void DataLoader::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::Init);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitMechanisms);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitNeurons);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::InitNetcons);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, DataLoader::Finalize);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddSynapse);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS, DataLoader::AddNeurons);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_MULTIPLE_VARS,
-                         DataLoader::SetMechanisms);
+  wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms, DataLoader::InitMechanisms_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitNeurons, DataLoader::InitNeurons_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::InitNetcons, DataLoader::InitNetcons_handler);
+  wrappers::RegisterZeroVarAction(DataLoader::Finalize, DataLoader::Finalize_handler);
+
+  wrappers::RegisterMultipleVarAction(DataLoader::AddSynapse, DataLoader::AddSynapse_handler);
+  wrappers::RegisterMultipleVarAction(DataLoader::AddNeurons, DataLoader::AddNeurons_handler);
+  wrappers::RegisterMultipleVarAction(DataLoader::SetMechanisms, DataLoader::SetMechanisms_handler);
 }

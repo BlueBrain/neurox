@@ -278,7 +278,7 @@ int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
 }
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::Init = 0;
-void AllReduceAlgorithm::AllReducesInfo::Init_handler(const void*,
+void AllReduceAlgorithm::AllReducesInfo::Init_handler(void*,
                                                       const size_t) {}
 
 hpx_action_t AllReduceAlgorithm::AllReducesInfo::Reduce = 0;
@@ -286,17 +286,12 @@ void AllReduceAlgorithm::AllReducesInfo::Reduce_handler(void*, const void*,
                                                         const size_t) {}
 
 void AllReduceAlgorithm::AllReducesInfo::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         AllReducesInfo::SubscribeAllReduce);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         AllReducesInfo::UnsubscribeAllReduce);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         AllReducesInfo::AllReduceLocality::SubscribeAllReduce);
-  NEUROX_REGISTER_ACTION(
-      NEUROX_ACTION_SINGLE_VAR,
-      AllReducesInfo::AllReduceLocality::UnsubscribeAllReduce);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR,
-                         AllReducesInfo::SetReductionsPerCommStep);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP, AllReducesInfo::Init);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_REDUCE_OP, AllReducesInfo::Reduce);
+    wrappers::RegisterSingleVarAction<hpx_t>(SubscribeAllReduce, SubscribeAllReduce_handler);
+    wrappers::RegisterSingleVarAction<hpx_t>(UnsubscribeAllReduce, UnsubscribeAllReduce_handler);
+    wrappers::RegisterSingleVarAction<hpx_t>(AllReduceLocality::SubscribeAllReduce, AllReduceLocality::SubscribeAllReduce_handler);
+    wrappers::RegisterSingleVarAction<hpx_t>(AllReduceLocality::UnsubscribeAllReduce, AllReduceLocality::UnsubscribeAllReduce_handler);
+
+    wrappers::RegisterSingleVarAction<int>(AllReducesInfo::SetReductionsPerCommStep, AllReducesInfo::SetReductionsPerCommStep_handler);
+    wrappers::RegisterAllReduceInitAction<void>(AllReducesInfo::Init, AllReducesInfo::Init_handler);
+    wrappers::RegisterAllReduceReduceAction<void>(AllReducesInfo::Reduce, AllReducesInfo::Reduce_handler);
 }

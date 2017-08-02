@@ -475,9 +475,14 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
 }
 
 void Debugger::RegisterHpxActions() {
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::CompareBranch);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::Finitialize);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::NrnSpikeExchange);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::ThreadTableCheck);
-  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Debugger::FixedStepMinimal);
+    wrappers::RegisterZeroVarAction(Debugger::CompareBranch, Debugger::CompareBranch_handler);
+    wrappers::RegisterZeroVarAction(Debugger::Finitialize, Debugger::Finitialize_handler);
+    wrappers::RegisterZeroVarAction(Debugger::NrnSpikeExchange, Debugger::NrnSpikeExchange_handler);
+    wrappers::RegisterZeroVarAction(Debugger::ThreadTableCheck, Debugger::ThreadTableCheck_handler);
+    wrappers::RegisterSingleVarAction<int>(Debugger::FixedStepMinimal, Debugger::FixedStepMinimal_handler);
+//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::CompareBranch);
+//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::Finitialize);
+//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::NrnSpikeExchange);
+//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_ZERO_VAR, Debugger::ThreadTableCheck);
+//  NEUROX_REGISTER_ACTION(NEUROX_ACTION_SINGLE_VAR, Debugger::FixedStepMinimal);
 }

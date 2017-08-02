@@ -164,9 +164,8 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Main, Main_handler);
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Clear,
-                                                           Clear_handler);
+  wrappers::RegisterZeroVarAction(Main, Main_handler);
+  wrappers::RegisterZeroVarAction(Clear, Clear_handler);
 }
 
 };  // neurox

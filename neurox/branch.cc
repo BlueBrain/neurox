@@ -948,35 +948,31 @@ void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunctions *lhs,
 }
 
 void Branch::RegisterHpxActions() {
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Clear,
-                                                           Clear_handler);
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(Finitialize,
-                                                           Finitialize_handler);
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(
-      ThreadTableCheck, ThreadTableCheck_handler);
-  wrappers::Actions<wrappers::ActionTypes::kZeroVar>::init(
-      BranchTree::InitLCOs, BranchTree::InitLCOs_handler);
+  wrappers::RegisterZeroVarAction(Branch::Clear, Branch::Clear_handler);
+  wrappers::RegisterZeroVarAction(Branch::Finitialize,
+                                  Branch::Finitialize_handler);
+  wrappers::RegisterZeroVarAction(Branch::ThreadTableCheck,
+                                  Branch::ThreadTableCheck_handler);
+  wrappers::RegisterZeroVarAction(BranchTree::InitLCOs,
+                                  BranchTree::InitLCOs_handler);
 
-  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
-      BackwardEuler, BackwardEuler_handler);
-  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
-      BackwardEulerOnLocality, BackwardEulerOnLocality_handler);
-  wrappers::Actions<wrappers::ActionTypes::kSingleVar>::init<int>(
-      MechanismsGraph::MechFunction, MechanismsGraph::MechFunction_handler);
+  wrappers::RegisterSingleVarAction<int>(Branch::BackwardEuler,
+                                         Branch::BackwardEuler_handler);
+  wrappers::RegisterSingleVarAction<int>(
+      Branch::BackwardEulerOnLocality, Branch::BackwardEulerOnLocality_handler);
+  wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
+                                         MechanismsGraph::MechFunction_handler);
 
-  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(Init,
-                                                                Init_handler);
-  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
-      InitSoma, InitSoma_handler);
-  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
-      AddSpikeEvent, AddSpikeEvent_handler);
-  wrappers::Actions<wrappers::ActionTypes::kMultipleVars>::init(
-      UpdateTimeDependency, UpdateTimeDependency_handler);
+  wrappers::RegisterMultipleVarAction(Branch::Init, Branch::Init_handler);
+  wrappers::RegisterMultipleVarAction(Branch::InitSoma,
+                                      Branch::InitSoma_handler);
+  wrappers::RegisterMultipleVarAction(Branch::AddSpikeEvent,
+                                      Branch::AddSpikeEvent_handler);
+  wrappers::RegisterMultipleVarAction(Branch::UpdateTimeDependency,
+                                      Branch::UpdateTimeDependency_handler);
 
-  wrappers::Actions<wrappers::ActionTypes::kAllReduceInit>::init<
-      Mechanism::ModFunctions>(MechanismsGraph::Init,
-                               MechanismsGraph::Init_handler);
-  wrappers::Actions<wrappers::ActionTypes::kAllReduceReduce>::init<
-      Mechanism::ModFunctions>(MechanismsGraph::Reduce,
-                               MechanismsGraph::Reduce_handler);
+  wrappers::RegisterAllReduceInitAction<Mechanism::ModFunctions>(
+      Branch::MechanismsGraph::Init, Branch::MechanismsGraph::Init_handler);
+  wrappers::RegisterAllReduceReduceAction<Mechanism::ModFunctions>(
+      Branch::MechanismsGraph::Reduce, Branch::MechanismsGraph::Reduce_handler);
 }
