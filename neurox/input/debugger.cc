@@ -27,7 +27,7 @@ using namespace neurox::input;
 using namespace neurox::algorithms;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
-  const double epsilon = input_params->mechs_parallelism_ ? 5e-4 : 1e-8;
+  const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
   // NOTE: current functions for mechs SK_E2 (144) andNap_Et2 (123) depends on
   // V that change opening vars that change V and so on... after few steps this
   // causes high difference in results;
@@ -38,10 +38,10 @@ void Debugger::CompareMechanismsFunctions() {
 #if !defined(NDEBUG)
   DebugMessage(
       "neurox::Input::CoreNeuron::Debugger::CompareMechanismsFunctions...\n");
-  for (int m = 0; m < neurox::mechanisms_count; m++) {
-    int index = mechanisms[m]->type_;
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    int index = mechanisms_[m]->type_;
     Memb_func &mf_cn = memb_func[index];         // coreneuron
-    Memb_func &mf_nx = mechanisms[m]->memb_func_;  // neurox
+    Memb_func &mf_nx = mechanisms_[m]->memb_func_;  // neurox
 
     // constructur, destructors are different
     // assert (mf_cn.alloc == mf_nx.alloc);
@@ -69,7 +69,7 @@ void Debugger::CompareMechanismsFunctions() {
 
     for (int i = 0; i < BEFORE_AFTER_SIZE; i++)
       if (nrn_threads[0].tbl[i])
-        assert(mechanisms[m]->before_after_functions_[i] == nrn_threads[0].tbl[i]->bam->f);
+        assert(mechanisms_[m]->before_after_functions_[i] == nrn_threads[0].tbl[i]->bam->f);
   }
 #endif
 }
@@ -90,12 +90,12 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   b->DeliverEvents(b->nt_->_t);
   for (int n = 0; n < b->nt_->end; n++)
-    b->nt_->_actual_v[n] = input_params->voltage_;
+    b->nt_->_actual_v[n] = input_params_->voltage_;
 
   // coreneuron
   nrn_deliver_events(nth); /* The play events at t=0 */
 
-  for (int i = 0; i < nth->end; ++i) nth->_actual_v[i] = input_params->voltage_;
+  for (int i = 0; i < nth->end; ++i) nth->_actual_v[i] = input_params_->voltage_;
 
   /****************/ CompareBranch2(b); /*****************/
 
@@ -147,7 +147,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
   if (b->soma_ &&
-      input_params->algorithm_ ==
+      input_params_->algorithm_ ==
           neurox::algorithms::AlgorithmType::kBackwardEulerTimeDependencyLCO) {
     TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
         (TimeDependencyLCOAlgorithm::TimeDependencies *)
@@ -190,8 +190,8 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   /****************/ CompareBranch2(b); /*****************/
 
-  second_order_cur(b->nt_, input_params->second_order_);
-  floble_t secondOrderMultiplier = input_params->second_order_ ? 2.0 : 1.0;
+  second_order_cur(b->nt_, input_params_->second_order_);
+  floble_t secondOrderMultiplier = input_params_->second_order_ ? 2.0 : 1.0;
   for (int i = 0; i < b->nt_->end; i++)
     b->nt_->_actual_v[i] += secondOrderMultiplier * b->nt_->_actual_rhs[i];
   b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
@@ -251,7 +251,7 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_) return;
+  if (input_params_->branch_parallelism_depth_ > 0 || input_params_->load_balancing_) return;
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
@@ -267,7 +267,7 @@ void Debugger::CompareBranch2(Branch *branch) {
 
   assert(branch->nt_->_t == nt._t);
   assert(branch->nt_->_ndata == nt._ndata);
-  assert(secondorder == input_params->second_order_);
+  assert(secondorder == input_params_->second_order_);
   assert(branch->soma_->threshold_ == nt.presyns[0].threshold_);
   assert(branch->soma_->gid_ == nt.presyns[0].gid_);
   assert(IsEqual(*(branch->thvar_ptr_), nt._actual_v[nt.presyns[0].thvar_index_],
@@ -308,10 +308,10 @@ void Debugger::CompareBranch2(Branch *branch) {
     }
 
   // dparam_semantics
-  for (int m = 0; m < neurox::mechanisms_count; m++) {
-    int type = mechanisms[m]->type_;
-    for (int i = 0; i < mechanisms[m]->pdata_size_; i++) {
-      assert(mechanisms[m]->memb_func_.dparam_semantics[i] ==
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    int type = mechanisms_[m]->type_;
+    for (int i = 0; i < mechanisms_[m]->pdata_size_; i++) {
+      assert(mechanisms_[m]->memb_func_.dparam_semantics[i] ==
              memb_func[type].dparam_semantics[i]);
     }
   }
@@ -346,12 +346,12 @@ void Debugger::CompareBranch2(Branch *branch) {
        tml = tml->next)  // For every mechanism
   {
     int type = tml->index;
-    int m = mechanisms_map[type];
+    int m = mechanisms_map_[type];
     Memb_list *ml = tml->ml;  // Mechanisms application to each compartment
     Memb_list &instances = branch->mechs_instances_[m];
     assert(ml->nodecount == instances.nodecount);
-    short dataSize = mechanisms[m]->data_size_;
-    short pdataSize = mechanisms[m]->pdata_size_;
+    short dataSize = mechanisms_[m]->data_size_;
+    short pdataSize = mechanisms_[m]->pdata_size_;
     for (int n = 0; n < ml->nodecount; n++)  // for every mech instance
     {
       assert(ml->nodeindices[n] == instances.nodeindices[n]);
@@ -400,14 +400,14 @@ int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
   for (int n = 0; n < nrn_nthread; n++)
     for (int i = 0; i < *steps_ptr; i++)
-      Debugger::FixedStepMinimal2(&nrn_threads[n], input_params->second_order_);
+      Debugger::FixedStepMinimal2(&nrn_threads[n], input_params_->second_order_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  nrn_finitialize(input_params->voltage_ != 1000., input_params->voltage_);
+  nrn_finitialize(input_params_->voltage_ != 1000., input_params_->voltage_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -430,7 +430,7 @@ int Debugger::NrnSpikeExchange_handler() {
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_)
+  if (input_params_->branch_parallelism_depth_ > 0 || input_params_->load_balancing_)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
@@ -438,7 +438,7 @@ int Debugger::CompareBranch_handler() {
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_) return;
+  if (input_params_->branch_parallelism_depth_ > 0 || input_params_->load_balancing_) return;
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
@@ -462,11 +462,11 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (neurox::ParallelExecution() &&
-      algorithm->GetType() != algorithms::AlgorithmType::kBackwardEulerDebug)
+      algorithm_->GetType() != algorithms::AlgorithmType::kBackwardEulerDebug)
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 
-  if (input_params->branch_parallelism_depth_ > 0 || input_params->load_balancing_)
+  if (input_params_->branch_parallelism_depth_ > 0 || input_params_->load_balancing_)
     return;  // can't be compared
 
   input::Debugger::FixedStepMinimal2(nt, secondorder);

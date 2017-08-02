@@ -33,7 +33,7 @@ void AllReduceAlgorithm::Clear() {
 double AllReduceAlgorithm::Launch() {
   int totalSteps = Algorithm::getTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  if (input_params->all_reduce_at_locality_)
+  if (input_params_->all_reduce_at_locality_)
     hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &totalSteps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &totalSteps,
@@ -48,7 +48,7 @@ void AllReduceAlgorithm::StepBegin(Branch*) {}
 void AllReduceAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
-                                              input_params->second_order_);
+                                              input_params_->second_order_);
 }
 
 void AllReduceAlgorithm::Run(Branch* b, const void* args) { Run2(b, args); }
@@ -70,7 +70,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
         0, AllReduceAlgorithm::AllReducesInfo::Init,
         AllReduceAlgorithm::AllReducesInfo::Reduce);
 
-  if (input_params->all_reduce_at_locality_)
+  if (input_params_->all_reduce_at_locality_)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         SubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -86,7 +86,7 @@ void AllReduceAlgorithm::SubscribeAllReduces(hpx_t*& allReduces,
 void AllReduceAlgorithm::UnsubscribeAllReduces(hpx_t*& allReduces,
                                                size_t allReducesCount) {
   assert(allReduces != nullptr);
-  if (input_params->all_reduce_at_locality_)
+  if (input_params_->all_reduce_at_locality_)
     hpx_bcast_rsync(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                         UnsubscribeAllReduce,
                     allReduces, sizeof(hpx_t) * allReducesCount);
@@ -141,7 +141,7 @@ void AllReduceAlgorithm::Run2(Branch* b, const void* args) {
   {
 #ifndef NDEBUG
     if (hpx_get_my_rank() == 0 && b->nt_->id == 0 && b->soma_) {
-      printf("-- t=%.4f ms\n", input_params->dt_ * s);
+      printf("-- t=%.4f ms\n", input_params_->dt_ * s);
       fflush(stdout);
     }
 #endif
@@ -242,7 +242,7 @@ hpx_action_t
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     SubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->all_reduce_at_locality_);
+  assert(input_params_->all_reduce_at_locality_);
   AllReduceLocality::allReduceLco =
       new hpx_t[AllReducesInfo::reductionsPerCommStep];
   AllReduceLocality::allReduceFuture =
@@ -263,7 +263,7 @@ hpx_action_t AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
 int AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
     UnsubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params->all_reduce_at_locality_);
+  assert(input_params_->all_reduce_at_locality_);
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i], allReduceId[i]);
     hpx_lco_delete_sync(allReduceFuture[i]);

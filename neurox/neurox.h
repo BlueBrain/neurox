@@ -49,25 +49,25 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 namespace neurox {
 
 ///  hpx address of all neurons
-extern hpx_t *neurons;
+extern hpx_t *neurons_;
 
 /// length of neurox::neurons
-extern int neurons_count;
+extern int neurons_count_;
 
 /// array to all existing mechanisms
-extern neurox::Mechanism **mechanisms;
+extern neurox::Mechanism **mechanisms_;
 
 /// length of neuronx::mechanisms
-extern int mechanisms_count;
+extern int mechanisms_count_;
 
 /// map of mechanisms offset in 'mechanisms' by 'mechanism type'
-extern int *mechanisms_map;
+extern int *mechanisms_map_;
 
 /// Parameters parsed from command line
-extern tools::CmdLineParser *input_params;
+extern tools::CmdLineParser *input_params_;
 
 /// algorithm instance
-extern algorithms::Algorithm *algorithm;
+extern algorithms::Algorithm *algorithm_;
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);

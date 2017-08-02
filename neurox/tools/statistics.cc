@@ -44,7 +44,7 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
   SizeInfo sim_size;
   sim_size.global_vars_ =
       (double)(sizeof(hpx_t) + sizeof(int) * 2 +
-               sizeof(Mechanism) * mechanisms_count +
+               sizeof(Mechanism) * mechanisms_count_ +
                sizeof(neurox::tools::CmdLineParser) * HPX_LOCALITIES) /
       1024;
 
@@ -56,9 +56,9 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
           "gid,compartments,branches,mechs-instances,total-KB,morphologies-KB,"
           "mechanisms-KB,synapses-KB,metadata-KB\n");
 
-  for (int i = 0; i < neurox::neurons_count; i++) {
+  for (int i = 0; i < neurox::neurons_count_; i++) {
     SizeInfo neuron_size;
-    hpx_call_sync(neurox::neurons[i], Statistics::GetNeuronSize, &neuron_size,
+    hpx_call_sync(neurox::neurons_[i], Statistics::GetNeuronSize, &neuron_size,
                   sizeof(neuron_size));
     fprintf(outstream, "%d,%llu,%llu,%llu,%.1f,%.2f,%.2f,%.2f,%.2f\n",
             neuron_size.neuron_id_, neuron_size.compartments_count_,
@@ -71,16 +71,16 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
   printf(
       "- SUM %llu neurons, %llu branches, %llu compartments, %llu mech "
       "instances, %.1f MB\n",
-      neurox::neurons_count, sim_size.branches_count_,
+      neurox::neurons_count_, sim_size.branches_count_,
       sim_size.compartments_count_, sim_size.mechs_instances_count_,
       sim_size.getTotalSize() / 1024);
   printf(
       "- AVG per neuron: %.2f branches, %.2f compartments, %.2f mech "
       "instances, %.2f KB\n",
-      sim_size.branches_count_ / (double)neurox::neurons_count,
-      sim_size.compartments_count_ / (double)neurox::neurons_count,
-      sim_size.mechs_instances_count_ / (double)neurox::neurons_count,
-      sim_size.getTotalSize() / (double)neurox::neurons_count);
+      sim_size.branches_count_ / (double)neurox::neurons_count_,
+      sim_size.compartments_count_ / (double)neurox::neurons_count_,
+      sim_size.mechs_instances_count_ / (double)neurox::neurons_count_,
+      sim_size.getTotalSize() / (double)neurox::neurons_count_);
   printf(
       "- SUM morphologies %.2f MB, mechanisms %.2f MB, synapses %.2f MB, "
       "metadata %.2f MB;\n",
@@ -89,10 +89,10 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
   printf(
       "- AVG per neuron: morphologies %.2f KB, mechanisms %.2f KB, synapses "
       "%.2f KB, metadata %.2f KB;\n",
-      sim_size.morphologies_ / (double)neurox::neurons_count,
-      sim_size.mechanisms_ / (double)neurox::neurons_count,
-      sim_size.synapses_ / (double)neurox::neurons_count,
-      sim_size.metadata_ / (double)neurox::neurons_count);
+      sim_size.morphologies_ / (double)neurox::neurons_count_,
+      sim_size.mechanisms_ / (double)neurox::neurons_count_,
+      sim_size.synapses_ / (double)neurox::neurons_count_,
+      sim_size.metadata_ / (double)neurox::neurons_count_);
   printf("- Global vars: %.2f KB (Global data %.2f KB * %d localities)\n",
          sim_size.global_vars_, sim_size.global_vars_ / HPX_LOCALITIES,
          HPX_LOCALITIES);
@@ -126,31 +126,31 @@ int Statistics::GetNeuronSize_handler() {
                   1024
             : 0;
   branch_size.metadata_ += (double)sizeof(Branch) / 1024;
-  branch_size.metadata_ += (double)sizeof(Memb_list) * mechanisms_count / 1024;
+  branch_size.metadata_ += (double)sizeof(Memb_list) * mechanisms_count_ / 1024;
 
-  for (int m = 0; m < mechanisms_count; m++) {
+  for (int m = 0; m < mechanisms_count_; m++) {
     if (local->mechs_instances_[m].nodecount == 0) continue;
 
     branch_size.mechs_instances_count_ += local->mechs_instances_[m].nodecount;
     branch_size.mechanisms_ +=
         (double)(sizeof(offset_t) * local->mechs_instances_[m].nodecount) / 1024;
-    if (mechanisms[m]->data_size_ > 0)
+    if (mechanisms_[m]->data_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(floble_t) * mechanisms[m]->data_size_ *
+          (double)(sizeof(floble_t) * mechanisms_[m]->data_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
-    if (mechanisms[m]->pdata_size_ > 0)
+    if (mechanisms_[m]->pdata_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(offset_t) * mechanisms[m]->pdata_size_ *
+          (double)(sizeof(offset_t) * mechanisms_[m]->pdata_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
-    if (mechanisms[m]->vdata_size_ > 0)
+    if (mechanisms_[m]->vdata_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(void*) * mechanisms[m]->vdata_size_ *
+          (double)(sizeof(void*) * mechanisms_[m]->vdata_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
 
-    int type = mechanisms[m]->type_;
+    int type = mechanisms_[m]->type_;
     if (type == MechanismTypes::kIClamp ||
         type == MechanismTypes::kProbAMPANMDA_EMS ||
         type == MechanismTypes::kProbGABAAB_EMS)
@@ -196,14 +196,14 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
   if (hpx_get_my_rank() == 0)
     printf("neurox::tools::Statistics::OutputMechanismsDistribution...\n");
 
-  unsigned* mechs_count_per_type = new unsigned[mechanisms_count];
-  unsigned* sum_mechs_count_per_type = new unsigned[mechanisms_count]();
+  unsigned* mechs_count_per_type = new unsigned[mechanisms_count_];
+  unsigned* sum_mechs_count_per_type = new unsigned[mechanisms_count_]();
   unsigned long long total_mechs_instances = 0;
-  for (int i = 0; i < neurox::neurons_count; i++) {
-    hpx_call_sync(neurox::neurons[i],
+  for (int i = 0; i < neurox::neurons_count_; i++) {
+    hpx_call_sync(neurox::neurons_[i],
                   Statistics::GetNeuronMechanismsDistribution,
-                  mechs_count_per_type, sizeof(unsigned) * mechanisms_count);
-    for (int m = 0; m < mechanisms_count; m++) {
+                  mechs_count_per_type, sizeof(unsigned) * mechanisms_count_);
+    for (int m = 0; m < mechanisms_count_; m++) {
       sum_mechs_count_per_type[m] += mechs_count_per_type[m];
       total_mechs_instances += mechs_count_per_type[m];
     }
@@ -216,10 +216,10 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
     outstream = fopen(string("mechs-distribution.csv").c_str(), "wt");
   fprintf(outstream, "mech-type,name,instances,avg-per-neuron\n");
 
-  for (int m = 0; m < mechanisms_count; m++)
-    fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type_,
-            mechanisms[m]->memb_func_.sym, sum_mechs_count_per_type[m],
-            (double)sum_mechs_count_per_type[m] / neurox::neurons_count);
+  for (int m = 0; m < mechanisms_count_; m++)
+    fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms_[m]->type_,
+            mechanisms_[m]->memb_func_.sym, sum_mechs_count_per_type[m],
+            (double)sum_mechs_count_per_type[m] / neurox::neurons_count_);
 
   if (write_to_file) fclose(outstream);
 
@@ -229,8 +229,8 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
 hpx_action_t Statistics::GetNeuronMechanismsDistribution = 0;
 int Statistics::GetNeuronMechanismsDistribution_handler() {
   NEUROX_MEM_PIN(Branch);
-  unsigned mechs_count_per_Type[mechanisms_count];
-  for (int m = 0; m < mechanisms_count; m++)
+  unsigned mechs_count_per_Type[mechanisms_count_];
+  for (int m = 0; m < mechanisms_count_; m++)
     mechs_count_per_Type[m] = local->mechs_instances_[m].nodecount;
 
   // call the function on children branches, pass their size to parent branch
@@ -239,15 +239,15 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
 
     unsigned** mechs_count_per_type_child = new unsigned*[branches_count];
     for (int c = 0; c < branches_count; c++)
-      mechs_count_per_type_child[c] = new unsigned[mechanisms_count];
+      mechs_count_per_type_child[c] = new unsigned[mechanisms_count_];
 
     hpx_t* futures = new hpx_t[branches_count];
     void** addrs = new void*[branches_count];
     size_t* sizes = new size_t[branches_count];
     for (offset_t c = 0; c < branches_count; c++) {
-      futures[c] = hpx_lco_future_new(sizeof(unsigned[mechanisms_count]));
+      futures[c] = hpx_lco_future_new(sizeof(unsigned[mechanisms_count_]));
       addrs[c] = mechs_count_per_type_child[c];
-      sizes[c] = sizeof(unsigned[mechanisms_count]);
+      sizes[c] = sizeof(unsigned[mechanisms_count_]);
       hpx_call(local->branch_tree_->branches_[c],
                Statistics::GetNeuronMechanismsDistribution, futures[c]);
     }
@@ -259,7 +259,7 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
     delete[] sizes;
 
     for (int c = 0; c < branches_count; c++)
-      for (int m = 0; m < mechanisms_count; m++)
+      for (int m = 0; m < mechanisms_count_; m++)
         mechs_count_per_Type[m] += mechs_count_per_type_child[c][m];
 
     for (int c = 0; c < branches_count; c++) delete[] mechs_count_per_type_child[c];

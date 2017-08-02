@@ -12,40 +12,17 @@ using namespace neurox::algorithms;
 
 namespace neurox {
 
-/*
-template<typename T, typename... ArgTypes>
-int CountVars(T t, ArgTypes... args)
-{
-  return 1+CountVars(args...);
-}
-template<> int CountVars() {return 0;}
-
-template<typename... Args>
-hpx_status_t CallAllNeurons(hpx_action_t f, Args... args)
-{
-  va_list ap;
-  hpx_t lco= hpx_lco_and_new(neurox::neurons_count);
-  int e = HPX_SUCCESS;
-  int n = neurox::CountVars(args...);
-  for (size_t i = 0; i < neurox::neurons_count; i++)
-    e += _hpx_call(neurox::neurons[i], f, lco, n, args...);
-  hpx_lco_wait_reset(lco);
-  hpx_lco_delete_sync(lco);
-  return e;
-}
-*/
-
-hpx_t *neurons = nullptr;
-int neurons_count = 0;
-int mechanisms_count = -1;
-int *mechanisms_map = nullptr;
-neurox::Mechanism **mechanisms = nullptr;
-neurox::tools::CmdLineParser *input_params = nullptr;
-neurox::algorithms::Algorithm *algorithm = nullptr;
+hpx_t *neurons_ = nullptr;
+int neurons_count_ = 0;
+int mechanisms_count_ = -1;
+int *mechanisms_map_ = nullptr;
+neurox::Mechanism **mechanisms_ = nullptr;
+neurox::tools::CmdLineParser *input_params_ = nullptr;
+neurox::algorithms::Algorithm *algorithm_ = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
-  assert(mechanisms_map[type] != -1);
-  return mechanisms[mechanisms_map[type]];
+  assert(mechanisms_map_[type] != -1);
+  return mechanisms_[mechanisms_map_[type]];
 }
 
 hpx_action_t Main = 0;
@@ -67,7 +44,7 @@ static int Main_handler() {
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
-  if (neurox::input_params->output_statistics_) {
+  if (neurox::input_params_->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
     tools::Statistics::OutputSimulationSize();
     // hpx_exit(0,NULL);
@@ -90,17 +67,17 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 #endif
 
-  double totalTimeElapsed = 0;
-  if (input_params->algorithm_ == AlgorithmType::kBenchmarkAll) {
+  double total_time_elapsed = 0;
+  if (input_params_->algorithm_ == AlgorithmType::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
-      algorithm = Algorithm::New((AlgorithmType)type);
-      algorithm->Init();
-      algorithm->PrintStartInfo();
-      double timeElapsed = algorithm->Launch();
-      totalTimeElapsed += timeElapsed;
-      algorithm->Clear();
-      delete algorithm;
+      algorithm_ = Algorithm::New((AlgorithmType)type);
+      algorithm_->Init();
+      algorithm_->PrintStartInfo();
+      double timeElapsed = algorithm_->Launch();
+      total_time_elapsed += timeElapsed;
+      algorithm_->Clear();
+      delete algorithm_;
 
 #ifdef NDEBUG
       // output benchmark info
@@ -114,18 +91,18 @@ static int Main_handler() {
 #endif
     }
   } else {
-    algorithm = Algorithm::New(input_params->algorithm_);
-    algorithm->Init();
-    algorithm->PrintStartInfo();
-    totalTimeElapsed = algorithm->Launch();
-    algorithm->Clear();
-    delete algorithm;
+    algorithm_ = Algorithm::New(input_params_->algorithm_);
+    algorithm_->Init();
+    algorithm_->PrintStartInfo();
+    total_time_elapsed = algorithm_->Launch();
+    algorithm_->Clear();
+    delete algorithm_;
   }
 
   printf(
       "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
       "secs).\n",
-      neurox::neurons_count, input_params->tstop_ / 1000.0, totalTimeElapsed);
+      neurox::neurons_count_, input_params_->tstop_ / 1000.0, total_time_elapsed);
 
   neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
@@ -135,11 +112,11 @@ static int Main_handler() {
 hpx_action_t Clear = 0;
 int Clear_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  delete[] neurox::mechanisms;
-  delete[] neurox::neurons;
-  delete[] neurox::mechanisms_map;
+  delete[] neurox::mechanisms_;
+  delete[] neurox::neurons_;
+  delete[] neurox::mechanisms_map_;
 
-  if (input_params->all_reduce_at_locality_) {
+  if (input_params_->all_reduce_at_locality_) {
     AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
         ->clear();
     delete AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::

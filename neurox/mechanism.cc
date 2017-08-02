@@ -135,7 +135,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     assert(this->pnt_receive_);
 
     Memb_list *memb_list =
-        &branch->mechs_instances_[mechanisms_map[netcon->mech_type_]];
+        &branch->mechs_instances_[mechanisms_map_[netcon->mech_type_]];
     assert(memb_list);
     int iml = netcon->mech_instance_;
     int weight_index = netcon->weight_index_;
@@ -144,7 +144,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     return;
   }
 
-  Memb_list *memb_list = &branch->mechs_instances_[mechanisms_map[this->type_]];
+  Memb_list *memb_list = &branch->mechs_instances_[mechanisms_map_[this->type_]];
   assert(memb_list);
   if (memb_list->nodecount > 0) switch (function_id) {
       case Mechanism::kBeforeInitialize:
@@ -168,7 +168,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         assert(type_ != CAP);
         if (memb_func_.current)  // has a current function
         {
-          if (input_params->mechs_parallelism_  // parallel execution
+          if (input_params_->mechs_parallelism_  // parallel execution
               &&
               strcmp(this->memb_func_.sym, "CaDynamics_E2") !=
                   0  // not CaDynamics_E2 (no updates in cur function)

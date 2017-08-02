@@ -23,11 +23,11 @@ Algorithm* Algorithm::New(AlgorithmType type) {
 
 void Algorithm::PrintStartInfo() {
   printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
-         GetTypeString(), neurox::neurons_count, input_params->tstop_ / 1000,
-         input_params->dt_);
+         GetTypeString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
+         input_params_->dt_);
   fflush(stdout);
 }
 
 int Algorithm::getTotalStepsCount() {
-  return (input_params->tstop_ - input_params->tstart_) / input_params->dt_;
+  return (input_params_->tstop_ - input_params_->tstart_) / input_params_->dt_;
 }

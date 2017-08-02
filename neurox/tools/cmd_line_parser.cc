@@ -153,7 +153,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->algorithm_ = (algorithms::AlgorithmType)algorithm.getValue();
-    neurox::algorithm = algorithms::Algorithm::New(this->algorithm_);
+    neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",

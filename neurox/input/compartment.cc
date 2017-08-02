@@ -21,7 +21,7 @@ void Compartment::AddChild(Compartment *child) { branches.push_back(child); }
 void Compartment::AddMechanismInstance(int mechType, int mechsInstance,
                                        double *data, int dataSize, Datum *pdata,
                                        int pdataSize) {
-  assert(mechanisms_map[mechType] != -1);
+  assert(mechanisms_map_[mechType] != -1);
   mechsTypes.push_back(mechType);
   mechsInstances.push_back(mechsInstance);
   if (dataSize > 0)

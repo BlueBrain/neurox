@@ -13,7 +13,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->algorithm_metadata_ = AlgorithmMetadata::New(input_params->algorithm_);
+  this->algorithm_metadata_ = AlgorithmMetadata::New(input_params_->algorithm_);
   assert(this->algorithm_metadata_ != nullptr);
   assert(
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio >
@@ -38,7 +38,7 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
   const double& notification_ratio =
       TimeDependencyLCOAlgorithm::TimeDependencies::notificationIntervalRatio;
   this->next_notification_time_ =
-      input_params->tstart_ + teps + this->min_delay_ * notification_ratio;
+      input_params_->tstart_ + teps + this->min_delay_ * notification_ratio;
   this->previous_spike_lco_ = hpx_lco_future_new(0);
   hpx_lco_set_rsync(
       this->previous_spike_lco_, 0,
@@ -91,5 +91,5 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
 #endif
 
   if (synapses_.size() == 0) return HPX_NULL;
-  return algorithm->SendSpikes(this, tt, t);
+  return algorithm_->SendSpikes(this, tt, t);
 }
