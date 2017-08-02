@@ -60,7 +60,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
                                                           double *pd,
                                                           size_t size) {
   PointProcInfo ppi;
-  ppi.nodeId = -1;
+  ppi.node_id = -1;
   ppi.size = size;
   bool found = false;
   for (NrnThreadMembList *tml = nt->tml; !found && tml != NULL;
@@ -70,7 +70,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
     Mechanism *mech = GetMechanismFromType(type);
     Memb_list *ml = tml->ml;
     for (int n = 0; n < ml->nodecount; n++)
-      for (int i = 0; i < mech->dataSize; i++) {
+      for (int i = 0; i < mech->data_size_; i++) {
 #if LAYOUT == 1
         int dataOffset = mech->dataSize * n + i;
 #else
@@ -78,10 +78,10 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
 #endif
         if (&ml->data[dataOffset] != pd) continue;  // if not this variable
 
-        ppi.nodeId = ml->nodeindices[n];
-        ppi.mechType = type;
-        ppi.mechInstance = (offset_t)n;
-        ppi.instanceDataOffset = i;
+        ppi.node_id = ml->nodeindices[n];
+        ppi.mech_type = type;
+        ppi.mech_instance = (offset_t)n;
+        ppi.instance_data_offset = i;
         found = true;
         break;
       }
@@ -103,7 +103,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   size_t dataSizePadded = 6 * tools::Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
     dataSizePadded += tools::Vectorizer::SizeOf(tml->ml->nodecount) *
-                      mechanisms[mechanisms_map[tml->index]]->dataSize;
+                      mechanisms[mechanisms_map[tml->index]]->data_size_;
 
   // map of post- to pre-padding values of pdata
   // only used for branched neurons, otherwise pointers for padded and
@@ -188,25 +188,25 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     int type = tml->index;
     Memb_list *ml = tml->ml;  // Mechanisms application to each compartment
     Mechanism *mech = GetMechanismFromType(type);
-    assert(mech->type == type);
+    assert(mech->type_ == type);
     int ionOffset = mech->GetIonIndex();
     for (int n = 0; n < ml->nodecount; n++)  // for every mech instance (or
                                              // compartment this mech is applied
                                              // to)
     {
-      if (mech->isIon) {
+      if (mech->is_ion_) {
         if (n == 0) {
           ionsInstancesInfo[ionOffset].mechType = type;
           ionsInstancesInfo[ionOffset].dataStart = dataTotalOffset;
           ionsInstancesInfo[ionOffset].dataEnd =
-              dataTotalOffset + ml->nodecount * mech->dataSize;
+              dataTotalOffset + ml->nodecount * mech->data_size_;
         }
         ionsInstancesInfo[ionOffset].nodeIds.push_back(ml->nodeindices[n]);
       }
 
       std::vector<double> data;
-      for (int i = 0; i < mech->dataSize; i++) {
-        int offsetNonPadded = mech->dataSize * n + i;
+      for (int i = 0; i < mech->data_size_; i++) {
+        int offsetNonPadded = mech->data_size_ * n + i;
 #if LAYOUT == 1
         data.push_back(ml->data[offsetNonPadded]);
         assert(ml->data[offsetNonPadded] ==
@@ -224,7 +224,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       data.shrink_to_fit();
 
       std::vector<int> pdata;
-      for (int i = 0; i < mech->pdataSize; i++) {
+      for (int i = 0; i < mech->pdata_size_; i++) {
 #if LAYOUT == 1
         int pdataOffsetNonPadded = mech->pdataSize * n + i;
         pdata.push_back(ml->pdata[pdataOffsetNonPadded]);
@@ -232,7 +232,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         int pdataOffsetPadded =
             tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
         int pd = ml->pdata[pdataOffsetPadded];
-        int ptype = memb_func[mech->type].dparam_semantics[i];
+        int ptype = memb_func[mech->type_].dparam_semantics[i];
 
         // remove extra space added by padding (for pointer to area or ion mech
         // instance)
@@ -251,16 +251,16 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       Compartment *compartment = compartments.at(ml->nodeindices[n]);
       assert(compartment->id == ml->nodeindices[n]);
 
-      if (mech->pntMap > 0 || mech->vdataSize > 0)  // vdata
+      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
-        assert((type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
-                mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
-                mech->pdataSize == 5 && mech->pntMap == 0) ||
+        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
+                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
+               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
+                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
                ((type == MechanismTypes::kProbAMPANMDA_EMS ||
                  type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdataSize == 2 && mech->pdataSize == 3 &&
-                mech->pntMap > 0));
+                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
+                mech->pnt_map_ > 0));
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -289,8 +289,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         if (type == MechanismTypes::kStochKv ||
             type == MechanismTypes::kProbAMPANMDA_EMS ||
             type == MechanismTypes::kProbGABAAB_EMS) {
-          int rngOffsetInPdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
-          int rngOffsetInVdata = mech->type == MechanismTypes::kStochKv ? 0 : 1;
+          int rngOffsetInPdata = mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
+          int rngOffsetInVdata = mech->type_ == MechanismTypes::kStochKv ? 0 : 1;
           assert(nt->_vdata[pdata[rngOffsetInPdata]] ==
                  vdata[rngOffsetInVdata]);
           nrnran123_State *RNG = (nrnran123_State *)vdata[rngOffsetInVdata];
@@ -306,21 +306,21 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
           }
         }
       }
-      compartment->AddMechanismInstance(type, n, data.data(), mech->dataSize,
-                                        pdata.data(), mech->pdataSize);
+      compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
+                                        pdata.data(), mech->pdata_size_);
 
-      vdataTotalOffset += (unsigned)mech->vdataSize;
+      vdataTotalOffset += (unsigned)mech->vdata_size_;
     }
-    dataTotalOffset += mech->dataSize * ml->nodecount;
+    dataTotalOffset += mech->data_size_ * ml->nodecount;
     dataTotalPaddedOffset +=
-        mech->dataSize * tools::Vectorizer::SizeOf(ml->nodecount);
+        mech->data_size_ * tools::Vectorizer::SizeOf(ml->nodecount);
   }
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   dataOffsets.clear();
 
   //======= 3 - reconstruct NetCons =====================
-  map<neuron_id_t, vector<NetConX *>>
+  map<neuron_id_t, vector<NetconX *>>
       netcons;  // netcons per pre-synaptic neuron id)
   for (int n = 0; n < nt->n_netcon; ++n) {
     NetCon *nc = nt->netcons + n;
@@ -340,7 +340,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                      ._ml_list[mechtype]
                      ->nodeindices[nc->target_->_i_instance];
     Compartment *comp = compartments.at(nodeid);
-    NetConX *nx = new NetConX(mechtype, (offset_t)nc->target_->_i_instance,
+    NetconX *nx = new NetconX(mechtype, (offset_t)nc->target_->_i_instance,
                               (floble_t)nc->delay_, weightsOffset, weightscount,
                               nc->active_);
     double *weights = &nt->weights[weightsOffset];
@@ -358,7 +358,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       else {
         floble_t minDelay = 99999;
         for (auto ncv : nc.second)  // get minimum delay between neurons
-          minDelay = std::min(minDelay, ncv->delay);
+          minDelay = std::min(minDelay, ncv->delay_);
         fprintf(fileNetcons, "%d -> %d [label=\"%d (%.2fms)\"];\n", srcGid,
                 neuronId, nc.second.size(), minDelay);
       }
@@ -385,7 +385,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     // discover node, mechanism and data offset id that *pd points to
     PointProcInfo ppi =
         GetPointProcInfoFromDataPointer(nt, vec->pd_, vec->y_->size());
-    compartments.at(ppi.nodeId)
+    compartments.at(ppi.node_id)
         ->AddVecPlay(vec->t_->data(), vec->y_->data(), ppi);
   }
 
@@ -774,14 +774,14 @@ void DataLoader::SetMechanisms2(const int mechsCount, const int *mechIds,
     for (int m = 0; m < mechsCount; m++) {
       if (input_params->mechs_parallelism_) {
         Mechanism *mech = neurox::mechanisms[m];
-        for (int d = 0; d < mech->dependenciesCount; d++) {
-          Mechanism *parent = GetMechanismFromType(mech->dependencies[d]);
-          if (strcmp("SK_E2", mech->membFunc.sym) == 0 &&
-              strcmp("ca_ion", parent->membFunc.sym) == 0)
+        for (int d = 0; d < mech->dependencies_count_; d++) {
+          Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
+          if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
+              strcmp("ca_ion", parent->memb_func_.sym) == 0)
             continue;  // TODO hard coded exception
 
           if (parent->GetIonIndex() < Mechanism::IonTypes::kSizeWriteableIons)
-            mech->dependencyIonIndex = parent->GetIonIndex();
+            mech->dependency_ion_index_ = parent->GetIonIndex();
         }
       }
     }
@@ -816,46 +816,46 @@ int DataLoader::Finalize_handler() {
     fprintf(fileMechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
             "end");
     fprintf(fileMechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
-            GetMechanismFromType(CAP)->membFunc.sym, CAP);
+            GetMechanismFromType(CAP)->memb_func_.sym, CAP);
     if (!input_params->mechs_parallelism_) {
       fprintf(fileMechs, "end -> start [color=transparent];\n");
       fprintf(fileMechs, "start -> \"%s (%d)\";\n",
-              GetMechanismFromType(CAP)->membFunc.sym, CAP);
+              GetMechanismFromType(CAP)->memb_func_.sym, CAP);
     }
     for (int m = 0; m < mechanisms_count; m++) {
       Mechanism *mech = neurox::mechanisms[m];
 
-      if (mech->pntMap > 0)  // if is point process make it dotted
-        fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->membFunc.sym,
-                mech->type);
+      if (mech->pnt_map_ > 0)  // if is point process make it dotted
+        fprintf(fileMechs, "\"%s (%d)\" [style=dashed];\n", mech->memb_func_.sym,
+                mech->type_);
 
-      if (mech->dependenciesCount == 0 && mech->type != CAP)  // top mechanism
-        fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->membFunc.sym,
-                mech->type);
+      if (mech->dependencies_count_ == 0 && mech->type_ != CAP)  // top mechanism
+        fprintf(fileMechs, "%s -> \"%s (%d)\";\n", "start", mech->memb_func_.sym,
+                mech->type_);
 
-      if (mech->successorsCount == 0 && mech->type != CAP)  // bottom mechanism
-        fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->membFunc.sym,
-                mech->type, "end");
+      if (mech->successors_count_ == 0 && mech->type_ != CAP)  // bottom mechanism
+        fprintf(fileMechs, "\"%s (%d)\" -> %s;\n", mech->memb_func_.sym,
+                mech->type_, "end");
 
-      for (int s = 0; s < mech->successorsCount; s++) {
-        Mechanism *successor = GetMechanismFromType(mech->successors[s]);
-        fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n", mech->membFunc.sym,
-                mech->type, successor->membFunc.sym, successor->type);
+      for (int s = 0; s < mech->successors_count_; s++) {
+        Mechanism *successor = GetMechanismFromType(mech->successors_[s]);
+        fprintf(fileMechs, "\"%s (%d)\" -> \"%s (%d)\";\n", mech->memb_func_.sym,
+                mech->type_, successor->memb_func_.sym, successor->type_);
       }
 
       if (input_params->mechs_parallelism_)
-        for (int d = 0; d < mech->dependenciesCount; d++) {
-          Mechanism *parent = GetMechanismFromType(mech->dependencies[d]);
-          if (strcmp("SK_E2", mech->membFunc.sym) == 0 &&
-              strcmp("ca_ion", parent->membFunc.sym) == 0)
+        for (int d = 0; d < mech->dependencies_count_; d++) {
+          Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
+          if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
+              strcmp("ca_ion", parent->memb_func_.sym) == 0)
             continue;  // TODO: hardcoded exception
           if (parent->GetIonIndex() <
               Mechanism::IonTypes::kSizeWriteableIons)  // ie is writeable
             fprintf(
                 fileMechs,
                 "\"%s (%d)\" -> \"%s (%d)\" [style=dashed, arrowtype=open];\n",
-                mech->membFunc.sym, mech->type, parent->membFunc.sym,
-                parent->type);
+                mech->memb_func_.sym, mech->type_, parent->memb_func_.sym,
+                parent->type_);
         }
     }
     fprintf(fileMechs, "}\n");
@@ -869,9 +869,9 @@ int DataLoader::Finalize_handler() {
       printf(
           "- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
           "isIon %d, symLength %d, %d successors, %d dependencies\n",
-          mech->membFunc.sym, mech->type, mech->dataSize, mech->pdataSize,
-          mech->isArtificial, mech->pntMap, mech->isIon, mech->symLength,
-          mech->successorsCount, mech->dependenciesCount);
+          mech->memb_func_.sym, mech->type_, mech->data_size_, mech->pdata_size_,
+          mech->is_artificial_, mech->pnt_map_, mech->is_ion_, mech->sym_length_,
+          mech->successors_count_, mech->dependencies_count_);
     }
   }
 #endif
@@ -926,7 +926,7 @@ void DataLoader::GetMechInstanceMap(deque<Compartment *> &compartments,
 }
 
 void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
-                                      vector<NetConX> &branchNetCons,
+                                      vector<NetconX> &branchNetCons,
                                       vector<neuron_id_t> &branchNetConsPreId,
                                       vector<floble_t> &branchWeights,
                                       vector<map<int, int>> *mechInstanceMap) {
@@ -942,16 +942,16 @@ void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
 
   // correct weighIndex variables
   int weightOffset = 0;
-  for (NetConX &nc : branchNetCons) {
-    nc.weightIndex = weightOffset;
-    weightOffset += nc.weightsCount;
+  for (NetconX &nc : branchNetCons) {
+    nc.weight_index_ = weightOffset;
+    weightOffset += nc.weights_count_;
   }
 
   // convert mech instance id from neuron to branch level
   if (mechInstanceMap)
-    for (NetConX &nc : branchNetCons)
-      nc.mechInstance = (*mechInstanceMap)[neurox::mechanisms_map[nc.mechType]]
-                                          [nc.mechInstance];
+    for (NetconX &nc : branchNetCons)
+      nc.mech_instance_ = (*mechInstanceMap)[neurox::mechanisms_map[nc.mech_type_]]
+                                          [nc.mech_instance_];
 }
 
 void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
@@ -968,10 +968,10 @@ void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
 
     for (int p = 0; p < vecPlayInfo.size(); p++) {
       PointProcInfo &ppi = vecPlayInfo[p];
-      ppi.mechInstance =
-          (offset_t)(*mechInstanceMap)[neurox::mechanisms_map[ppi.mechType]]
-                                      [ppi.mechInstance];
-      ppi.nodeId = fromOldToNewCompartmentId[ppi.nodeId];
+      ppi.mech_instance =
+          (offset_t)(*mechInstanceMap)[neurox::mechanisms_map[ppi.mech_type]]
+                                      [ppi.mech_instance];
+      ppi.node_id = fromOldToNewCompartmentId[ppi.node_id];
     }
   }
 
@@ -1049,23 +1049,23 @@ int DataLoader::GetBranchData(
       Mechanism *mech = mechanisms[mechOffset];
       dataMechs[mechOffset].insert(
           dataMechs[mechOffset].end(), &comp->data[compDataOffset],
-          &comp->data[compDataOffset + mech->dataSize]);
+          &comp->data[compDataOffset + mech->data_size_]);
       pdataMechs[mechOffset].insert(
           pdataMechs[mechOffset].end(), &comp->pdata[compPdataOffset],
-          &comp->pdata[compPdataOffset + mech->pdataSize]);
+          &comp->pdata[compPdataOffset + mech->pdata_size_]);
       nodesIndicesMechs[mechOffset].push_back(comp->id);
       instancesCount[mechOffset]++;
-      compDataOffset += mech->dataSize;
-      compPdataOffset += mech->pdataSize;
-      if (mech->pntMap > 0 || mech->vdataSize > 0) {
-        assert((type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
-                mech->pdataSize == 2 && mech->pntMap > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
-                mech->pdataSize == 5 && mech->pntMap == 0) ||
+      compDataOffset += mech->data_size_;
+      compPdataOffset += mech->pdata_size_;
+      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
+        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
+                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
+               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
+                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
                ((type == MechanismTypes::kProbAMPANMDA_EMS ||
                  type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdataSize == 2 && mech->pdataSize == 3 &&
-                mech->pntMap > 0));
+                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
+                mech->pnt_map_ > 0));
 
         size_t totalVdataSize = 0;
         if (type == MechanismTypes::kIClamp ||
@@ -1094,26 +1094,26 @@ int DataLoader::GetBranchData(
     for (int i = 0; i < nodesIndicesMechs[m].size(); i++)  // for all instances
     {
       assert(ionInstanceToDataOffset.find(
-                 make_pair(mech->type, nodesIndicesMechs[m][i])) ==
+                 make_pair(mech->type_, nodesIndicesMechs[m][i])) ==
              ionInstanceToDataOffset.end());
-      if (mech->isIon &&
+      if (mech->is_ion_ &&
           input_params->branch_parallelism_depth_ > 0)  // for pdata calculation
         ionInstanceToDataOffset[make_pair(
-            mech->type, nodesIndicesMechs[m][i])] = data.size();
+            mech->type_, nodesIndicesMechs[m][i])] = data.size();
       data.insert(data.end(), &dataMechs[m][dataOffset],
-                  &dataMechs[m][dataOffset + mech->dataSize]);
+                  &dataMechs[m][dataOffset + mech->data_size_]);
       nodesIndices.push_back(nodesIndicesMechs[m][i]);
-      dataOffset += mech->dataSize;
+      dataOffset += mech->data_size_;
 
-      if (mech->pntMap > 0 || mech->vdataSize > 0) {
+      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
         int totalVdataSize = 0;
-        if (mech->type == MechanismTypes::kIClamp ||
-            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type == MechanismTypes::kProbGABAAB_EMS)
+        if (mech->type_ == MechanismTypes::kIClamp ||
+            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(Point_process);
-        if (mech->type == MechanismTypes::kStochKv ||
-            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type == MechanismTypes::kProbGABAAB_EMS)
+        if (mech->type_ == MechanismTypes::kStochKv ||
+            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
           totalVdataSize += sizeof(nrnran123_State);
         assert(totalVdataSize > 0);
         vdata.insert(vdata.end(), &vdataMechs[m][vdataOffset],
@@ -1124,9 +1124,9 @@ int DataLoader::GetBranchData(
       if (input_params->branch_parallelism_depth_ >
           0)  // if we need to recalculate offsets or remove padding
       {
-        for (int p = pdataOffset; p < pdataOffset + mech->pdataSize; p++) {
+        for (int p = pdataOffset; p < pdataOffset + mech->pdata_size_; p++) {
           offset_t pd = pdataMechs.at(m).at(p);
-          int ptype = memb_func[mech->type].dparam_semantics[p - pdataOffset];
+          int ptype = memb_func[mech->type_].dparam_semantics[p - pdataOffset];
           switch (ptype) {
             case -1:  //"area" (6th field)
             {
@@ -1167,12 +1167,12 @@ int DataLoader::GetBranchData(
                 assert(pd >= dataStart && pd < ionInfo.dataEnd);
 
                 int instanceOffset =
-                    trunc((double)(pd - dataStart) / (double)ion->dataSize);
-                int instanceVariableOffset = (pd - dataStart) % ion->dataSize;
+                    trunc((double)(pd - dataStart) / (double)ion->data_size_);
+                int instanceVariableOffset = (pd - dataStart) % ion->data_size_;
                 int nodeId = ionInfo.nodeIds.at(instanceOffset);
                 int newNodeId = fromOldToNewCompartmentId.at(nodeId);
                 pdataMechs.at(m).at(p) = ionInstanceToDataOffset.at(
-                                             make_pair(ion->type, newNodeId)) +
+                                             make_pair(ion->type_, newNodeId)) +
                                          instanceVariableOffset;
                 assert(pdataMechs.at(m).at(p) >= n * 6);
               } else if (ptype >= 1000)  // name not preffixed
@@ -1186,8 +1186,8 @@ int DataLoader::GetBranchData(
         }
       }
       pdata.insert(pdata.end(), &pdataMechs[m][pdataOffset],
-                   &pdataMechs[m][pdataOffset + mech->pdataSize]);
-      pdataOffset += mech->pdataSize;
+                   &pdataMechs[m][pdataOffset + mech->pdata_size_]);
+      pdataOffset += mech->pdata_size_;
     }
     dataMechs[m].clear();
     pdataMechs[m].clear();
@@ -1232,7 +1232,7 @@ hpx_t DataLoader::CreateBranch(
   vector<PointProcInfo> vecPlayInfo;
 
   // branch NetCons
-  vector<NetConX> branchNetCons;
+  vector<NetconX> branchNetCons;
   vector<neuron_id_t> branchNetConsPreId;
   vector<floble_t> branchWeights;
 
@@ -1313,7 +1313,7 @@ hpx_t DataLoader::CreateBranch(
         vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr,
         sizeof(PointProcInfo) * vecPlayInfo.size(),
         branchNetCons.size() > 0 ? branchNetCons.data() : nullptr,
-        sizeof(NetConX) * branchNetCons.size(),
+        sizeof(NetconX) * branchNetCons.size(),
         branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr,
         sizeof(neuron_id_t) * branchNetConsPreId.size(),
         branchWeights.size() > 0 ? branchWeights.data() : nullptr,
@@ -1386,7 +1386,7 @@ hpx_t DataLoader::CreateBranch(
       vecPlayInfo.size() > 0 ? vecPlayInfo.data() : nullptr,
       sizeof(PointProcInfo) * vecPlayInfo.size(),
       branchNetCons.size() > 0 ? branchNetCons.data() : nullptr,
-      sizeof(NetConX) * branchNetCons.size(),
+      sizeof(NetconX) * branchNetCons.size(),
       branchNetConsPreId.size() > 0 ? branchNetConsPreId.data() : nullptr,
       sizeof(neuron_id_t) * branchNetConsPreId.size(),
       branchWeights.size() > 0 ? branchWeights.data() : nullptr,
@@ -1432,8 +1432,8 @@ int DataLoader::InitNetcons_handler() {
     if (local->netcons_.find(srcGid) != local->netcons_.end()) {
       hpx_t srcAddr = neurox::neurons[i];
       floble_t minDelay = impossiblyLargeDelay;
-      for (NetConX *&nc : local->netcons_.at(srcGid))
-        if (nc->active) minDelay = min(minDelay, nc->delay);
+      for (NetconX *&nc : local->netcons_.at(srcGid))
+        if (nc->active_) minDelay = min(minDelay, nc->delay_);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE == true
       if (input_params->output_netcons_dot && minDelay != impossiblyLargeDelay)

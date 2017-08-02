@@ -134,23 +134,23 @@ int Statistics::GetNeuronSize_handler() {
     branch_size.mechs_instances_count_ += local->mechs_instances_[m].nodecount;
     branch_size.mechanisms_ +=
         (double)(sizeof(offset_t) * local->mechs_instances_[m].nodecount) / 1024;
-    if (mechanisms[m]->dataSize > 0)
+    if (mechanisms[m]->data_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(floble_t) * mechanisms[m]->dataSize *
+          (double)(sizeof(floble_t) * mechanisms[m]->data_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
-    if (mechanisms[m]->pdataSize > 0)
+    if (mechanisms[m]->pdata_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(offset_t) * mechanisms[m]->pdataSize *
+          (double)(sizeof(offset_t) * mechanisms[m]->pdata_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
-    if (mechanisms[m]->vdataSize > 0)
+    if (mechanisms[m]->vdata_size_ > 0)
       branch_size.mechanisms_ +=
-          (double)(sizeof(void*) * mechanisms[m]->vdataSize *
+          (double)(sizeof(void*) * mechanisms[m]->vdata_size_ *
                    local->mechs_instances_[m].nodecount) /
           1024;
 
-    int type = mechanisms[m]->type;
+    int type = mechanisms[m]->type_;
     if (type == MechanismTypes::kIClamp ||
         type == MechanismTypes::kProbAMPANMDA_EMS ||
         type == MechanismTypes::kProbGABAAB_EMS)
@@ -217,8 +217,8 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
   fprintf(outstream, "mech-type,name,instances,avg-per-neuron\n");
 
   for (int m = 0; m < mechanisms_count; m++)
-    fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type,
-            mechanisms[m]->membFunc.sym, sum_mechs_count_per_type[m],
+    fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms[m]->type_,
+            mechanisms[m]->memb_func_.sym, sum_mechs_count_per_type[m],
             (double)sum_mechs_count_per_type[m] / neurox::neurons_count);
 
   if (write_to_file) fclose(outstream);

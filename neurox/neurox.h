@@ -18,8 +18,8 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 // auxiliary classes defining events, synapses and mechanisms
 #include "neurox/event.h"
 #include "neurox/mechanism.h"
-#include "neurox/net_con.h"
-#include "neurox/vec_play_continuous.h"
+#include "neurox/netcon.h"
+#include "neurox/vecplay_continuous.h"
 
 // morphology classes (branches and soma)
 #include "neurox/branch.h"

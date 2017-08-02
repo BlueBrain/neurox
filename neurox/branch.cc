@@ -23,7 +23,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
                size_t p_count, floble_t *vecplay_t, size_t vecplay_t_Count,
                floble_t *vecplay_y, size_t vecplay_y_count,
                PointProcInfo *vecplay_ppi, size_t vecplay_ppi_count,
-               NetConX *netcons, size_t netcons_count,
+               NetconX *netcons, size_t netcons_count,
                neuron_id_t *netcons_pre_ids, size_t netcons_pre_ids_count,
                floble_t *weights, size_t weights_count,
                unsigned char *vdata_serialized, size_t vdata_serialized_count)
@@ -119,19 +119,19 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     Memb_list &instance = this->mechs_instances_[m];
     Mechanism *mech = mechanisms[m];
     instance.nodecount = instances_count[m];
-    max_mech_id = max(max_mech_id, mech->type);
+    max_mech_id = max(max_mech_id, mech->type_);
 
     // data, pdata, and nodesIndices arrays
-    instance.data = mech->dataSize == 0 || instance.nodecount == 0
+    instance.data = mech->data_size_ == 0 || instance.nodecount == 0
                         ? nullptr
                         : this->nt_->_data + data_offset;
     instance.pdata =
-        mech->pdataSize == 0 || instance.nodecount == 0
+        mech->pdata_size_ == 0 || instance.nodecount == 0
             ? nullptr
-            : Vectorizer::New<offset_t>(mech->pdataSize * instance.nodecount);
+            : Vectorizer::New<offset_t>(mech->pdata_size_ * instance.nodecount);
     if (instance.pdata)
       memcpy(instance.pdata, &pdata[pdata_offset],
-             sizeof(offset_t) * (mech->pdataSize * instance.nodecount));
+             sizeof(offset_t) * (mech->pdata_size_ * instance.nodecount));
     instance.nodeindices = instance.nodecount > 0
                                ? Vectorizer::New<offset_t>(instance.nodecount)
                                : nullptr;
@@ -140,10 +140,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
              sizeof(offset_t) * instance.nodecount);
 
     // init thread data :: nrn_setup.cpp->setup_ThreadData();
-    if (mech->membFunc.thread_size_) {
-      instance._thread = new ThreadDatum[mech->membFunc.thread_size_];
-      if (mech->membFunc.thread_mem_init_)
-        mech->membFunc.thread_mem_init_(instance._thread);
+    if (mech->memb_func_.thread_size_) {
+      instance._thread = new ThreadDatum[mech->memb_func_.thread_size_];
+      if (mech->memb_func_.thread_mem_init_)
+        mech->memb_func_.thread_mem_init_(instance._thread);
     } else {
       instance._thread = nullptr;
     }
@@ -156,21 +156,21 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       assert(data_offset <= data_count);
       assert(vdata_offset <= vdata_serialized_count);
       floble_t *instance_data = (floble_t *)&this->nt_->_data[data_offset];
-      floble_t *instance_data_2 = (floble_t *)&instance.data[i * mech->dataSize];
+      floble_t *instance_data_2 = (floble_t *)&instance.data[i * mech->data_size_];
       offset_t *instance_pdata =
-          (offset_t *)&instance.pdata[i * mech->pdataSize];
+          (offset_t *)&instance.pdata[i * mech->pdata_size_];
       assert(instance_data =
                  instance_data_2);  // Make sure data offsets are good so far
 
-      if (mech->vdataSize > 0 || mech->pntMap > 0) {
+      if (mech->vdata_size_ > 0 || mech->pnt_map_ > 0) {
         assert(
-            (mech->type == MechanismTypes::kIClamp && mech->vdataSize == 1 &&
-             mech->pdataSize == 2 && mech->pntMap > 0) ||
-            (mech->type == MechanismTypes::kStochKv && mech->vdataSize == 1 &&
-             mech->pdataSize == 5 && mech->pntMap == 0) ||
-            ((mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
-              mech->type == MechanismTypes::kProbGABAAB_EMS) &&
-             mech->vdataSize == 2 && mech->pdataSize == 3 && mech->pntMap > 0));
+            (mech->type_ == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
+             mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
+            (mech->type_ == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
+             mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
+            ((mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+              mech->type_ == MechanismTypes::kProbGABAAB_EMS) &&
+             mech->vdata_size_ == 2 && mech->pdata_size_ == 3 && mech->pnt_map_ > 0));
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -186,9 +186,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
         // copy Point_processes by replacing vdata pointers and pdata offset by
         // the ones referring to a copy
-        if (mech->type == MechanismTypes::kIClamp ||
-            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type == MechanismTypes::kProbGABAAB_EMS) {
+        if (mech->type_ == MechanismTypes::kIClamp ||
+            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type_ == MechanismTypes::kProbGABAAB_EMS) {
           int pointProcOffsetInPdata = 1;
           Point_process *pp =
               (Point_process *)(void *)&vdata_serialized[vdata_offset];
@@ -202,10 +202,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
         // copy RNG by replacing vdata pointers and pdata offset by the ones
         // referring to a copy
-        if (mech->type == MechanismTypes::kStochKv ||
-            mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
+        if (mech->type_ == MechanismTypes::kStochKv ||
+            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
+            mech->type_ == MechanismTypes::kProbGABAAB_EMS) {
+          int rng_offset_in_pdata = mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
           nrnran123_State *rng =
               (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
           nrnran123_State *rngcopy = new nrnran123_State;
@@ -215,8 +215,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
           vdata_ptrs.push_back(rngcopy);
         }
       }
-      data_offset += mech->dataSize;
-      pdata_offset += mech->pdataSize;
+      data_offset += mech->data_size_;
+      pdata_offset += mech->pdata_size_;
       assert(data_offset < 2 ^ sizeof(offset_t));
       assert(pdata_offset < 2 ^ sizeof(offset_t));
       assert(vdata_offset < 2 ^ sizeof(offset_t));
@@ -242,8 +242,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   for (offset_t m = 0; m < mechanisms_count; m++) {
     Mechanism *mech = mechanisms[m];
     Memb_list &instances = this->mechs_instances_[m];
-    this->nt_->_ml_list[mech->type] = &instances;
-    if (mech->isIon) ionsCount++;
+    this->nt_->_ml_list[mech->type_] = &instances;
+    if (mech->is_ion_) ionsCount++;
   }
   assert(ionsCount ==
          Mechanism::IonTypes::kSizeWriteableIons +
@@ -258,10 +258,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   for (size_t v = 0; v < nt->n_vecplay; v++) {
     PointProcInfo &ppi = vecplay_ppi[v];
     size_t size = ppi.size;
-    int m = mechanisms_map[ppi.mechType];
+    int m = mechanisms_map[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
-    floble_t *pd = &(instances_data[ppi.mechInstance * mechanisms[m]->dataSize +
-                                   ppi.instanceDataOffset]);
+    floble_t *pd = &(instances_data[ppi.mech_instance * mechanisms[m]->data_size_ +
+                                   ppi.instance_data_offset]);
     floble_t *yvec = new floble_t[size];
     floble_t *tvec = new floble_t[size];
     for (size_t i = 0; i < size; i++) {
@@ -279,8 +279,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   for (int m = 0; m < mechanisms_count; m++) {
     int shadow_size = 0;
-    if (mechanisms[m]->membFunc.current &&
-        !mechanisms[m]->isIon)  // ions have no updates
+    if (mechanisms[m]->memb_func_.current &&
+        !mechanisms[m]->is_ion_)  // ions have no updates
       shadow_size = this->mechs_instances_[m].nodecount;
 
     Memb_list *ml = &mechs_instances_[m];
@@ -294,7 +294,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       ml->_shadow_rhs[i] = 0;
     }
 
-    if (mechanisms[m]->dependencyIonIndex >=
+    if (mechanisms[m]->dependency_ion_index_ >=
         Mechanism::IonTypes::kSizeWriteableIons)
       shadow_size = 0;  //> only mechanisms with parent ions update I and DI/DV
 
@@ -317,11 +317,11 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // reconstructs netcons
   offset_t weights_offset = 0;
   for (offset_t nc = 0; nc < netcons_count; nc++) {
-    this->netcons_[netcons_pre_ids[nc]].push_back(new NetConX(
-        netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
-        netcons[nc].weightIndex, netcons[nc].weightsCount, netcons[nc].active));
-    assert(weights_offset == netcons[nc].weightIndex);
-    weights_offset += netcons[nc].weightsCount;
+    this->netcons_[netcons_pre_ids[nc]].push_back(new NetconX(
+        netcons[nc].mech_type_, netcons[nc].mech_instance_, netcons[nc].delay_,
+        netcons[nc].weight_index_, netcons[nc].weights_count_, netcons[nc].active_));
+    assert(weights_offset == netcons[nc].weight_index_);
+    weights_offset += netcons[nc].weights_count_;
   }
   assert(weights_count == weights_offset);
 
@@ -350,8 +350,8 @@ Branch::~Branch() {
   hpx_lco_delete_sync(this->events_queue_mutex_);
   for (int m = 0; m < mechanisms_count; m++) {
     Memb_list &instance = this->mechs_instances_[m];
-    if (mechanisms[m]->membFunc.thread_cleanup_)
-      mechanisms[m]->membFunc.thread_cleanup_(instance._thread);
+    if (mechanisms[m]->memb_func_.thread_cleanup_)
+      mechanisms[m]->memb_func_.thread_cleanup_(instance._thread);
 
     Vectorizer::Delete(mechs_instances_[m].nodeindices);
     Vectorizer::Delete(mechs_instances_[m].pdata);
@@ -410,7 +410,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (floble_t *)args[11], sizes[11] / sizeof(floble_t),  // vecplay Y data
       (PointProcInfo *)args[12],
       sizes[12] / sizeof(PointProcInfo),                 // point processes info
-      (NetConX *)args[13], sizes[13] / sizeof(NetConX),  // netcons
+      (NetconX *)args[13], sizes[13] / sizeof(NetconX),  // netcons
       (neuron_id_t *)args[14],
       sizes[14] / sizeof(neuron_id_t),  // netcons preneuron ids
       (floble_t *)args[15], sizes[15] / sizeof(floble_t),  // netcons weights
@@ -483,8 +483,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
     {
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count; m++) {
-        if (mechanisms[m]->type == CAP) continue;            // not capacitance
-        if (mechanisms[m]->dependenciesCount > 0) continue;  // not a top branch
+        if (mechanisms[m]->type_ == CAP) continue;            // not capacitance
+        if (mechanisms[m]->dependencies_count_ > 0) continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
                     &function_id, HPX_NULL, HPX_NULL);
       }
@@ -493,7 +493,7 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
     } else  // serial
     {
       for (int m = 0; m < mechanisms_count; m++) {
-        if (mechanisms[m]->type == CAP &&
+        if (mechanisms[m]->type_ == CAP &&
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
           continue;
@@ -521,7 +521,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   auto &netcons = local->netcons_.at(pre_neuron_id);
   hpx_lco_sema_p(local->events_queue_mutex_);
   for (auto nc : netcons) {
-    floble_t delivery_time = spike_time + nc->delay;
+    floble_t delivery_time = spike_time + nc->delay_;
     local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
   }
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
@@ -844,13 +844,13 @@ Branch::MechanismsGraph::MechanismsGraph() {
   size_t terminal_mechanisms_count = 0;
   for (size_t m = 0; m < mechanisms_count; m++) {
     this->mechs_lcos_[m] = HPX_NULL;
-    if (mechanisms[m]->type == CAP) continue;  // exclude capacitance
+    if (mechanisms[m]->type_ == CAP) continue;  // exclude capacitance
 
     this->mechs_lcos_[m] = hpx_lco_reduce_new(
-        max((short)1, mechanisms[m]->dependenciesCount),
+        max((short)1, mechanisms[m]->dependencies_count_),
         sizeof(Mechanism::ModFunctions), Branch::MechanismsGraph::Init,
         Branch::MechanismsGraph::Reduce);
-    if (mechanisms[m]->successorsCount == 0)  // bottom of mechs graph
+    if (mechanisms[m]->successors_count_ == 0)  // bottom of mechs graph
       terminal_mechanisms_count++;
   }
   this->end_lco_ = hpx_lco_and_new(terminal_mechanisms_count);
@@ -862,9 +862,9 @@ Branch::MechanismsGraph::MechanismsGraph() {
 
 void Branch::MechanismsGraph::InitMechsGraph(hpx_t branch_hpx_addr) {
   for (size_t m = 0; m < mechanisms_count; m++) {
-    if (mechanisms[m]->type == CAP) continue;  // exclude capacitance
+    if (mechanisms[m]->type_ == CAP) continue;  // exclude capacitance
     hpx_call(branch_hpx_addr, Branch::MechanismsGraph::MechFunction,
-             this->graph_lco_, &mechanisms[m]->type, sizeof(int));
+             this->graph_lco_, &mechanisms[m]->type_, sizeof(int));
   }
 }
 
@@ -900,12 +900,12 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
     assert(function_id != Mechanism::ModFunctions::kCurrentCapacitance);
     mech->CallModFunction(local, function_id);
 
-    if (mech->successorsCount == 0)  // bottom mechanism
+    if (mech->successors_count_ == 0)  // bottom mechanism
       hpx_lco_set(local->mechs_graph_->end_lco_, 0, NULL, HPX_NULL, HPX_NULL);
     else
-      for (int c = 0; c < mech->successorsCount; c++)
+      for (int c = 0; c < mech->successors_count_; c++)
         hpx_lco_set(
-            local->mechs_graph_->mechs_lcos_[mechanisms_map[mech->successors[c]]],
+            local->mechs_graph_->mechs_lcos_[mechanisms_map[mech->successors_[c]]],
             sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
   }
   return neurox::wrappers::MemoryUnpin(target);
@@ -927,8 +927,8 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread *nt, Memb_list *ml,
                                                  int type, void *args) {
   MechanismsGraph *mg = (MechanismsGraph *)args;
   Mechanism *mech = GetMechanismFromType(type);
-  assert(mech->dependencyIonIndex < Mechanism::IonTypes::kSizeWriteableIons);
-  hpx_lco_sema_p(mg->i_didv_mutex_[mech->dependencyIonIndex]);
+  assert(mech->dependency_ion_index_ < Mechanism::IonTypes::kSizeWriteableIons);
+  hpx_lco_sema_p(mg->i_didv_mutex_[mech->dependency_ion_index_]);
   for (int n = 0; n < ml->nodecount; n++) {
     int &i_offset = ml->_shadow_i_offsets[n];
     int &didv_offset = ml->_shadow_didv_offsets[n];
@@ -936,7 +936,7 @@ void Branch::MechanismsGraph::AccumulateIandDIDV(NrnThread *nt, Memb_list *ml,
     nt->_data[i_offset] += ml->_shadow_i[n];
     nt->_data[didv_offset] += ml->_shadow_didv[n];
   }
-  hpx_lco_sema_v_sync(mg->i_didv_mutex_[mech->dependencyIonIndex]);
+  hpx_lco_sema_v_sync(mg->i_didv_mutex_[mech->dependency_ion_index_]);
 }
 
 hpx_action_t Branch::MechanismsGraph::Init = 0;

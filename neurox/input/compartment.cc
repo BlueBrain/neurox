@@ -8,7 +8,7 @@ using namespace std;
 using namespace neurox;
 using namespace neurox::input;
 
-class neurox::NetConX;
+class neurox::NetconX;
 
 Compartment::~Compartment(){};
 
@@ -44,13 +44,13 @@ void Compartment::AddSerializedVdata(unsigned char *data, size_t size) {
   for (size_t i = 0; i < size; i++) this->vdata.push_back(data[i]);
 }
 
-void Compartment::AddNetCon(int preSynNrnThreadId, NetConX *nc,
+void Compartment::AddNetCon(int preSynNrnThreadId, NetconX *nc,
                             floble_t *weights) {
   this->netconsPreSynIds.push_back(preSynNrnThreadId);
-  this->netcons.push_back(NetConX(nc->mechType, nc->mechInstance, nc->delay,
-                                  nc->weightIndex, nc->weightsCount,
-                                  nc->active));
-  for (int i = 0; i < nc->weightsCount; i++)
+  this->netcons.push_back(NetconX(nc->mech_type_, nc->mech_instance_, nc->delay_,
+                                  nc->weight_index_, nc->weights_count_,
+                                  nc->active_));
+  for (int i = 0; i < nc->weights_count_; i++)
     this->netconsWeights.push_back(weights[i]);
 }
 

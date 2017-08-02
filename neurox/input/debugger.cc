@@ -39,9 +39,9 @@ void Debugger::CompareMechanismsFunctions() {
   DebugMessage(
       "neurox::Input::CoreNeuron::Debugger::CompareMechanismsFunctions...\n");
   for (int m = 0; m < neurox::mechanisms_count; m++) {
-    int index = mechanisms[m]->type;
+    int index = mechanisms[m]->type_;
     Memb_func &mf_cn = memb_func[index];         // coreneuron
-    Memb_func &mf_nx = mechanisms[m]->membFunc;  // neurox
+    Memb_func &mf_nx = mechanisms[m]->memb_func_;  // neurox
 
     // constructur, destructors are different
     // assert (mf_cn.alloc == mf_nx.alloc);
@@ -69,7 +69,7 @@ void Debugger::CompareMechanismsFunctions() {
 
     for (int i = 0; i < BEFORE_AFTER_SIZE; i++)
       if (nrn_threads[0].tbl[i])
-        assert(mechanisms[m]->BAfunctions[i] == nrn_threads[0].tbl[i]->bam->f);
+        assert(mechanisms[m]->before_after_functions_[i] == nrn_threads[0].tbl[i]->bam->f);
   }
 #endif
 }
@@ -309,9 +309,9 @@ void Debugger::CompareBranch2(Branch *branch) {
 
   // dparam_semantics
   for (int m = 0; m < neurox::mechanisms_count; m++) {
-    int type = mechanisms[m]->type;
-    for (int i = 0; i < mechanisms[m]->pdataSize; i++) {
-      assert(mechanisms[m]->membFunc.dparam_semantics[i] ==
+    int type = mechanisms[m]->type_;
+    for (int i = 0; i < mechanisms[m]->pdata_size_; i++) {
+      assert(mechanisms[m]->memb_func_.dparam_semantics[i] ==
              memb_func[type].dparam_semantics[i]);
     }
   }
@@ -350,8 +350,8 @@ void Debugger::CompareBranch2(Branch *branch) {
     Memb_list *ml = tml->ml;  // Mechanisms application to each compartment
     Memb_list &instances = branch->mechs_instances_[m];
     assert(ml->nodecount == instances.nodecount);
-    short dataSize = mechanisms[m]->dataSize;
-    short pdataSize = mechanisms[m]->pdataSize;
+    short dataSize = mechanisms[m]->data_size_;
+    short pdataSize = mechanisms[m]->pdata_size_;
     for (int n = 0; n < ml->nodecount; n++)  // for every mech instance
     {
       assert(ml->nodeindices[n] == instances.nodeindices[n]);

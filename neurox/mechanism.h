@@ -6,7 +6,7 @@
 
 namespace neurox {
 
-class NetConX;
+class NetconX;
 
 /// hard-coded mechanism types
 enum MechanismTypes {
@@ -37,33 +37,34 @@ class Mechanism {
   Mechanism() = delete;
   ~Mechanism();
 
-  Mechanism(const int type, const short dataSize, const short pdataSize,
-            const char isArtificial, char pntMap, const char isIon,
-            const short int symLengh, const char *sym, Memb_func &memb_func,
-            const short int dependenciesCount = 0,
-            const int *dependencies = nullptr,
-            const short int successorsCount = 0,
-            const int *successors = nullptr);
+  Mechanism(const int type_, const short int data_size,
+            const short int pdata_size, const char is_artificial,
+            char pnt_map, const char is_ion, const short int sym_length,
+            const char *sym, Memb_func &memb_func_,
+            const short int dependencies_count = 0,
+            const int *dependencies_ = nullptr,
+            const short int successors_count = 0,
+            const int *successors_ = nullptr );
 
-  int type;
-  short dataSize, pdataSize, vdataSize;
-  short successorsCount;    ///> number of mechanisms succedding this one on a
+  int type_;
+  short data_size_, pdata_size_, vdata_size_;
+  short successors_count_;    ///> number of mechanisms succedding this one on a
                             /// parallel execution
-  short dependenciesCount;  ///> number of mechanisms it depends on
-  short symLength;          ///> length of the name of the mechanism;
-  char pntMap, isArtificial;
-  char isIon;
-  int *dependencies;  ///> mechanism id for dependency mechanisms
-  int *successors;    ///> mechanism id for successors mechanisms
+  short dependencies_count_;  ///> number of mechanisms it depends on
+  short sym_length_;          ///> length of the name of the mechanism;
+  char pnt_map_, is_artificial_;
+  char is_ion_;
+  int *dependencies_;  ///> mechanism id for dependency mechanisms
+  int *successors_;    ///> mechanism id for successors mechanisms
 
-  int dependencyIonIndex;  ///> index of parent ion (if any)
+  int dependency_ion_index_;  ///> index of parent ion (if any)
 
   // from memb_func.h (before after functions not used on BBP models)
-  Memb_func membFunc;
-  mod_f_t BAfunctions[BEFORE_AFTER_SIZE];  ///>mechanism functions
-  pnt_receive2_t pnt_receive;
-  pnt_receive2_t pnt_receive_init;
-  bbcore_read_t nrn_bbcore_read;
+  Memb_func memb_func_;
+  mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
+  pnt_receive2_t pnt_receive_;
+  pnt_receive2_t pnt_receive_init_;
+  bbcore_read_t nrn_bbcore_read_;
 
   enum ModFunctions {
     // BA functions start here (of size BEFORE_AFTER_SIZE)
@@ -94,8 +95,8 @@ class Mechanism {
   Mechanism::IonTypes GetIonIndex();
 
   void CallModFunction(const void *branch,
-                       const Mechanism::ModFunctions functionId,
-                       const NetConX *netcon = NULL,  // for net_receive only
+                       const Mechanism::ModFunctions function_id,
+                       const NetconX *netcon = NULL,  // for net_receive only
                        const floble_t tt = 0);        // for net_receive only
  private:
   void RegisterBeforeAfterFunctions();  ///> register Before-After functions

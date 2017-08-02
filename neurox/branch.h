@@ -35,7 +35,7 @@ class Branch {
          size_t branches_count, offset_t* p, size_t p_count,
          floble_t* vecplay_t, size_t vecplay_t_Count, floble_t* vecplay_y,
          size_t vecplay_y_count, PointProcInfo* vecplay_ppi,
-         size_t vecplay_ppi_count, NetConX* netcons_, size_t netcons_count,
+         size_t vecplay_ppi_count, NetconX* netcons_, size_t netcons_count,
          neuron_id_t* netcons_pre_ids, size_t netcons_pre_ids_count,
          floble_t* weights, size_t weights_count,
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
@@ -75,9 +75,9 @@ class Branch {
     // for current function accumulation of shadow arrays
     hpx_t rhs_d_mutex_;
     hpx_t i_didv_mutex_[Mechanism::IonTypes::kSizeWriteableIons];
-    static void AccumulateRHSandD(NrnThread* nt_, Memb_list* ml, int,
+    static void AccumulateRHSandD(NrnThread* nt, Memb_list* ml, int,
                                   void* args);
-    static void AccumulateIandDIDV(NrnThread* nt_, Memb_list* ml, int,
+    static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
   } * mechs_graph_;  ///> represents the parallel computation graph of mechanisms
@@ -105,7 +105,7 @@ class Branch {
     static int InitLCOs_handler();
   } * branch_tree_;  ///> represents the tree structure (or NULL if none)
 
-  std::map<neuron_id_t, std::vector<NetConX*> >
+  std::map<neuron_id_t, std::vector<NetconX*> >
       netcons_;  ///> map of incoming netcons per pre-synaptic gid
 
   /// priority queue of incoming events sorted per delivery time

@@ -94,7 +94,7 @@ class DataLoader {
       vector<map<int, int>> *mechInstanceMap = NULL);
 
   static void GetNetConsBranchData(
-      deque<Compartment *> &compartments, vector<NetConX> &branchNetCons,
+      deque<Compartment *> &compartments, vector<NetconX> &branchNetCons,
       vector<neuron_id_t> &branchNetConsPreId,
       vector<floble_t> &branchNetConsArgs,
       vector<map<int, int>> *mechInstanceMap = NULL);

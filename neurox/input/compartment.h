@@ -21,7 +21,7 @@ class Compartment {
                             int dataSize, Datum* pdata, int pdataSize);
   void AddVecPlay(double* t, double* y, PointProcInfo& ppi);
   void AddSerializedVdata(unsigned char* data, size_t size);
-  void AddNetCon(int preSynNrnThreadId, NetConX* nc, floble_t* weights);
+  void AddNetCon(int preSynNrnThreadId, NetconX* nc, floble_t* weights);
   void ShrinkToFit();
 
   offset_t id;
@@ -42,7 +42,7 @@ class Compartment {
   vector<unsigned char> vdata;
 
   // netcons
-  vector<NetConX> netcons;
+  vector<NetconX> netcons;
   vector<floble_t> netconsWeights;
   vector<neuron_id_t> netconsPreSynIds;
 

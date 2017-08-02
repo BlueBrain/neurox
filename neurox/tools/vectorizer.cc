@@ -23,8 +23,8 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
     b->mechs_instances_[m]._nodecount_padded =
         SizeOf(b->mechs_instances_[m].nodecount);
     new_data_size +=
-        b->mechs_instances_[m]._nodecount_padded * mechanisms[m]->dataSize;
-    old_data_size += b->mechs_instances_[m].nodecount * mechanisms[m]->dataSize;
+        b->mechs_instances_[m]._nodecount_padded * mechanisms[m]->data_size_;
+    old_data_size += b->mechs_instances_[m].nodecount * mechanisms[m]->data_size_;
   }
 
   // old-to-new offset map
@@ -67,16 +67,16 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
     double* instance_data_new = &data_new[new_offset_acc];
 
     int total_pdata_size =
-        instances->_nodecount_padded * mechanisms[m]->pdataSize;
+        instances->_nodecount_padded * mechanisms[m]->pdata_size_;
     int* pdata_new = New<int>(total_pdata_size);
     int* pdata_old = instances->pdata;
 
     for (int n = 0; n < instances->nodecount; n++)  // for every node
     {
-      for (size_t i = 0; i < mechanisms[m]->dataSize;
+      for (size_t i = 0; i < mechanisms[m]->data_size_;
            i++)  // for every variable
       {
-        int old_offset = mechanisms[m]->dataSize * n + i;
+        int old_offset = mechanisms[m]->data_size_ * n + i;
         int new_offset = SizeOf(instances->nodecount) * i + n;
         data_new[new_offset_acc + new_offset] = instances->data[old_offset];
         assert(b->nt_->_data[old_offset_acc + old_offset] ==
@@ -84,18 +84,18 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
         data_offsets.at(old_offset_acc + old_offset) = new_offset_acc + new_offset;
       }
 
-      for (size_t i = 0; i < mechanisms[m]->pdataSize;
+      for (size_t i = 0; i < mechanisms[m]->pdata_size_;
            i++)  // for every pointer
       {
         // padding
-        int old_offset = mechanisms[m]->pdataSize * n + i;      // SoA
+        int old_offset = mechanisms[m]->pdata_size_ * n + i;      // SoA
         int new_offset = instances->_nodecount_padded * i + n;  // AoS
         pdata_new[new_offset] = pdata_old[old_offset];
 
         // get correct pdata offset: without branching, offsets are already
         // correct for both LAYOUTs and padding
         if (input_params->branch_parallelism_depth_ > 0) {
-          int ptype = memb_func[mechanisms[m]->type].dparam_semantics[i];
+          int ptype = memb_func[mechanisms[m]->type_].dparam_semantics[i];
           bool is_pointer = ptype == -1 || (ptype > 0 && ptype < 1000);
           if (is_pointer)  // true for pointer to area in nt->data, or ion
                           // instance data
@@ -110,8 +110,8 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
       }
     }
 
-    old_offset_acc += mechanisms[m]->dataSize * instances->nodecount;
-    new_offset_acc += mechanisms[m]->dataSize * SizeOf(instances->nodecount);
+    old_offset_acc += mechanisms[m]->data_size_ * instances->nodecount;
+    new_offset_acc += mechanisms[m]->data_size_ * SizeOf(instances->nodecount);
 
     // all instances processed, replace pointer by new padded data
     Delete(instances->pdata);
