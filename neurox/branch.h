@@ -85,7 +85,7 @@ class Branch {
   class BranchTree {
    public:
     BranchTree() = delete;
-    BranchTree(hpx_t top_branch_addr_, hpx_t* branches_, size_t branches_count_);
+    BranchTree(hpx_t top_branch_addr, hpx_t* branches, size_t branches_count);
     ~BranchTree();
 
     hpx_t top_branch_addr_;  ///> hpx address of the some branch

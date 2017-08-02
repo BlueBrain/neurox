@@ -105,38 +105,38 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // reconstruct mechanisms
   assert(recv_mechs_count <= mechanisms_count);
-  offset_t dataOffset = 6 * n;
-  offset_t pdataOffset = 0;
-  offset_t instancesOffset = 0;
+  offset_t data_offset = 6 * n;
+  offset_t pdata_offset = 0;
+  offset_t instances_offset = 0;
   this->mechs_instances_ = new Memb_list[mechanisms_count];
 
-  int maxMechId = 0;
+  int max_mech_id = 0;
 
-  vector<void *> vdataPtrs;
-  offset_t vdataOffset = 0;
+  vector<void *> vdata_ptrs;
+  offset_t vdata_offset = 0;
 
   for (offset_t m = 0; m < mechanisms_count; m++) {
     Memb_list &instance = this->mechs_instances_[m];
     Mechanism *mech = mechanisms[m];
     instance.nodecount = instances_count[m];
-    maxMechId = max(maxMechId, mech->type);
+    max_mech_id = max(max_mech_id, mech->type);
 
     // data, pdata, and nodesIndices arrays
     instance.data = mech->dataSize == 0 || instance.nodecount == 0
                         ? nullptr
-                        : this->nt_->_data + dataOffset;
+                        : this->nt_->_data + data_offset;
     instance.pdata =
         mech->pdataSize == 0 || instance.nodecount == 0
             ? nullptr
             : Vectorizer::New<offset_t>(mech->pdataSize * instance.nodecount);
     if (instance.pdata)
-      memcpy(instance.pdata, &pdata[pdataOffset],
+      memcpy(instance.pdata, &pdata[pdata_offset],
              sizeof(offset_t) * (mech->pdataSize * instance.nodecount));
     instance.nodeindices = instance.nodecount > 0
                                ? Vectorizer::New<offset_t>(instance.nodecount)
                                : nullptr;
     if (instance.nodeindices)
-      memcpy(instance.nodeindices, &nodes_indices[instancesOffset],
+      memcpy(instance.nodeindices, &nodes_indices[instances_offset],
              sizeof(offset_t) * instance.nodecount);
 
     // init thread data :: nrn_setup.cpp->setup_ThreadData();
@@ -153,14 +153,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // and assign the correct offset in pdata (offset of vdata is in pdata[1])
     for (size_t i = 0; i < instance.nodecount; i++) {
       // point pdata to the correct offset, and allocate vdata
-      assert(dataOffset <= data_count);
-      assert(vdataOffset <= vdata_serialized_count);
-      floble_t *instanceData = (floble_t *)&this->nt_->_data[dataOffset];
-      floble_t *instanceData2 = (floble_t *)&instance.data[i * mech->dataSize];
-      offset_t *instancePdata =
+      assert(data_offset <= data_count);
+      assert(vdata_offset <= vdata_serialized_count);
+      floble_t *instance_data = (floble_t *)&this->nt_->_data[data_offset];
+      floble_t *instance_data_2 = (floble_t *)&instance.data[i * mech->dataSize];
+      offset_t *instance_pdata =
           (offset_t *)&instance.pdata[i * mech->pdataSize];
-      assert(instanceData =
-                 instanceData2);  // Make sure data offsets are good so far
+      assert(instance_data =
+                 instance_data_2);  // Make sure data offsets are good so far
 
       if (mech->vdataSize > 0 || mech->pntMap > 0) {
         assert(
@@ -191,13 +191,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
             mech->type == MechanismTypes::kProbGABAAB_EMS) {
           int pointProcOffsetInPdata = 1;
           Point_process *pp =
-              (Point_process *)(void *)&vdata_serialized[vdataOffset];
+              (Point_process *)(void *)&vdata_serialized[vdata_offset];
           assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
-          Point_process *ppcopy = new Point_process;
-          memcpy(ppcopy, pp, sizeof(Point_process));
-          vdataOffset += sizeof(Point_process);
-          instancePdata[pointProcOffsetInPdata] = vdataPtrs.size();
-          vdataPtrs.push_back(ppcopy);
+          Point_process *pp_copy = new Point_process;
+          memcpy(pp_copy, pp, sizeof(Point_process));
+          vdata_offset += sizeof(Point_process);
+          instance_pdata[pointProcOffsetInPdata] = vdata_ptrs.size();
+          vdata_ptrs.push_back(pp_copy);
         }
 
         // copy RNG by replacing vdata pointers and pdata offset by the ones
@@ -205,38 +205,38 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         if (mech->type == MechanismTypes::kStochKv ||
             mech->type == MechanismTypes::kProbAMPANMDA_EMS ||
             mech->type == MechanismTypes::kProbGABAAB_EMS) {
-          int rngOffsetInPdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
+          int rng_offset_in_pdata = mech->type == MechanismTypes::kStochKv ? 3 : 2;
           nrnran123_State *rng =
-              (nrnran123_State *)(void *)&vdata_serialized[vdataOffset];
+              (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
           nrnran123_State *rngcopy = new nrnran123_State;
           memcpy(rngcopy, rng, sizeof(nrnran123_State));
-          vdataOffset += sizeof(nrnran123_State);
-          instancePdata[rngOffsetInPdata] = vdataPtrs.size();
-          vdataPtrs.push_back(rngcopy);
+          vdata_offset += sizeof(nrnran123_State);
+          instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
+          vdata_ptrs.push_back(rngcopy);
         }
       }
-      dataOffset += mech->dataSize;
-      pdataOffset += mech->pdataSize;
-      assert(dataOffset < 2 ^ sizeof(offset_t));
-      assert(pdataOffset < 2 ^ sizeof(offset_t));
-      assert(vdataOffset < 2 ^ sizeof(offset_t));
-      instancesOffset++;
+      data_offset += mech->dataSize;
+      pdata_offset += mech->pdataSize;
+      assert(data_offset < 2 ^ sizeof(offset_t));
+      assert(pdata_offset < 2 ^ sizeof(offset_t));
+      assert(vdata_offset < 2 ^ sizeof(offset_t));
+      instances_offset++;
     }
   }
-  assert(dataOffset == data_count);
-  assert(pdataOffset == pdata_count);
-  assert(instancesOffset == nodes_indices_count);
+  assert(data_offset == data_count);
+  assert(pdata_offset == pdata_count);
+  assert(instances_offset == nodes_indices_count);
 
   // vdata pointers
-  nt->_nvdata = vdataPtrs.size();
+  nt->_nvdata = vdata_ptrs.size();
   nt->_vdata =
-      vdata_serialized_count == 0 ? nullptr : new void *[vdataPtrs.size()];
-  memcpy(nt->_vdata, vdataPtrs.data(), vdataPtrs.size() * sizeof(void *));
-  vdataPtrs.clear();
+      vdata_serialized_count == 0 ? nullptr : new void *[vdata_ptrs.size()];
+  memcpy(nt->_vdata, vdata_ptrs.data(), vdata_ptrs.size() * sizeof(void *));
+  vdata_ptrs.clear();
 
   // nt->_ml_list
-  nt->_ml_list = new Memb_list *[maxMechId + 1];
-  for (int i = 0; i <= maxMechId; i++) nt->_ml_list[i] = NULL;
+  nt->_ml_list = new Memb_list *[max_mech_id + 1];
+  for (int i = 0; i <= max_mech_id; i++) nt->_ml_list[i] = NULL;
 
   int ionsCount = 0;
   for (offset_t m = 0; m < mechanisms_count; m++) {
@@ -254,22 +254,22 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->_vecplay =
       vecplay_ppi_count == 0 ? nullptr : new void *[vecplay_ppi_count];
 
-  offset_t vOffset = 0;
+  offset_t v_offset = 0;
   for (size_t v = 0; v < nt->n_vecplay; v++) {
     PointProcInfo &ppi = vecplay_ppi[v];
     size_t size = ppi.size;
     int m = mechanisms_map[ppi.mechType];
-    floble_t *instancesData = this->mechs_instances_[m].data;
-    floble_t *pd = &(instancesData[ppi.mechInstance * mechanisms[m]->dataSize +
+    floble_t *instances_data = this->mechs_instances_[m].data;
+    floble_t *pd = &(instances_data[ppi.mechInstance * mechanisms[m]->dataSize +
                                    ppi.instanceDataOffset]);
     floble_t *yvec = new floble_t[size];
     floble_t *tvec = new floble_t[size];
     for (size_t i = 0; i < size; i++) {
-      yvec[i] = vecplay_y[vOffset + i];
-      tvec[i] = vecplay_t[vOffset + i];
+      yvec[i] = vecplay_y[v_offset + i];
+      tvec[i] = vecplay_t[v_offset + i];
     }
     nt->_vecplay[v] = new VecPlayContinuousX(pd, size, yvec, tvec, NULL);
-    vOffset += size;
+    v_offset += size;
   }
 
   // Shadow arrays
@@ -278,35 +278,35 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   this->nt_->_shadow_rhs = NULL;
 
   for (int m = 0; m < mechanisms_count; m++) {
-    int shadowSize = 0;
+    int shadow_size = 0;
     if (mechanisms[m]->membFunc.current &&
         !mechanisms[m]->isIon)  // ions have no updates
-      shadowSize = this->mechs_instances_[m].nodecount;
+      shadow_size = this->mechs_instances_[m].nodecount;
 
     Memb_list *ml = &mechs_instances_[m];
     ml->_shadow_d =
-        shadowSize == 0 ? nullptr : Vectorizer::New<double>(shadowSize);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
     ml->_shadow_rhs =
-        shadowSize == 0 ? nullptr : Vectorizer::New<double>(shadowSize);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
 
-    for (int i = 0; i < shadowSize; i++) {
+    for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_d[i] = 0;
       ml->_shadow_rhs[i] = 0;
     }
 
     if (mechanisms[m]->dependencyIonIndex >=
         Mechanism::IonTypes::kSizeWriteableIons)
-      shadowSize = 0;  //> only mechanisms with parent ions update I and DI/DV
+      shadow_size = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
-        shadowSize == 0 ? nullptr : Vectorizer::New<double>(shadowSize);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
     ml->_shadow_didv =
-        shadowSize == 0 ? nullptr : Vectorizer::New<double>(shadowSize);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
     ml->_shadow_i_offsets =
-        shadowSize == 0 ? nullptr : Vectorizer::New<int>(shadowSize);
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size);
     ml->_shadow_didv_offsets =
-        shadowSize == 0 ? nullptr : Vectorizer::New<int>(shadowSize);
-    for (int i = 0; i < shadowSize; i++) {
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size);
+    for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_i[i] = 0;
       ml->_shadow_didv[i] = 0;
       ml->_shadow_i_offsets[i] = -1;
@@ -315,15 +315,15 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   }
 
   // reconstructs netcons
-  offset_t weightsOffset = 0;
+  offset_t weights_offset = 0;
   for (offset_t nc = 0; nc < netcons_count; nc++) {
     this->netcons_[netcons_pre_ids[nc]].push_back(new NetConX(
         netcons[nc].mechType, netcons[nc].mechInstance, netcons[nc].delay,
         netcons[nc].weightIndex, netcons[nc].weightsCount, netcons[nc].active));
-    assert(weightsOffset == netcons[nc].weightIndex);
-    weightsOffset += netcons[nc].weightsCount;
+    assert(weights_offset == netcons[nc].weightIndex);
+    weights_offset += netcons[nc].weightsCount;
   }
-  assert(weights_count == weightsOffset);
+  assert(weights_count == weights_offset);
 
   // create data structure that defines branching
   if (input_params->branch_parallelism_depth_ > 0)
@@ -417,8 +417,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (unsigned char *)args[16],
       sizes[16] / sizeof(unsigned char));  // serialized vdata
 
-  bool runBenchmarkAndClear = nargs == 18 ? *(bool *)args[17] : false;
-  if (runBenchmarkAndClear) {
+  bool run_benchmark_and_clear = nargs == 18 ? *(bool *)args[17] : false;
+  if (run_benchmark_and_clear) {
     local->soma_ = new Neuron(
         -1, 999);           // soma (dumb gid, APthreshold high - never spikes)
     local->Finitialize2();  // initialize datatypes and graph-parallelism shadow
@@ -429,9 +429,9 @@ int Branch::Init_handler(const int nargs, const void *args[],
     for (int i = 0;
          i < CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize; i++)
       local->BackwardEulerStep();
-    double timeElapsed = hpx_time_elapsed_ms(now) / 1e3;
+    double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    return neurox::wrappers::MemoryUnpin(target, timeElapsed);
+    return neurox::wrappers::MemoryUnpin(target, time_elapsed);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -441,9 +441,9 @@ int Branch::InitSoma_handler(const int nargs, const void *args[],
                              const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(nargs == 2);
-  const neuron_id_t neuronId = *(const neuron_id_t *)args[0];
-  const floble_t APthreshold = *(const floble_t *)args[1];
-  local->soma_ = new Neuron(neuronId, APthreshold);
+  const neuron_id_t neuron_id = *(const neuron_id_t *)args[0];
+  const floble_t ap_threshold = *(const floble_t *)args[1];
+  local->soma_ = new Neuron(neuron_id, ap_threshold);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -469,24 +469,24 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
 }
 
-void Branch::CallModFunction(const Mechanism::ModFunctions functionId) {
-  if (functionId < BEFORE_AFTER_SIZE) return;  // N/A
+void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
+  if (function_id < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
-  if (functionId == Mechanism::ModFunctions::kCurrentCapacitance ||
-      functionId == Mechanism::ModFunctions::kJacobCapacitance) {
-    mechanisms[mechanisms_map[CAP]]->CallModFunction(this, functionId);
+  if (function_id == Mechanism::ModFunctions::kCurrentCapacitance ||
+      function_id == Mechanism::ModFunctions::kJacobCapacitance) {
+    mechanisms[mechanisms_map[CAP]]->CallModFunction(this, function_id);
   }
   // for all others except capacitance (mechanisms graph)
   else {
     if (this->mechs_graph_ != NULL)  // parallel
     {
       // launch execution on top nodes of the branch
-      for (int m = 0; m < mechanisms_count; m++) {
+      for (int m = 0; m < neurox::mechanisms_count; m++) {
         if (mechanisms[m]->type == CAP) continue;            // not capacitance
         if (mechanisms[m]->dependenciesCount > 0) continue;  // not a top branch
-        hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(functionId),
-                    &functionId, HPX_NULL, HPX_NULL);
+        hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
+                    &function_id, HPX_NULL, HPX_NULL);
       }
       // wait for the completion of the graph by waiting at 'end node' lco
       hpx_lco_wait_reset(this->mechs_graph_->end_lco_);
@@ -494,10 +494,10 @@ void Branch::CallModFunction(const Mechanism::ModFunctions functionId) {
     {
       for (int m = 0; m < mechanisms_count; m++) {
         if (mechanisms[m]->type == CAP &&
-            (functionId == Mechanism::ModFunctions::kCurrent ||
-             functionId == Mechanism::ModFunctions::kJacob))
+            (function_id == Mechanism::ModFunctions::kCurrent ||
+             function_id == Mechanism::ModFunctions::kJacob))
           continue;
-        mechanisms[m]->CallModFunction(this, functionId);
+        mechanisms[m]->CallModFunction(this, function_id);
       }
     }
   }
@@ -513,20 +513,20 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                        ? 3
                        : 2));
 
-  const neuron_id_t preNeuronId = *(const neuron_id_t *)args[0];
-  const spike_time_t spikeTime = *(const spike_time_t *)args[1];
-  spike_time_t maxTime = nargs == 3 ? *(const spike_time_t *)args[2] : -1;
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
+  const spike_time_t spike_time = *(const spike_time_t *)args[1];
+  spike_time_t max_time = nargs == 3 ? *(const spike_time_t *)args[2] : -1;
 
-  assert(local->netcons_.find(preNeuronId) != local->netcons_.end());
-  auto &netcons = local->netcons_.at(preNeuronId);
+  assert(local->netcons_.find(pre_neuron_id) != local->netcons_.end());
+  auto &netcons = local->netcons_.at(pre_neuron_id);
   hpx_lco_sema_p(local->events_queue_mutex_);
   for (auto nc : netcons) {
-    floble_t deliveryTime = spikeTime + nc->delay;
-    local->events_queue_.push(make_pair(deliveryTime, (Event *)nc));
+    floble_t delivery_time = spike_time + nc->delay;
+    local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
   }
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
-  algorithm->AfterReceiveSpikes(local, target, preNeuronId, spikeTime, maxTime);
+  algorithm->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time, max_time);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -537,18 +537,18 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   assert(nargs == 2 || nargs == 3);
 
   // auto source = libhpx_parcel_get_source(p);
-  const neuron_id_t preNeuronId = *(const neuron_id_t *)args[0];
-  const spike_time_t maxTime = *(const spike_time_t *)args[1];
-  const bool initPhase = nargs == 3 ? *(const bool *)args[2] : false;
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
+  const spike_time_t max_time = *(const spike_time_t *)args[1];
+  const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
 
   assert(local->soma_);
   assert(local->soma_->algorithmMetaData);
-  TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
+  TimeDependencyLCOAlgorithm::TimeDependencies *time_dependencies =
       (TimeDependencyLCOAlgorithm::TimeDependencies *)
           local->soma_->algorithmMetaData;
-  timeDependencies->UpdateTimeDependency(preNeuronId, (floble_t)maxTime,
+  time_dependencies->UpdateTimeDependency(pre_neuron_id, (floble_t)max_time,
                                          local->soma_ ? local->soma_->gid : -1,
-                                         initPhase);
+                                         init_phase);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -583,7 +583,7 @@ void Branch::Finitialize2() {
 // fadvance_core.c::nrn_fixed_step_thread
 void Branch::BackwardEulerStep() {
   double &t = this->nt_->_t;
-  hpx_t spikesLco = HPX_NULL;
+  hpx_t spikes_lco = HPX_NULL;
 
   algorithm->StepBegin(this);
 
@@ -591,10 +591,10 @@ void Branch::BackwardEulerStep() {
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
   if (this->soma_) {
     // Soma waits for AIS to have threshold V value updated
-    floble_t thresholdV;
-    HinesSolver::SynchronizeThresholdV(this, &thresholdV);
-    if (soma_->CheckAPthresholdAndTransmissionFlag(thresholdV))
-      spikesLco = soma_->SendSpikes(nt_->_t);
+    floble_t threshold_v;
+    HinesSolver::SynchronizeThresholdV(this, &threshold_v);
+    if (soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
+      spikes_lco = soma_->SendSpikes(nt_->_t);
   } else if (this->thvar_ptr_)
     // Axon Initial Segment send threshold  V to parent
     HinesSolver::SynchronizeThresholdV(this);
@@ -625,7 +625,7 @@ void Branch::BackwardEulerStep() {
   if (fmod(t, input_params->dt_io_) == 0) {
   }
 
-  algorithm->StepEnd(this, spikesLco);
+  algorithm->StepEnd(this, spikes_lco);
 }
 
 hpx_action_t Branch::BackwardEuler = 0;
@@ -646,20 +646,20 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
              AlgorithmType::kBackwardEulerSlidingTimeWindow ||
          input_params->algorithm == AlgorithmType::kBackwardEulerAllReduce);
 
-  const int localityNeuronsCount =
+  const int locality_neurons_count =
       AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::localityNeurons
           ->size();
-  const hpx_t localityNeuronsLCO = hpx_lco_and_new(localityNeuronsCount);
-  const int commStepSize =
+  const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
+  const int comm_step_size =
       CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
-  const int reductionsPerCommStep =
+  const int reductions_per_comm_step =
       AllReduceAlgorithm::AllReducesInfo::reductionsPerCommStep;
-  const int stepsPerReduction = commStepSize / reductionsPerCommStep;
+  const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
   const int steps = *steps_ptr;
 
-  for (int s = 0; s < steps; s += commStepSize) {
-    for (int r = 0; r < reductionsPerCommStep; r++) {
-      if (s >= commStepSize)  // first comm-window does not wait
+  for (int s = 0; s < steps; s += comm_step_size) {
+    for (int r = 0; r < reductions_per_comm_step; r++) {
+      if (s >= comm_step_size)  // first comm-window does not wait
         hpx_lco_wait_reset(AllReduceAlgorithm::AllReducesInfo::
                                AllReduceLocality::allReduceFuture[r]);
       else
@@ -674,15 +674,15 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
           AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::allReduceId[r],
           NULL, 0);
 
-      for (int i = 0; i < localityNeuronsCount; i++)
+      for (int i = 0; i < locality_neurons_count; i++)
         hpx_call(AllReduceAlgorithm::AllReducesInfo::AllReduceLocality::
                      localityNeurons->at(i),
-                 Branch::BackwardEuler, localityNeuronsLCO, &stepsPerReduction,
+                 Branch::BackwardEuler, locality_neurons_lco, &steps_per_reduction,
                  sizeof(int));
-      hpx_lco_wait_reset(localityNeuronsLCO);
+      hpx_lco_wait_reset(locality_neurons_lco);
     }
   }
-  hpx_lco_delete_sync(localityNeuronsLCO);
+  hpx_lco_delete_sync(locality_neurons_lco);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -776,15 +776,15 @@ void Branch::FixedPlayContinuous() {
 
 //////////////////// Branch::NeuronTree ///////////////////////
 
-Branch::BranchTree::BranchTree(hpx_t topBranchAddr, hpx_t *branches,
-                               size_t branchesCount)
-    : top_branch_addr_(topBranchAddr),
+Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
+                               size_t branches_count)
+    : top_branch_addr_(top_branch_addr),
       branches_(nullptr),
-      branches_count_(branchesCount),
+      branches_count_(branches_count),
       with_children_lcos_(nullptr) {
-  if (branchesCount > 0) {
-    this->branches_ = new hpx_t[branchesCount];
-    memcpy(this->branches_, branches, branchesCount * sizeof(hpx_t));
+  if (branches_count > 0) {
+    this->branches_ = new hpx_t[branches_count];
+    memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
   }
 }
 
@@ -796,32 +796,32 @@ Branch::BranchTree::~BranchTree() {
 hpx_action_t Branch::BranchTree::InitLCOs = 0;
 int Branch::BranchTree::InitLCOs_handler() {
   NEUROX_MEM_PIN(Branch);
-  BranchTree *branchTree = local->branch_tree_;
-  if (branchTree) {
-    offset_t branchesCount = branchTree->branches_count_;
+  BranchTree *branch_tree = local->branch_tree_;
+  if (branch_tree) {
+    offset_t branches_count = branch_tree->branches_count_;
     for (int i = 0; i < BranchTree::kFuturesSize; i++)
-      branchTree->with_parent_lco_[i] =
+      branch_tree->with_parent_lco_[i] =
           local->soma_ ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
-    branchTree->with_children_lcos_ =
-        branchesCount ? new hpx_t[branchesCount][BranchTree::kFuturesSize]
+    branch_tree->with_children_lcos_ =
+        branches_count ? new hpx_t[branches_count][BranchTree::kFuturesSize]
                       : nullptr;
 
     // send my LCOs to children, and receive theirs
-    if (branchesCount > 0) {
-      hpx_t *futures = branchesCount ? new hpx_t[branchesCount] : nullptr;
-      void **addrs = branchesCount ? new void *[branchesCount] : nullptr;
-      size_t *sizes = branchesCount ? new size_t[branchesCount] : nullptr;
-      for (offset_t c = 0; c < branchesCount; c++) {
+    if (branches_count > 0) {
+      hpx_t *futures = branches_count ? new hpx_t[branches_count] : nullptr;
+      void **addrs = branches_count ? new void *[branches_count] : nullptr;
+      size_t *sizes = branches_count ? new size_t[branches_count] : nullptr;
+      for (offset_t c = 0; c < branches_count; c++) {
         futures[c] =
             hpx_lco_future_new(sizeof(hpx_t) * BranchTree::kFuturesSize);
-        addrs[c] = &branchTree->with_children_lcos_[c];
+        addrs[c] = &branch_tree->with_children_lcos_[c];
         sizes[c] = sizeof(hpx_t) * BranchTree::kFuturesSize;
-        hpx_call(branchTree->branches_[c], Branch::BranchTree::InitLCOs,
-                 futures[c], branchTree->with_parent_lco_,
+        hpx_call(branch_tree->branches_[c], Branch::BranchTree::InitLCOs,
+                 futures[c], branch_tree->with_parent_lco_,
                  sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCO down
       }
-      hpx_lco_get_all(branchesCount, futures, sizes, addrs, NULL);
-      hpx_lco_delete_all(branchesCount, futures, NULL);
+      hpx_lco_get_all(branches_count, futures, sizes, addrs, NULL);
+      hpx_lco_delete_all(branches_count, futures, NULL);
 
       delete[] futures;
       delete[] addrs;
@@ -829,7 +829,7 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma_)  // send my LCO to parent
-      return neurox::wrappers::MemoryUnpin(target, branchTree->with_parent_lco_);
+      return neurox::wrappers::MemoryUnpin(target, branch_tree->with_parent_lco_);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -841,7 +841,7 @@ Branch::MechanismsGraph::MechanismsGraph() {
   this->graph_lco_ =
       hpx_lco_and_new(mechanisms_count - 1);  // excludes 'capacitance'
   this->mechs_lcos_ = new hpx_t[mechanisms_count];
-  size_t terminalMechanismsCount = 0;
+  size_t terminal_mechanisms_count = 0;
   for (size_t m = 0; m < mechanisms_count; m++) {
     this->mechs_lcos_[m] = HPX_NULL;
     if (mechanisms[m]->type == CAP) continue;  // exclude capacitance
@@ -851,9 +851,9 @@ Branch::MechanismsGraph::MechanismsGraph() {
         sizeof(Mechanism::ModFunctions), Branch::MechanismsGraph::Init,
         Branch::MechanismsGraph::Reduce);
     if (mechanisms[m]->successorsCount == 0)  // bottom of mechs graph
-      terminalMechanismsCount++;
+      terminal_mechanisms_count++;
   }
-  this->end_lco_ = hpx_lco_and_new(terminalMechanismsCount);
+  this->end_lco_ = hpx_lco_and_new(terminal_mechanisms_count);
 
   this->rhs_d_mutex_ = hpx_lco_sema_new(1);
   for (int i = 0; i < Mechanism::IonTypes::kSizeWriteableIons; i++)
@@ -882,23 +882,23 @@ Branch::MechanismsGraph::~MechanismsGraph() {
 }
 
 hpx_action_t Branch::MechanismsGraph::MechFunction = 0;
-int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
+int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
                                                   const size_t) {
   NEUROX_MEM_PIN(Branch);
-  int type = *mechType_ptr;
+  int type = *mech_type_ptr;
   assert(type != CAP);  // capacitance should be outside mechanisms graph
   assert(local->mechs_graph_->mechs_lcos_[mechanisms_map[type]] != HPX_NULL);
   Mechanism *mech = GetMechanismFromType(type);
 
-  Mechanism::ModFunctions functionId;
+  Mechanism::ModFunctions function_id;
   while (local->mechs_graph_->graph_lco_ != HPX_NULL) {
     // wait until all dependencies have completed, and get the argument
     //(function id) from the hpx_lco_set
     hpx_lco_get_reset(local->mechs_graph_->mechs_lcos_[mechanisms_map[type]],
-                      sizeof(Mechanism::ModFunctions), &functionId);
-    assert(functionId != Mechanism::ModFunctions::kJacobCapacitance);
-    assert(functionId != Mechanism::ModFunctions::kCurrentCapacitance);
-    mech->CallModFunction(local, functionId);
+                      sizeof(Mechanism::ModFunctions), &function_id);
+    assert(function_id != Mechanism::ModFunctions::kJacobCapacitance);
+    assert(function_id != Mechanism::ModFunctions::kCurrentCapacitance);
+    mech->CallModFunction(local, function_id);
 
     if (mech->successorsCount == 0)  // bottom mechanism
       hpx_lco_set(local->mechs_graph_->end_lco_, 0, NULL, HPX_NULL, HPX_NULL);
@@ -906,7 +906,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mechType_ptr,
       for (int c = 0; c < mech->successorsCount; c++)
         hpx_lco_set(
             local->mechs_graph_->mechs_lcos_[mechanisms_map[mech->successors[c]]],
-            sizeof(functionId), &functionId, HPX_NULL, HPX_NULL);
+            sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
