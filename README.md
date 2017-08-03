@@ -52,22 +52,22 @@ cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
 ./neurox --help for execution parameters
 ./neurox -d <input-data-folder> -e <execution-time-milisecs> for execution with minimum parameters
 ```
-add `--mpi` for parallel execution and parallel data loading
 
 ## Misc
 
-We follow the google coding style (https://google.github.io/styleguide/cppguide.html) and format.
-
+- We follow the google coding style (https://google.github.io/styleguide/cppguide.html) and format.
 To automatically format the code recursively in all folders use `clang-format`.
 ```
 find ./neurox -iname *.h -o -iname *.cc  | xargs clang-format -i -style=Google
 ```
 
-To check for coding style errors, use `ccplint.py` (https://raw.githubusercontent.com/google/styleguide/gh-pages/cpplint/cpplint.py )
+- To check for coding style errors, use `ccplint.py` (https://raw.githubusercontent.com/google/styleguide/gh-pages/cpplint/cpplint.py )
 ```
 find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
 False positives can be ignored by putting `// NOLINT` at the end of the line or `// NOLINTNEXTLINE` in the previous line.
+
+- Documentation follows the doxygen (www.doxygen.org) notation and can be exported with `make doc`; 
 
 ## Copyright
 
