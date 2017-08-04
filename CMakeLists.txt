@@ -45,34 +45,33 @@ set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-add_definitions("-DVERSION_STRING=\"${VERSION_STRING}\"")
 
 ## global options
 option(CORENEURON_MAIN "Build the CORE NEURON main" ON)
-option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" OFF)
+option(CORENEURON_OPENMP "Build the CORE NEURON with OpenMP implementation" ON)
 option(DISABLE_NRN_TIMEOUT "Disable nrn_timeout implementation" OFF)
 option(ENABLE_REPORTINGLIB "Enable use of ReportingLib for soma reports" OFF)
-option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" ON)
+option(EXPORT_MECHS_FUNCTIONS "Enable exporting of mod init, jacob, state, cur and BeforeAfter functions of mod-based mechanisms" OFF)
 option(ENABLE_MPI "Enable MPI-based execution" ON)
 option(ENABLE_SOA "Enable SoA Memory Layout" ON)
 option(DISABLE_HOC_EXP "Disable wrapping exp with hoc_exp()" ON)
 option(ENABLE_OPENACC_INFO "Enable OpenACC compiler information messages" OFF)
 option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF)
-option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" OFF)
-option(ENABLE_NET_RECEIVE_BUFFERING "Enable event buffering in net_receive function" OFF)
-option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" ON)
+option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" ON)
+option(ENABLE_NET_RECEIVE_BUFFERING "Enable event buffering in net_receive function" ON)
+option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" OFF)
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
 set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
 
 # test compilations
-option(UNIT_TESTS "Enable unit tests compilation and execution" OFF)
-option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" OFF)
+option(UNIT_TESTS "Enable unit tests compilation and execution" ON)
+option(FUNCTIONAL_TESTS "Enable functional tests compilation and execution" ON)
 
 # For external development, allow one to install all headers and mod files
 # todo: need to refactor to install specific set of headers only
-option(ENABLE_DEV_FILES_INSTALLATION "Allow to install hedaers/mod files for development" ON)
+option(ENABLE_DEV_FILES_INSTALLATION "Allow to install hedaers/mod files for development" OFF)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/portability
@@ -81,9 +80,10 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
 
 set(Boost_NO_BOOST_CMAKE TRUE)
 
+#include(ReleaseDebugAutoFlags) #does not include -DNDEBUG on Release mode
+include(CrayPortability)
 include(BlueGenePortability)
 include(DefineInstallationPaths)
-#include(ReleaseDebugAutoFlags) #not including -DNDEBUG for Release mode
 include(SetRpath)
 
 include(FindPkgConfig)
@@ -91,7 +91,7 @@ include(CTest)
 
 #Find all dependencies
 if (ENABLE_MPI)
-    ## find_package(MPI REQUIRED)  #Not needed, it's part of HPX installation
+    find_package(MPI REQUIRED)
     add_definitions("-DNRNMPI=1")
 else()
     message(STATUS "Use of MPI disabled by user-provided option")
@@ -178,8 +178,15 @@ if(CLANG_FORMAT_FOUND)
     file(COPY ${PROJECT_SOURCE_DIR}/.clang-format DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
     #to indent files using clang-format
-    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT ${PROJECT_SOURCE_DIR}/coreneuron/*.c*
-        ${PROJECT_SOURCE_DIR}/coreneuron/*.h* ${PROJECT_SOURCE_DIR}/coreneuron/*.ipp*)
+    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT
+        ${PROJECT_SOURCE_DIR}/coreneuron/*.c
+        ${PROJECT_SOURCE_DIR}/coreneuron/*.cpp
+        ${PROJECT_SOURCE_DIR}/coreneuron/*.h*
+        ${PROJECT_SOURCE_DIR}/coreneuron/*.ipp*)
+
+    # exclude ezoption header file
+    list(REMOVE_ITEM SRC_FILES_FOR_CLANG_FORMAT
+        "${PROJECT_SOURCE_DIR}/coreneuron/utils/ezoption/ezOptionParser.hpp")
 
     add_custom_target(formatsource COMMAND ${CMAKE_COMMAND}
         -DSOURCE_FILES:STRING="${SRC_FILES_FOR_CLANG_FORMAT}"

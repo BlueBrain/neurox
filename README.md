@@ -42,7 +42,7 @@ The workflow for building CoreNEURON is different from that of NEURON, especiall
 ```bash
 cmake .. -DADDITIONAL_MECHPATH="/path/of/mod/files/directory/"
 ```
-This directory should have only mod files that are compatible with CoreNEURON. You can also provide multiple directories separated by a semicolon :
+This directory should have only mod files that are compatible with CoreNEURON. You can also provide multiple directories separated by a semicolon:
 
 ```bash
 -DADDITIONAL_MECHPATH="/path/of/folder/with/mod_files;/path/of/another_folder/with/mod_files" 
@@ -233,7 +233,7 @@ If you have installed `clang-format`, you can reformat/reindent generated .c fil
 make formatbuild
 ```
 
-The `.clang-format` file in the source repository is compatible with version 3.9.
+The `.clang-format` file in the source repository is compatible with version 3.9 and 4.0.
 
 ## License
 * See LICENSE.txt

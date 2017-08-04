@@ -48,10 +48,10 @@ static void read_phasegap(data_reader& F, int imult, NrnThread& nt);
 static void setup_ThreadData(NrnThread& nt);
 
 // Functions to load and clean data;
-extern void nrn_init_and_load_data(int argc, char** argv,
+extern void nrn_init_and_load_data(int argc,
+                                   char** argv,
                                    bool nrnmpi_under_nrncontrol = true,
                                    bool run_setup_cleanup = true);
-extern void nrn_cleanup(bool clean_ion_global_map /*= true*/);
 extern void nrn_setup_cleanup();
 
 namespace coreneuron {
@@ -131,6 +131,6 @@ namespace coreneuron {
     inline static void phase_wrapper() {
         nrn_multithread_job(phase_wrapper_w<P>);
     }
-}
+}  // namespace coreneuron
 
 #endif
