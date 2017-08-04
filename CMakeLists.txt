@@ -39,13 +39,12 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 PROJECT(neurox)
 
-set(NEUROX_DESCRIPTION "BBP NeuroX simulator")
+set(NEUROX_DESCRIPTION "neurox simulator")
 
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 set(VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-add_definitions("-DVERSION_STRING=\"${VERSION_STRING}\"")
 
 ## global options
 option(ENABLE_SOA "Enable SoA Memory Layout" ON)
@@ -56,9 +55,10 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
       ${PROJECT_SOURCE_DIR}/CMake/packages
       ${PROJECT_SOURCE_DIR}/CMake/config)
 
+#include(ReleaseDebugAutoFlags) #does not include -DNDEBUG on Release mode
+include(CrayPortability)
 include(BlueGenePortability)
 include(DefineInstallationPaths)
-#include(ReleaseDebugAutoFlags) #not including -DNDEBUG for Release mode
 include(SetRpath)
 
 include(FindPkgConfig)
@@ -83,8 +83,10 @@ if(CLANG_FORMAT_FOUND)
     file(COPY ${PROJECT_SOURCE_DIR}/.clang-format DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
     #to indent files using clang-format
-    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT ${PROJECT_SOURCE_DIR}/neurox/*.c*
-        ${PROJECT_SOURCE_DIR}/neurox/*.h* ${PROJECT_SOURCE_DIR}/neurox/*.ipp*)
+    file(GLOB_RECURSE SRC_FILES_FOR_CLANG_FORMAT
+        ${PROJECT_SOURCE_DIR}/neurox/*.cc
+        ${PROJECT_SOURCE_DIR}/neurox/*.h
+        ${PROJECT_SOURCE_DIR}/neurox/*.inc)
 
     add_custom_target(formatsource COMMAND ${CMAKE_COMMAND}
         -DSOURCE_FILES:STRING="${SRC_FILES_FOR_CLANG_FORMAT}"
