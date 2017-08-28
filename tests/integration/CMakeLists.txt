@@ -36,6 +36,8 @@ set(TEST_CASE_ARGS
     "ring!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring"
     "ring_binqueue!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_binqueue --binqueue"
     "ring_multisend!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_multisend --multisend"
+    "ring_spike_buffer!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_spike_buffer -b 1"
+    "ring_duplicate!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_duplicate -z 3"
     "ring_permute1!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_permute1 ${PERMUTE1_ARGS}"
     "ring_permute2!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_permute2 ${PERMUTE2_ARGS}"
 
@@ -48,9 +50,10 @@ set(TEST_CASE_ARGS
 # There are no directories for permute and multisend related tests, create them and copy ref spikes
 foreach(data_dir "ring" "ring_gap")
     foreach(test_suffix "multisend" "binqueue" "permute1" "permute2")
-        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}/out.dat.ref" DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}_${test_suffix}/")
+      file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}/out.dat.ref" DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/${data_dir}_${test_suffix}/")
     endforeach()
 endforeach()
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/ring/out.dat.ref" DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/ring_spike_buffer/")
 
 #Configure test scripts
 foreach (args_line ${TEST_CASE_ARGS})
