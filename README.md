@@ -38,13 +38,20 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 ```
-*Note*: requires libcoreneuron installation with export of function pointers e.g.:
-
+*Note*: requires libcoreneuron installation with export of function pointers (`-DEXPORT_MECHS_FUNCTIONS`) and extra mechanisms path when applicable(`-DADDITIONAL_MECHPATH` and `-DADDITIONAL_MECHS`). To be on the safe side, we will also disable timing out of coreneuron after a certain period of inactivity (`-DDISABLE_NRN_TIMEOUT`) and OpenMP that may interfere with HPX scheduler (`-DCORENEURON_OPENMP`).
+Vectorization is provided by setting the input data-structure as Array-Of-Structures or Structures-of-Arrays (`-DENABLE_SOA`). All other flags are optional and are added to speed-up compilation.
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH \
          -DADDITIONAL_MECHPATH=$NEURODAMUS_LIB_PATH \
          -DADDITIONAL_MECHS=$ADDITIONAL_MECHS_PATH \
-         -DEXPORT_MECHS_FUNCTIONS=ON
+         -DEXPORT_MECHS_FUNCTIONS=ON \
+         -DCORENEURON_OPENMP=OFF \
+         -DDISABLE_NRN_TIMEOUT=ON\
+         \
+         -DENABLE_CUDA_MODULES=OFF \
+         -DENABLE_NET_RECEIVE_BUFFERING=OFF \
+         -DENABLE_OPENACC_INFO=OFF \
+         -DENABLE_REPORTINGLIB=OFF
 ```
 
 ## Execution
