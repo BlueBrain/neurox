@@ -80,8 +80,8 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__HalfGap
 #define nrn_cur _nrn_cur__HalfGap
-#define nrn_cur_parallel _nrn_cur_parallel__HalfGap
 #define _nrn_current _nrn_current__HalfGap
+#define nrn_cur_parallel _nrn_cur_parallel__HalfGap
 #define nrn_jacob _nrn_jacob__HalfGap
 #define nrn_state _nrn_state__HalfGap
 #define initmodel initmodel__HalfGap
@@ -311,12 +311,6 @@ for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 for (;;) { /* help clang-format properly indent */
 #endif
     int _nd_idx = _ni[_iml];
-#if EXTRACELLULAR
- _nd = _ml->_nodelist[_iml];
- if (_nd->_extnode) {
-    _v = NODEV(_nd) +_nd->_extnode->_v[0];
- }else
-#endif
  {
     _v = _vec_v[_nd_idx];
     _PRCELLSTATE_V
@@ -341,8 +335,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
-
-void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
     nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
   }
 
@@ -386,12 +379,6 @@ for (_iml = 0; _iml < _cntml_actual; ++_iml) {
 for (;;) { /* help clang-format properly indent */
 #endif
     int _nd_idx = _ni[_iml];
-#if EXTRACELLULAR
- _nd = _ml->_nodelist[_iml];
- if (_nd->_extnode) {
-    _v = NODEV(_nd) +_nd->_extnode->_v[0];
- }else
-#endif
  {
     _v = _vec_v[_nd_idx];
     _PRCELLSTATE_V
@@ -404,46 +391,21 @@ for (;;) { /* help clang-format properly indent */
  _g *=  _mfact;
  _rhs *= _mfact;
  _PRCELLSTATE_G
-#if EXTRACELLULAR
- if (_nd->_extnode) {
-   *_nd->_extnode->_rhs[0] += _rhs;
-   *_nd->_extnode->_d[0] += _g;
+
+ if (acc_rhs_d)
+ {
+    _vec_shadow_rhs[_iml] = +_rhs;
+    _vec_shadow_d[_iml] = -_g;
  }
-#endif
-
-
-#ifdef _OPENACC
-  if(_nt->compute_gpu) {
-    #pragma acc atomic update
+ else
+ {
     _vec_rhs[_nd_idx] += _rhs;
-    #pragma acc atomic update
     _vec_d[_nd_idx] -= _g;
-  } else {
-    _vec_shadow_rhs[_iml] = _rhs;
-    _vec_shadow_d[_iml] = _g;
-  }
-#else
-  _vec_shadow_rhs[_iml] = _rhs;
-  _vec_shadow_d[_iml] = _g;
-#endif
  }
-#ifdef _OPENACC
-    if(!(_nt->compute_gpu)) { 
-        for (_iml = 0; _iml < _cntml_actual; ++_iml) {
-           int _nd_idx = _ni[_iml];
-           _vec_rhs[_nd_idx] += _vec_shadow_rhs[_iml];
-           _vec_d[_nd_idx] -= _vec_shadow_d[_iml];
-        }
-#else
-//accumulation of individual contributions (copied from original mod2c)
- for (_iml = 0; _iml < _cntml_actual; ++_iml) {
-   int _nd_idx = _ni[_iml];
-   _vec_rhs[_nd_idx] += _vec_shadow_rhs[_iml];
-   _vec_d[_nd_idx] -= _vec_shadow_d[_iml];
-#endif
- 
 }
- 
+//accumulation of individual contributions (for parallel executions)
+if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
+if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
 void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
