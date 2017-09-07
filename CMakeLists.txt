@@ -80,6 +80,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake
 
 set(Boost_NO_BOOST_CMAKE TRUE)
 
+include(CheckIncludeFiles)
 #include(ReleaseDebugAutoFlags) #does not include -DNDEBUG on Release mode
 include(CrayPortability)
 include(BlueGenePortability)
@@ -148,7 +149,6 @@ if(ENABLE_REPORTINGLIB)
     endif(reportinglib_FOUND)
 endif(ENABLE_REPORTINGLIB)
 
-include(CheckIncludeFiles)
 CHECK_INCLUDE_FILES (malloc.h have_malloc_h)
 if(have_malloc_h)
   add_definitions("-DHAVE_MALLOC_H")
@@ -157,11 +157,6 @@ endif()
 # Some mechanisms use NEURON specific code which is skipped
 # using this macro for CoreNeuron build
 add_definitions(-DCORENEURON_BUILD)
-
-CHECK_INCLUDE_FILES("spi/include/kernel/memory.h" have_memory_h)
-if(have_memory_h)
-  add_definitions("-DHAVE_MEMORY_H")
-endif()
 
 option (ENABLE_SELECTIVE_GPU_PROFILING "Enable GPU profiling only for Solver" ON)
 option (ENABLE_OPENACC "Enable use of OpenACC" OFF)
