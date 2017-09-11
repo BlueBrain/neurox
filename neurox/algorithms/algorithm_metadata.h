@@ -12,6 +12,7 @@ enum AlgorithmType {
   kBackwardEulerSlidingTimeWindow = 2,
   kBackwardEulerTimeDependencyLCO = 3,
   kBackwardEulerCoreneuron = 4,
+  kCvodes = 5,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 

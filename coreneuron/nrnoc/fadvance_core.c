@@ -56,7 +56,6 @@ void dt2thread(double adt) { /* copied from nrnoc/fadvance.c */
 void nrn_fixed_step_minimal() { /* not so minimal anymore with gap junctions */
     if (t != nrn_threads->_t) {
         dt2thread(-1.);
-        assert(0); //TODO Bruno added this
     } else {
         dt2thread(dt);
     }

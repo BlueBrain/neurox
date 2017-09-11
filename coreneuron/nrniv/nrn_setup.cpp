@@ -208,9 +208,9 @@ void nrn_read_filesdat(int& ngrp, int*& grp, int multiple, int*& imult, const ch
         nrn_fatal_error("No input file with nrnthreads, exiting...");
     }
 
-    //char version[256];
-    //fscanf(f, "%s\n", version);
-    //check_bbcore_write_version(version);
+    char version[256];
+    fscanf(fp, "%s\n", version);
+    check_bbcore_write_version(version);
 
     int iNumFiles = 0;
     nrn_assert(fscanf(fp, "%d\n", &iNumFiles) == 1);
@@ -951,9 +951,7 @@ void read_phase2(data_reader& F, int imult, NrnThread& nt) {
     nrn_assert(n_outputgid > 0);  // avoid n_outputgid unused warning
     nt.ncell = F.read_int();
     nt.end = F.read_int();
-    //int ndiam = F.read_int(); // 0 if not needed, else nt.end
-    //TODO commented until we re-generate datasets to allow diamenter info
-    int ndiam=0;
+    int ndiam = F.read_int();  // 0 if not needed, else nt.end
     int nmech = F.read_int();
 
     /// Checkpoint in coreneuron is defined for both phase 1 and phase 2 since they are written
