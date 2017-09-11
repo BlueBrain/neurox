@@ -9,7 +9,7 @@ Dependencies
 - hpx 4+: https://hpx.crest.iu.edu/
 - tclap 1.2.1+: http://tclap.sourceforge.net/
 - libCoreNeuron: https://github.com/BlueBrain/coreneuron
-- sundials CVODE 2.9.0+: https://computation.llnl.gov/projects/sundials/cvode
+- sundials CVODES 2.9.0+: https://computation.llnl.gov/projects/sundials/cvodes
 
 ## set-up
 
