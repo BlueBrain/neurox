@@ -74,6 +74,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                         [2] BackwardEulerWithSlidingTimeWindow \
                                         [3] BackwardEulerWithTimeDependencyLCO \
                                         [4] BackwardEulerCoreneuronDebug \
+                                        [5] CVODES \
                                         [9] All methods sequentially (NOTE: neurons data does not reset)",
                                    false, 1, "int");
     cmd.add(branch_parallelism_depth);

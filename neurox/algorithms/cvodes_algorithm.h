@@ -1,5 +1,6 @@
 #pragma once
 #include "neurox.h"
+#include "cvodes/cvodes.h"
 
 using namespace neurox;
 

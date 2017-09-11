@@ -31,7 +31,9 @@ void CvodesAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
 }
 
 void CvodesAlgorithm::Run(Branch* b, const void* args)
-{}
+{
+    
+}
 
 hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
 }
