@@ -80,4 +80,5 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 
 ## Copyright
 
-Copyright Blue Brain Project, EPFL, Switzerland; and Center for Research in Extreme Scale Technologies, Indiana University
+- Blue Brain Project, École Polytechnique Fédérale de Lausanne (EPFL), Switzerland;
+- Center for Research in Extreme Scale Technologies (CREST), Indiana University
