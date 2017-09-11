@@ -7,9 +7,9 @@ A scalable parallel & distributed asynchronous simulator of extended Hodgkin-Hux
 Dependencies
 - cmake 2.8.12+: www.cmake.org
 - hpx 4+: https://hpx.crest.iu.edu/
-- tclap: http://tclap.sourceforge.net/
+- tclap 1.2.1+: http://tclap.sourceforge.net/
 - libCoreNeuron: https://github.com/BlueBrain/coreneuron
-- sundials CVODE: https://computation.llnl.gov/projects/sundials/cvode
+- sundials CVODE 2.9.0+: https://computation.llnl.gov/projects/sundials/cvode
 
 ## set-up
 
