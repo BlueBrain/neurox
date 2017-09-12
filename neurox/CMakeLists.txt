@@ -43,8 +43,8 @@ ENDIF()
 find_package(CVODES 2.9.0 REQUIRED)
 include_directories(${CVODES_INCLUDE_DIRS})
 link_directories(${CVODES_LIBRARIES})
-message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
-message(STATUS "  CVODES_LIBRARIES: ${CVODES_LIBRARIES}")
+#message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
+#message(STATUS "  CVODES_LIBRARIES: ${CVODES_LIBRARIES}")
 
 #binary (copy from apps/CMakeLists.txt)
 include_directories(
@@ -62,7 +62,7 @@ FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 
-target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODE_LIBRARIES})
+target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODES_LIBRARIES})
 
 set_target_properties(neurox PROPERTIES
                              VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
