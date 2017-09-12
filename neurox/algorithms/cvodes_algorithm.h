@@ -1,12 +1,15 @@
 #pragma once
 #include "neurox.h"
 
-//by cvodes/examples/cvsRoberts_ASAi_dns.c
-#include "cvodes/cvodes.h"
-#include "nvector/nvector_serial.h"
-#include "sundials/sundials_types.h"
-#include "sundials/sundials_math.h"
-#include "cvodes/cvodes_dense.h"
+//COPIED FROM cvsRoberts_dns.c
+//NO SENSITIVITY ANALYSIS
+//FSA or ASA avaiable at cvsRoberts_ASA_idns.c
+
+#include <cvodes/cvodes.h>           /* prototypes for CVODE fcts. and consts. */
+#include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., and macros */
+#include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
+#include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
+#include <sundials/sundials_types.h> /* definition of type realtype */
 
 using namespace neurox;
 
@@ -40,34 +43,44 @@ class CvodesAlgorithm : public Algorithm {
  private:
   static const int kNumEquations = 3;
   constexpr static double kRelativeTolerance = 1e-3;
-  constexpr static double kAbsoluteTolerance = 1e-3;
-  constexpr static double kAbsoluteToleranceQuadrature = 1e-3;
 
   typedef struct {
     floble_t p[kNumEquations];
   } *UserData;
 
-  UserData data;
+  UserData data_;
+
+  /// absolute tolerance per equation
+  N_Vector absolute_tolerance_;
 
   /// Initial condition
-  N_Vector y0;
+  N_Vector y_;
 
-  /// initial condition of the quadrature values
-  N_Vector yQ0;
+  /// time
+  realtype t_;
 
-  void *cvode_mem;
+  void *cvode_mem_;
 
   /// function defining the right-hand side function in y' = f(t,y).
-  static int f(floble_t t, N_Vector y0, N_Vector ydot, void *user_data);
+  static int F(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
+
+  /// g routing to compute g_i(t,y) for i = 0,1.
+  static int G(realtype t, N_Vector y_, realtype *gout, void *user_data);
 
   /// jacobian: compute J(t,y)
-  static int jacobian(long int N, floble_t t,
-                      N_Vector y, N_Vector fy,
+  static int Jacobian(long int N, floble_t t,
+                      N_Vector y_, N_Vector fy,
                       DlsMat J, void *user_data,
                       N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
-  /// fQ is the user-provided integrand routine. Compute fQ(t,y).
-  static int fQ(realtype t, N_Vector y, N_Vector qdot, void *user_data);
+  /// resets the integrator at time t (NEURON book page 173)
+  static void Initialize(Branch * b, floble_t t);
+
+  /// performs an integration step to a new time t, and returns t (NEURON book page 173)
+  static floble_t Advance(Branch *b);
+
+  /// integration step that returns before next discontinuity event (NEURON book page 173)
+  static floble_t Interpolate(Branch *b);
 };
 
 };  // algorithm
