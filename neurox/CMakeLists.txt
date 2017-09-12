@@ -39,12 +39,12 @@ ELSE()
   link_directories(${HPX_LIBRARY_DIRS})
 ENDIF()
 
-# Include CVODE (Cmake/FindCVODE.cmake)
-find_package(CVODE 2.9.0 REQUIRED)
-include_directories(${CVODE_INCLUDE_DIRS})
-link_directories(${CVODE_LIBRARIES})
-#message(STATUS "  CVODE_INCLUDE_DIRS: ${CVODE_INCLUDE_DIRS}")
-#message(STATUS "  CVODE_LIBRARIES: ${CVODE_LIBRARIES}")
+# Include CVODES (Cmake/FindCVODES.cmake)
+find_package(CVODES 2.9.0 REQUIRED)
+include_directories(${CVODES_INCLUDE_DIRS})
+link_directories(${CVODES_LIBRARIES})
+message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
+message(STATUS "  CVODES_LIBRARIES: ${CVODES_LIBRARIES}")
 
 #binary (copy from apps/CMakeLists.txt)
 include_directories(

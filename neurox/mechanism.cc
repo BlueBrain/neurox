@@ -48,6 +48,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current_parallel =
         get_cur_parallel_function(this->memb_func_.sym);
     this->pnt_receive_ = get_net_receive_function(this->memb_func_.sym);
+    this->memb_func_.jacob = get_jacob_function(this->memb_func_.sym);
   } else if (this->type_ == CAP)  // capacitance: capac.c
   {
     // these are not registered by capac.c

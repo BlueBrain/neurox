@@ -137,3 +137,13 @@ mod_f_t get_BA_function(const char * sym, int BA_func_id)
 }
 __eof
 
+#output BA functions (not available yet)
+# TODO get rid of this
+print <<"__eof";
+mod_f_t get_jacob_function(const char * sym)
+{
+  return NULL;
+}
+__eof
+
+

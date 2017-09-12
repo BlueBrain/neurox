@@ -135,6 +135,10 @@ void CvodesAlgorithm::Init() {
     flag = CVodeSetQuadErrCon(cvode_mem, TRUE);
     assert(flag==CV_SUCCESS);
 
+    //initialize ASA and allocates space for the adjoint memory structure
+    //paremetes: Hermite (or CV_POLYNOMIAL) interpolation
+    int stepsBeforeChkpnt = 150;
+    flag = CVodeAdjInit(cvode_mem, stepsBeforeChkpnt, CV_HERMITE);
 }
 
 void CvodesAlgorithm::Clear() {
