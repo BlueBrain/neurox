@@ -67,3 +67,4 @@ class Algorithm {
 #include "neurox/algorithms/debug_algorithm.h"
 #include "neurox/algorithms/sliding_time_window_algorithm.h"
 #include "neurox/algorithms/time_dependency_lco_algorithm.h"
+#include "neurox/algorithms/cvodes_algorithm.h"

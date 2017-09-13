@@ -33,12 +33,14 @@ int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
     return(0);
 }
 
-/// g routing to compute g_i(t,y) for i = 0,1.
+/// g root function to compute g_i(t,y) .
 int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
 {
     realtype y1, y3;
 
     y1 = NV_Ith_S(y,0); y3 = NV_Ith_S(y,2);
+    //Root finding when y1=0.0001 or y3=0.01
+    //if (when gout[x] is zero, a root was found)
     gout[0] = y1 - RCONST(0.0001);
     gout[1] = y3 - RCONST(0.01);
 
@@ -46,7 +48,49 @@ int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
 }
 
 //jacobian routine: compute J(t,y) = df/dy
-int CvodesAlgorithm::Jacobian(long int N, realtype t,
+int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
+               N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
+               N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
+{
+  realtype *yval;
+  int *colptrs = *JacMat->colptrs;
+  int *rowvals = *JacMat->rowvals;
+
+  yval = N_VGetArrayPointer_Serial(y);
+
+  SparseSetMatToZero(JacMat);
+
+  colptrs[0] = 0;
+  colptrs[1] = 3;
+  colptrs[2] = 6;
+  colptrs[3] = 9;
+
+  JacMat->data[0] = RCONST(-0.04);
+  rowvals[0] = 0;
+  JacMat->data[1] = RCONST(0.04);
+  rowvals[1] = 1;
+  JacMat->data[2] = 0.0;
+  rowvals[2] = 2;
+
+  JacMat->data[3] = RCONST(1.0e4)*yval[2];
+  rowvals[3] = 0;
+  JacMat->data[4] = (RCONST(-1.0e4)*yval[2]) - (RCONST(6.0e7)*yval[1]);
+  rowvals[4] = 1;
+  JacMat->data[5] = RCONST(6.0e7)*yval[1];
+  rowvals[5] = 2;
+
+  JacMat->data[6] = RCONST(1.0e4)*yval[1];
+  rowvals[6] = 0;
+  JacMat->data[7] = RCONST(-1.0e4)*yval[1];
+  rowvals[7] = 1;
+  JacMat->data[8] = 0;
+  rowvals[8] = 2;
+
+  return(0);
+}
+
+//jacobian routine: compute J(t,y) = df/dy
+int CvodesAlgorithm::JacobianDenseMatrix(long int N, realtype t,
                N_Vector y, N_Vector fy,
                DlsMat J, void *user_data,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -85,15 +129,48 @@ floble_t CvodesAlgorithm::Interpolate(Branch *b)
 }
 
 void CvodesAlgorithm::Init() {
+    if (input_params_->allreduce_at_locality_)
+      { assert(0); }
+    else
+      neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
+}
+
+void CvodesAlgorithm::Clear() {
+    if (input_params_->allreduce_at_locality_)
+      { assert(0); }
+    else
+        neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Clear);
+}
+
+double CvodesAlgorithm::Launch() {
+    hpx_time_t now = hpx_time_now();
+    if (input_params_->allreduce_at_locality_)
+      { assert(0); }
+    else
+      neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Run);
+    return hpx_time_elapsed_ms(now) / 1e3;
+}
+
+hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
+int CvodesAlgorithm::BranchCvodes::Init_handler()
+{
+    NEUROX_MEM_PIN(neurox::Branch);
+    //Branch parallelism not possible without our custom parallel solver
+    //(CVODES only accepts pthread, OpenMP, but allows Custom solver);
+    assert(input_params_->branch_parallelism_depth_ == 0);
 
     int flag = CV_SUCCESS;
 
     //set-up data
     data_ = (UserData) malloc(sizeof *data_);
+    data_->p = new realtype[CvodesAlgorithm::kNumEquations];
     data_->p[0]=3;
 
+    //create serial vector for y
+    //TODO see page 157 of guide, we can have mem protected N_Vectors
     y_ = N_VNew_Serial(kNumEquations);
-    for (int i=0; i<kNumEquations; i++)
+    NV_Ith_S(y_,0) = 1;
+    for (int i=1; i<kNumEquations; i++)
          NV_Ith_S(y_,i) = 0;
 
     //absolute tolerance array
@@ -123,24 +200,53 @@ void CvodesAlgorithm::Init() {
     //TODO this is newton solver, shall we use direct solve instead?
     //Note: direct solvers give the solution (LU-decomposition, etc)
     //Indirect solvers require iterations (eg Jacobi method)
-    flag = CVDense(cvode_mem_, kNumEquations);
-    assert(flag==CV_SUCCESS);
+    //sundials_direct.h wraps solvers??
 
-    //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-    flag = CVDlsSetDenseJacFn(cvode_mem_, CvodesAlgorithm::Jacobian);
-    assert(flag==CV_SUCCESS);
+    if (kSparseMatrix)
+    {
+        /* install superlumt and klu first
+
+      // Call CVSuperLUMT to specify the CVSuperLUMT sparse direct linear solver
+      int nnz = kNumEquations * kNumEquations;
+      flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
+      //TODO? flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
+      assert(flag==CV_SUCCESS);
+
+      //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
+      flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseMatrix);
+      assert(flag==CV_SUCCESS);
+      */
+        assert(0);
+    }
+    else
+    {
+      flag = CVDense(cvode_mem_, kNumEquations);
+      assert(flag==CV_SUCCESS);
+
+      //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
+      flag = CVDlsSetDenseJacFn(cvode_mem_, CvodesAlgorithm::JacobianDenseMatrix);
+      assert(flag==CV_SUCCESS);
+    }
+
+
+    //TODO added Bruno (see cvs_guide.pdf page 43)
+    CVodeSetInitStep(cvode_mem_, input_params_->dt_);
+    CVodeSetMinStep(cvode_mem_, input_params_->dt_);
+    CVodeSetMaxStep(cvode_mem_, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
+    CVodeSetStopTime(cvode_mem_, input_params_->tstop_);
+    CVodeSetMaxOrd(cvode_mem_, 5); //max order of the BDF method
+
+    //see chapter 6.4 -- User supplied functions
+
+    //see chapter 8 -- providing alternate linear solver modules
+    return neurox::wrappers::MemoryUnpin(target);
 }
 
-void CvodesAlgorithm::Clear() {
-    /* Free y vector */
-    N_VDestroy_Serial(y_);
-
-    /* Free integrator memory */
-    CVodeFree(&cvode_mem_);
-}
-
-double CvodesAlgorithm::Launch() {
-    realtype first_output_t = 0.4;
+hpx_action_t CvodesAlgorithm::BranchCvodes::Run = 0;
+int CvodesAlgorithm::BranchCvodes::Run_handler()
+{
+    NEUROX_MEM_PIN(neurox::Branch);
+    realtype tout = 0.4;
     int rootsfound[2];
     int flag=0;
     int iteration=0;
@@ -148,7 +254,7 @@ double CvodesAlgorithm::Launch() {
       // call CVODE method
       // the CV_NORMAL task is to have the solver take internal steps until
       // it has reached or just passed the user specified tout parameter.
-      flag = CVode(cvode_mem_, first_output_t, y_, &t_, CV_NORMAL);
+      flag = CVode(cvode_mem_, tout, y_, &t_, CV_NORMAL);
       printf("At t = %0.4e      y =%14.6e  %14.6e  %14.6e\n",
              t, NV_Ith_S(y_,0), NV_Ith_S(y_,1), NV_Ith_S(y_,2));
 
@@ -168,7 +274,7 @@ double CvodesAlgorithm::Launch() {
 
       if (flag == CV_SUCCESS) {
         iteration++;
-        first_output_t *= 10; //output time factor
+        tout *= 10; //output time factor
       }
 
       if (iteration == 12) break; //number of output times
@@ -176,6 +282,16 @@ double CvodesAlgorithm::Launch() {
 
     /* Print some final statistics */
     //PrintFinalStats(cvode_mem_);
+    return neurox::wrappers::MemoryUnpin(target);
+}
+
+hpx_action_t CvodesAlgorithm::BranchCvodes::Clear = 0;
+int CvodesAlgorithm::BranchCvodes::Clear_handler()
+{
+    NEUROX_MEM_PIN(neurox::Branch);
+    N_VDestroy_Serial(y_);  /* Free y vector */
+    CVodeFree(&cvode_mem_); /* Free integrator memory */
+    return neurox::wrappers::MemoryUnpin(target);
 }
 
 void CvodesAlgorithm::StepBegin(Branch*) {}
@@ -189,4 +305,14 @@ void CvodesAlgorithm::Run(Branch* b, const void* args)
 }
 
 hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
+}
+
+
+void CvodesAlgorithm::RegisterHpxActions() {
+  wrappers::RegisterZeroVarAction(CvodesAlgorithm::BranchCvodes::Init,
+                                  CvodesAlgorithm::BranchCvodes::Init_handler);
+  wrappers::RegisterZeroVarAction(CvodesAlgorithm::BranchCvodes::Run,
+                                  CvodesAlgorithm::BranchCvodes::Run_handler);
+  wrappers::RegisterZeroVarAction(CvodesAlgorithm::BranchCvodes::Clear,
+                                  CvodesAlgorithm::BranchCvodes::Clear_handler);
 }
