@@ -10,6 +10,9 @@ Dependencies
 - tclap 1.2.1+: http://tclap.sourceforge.net/
 - libCoreNeuron: https://github.com/BlueBrain/coreneuron
 - sundials CVODES 2.9.0+: https://computation.llnl.gov/projects/sundials/cvodes
+  - requires SUPERLUMT solver: http://crd-legacy.lbl.gov/~xiaoye/SuperLU/#superlu_mt
+  - requires KLU solver: http://faculty.cse.tamu.edu/davis/suitesparse.html
+  - hint: add `-DSUPERLUMP_ENABLE=ON -DKLU_ENABLE=ON` to the `cmake` command to enable support
 
 ## set-up
 
