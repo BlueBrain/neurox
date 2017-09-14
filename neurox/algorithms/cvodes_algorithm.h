@@ -46,16 +46,10 @@ class CvodesAlgorithm : public Algorithm {
       BranchCvodes();
       ~BranchCvodes();
 
-      typedef struct {
-        realtype *p; //size kNumEquations
-      } *UserData;
-
-      UserData data_;
-
       /// absolute tolerance per equation
       N_Vector absolute_tolerance_;
 
-      /// Initial condition
+      /// Initial values (voltages)
       N_Vector y_;
 
       void *cvode_mem_;
@@ -74,7 +68,6 @@ class CvodesAlgorithm : public Algorithm {
 
  private:
   static const bool kSparseMatrix = false;
-  static const int kNumEquations = 3;
   constexpr static double kRelativeTolerance = 1e-3;
 
   /// function defining the right-hand side function in y' = f(t,y).

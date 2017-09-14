@@ -33,15 +33,17 @@ int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 /// g root function to compute g_i(t,y) .
 int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
 {
-    realtype y1, y3;
+    Branch * b = (Branch*) user_data;
+    int thvar_index = b->thvar_ptr_ - b->nt_->_actual_v;
+    realtype v = NV_Ith_S(y,thvar_index);
 
-    y1 = NV_Ith_S(y,0); y3 = NV_Ith_S(y,2);
-    //Root finding when y1=0.0001 or y3=0.01
     //if (when gout[x] is zero, a root was found)
-    gout[0] = y1 - RCONST(0.0001);
-    gout[1] = y3 - RCONST(0.01);
-
-    return(0);
+    gout[0] = v - b->soma_->threshold_; //AP threshold reached
+#ifndef NDEBUG
+    gout[1] = v - 30; //Debug: reached   50 mV (too high)
+    gout[2] = v + 90; //Debug: reached -100 mV (too low )
+#endif
+    return 0;
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -170,7 +172,7 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
 
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :data_(nullptr), cvode_mem_(nullptr)
+    :cvode_mem_(nullptr)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
@@ -185,7 +187,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-    UserData data = branch_cvodes->data_;
     N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
     N_Vector y = branch_cvodes->y_;
     void * cvode_mem = branch_cvodes->cvode_mem_;
@@ -193,20 +194,17 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int flag = CV_ERR_FAILURE;
 
     //set-up data
-    data = (UserData) malloc(sizeof *data);
-    data->p = new realtype[CvodesAlgorithm::kNumEquations];
-    data->p[0]=3;
+    int n = local->nt_->end; //number of compartments
 
     //create serial vector for y
     //TODO see page 157 of guide, we can have mem protected N_Vectors
-    y = N_VNew_Serial(kNumEquations);
-    NV_Ith_S(y,0) = 1;
-    for (int i=1; i<kNumEquations; i++)
-         NV_Ith_S(y,i) = 0;
+    y = N_VNew_Serial(n);
+    for (int i=0; i<n; i++)
+         NV_Ith_S(y,i) = local->nt_->_actual_v[i];
 
     //absolute tolerance array
-    absolute_tolerance = N_VNew_Serial(kNumEquations);
-    for (int i=0; i<kNumEquations; i++) //TODO set values
+    absolute_tolerance = N_VNew_Serial(n);
+    for (int i=0; i<n; i++) //TODO set values
         NV_Ith_S(absolute_tolerance, i) = kRelativeTolerance;
 
     //CVodeCreate creates an internal memory block for a problem to
@@ -222,8 +220,13 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance, absolute_tolerance);
     assert(flag==CV_SUCCESS);
 
-    //specify g as root function with 2 components
-    flag = CVodeRootInit(cvode_mem, 2, CvodesAlgorithm::G);
+    //specify g as root function and roots
+#ifdef NDEBUG
+    int roots_count = 1; //AP threshold
+#else
+    int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
+#endif
+    flag = CVodeRootInit(cvode_mem, roots_count, CvodesAlgorithm::G);
     assert(flag==CV_SUCCESS);
 
     //initializes the memory record and sets various function
