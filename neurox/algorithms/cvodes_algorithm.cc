@@ -194,17 +194,17 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int flag = CV_ERR_FAILURE;
 
     //set-up data
-    int n = local->nt_->end; //number of compartments
+    int num_equations = local->nt_->end; //number of compartments
 
     //create serial vector for y
     //TODO see page 157 of guide, we can have mem protected N_Vectors
-    y = N_VNew_Serial(n);
-    for (int i=0; i<n; i++)
+    y = N_VNew_Serial(num_equations);
+    for (int i=0; i<num_equations; i++)
          NV_Ith_S(y,i) = local->nt_->_actual_v[i];
 
     //absolute tolerance array
-    absolute_tolerance = N_VNew_Serial(n);
-    for (int i=0; i<n; i++) //TODO set values
+    absolute_tolerance = N_VNew_Serial(num_equations);
+    for (int i=0; i<num_equations; i++) //TODO set values
         NV_Ith_S(absolute_tolerance, i) = kRelativeTolerance;
 
     //CVodeCreate creates an internal memory block for a problem to
@@ -219,6 +219,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     //specify integration tolerances. MUST be called before CVode.
     flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance, absolute_tolerance);
     assert(flag==CV_SUCCESS);
+
+    //specify this branch as user data parameter to be past to functions
+    flag = CVodeSetUserData(cvode_mem, local);
 
     //specify g as root function and roots
 #ifdef NDEBUG
@@ -254,7 +257,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     }
     else
     {
-      flag = CVDense(cvode_mem, kNumEquations);
+      flag = CVDense(cvode_mem, num_equations);
       assert(flag==CV_SUCCESS);
 
       //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
