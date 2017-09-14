@@ -19,6 +19,8 @@ const char* CvodesAlgorithm::GetString() {
 /// f routine to compute y' = f(t,y).
 int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
+    Branch * b = (Branch*) user_data;
+
     realtype y1, y2, y3, yd1, yd3;
 
     y1 = NV_Ith_S(y,0); y2 = NV_Ith_S(y,1); y3 = NV_Ith_S(y,2);
@@ -193,14 +195,12 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 
     int flag = CV_ERR_FAILURE;
 
-    //set-up data
-    int num_equations = local->nt_->end; //number of compartments
+    //equations: one per vdata (some will be constants, with jacobian=0)
+    int num_equations = local->nt_->_ndata;
 
     //create serial vector for y
-    //TODO see page 157 of guide, we can have mem protected N_Vectors
-    y = N_VNew_Serial(num_equations);
-    for (int i=0; i<num_equations; i++)
-         NV_Ith_S(y,i) = local->nt_->_actual_v[i];
+    //TODO guide page 157, we can have mem-protected N_Vectors
+    y = N_VMake_Serial(num_equations, local->nt_->_data);
 
     //absolute tolerance array
     absolute_tolerance = N_VNew_Serial(num_equations);
@@ -222,6 +222,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 
     //specify this branch as user data parameter to be past to functions
     flag = CVodeSetUserData(cvode_mem, local);
+    assert(flag==CV_SUCCESS);
 
     //specify g as root function and roots
 #ifdef NDEBUG
