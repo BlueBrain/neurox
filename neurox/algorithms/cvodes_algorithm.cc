@@ -3,18 +3,15 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-CvodesAlgorithm::CvodesAlgorithm():
-data_(nullptr), absolute_tolerance_(nullptr)
-{
-}
+CvodesAlgorithm::CvodesAlgorithm(){}
 
 CvodesAlgorithm::~CvodesAlgorithm() {}
 
-const AlgorithmType CvodesAlgorithm::GetType() {
-  return AlgorithmType::kCvodes;
+const AlgorithmId CvodesAlgorithm::GetId() {
+  return AlgorithmId::kCvodes;
 }
 
-const char* CvodesAlgorithm::GetTypeString() {
+const char* CvodesAlgorithm::GetString() {
   return "CVODES";
 }
 
@@ -151,48 +148,82 @@ double CvodesAlgorithm::Launch() {
     return hpx_time_elapsed_ms(now) / 1e3;
 }
 
+
+
+/////////////////////// Algorithm abstract class ////////////////////////
+
+void CvodesAlgorithm::StepBegin(Branch*) {}
+
+void CvodesAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
+}
+
+void CvodesAlgorithm::Run(Branch* b, const void* args)
+{
+
+}
+
+hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
+}
+
+
+//////////////////////////// BranchCvodes /////////////////////////
+
+
+CvodesAlgorithm::BranchCvodes::BranchCvodes()
+    :data_(nullptr), cvode_mem_(nullptr)
+{}
+
+CvodesAlgorithm::BranchCvodes::~BranchCvodes()
+{
+    N_VDestroy_Serial(y_); /* Free y vector */
+    CVodeFree(&cvode_mem_); /* Free integrator memory */
+}
+
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
 int CvodesAlgorithm::BranchCvodes::Init_handler()
 {
     NEUROX_MEM_PIN(neurox::Branch);
-    //Branch parallelism not possible without our custom parallel solver
-    //(CVODES only accepts pthread, OpenMP, but allows Custom solver);
-    assert(input_params_->branch_parallelism_depth_ == 0);
+    assert(local->soma_);
+    BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
+    UserData data = branch_cvodes->data_;
+    N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
+    N_Vector y = branch_cvodes->y_;
+    void * cvode_mem = branch_cvodes->cvode_mem_;
 
-    int flag = CV_SUCCESS;
+    int flag = CV_ERR_FAILURE;
 
     //set-up data
-    data_ = (UserData) malloc(sizeof *data_);
-    data_->p = new realtype[CvodesAlgorithm::kNumEquations];
-    data_->p[0]=3;
+    data = (UserData) malloc(sizeof *data);
+    data->p = new realtype[CvodesAlgorithm::kNumEquations];
+    data->p[0]=3;
 
     //create serial vector for y
     //TODO see page 157 of guide, we can have mem protected N_Vectors
-    y_ = N_VNew_Serial(kNumEquations);
-    NV_Ith_S(y_,0) = 1;
+    y = N_VNew_Serial(kNumEquations);
+    NV_Ith_S(y,0) = 1;
     for (int i=1; i<kNumEquations; i++)
-         NV_Ith_S(y_,i) = 0;
+         NV_Ith_S(y,i) = 0;
 
     //absolute tolerance array
-    absolute_tolerance_ = N_VNew_Serial(kNumEquations);
+    absolute_tolerance = N_VNew_Serial(kNumEquations);
     for (int i=0; i<kNumEquations; i++) //TODO set values
-        NV_Ith_S(absolute_tolerance_, i) = kRelativeTolerance;
+        NV_Ith_S(absolute_tolerance, i) = kRelativeTolerance;
 
     //CVodeCreate creates an internal memory block for a problem to
     //be solved by CVODES, with Backward Differentiation (or Adams)
     //and Newton solver (recommended for stiff problems, see header)
-    cvode_mem_ = CVodeCreate(CV_BDF, CV_NEWTON);
+    cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
     //CVodeInit allocates and initializes memory for a problem
-    flag = CVodeInit(cvode_mem_, CvodesAlgorithm::F, 0.0 /*initial time*/, y_);
+    flag = CVodeInit(cvode_mem, CvodesAlgorithm::F, 0.0 /*initial time*/, y);
     assert(flag==CV_SUCCESS);
 
     //specify integration tolerances. MUST be called before CVode.
-    flag = CVodeSVtolerances(cvode_mem_, kRelativeTolerance, absolute_tolerance_);
+    flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance, absolute_tolerance);
     assert(flag==CV_SUCCESS);
 
     //specify g as root function with 2 components
-    flag = CVodeRootInit(cvode_mem_, 2, CvodesAlgorithm::G);
+    flag = CVodeRootInit(cvode_mem, 2, CvodesAlgorithm::G);
     assert(flag==CV_SUCCESS);
 
     //initializes the memory record and sets various function
@@ -220,21 +251,21 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     }
     else
     {
-      flag = CVDense(cvode_mem_, kNumEquations);
+      flag = CVDense(cvode_mem, kNumEquations);
       assert(flag==CV_SUCCESS);
 
       //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-      flag = CVDlsSetDenseJacFn(cvode_mem_, CvodesAlgorithm::JacobianDenseMatrix);
+      flag = CVDlsSetDenseJacFn(cvode_mem, CvodesAlgorithm::JacobianDenseMatrix);
       assert(flag==CV_SUCCESS);
     }
 
 
     //TODO added Bruno (see cvs_guide.pdf page 43)
-    CVodeSetInitStep(cvode_mem_, input_params_->dt_);
-    CVodeSetMinStep(cvode_mem_, input_params_->dt_);
-    CVodeSetMaxStep(cvode_mem_, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
-    CVodeSetStopTime(cvode_mem_, input_params_->tstop_);
-    CVodeSetMaxOrd(cvode_mem_, 5); //max order of the BDF method
+    CVodeSetInitStep(cvode_mem, input_params_->dt_);
+    CVodeSetMinStep(cvode_mem, input_params_->dt_);
+    CVodeSetMaxStep(cvode_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
+    CVodeSetStopTime(cvode_mem, input_params_->tstop_);
+    CVodeSetMaxOrd(cvode_mem, 5); //max order of the BDF method
 
     //see chapter 6.4 -- User supplied functions
 
@@ -246,6 +277,12 @@ hpx_action_t CvodesAlgorithm::BranchCvodes::Run = 0;
 int CvodesAlgorithm::BranchCvodes::Run_handler()
 {
     NEUROX_MEM_PIN(neurox::Branch);
+    assert(local->soma_);
+    BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
+    N_Vector y = branch_cvodes->y_;
+    void * cvode_mem = branch_cvodes->cvode_mem_;
+    floble_t t = local->nt_->_t;
+
     realtype tout = 0.4;
     int rootsfound[2];
     int flag=0;
@@ -254,9 +291,9 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       // call CVODE method
       // the CV_NORMAL task is to have the solver take internal steps until
       // it has reached or just passed the user specified tout parameter.
-      flag = CVode(cvode_mem_, tout, y_, &t_, CV_NORMAL);
+      flag = CVode(cvode_mem, tout, y, &t, CV_NORMAL);
       printf("At t = %0.4e      y =%14.6e  %14.6e  %14.6e\n",
-             t, NV_Ith_S(y_,0), NV_Ith_S(y_,1), NV_Ith_S(y_,2));
+             t, NV_Ith_S(y,0), NV_Ith_S(y,1), NV_Ith_S(y,2));
 
       if(flag==CV_ROOT_RETURN)
       {
@@ -264,7 +301,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
         //If nrtfn > 1, call CVodeGetRootInfo to see
         //which g_i were found to have a root at (*tret).
 
-       flag = CVodeGetRootInfo(cvode_mem_, rootsfound);
+       flag = CVodeGetRootInfo(cvode_mem, rootsfound);
        assert(flag==CV_SUCCESS);
        printf(" rootsfound[0]=%d; rootsfound[1]=%d;\n", rootsfound[0], rootsfound[1]);
 
@@ -289,26 +326,16 @@ hpx_action_t CvodesAlgorithm::BranchCvodes::Clear = 0;
 int CvodesAlgorithm::BranchCvodes::Clear_handler()
 {
     NEUROX_MEM_PIN(neurox::Branch);
-    N_VDestroy_Serial(y_);  /* Free y vector */
-    CVodeFree(&cvode_mem_); /* Free integrator memory */
+    assert(local->soma_);
+    BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
+
+    N_VDestroy_Serial(branch_cvodes->y_);  /* Free y vector */
+    CVodeFree(&branch_cvodes->cvode_mem_); /* Free integrator memory */
     return neurox::wrappers::MemoryUnpin(target);
 }
 
-void CvodesAlgorithm::StepBegin(Branch*) {}
 
-void CvodesAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
-}
-
-void CvodesAlgorithm::Run(Branch* b, const void* args)
-{
-    
-}
-
-hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
-}
-
-
-void CvodesAlgorithm::RegisterHpxActions() {
+void CvodesAlgorithm::BranchCvodes::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(CvodesAlgorithm::BranchCvodes::Init,
                                   CvodesAlgorithm::BranchCvodes::Init_handler);
   wrappers::RegisterZeroVarAction(CvodesAlgorithm::BranchCvodes::Run,

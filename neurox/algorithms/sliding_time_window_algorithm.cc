@@ -12,11 +12,11 @@ SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
 
 SlidingTimeWindowAlgorithm::~SlidingTimeWindowAlgorithm() {}
 
-const AlgorithmType SlidingTimeWindowAlgorithm::GetType() {
-  return AlgorithmType::kBackwardEulerSlidingTimeWindow;
+const AlgorithmId SlidingTimeWindowAlgorithm::GetId() {
+  return AlgorithmId::kBackwardEulerSlidingTimeWindow;
 }
 
-const char* SlidingTimeWindowAlgorithm::GetTypeString() {
+const char* SlidingTimeWindowAlgorithm::GetString() {
   return "BackwardEulerSlidingTimeWindow";
 }
 

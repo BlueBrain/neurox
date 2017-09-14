@@ -12,8 +12,8 @@ class AllreduceAlgorithm : public Algorithm {
   AllreduceAlgorithm();
   ~AllreduceAlgorithm();
 
-  const AlgorithmType GetType() override;
-  const char* GetTypeString() override;
+  const AlgorithmId GetId() override;
+  const char* GetString() override;
 
   void Init() override;
   void Clear() override;
@@ -34,7 +34,7 @@ class AllreduceAlgorithm : public Algorithm {
   const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;
 
-  class AllReducesInfo : public AlgorithmMetadata {
+  class AllReducesInfo : public NeuronMetadata {
    public:
     AllReducesInfo();
     ~AllReducesInfo();

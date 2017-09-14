@@ -69,11 +69,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "B", "branching-depth",
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
     TCLAP::ValueArg<int> algorithm("A", "algorithm",
-                                   "[0] BackwardEulerCoreneuron \
+                                   "[0] BackwardEulerCoreneuronDebug \
                                         [1] BackwardEulerWithAllReduceBarrier (default), \
                                         [2] BackwardEulerWithSlidingTimeWindow \
                                         [3] BackwardEulerWithTimeDependencyLCO \
-                                        [4] BackwardEulerCoreneuronDebug \
+                                        [4] BackwardEulerCoreneuron \
                                         [5] CVODES \
                                         [9] All methods sequentially (NOTE: neurons data does not reset)",
                                    false, 1, "int");
@@ -154,15 +154,17 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->allreduce_at_locality_ = allreduce_at_locality.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->algorithm_ = (algorithms::AlgorithmType)algorithm.getValue();
+    this->algorithm_ = (algorithms::AlgorithmId)algorithm.getValue();
     neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
                                 "branch-parallelism-depth");
+
     if (this->dt_ <= 0)
       throw TCLAP::ArgException(
           "time-step size (ms) should be a positive value", "dt");
+
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
@@ -170,6 +172,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
         this->tstop_,
         algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize *
             this->dt_);
+
     if (!(remainder_tstop_tcomm < 0.00001 ||
           remainder_tstop_tcomm >
               algorithms::CoreneuronAlgorithm::CommunicationBarrier::
@@ -178,12 +181,16 @@ void CmdLineParser::Parse(int argc, char** argv) {
                   0.00001))
       throw TCLAP::ArgException(
           "execution time " + to_string(this->tstop_) +
-              "ms  should be a multiple of the communication delay " +
+              "ms should be a multiple of the communication delay " +
               to_string(algorithms::CoreneuronAlgorithm::CommunicationBarrier::
                             kCommStepSize *
                         this->dt_) +
-              " ms",
-          "tstop");
+              " ms", "tstop");
+
+    if (this->branch_parallelism_depth_ > 0 &&
+        this->algorithm_ == algorithms::AlgorithmId::kCvodes)
+        throw TCLAP::ArgException ("cant run branch-level parallelism with variable-step methods");
+
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
     exit(1);

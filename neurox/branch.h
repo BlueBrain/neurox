@@ -13,7 +13,6 @@ using namespace neurox;
 namespace neurox {
 
 class Neuron;
-class algorithms::CvodesAlgorithm::BranchCvodes;
 
 /**
  * @brief The Branch class
@@ -106,9 +105,6 @@ class Branch {
     static hpx_action_t InitLCOs;  ///> Initializes neuronTree
     static int InitLCOs_handler();
   } * branch_tree_;  ///> represents the tree structure (or NULL if none)
-
-  /// Represents variable-time stepping information for CVODES library (if any)
-  algorithms::CvodesAlgorithm::BranchCvodes *cvodes_;
 
   /// map of incoming netcons per pre-synaptic gid
   std::map<neuron_id_t, std::vector<NetconX*> > netcons_;

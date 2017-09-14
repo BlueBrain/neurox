@@ -6,6 +6,12 @@
 
 namespace neurox {
 
+/// forward declarations
+namespace algorithms
+{
+  class NeuronMetadata;
+};
+
 /**
  * @brief The Neuron class
  * Represents the soma structure and outgoing spikes network of a neuron
@@ -58,7 +64,8 @@ class Neuron {
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
-  algorithms::AlgorithmMetadata* algorithm_metadata_;
+  /// Algorithm-dependent metadata
+  algorithms::NeuronMetadata* algorithm_metadata_;
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;

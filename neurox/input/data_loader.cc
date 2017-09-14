@@ -1459,9 +1459,9 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(src_addr, min_delay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params_->algorithm_ == AlgorithmType::kBenchmarkAll ||
+        if (input_params_->algorithm_ == AlgorithmId::kBenchmarkAll ||
             input_params_->algorithm_ ==
-                AlgorithmType::kBackwardEulerTimeDependencyLCO) {
+                AlgorithmId::kBackwardEulerTimeDependencyLCO) {
           spike_time_t notificationTime =
               input_params_->tstart_ +
               min_delay * TimeDependencyLCOAlgorithm::TimeDependencies::

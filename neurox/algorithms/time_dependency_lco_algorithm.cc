@@ -11,11 +11,11 @@ TimeDependencyLCOAlgorithm::TimeDependencyLCOAlgorithm() {}
 
 TimeDependencyLCOAlgorithm::~TimeDependencyLCOAlgorithm() {}
 
-const AlgorithmType TimeDependencyLCOAlgorithm::GetType() {
-  return AlgorithmType::kBackwardEulerTimeDependencyLCO;
+const AlgorithmId TimeDependencyLCOAlgorithm::GetId() {
+  return AlgorithmId::kBackwardEulerTimeDependencyLCO;
 }
 
-const char* TimeDependencyLCOAlgorithm::GetTypeString() {
+const char* TimeDependencyLCOAlgorithm::GetString() {
   return "BackwardEulerTimeDependencyLCO";
 }
 

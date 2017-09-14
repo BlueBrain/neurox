@@ -14,8 +14,8 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
   TimeDependencyLCOAlgorithm();
   ~TimeDependencyLCOAlgorithm();
 
-  const AlgorithmType GetType() override;
-  const char* GetTypeString() override;
+  const AlgorithmId GetId() override;
+  const char* GetString() override;
 
   void Init() override;
   void Clear() override;
@@ -30,7 +30,7 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
                           spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public AlgorithmMetadata {
+  class TimeDependencies : public NeuronMetadata {
    public:
     TimeDependencies();
     ~TimeDependencies();

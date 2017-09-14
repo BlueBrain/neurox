@@ -12,8 +12,8 @@ class CoreneuronAlgorithm : public Algorithm {
   CoreneuronAlgorithm();
   ~CoreneuronAlgorithm();
 
-  const AlgorithmType GetType() override;
-  const char* GetTypeString() override;
+  const AlgorithmId GetId() override;
+  const char* GetString() override;
 
   void Init() override;
   void Clear() override;
@@ -24,7 +24,7 @@ class CoreneuronAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public AlgorithmMetadata {
+  class CommunicationBarrier : public NeuronMetadata {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();

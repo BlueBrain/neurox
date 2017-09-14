@@ -3,27 +3,49 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-Algorithm* Algorithm::New(AlgorithmType type) {
+Algorithm* Algorithm::New(AlgorithmId type) {
   switch (type) {
-    case AlgorithmType::kBackwardEulerDebug:
+    case AlgorithmId::kBackwardEulerDebug:
       return new DebugAlgorithm();
-    case AlgorithmType::kBackwardEulerCoreneuron:
+    case AlgorithmId::kBackwardEulerCoreneuron:
       return new CoreneuronAlgorithm();
-    case AlgorithmType::kBackwardEulerAllReduce:
+    case AlgorithmId::kBackwardEulerAllReduce:
       return new AllreduceAlgorithm();
-    case AlgorithmType::kBackwardEulerSlidingTimeWindow:
+    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
-    case AlgorithmType::kBackwardEulerTimeDependencyLCO:
+    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm();
+    case AlgorithmId::kCvodes:
+      return new CvodesAlgorithm();
     default:
       return nullptr;
   }
   return nullptr;
 };
 
+NeuronMetadata* NeuronMetadata::New(AlgorithmId type) {
+  switch (type) {
+    case AlgorithmId::kBackwardEulerDebug:
+      return new DebugAlgorithm::CommunicationBarrier();
+    case AlgorithmId::kBackwardEulerCoreneuron:
+      return new CoreneuronAlgorithm::CommunicationBarrier();
+    case AlgorithmId::kBackwardEulerAllReduce:
+      return new AllreduceAlgorithm::AllReducesInfo();
+    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
+      return new AllreduceAlgorithm::AllReducesInfo();
+    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
+      return new TimeDependencyLCOAlgorithm::TimeDependencies();
+    case AlgorithmId::kCvodes:
+      return new CvodesAlgorithm::BranchCvodes();
+    default:
+      return nullptr;
+  }
+  return nullptr;
+}
+
 void Algorithm::PrintStartInfo() {
   printf("neurox::Algorithm::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
-         GetTypeString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
+         GetString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
          input_params_->dt_);
   fflush(stdout);
 }

@@ -27,8 +27,8 @@ class CvodesAlgorithm : public Algorithm {
   CvodesAlgorithm();
   ~CvodesAlgorithm();
 
-  const AlgorithmType GetType() override;
-  const char* GetTypeString() override;
+  const AlgorithmId GetId() override;
+  const char* GetString() override;
 
   void Init() override;
   void Clear() override;
@@ -39,15 +39,12 @@ class CvodesAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CvodesInfo : public AlgorithmMetadata {
-   public:
-    CvodesInfo();
-    ~CvodesInfo();
-  };
-
-  class BranchCvodes
+  class BranchCvodes : public NeuronMetadata
   {
     public:
+
+      BranchCvodes();
+      ~BranchCvodes();
 
       typedef struct {
         realtype *p; //size kNumEquations
