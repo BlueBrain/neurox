@@ -346,19 +346,23 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     while(local->nt_->_t < input_params_->tstop_)
     {
       //get tout i.e. max time of next step
-      hpx_lco_sema_p(branch->events_queue_mutex_);
+      hpx_lco_sema_p(local->events_queue_mutex_);
       if (!local->events_queue_.empty())
-          tout = branch->events_queue_.top().first;
+          tout = local->events_queue_.top().first;
       else
           tout = input_params_->tstop_;
       hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
       //call CVODE method: take internal steps until it has
       //reached or just passed tout; update t;
-      flag = CVode(branch_cv->cvodes_mem_, tout, branch_cv->y_, &branch->nt_->_t, CV_NORMAL);
+      flag = CVode(branch_cv->cvodes_mem_, tout, branch_cv->y_, &local->nt_->_t, CV_NORMAL);
 
-      printf("At t = %0.4e      V =%14.6e  %14.6e  %14.6e\n",
-             t, NV_Ith_S(y,0), NV_Ith_S(y,1), NV_Ith_S(y,2));
+      printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
+             local->nt_->_t,
+             NV_Ith_S(branch_cv->y_,0),
+             NV_Ith_S(branch_cv->y_,1),
+              NV_Ith_S(branch_cv->y_,2)
+             );
 
       if(flag==CV_ROOT_RETURN)
       {
