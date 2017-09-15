@@ -49,8 +49,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *user_data)
 {
     Branch * b = (Branch*) user_data;
-    //int thvar_offset = b->thvar_ptr_ - b->nt_->_data;
-    //realtype v = NV_Ith_S(y,thvar_offset);
     realtype v = *b->thvar_ptr_;
 
     //How it works: when gout[x] is zero, a root is found
@@ -364,15 +362,27 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
               NV_Ith_S(branch_cv->y_,2)
              );
 
+      //CVODE succeeded and found 1 or more roots
       if(flag==CV_ROOT_RETURN)
       {
         //CVode succeeded, and found one or more roots.
-        //If nrtfn > 1, call CVodeGetRootInfo to see
-        //which g_i were found to have a root at (*tret).
-
+        //If nrtfn > 1, call CVodeGetRootInfo to see which
+        //root_function index (+/- 1) crossed one of the roots.
        flag = CVodeGetRootInfo(cvodes_mem, roots_found);
        assert(flag==CV_SUCCESS);
-       printf(" rootsfound[0]=%d; rootsfound[1]=%d;\n", roots_found[0], roots_found[1]);
+       assert(roots_found[0]!=0); //AP threshold reached
+       assert(roots_found[1]==0); //can't be found or V too high
+       assert(roots_found[2]==0); //can't be found or V too low
+
+       printf(" rootsfound[0]=%d; rootsfound[1]=%d; rootsfound[2]=%d;\n",
+            roots_found[0], roots_found[1], roots_found[2]);
+
+       //positive (negative) root value means value is increasing (decreasing)
+       if (roots_found[0] > 0) //AP threshold reached from below
+       {
+
+       }
+
 
       }
 
