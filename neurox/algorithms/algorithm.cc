@@ -23,7 +23,7 @@ Algorithm* Algorithm::New(AlgorithmId type) {
   return nullptr;
 };
 
-NeuronMetadata* NeuronMetadata::New(AlgorithmId type) {
+AlgorithmMetadata* AlgorithmMetadata::New(AlgorithmId type) {
   switch (type) {
     case AlgorithmId::kBackwardEulerDebug:
       return new DebugAlgorithm::CommunicationBarrier();

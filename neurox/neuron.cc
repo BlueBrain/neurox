@@ -13,7 +13,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->algorithm_metadata_ = NeuronMetadata::New(input_params_->algorithm_);
+  this->algorithm_metadata_ = AlgorithmMetadata::New(input_params_->algorithm_);
   assert(this->algorithm_metadata_ != nullptr);
   assert(
       TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio >

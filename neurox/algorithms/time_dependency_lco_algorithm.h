@@ -30,7 +30,7 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
                           spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public NeuronMetadata {
+  class TimeDependencies : public AlgorithmMetadata {
    public:
     TimeDependencies();
     ~TimeDependencies();

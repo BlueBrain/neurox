@@ -19,12 +19,16 @@ const char* CvodesAlgorithm::GetString() {
 /// f routine to compute y' = f(t,y).
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-    Branch * b = (Branch*) user_data;
-    b->DeliverEvents(b->nt_->_t);
-    b->FixedPlayContinuous();
-    //Reminder: Current calculates RHS and G;
+    Branch * branch = (Branch*) user_data;
 
-    b->CallModFunction(Mechanism::ModFunctions::kCurrent);
+    //TODO this should know next event data and cause break of solution (discontinuity)
+    //TODO deliver one or many events?
+    branch->DeliverEvents(branch->nt_->_t);
+
+    //No discontinuities: only sets vecplay->*pd for next discont. event
+    branch->FixedPlayContinuous();
+
+    branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
     //TODO this is an exception
     //b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
@@ -62,7 +66,6 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
                N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
-    //TODO;
     assert(0);
     return(0);
 }
@@ -213,13 +216,13 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
 
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :cvode_mem_(nullptr)
+    :cvodes_mem_(nullptr)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
 {
     N_VDestroy_Serial(y_); /* Free y vector */
-    CVodeFree(&cvode_mem_); /* Free integrator memory */
+    CVodeFree(&cvodes_mem_); /* Free integrator memory */
 }
 
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
@@ -230,7 +233,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
     N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
     N_Vector y = branch_cvodes->y_;
-    void * cvode_mem = branch_cvodes->cvode_mem_;
+    void * cvode_mem = branch_cvodes->cvodes_mem_;
 
     int flag = CV_ERR_FAILURE;
 
@@ -325,20 +328,36 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-    N_Vector y = branch_cvodes->y_;
-    void * cvode_mem = branch_cvodes->cvode_mem_;
-    floble_t t = local->nt_->_t;
 
-    realtype tout = 0.4;
-    int rootsfound[2];
+
+#ifdef NDEBUG
+    int roots_count = 1; //AP threshold
+#else
+    int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
+#endif
+    int roots_found[roots_count];
+    int iterations = branch_cvodes->iterations_count_;
+    void * cvodes_mem = branch_cvodes->cvodes_mem_;
     int flag=0;
-    int iteration=0;
-    while(1) {
-      // call CVODE method
-      // the CV_NORMAL task is to have the solver take internal steps until
-      // it has reached or just passed the user specified tout parameter.
-      flag = CVode(cvode_mem, tout, y, &t, CV_NORMAL);
-      printf("At t = %0.4e      y =%14.6e  %14.6e  %14.6e\n",
+    realtype tout = 0;
+
+    BranchCvodes * branch_cv = (BranchCvodes*) local->soma_->algorithm_metadata_;
+
+    while(local->nt_->_t < input_params_->tstop_)
+    {
+      //get tout i.e. max time of next step
+      hpx_lco_sema_p(branch->events_queue_mutex_);
+      if (!local->events_queue_.empty())
+          tout = branch->events_queue_.top().first;
+      else
+          tout = input_params_->tstop_;
+      hpx_lco_sema_v_sync(local->events_queue_mutex_);
+
+      //call CVODE method: take internal steps until it has
+      //reached or just passed tout; update t;
+      flag = CVode(branch_cv->cvodes_mem_, tout, branch_cv->y_, &branch->nt_->_t, CV_NORMAL);
+
+      printf("At t = %0.4e      V =%14.6e  %14.6e  %14.6e\n",
              t, NV_Ith_S(y,0), NV_Ith_S(y,1), NV_Ith_S(y,2));
 
       if(flag==CV_ROOT_RETURN)
@@ -347,20 +366,20 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
         //If nrtfn > 1, call CVodeGetRootInfo to see
         //which g_i were found to have a root at (*tret).
 
-       flag = CVodeGetRootInfo(cvode_mem, rootsfound);
+       flag = CVodeGetRootInfo(cvodes_mem, roots_found);
        assert(flag==CV_SUCCESS);
-       printf(" rootsfound[0]=%d; rootsfound[1]=%d;\n", rootsfound[0], rootsfound[1]);
+       printf(" rootsfound[0]=%d; rootsfound[1]=%d;\n", roots_found[0], roots_found[1]);
 
       }
 
       if (flag>0) break;
 
       if (flag == CV_SUCCESS) {
-        iteration++;
+        iterations++;
         tout *= 10; //output time factor
       }
 
-      if (iteration == 12) break; //number of output times
+      if (iterations == 12) break; //number of output times
     }
 
     /* Print some final statistics */
@@ -376,7 +395,7 @@ int CvodesAlgorithm::BranchCvodes::Clear_handler()
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
 
     N_VDestroy_Serial(branch_cvodes->y_);  /* Free y vector */
-    CVodeFree(&branch_cvodes->cvode_mem_); /* Free integrator memory */
+    CVodeFree(&branch_cvodes->cvodes_mem_); /* Free integrator memory */
     return neurox::wrappers::MemoryUnpin(target);
 }
 

@@ -25,10 +25,10 @@ enum class AlgorithmId : int {
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
-class NeuronMetadata{
+class AlgorithmMetadata{
   public:
     /// Returns an instantiated metadata for the algorithm of given type
-    static NeuronMetadata* New(AlgorithmId);
+    static AlgorithmMetadata* New(AlgorithmId);
 };
 
 /**

@@ -39,7 +39,7 @@ class CvodesAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class BranchCvodes : public NeuronMetadata
+  class BranchCvodes : public AlgorithmMetadata
   {
     public:
 
@@ -52,7 +52,11 @@ class CvodesAlgorithm : public Algorithm {
       /// Initial values (voltages)
       N_Vector y_;
 
-      void *cvode_mem_;
+      /// CVODES structure
+      void *cvodes_mem_;
+
+      /// number of CVODES iterations
+      unsigned iterations_count_;
 
       static void RegisterHpxActions();
 

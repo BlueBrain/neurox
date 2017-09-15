@@ -9,7 +9,7 @@ namespace neurox {
 /// forward declarations
 namespace algorithms
 {
-  class NeuronMetadata;
+  class AlgorithmMetadata;
 };
 
 /**
@@ -65,7 +65,7 @@ class Neuron {
   size_t GetSynapsesCount();
 
   /// Algorithm-dependent metadata
-  algorithms::NeuronMetadata* algorithm_metadata_;
+  algorithms::AlgorithmMetadata* algorithm_metadata_;
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
