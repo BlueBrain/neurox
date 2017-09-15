@@ -36,10 +36,10 @@ int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
 {
     Branch * b = (Branch*) user_data;
-    int thvar_index = b->thvar_ptr_ - b->nt_->_actual_v;
-    realtype v = NV_Ith_S(y,thvar_index);
+    int thvar_offset = b->thvar_ptr_ - b->nt_->_data;
+    realtype v = NV_Ith_S(y,thvar_offset);
 
-    //if (when gout[x] is zero, a root was found)
+    //How it works: when gout[x] is zero, a root is found
     gout[0] = v - b->soma_->threshold_; //AP threshold reached
 #ifndef NDEBUG
     gout[1] = v - 30; //Debug: reached   50 mV (too high)
