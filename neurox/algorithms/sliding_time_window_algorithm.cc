@@ -57,7 +57,7 @@ void SlidingTimeWindowAlgorithm::Run(Branch* b, const void* args) {
   AllreduceAlgorithm::Run2(b, args);
 }
 
-hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* neuron, double tt,
+hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* n, double tt,
                                              double) {
-  return AllreduceAlgorithm::SendSpikes2(neuron, tt);
+  return Neuron::SendSpikesAsync(n, tt);
 }

@@ -53,8 +53,8 @@ void AllreduceAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
 
 void AllreduceAlgorithm::Run(Branch* b, const void* args) { Run2(b, args); }
 
-hpx_t AllreduceAlgorithm::SendSpikes(Neuron* b, double tt, double) {
-  return SendSpikes2(b, tt);
+hpx_t AllreduceAlgorithm::SendSpikes(Neuron* n, double tt, double) {
+  return Neuron::SendSpikesAsync(n, tt);
 }
 
 void AllreduceAlgorithm::SubscribeAllReduces(hpx_t*& allreduces,
@@ -116,14 +116,6 @@ void AllreduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
       hpx_lco_delete_sync(queued_spikes_lco);
     }
   }
-}
-
-hpx_t AllreduceAlgorithm::SendSpikes2(Neuron* neuron, double tt) {
-  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
-  for (Neuron::Synapse*& s : neuron->synapses_)
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, new_synapses_lco,
-             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  return new_synapses_lco;
 }
 
 void AllreduceAlgorithm::Run2(Branch* b, const void* args) {

@@ -206,7 +206,8 @@ void CvodesAlgorithm::Run(Branch* b, const void* args)
 
 }
 
-hpx_t CvodesAlgorithm::SendSpikes(Neuron* b, double tt, double) {
+hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
+    return Neuron::SendSpikesAsync(n, tt);
 }
 
 
@@ -339,6 +340,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     int flag=0;
     realtype tout = 0;
 
+    hpx_t spikes_lco = HPX_NULL;
     BranchCvodes * branch_cv = (BranchCvodes*) local->soma_->algorithm_metadata_;
 
     while(local->nt_->_t < input_params_->tstop_)
@@ -365,21 +367,22 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       //CVODE succeeded and found 1 or more roots
       if(flag==CV_ROOT_RETURN)
       {
-        //CVode succeeded, and found one or more roots.
-        //If nrtfn > 1, call CVodeGetRootInfo to see which
-        //root_function index (+/- 1) crossed one of the roots.
+        //CVode succeeded, and found roots
+        //(+1 value ascending, -1 valued descending)
        flag = CVodeGetRootInfo(cvodes_mem, roots_found);
        assert(flag==CV_SUCCESS);
        assert(roots_found[0]!=0); //AP threshold reached
+#ifndef NDEBUG
        assert(roots_found[1]==0); //can't be found or V too high
        assert(roots_found[2]==0); //can't be found or V too low
+#endif
 
        printf(" rootsfound[0]=%d; rootsfound[1]=%d; rootsfound[2]=%d;\n",
             roots_found[0], roots_found[1], roots_found[2]);
 
-       //positive (negative) root value means value is increasing (decreasing)
        if (roots_found[0] > 0) //AP threshold reached from below
        {
+           spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
 
        }
 

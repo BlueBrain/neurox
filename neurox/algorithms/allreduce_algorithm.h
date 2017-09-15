@@ -28,7 +28,6 @@ class AllreduceAlgorithm : public Algorithm {
   static void UnsubscribeAllReduces(hpx_t*& allreduces,
                                     size_t allreduces_count);
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
-  static hpx_t SendSpikes2(Neuron*, double);
   static void Run2(Branch*, const void*);
 
   const size_t kAllReducesCount = 1;

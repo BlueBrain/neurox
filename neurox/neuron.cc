@@ -94,3 +94,11 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   if (synapses_.size() == 0) return HPX_NULL;
   return algorithm_->SendSpikes(this, tt, t);
 }
+
+hpx_t Neuron::SendSpikesAsync(Neuron* neuron, double tt) {
+  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
+  for (Neuron::Synapse*& s : neuron->synapses_)
+    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, new_synapses_lco,
+             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+  return new_synapses_lco;
+}
