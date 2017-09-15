@@ -728,14 +728,13 @@ void Branch::SetupTreeMatrix() {
   solver::HinesSolver::SetupMatrixRHS(this);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
-  // multiplication
-  // calculate left hand side of
+  // multiplication. calculate left hand side of
   // cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
   // cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
   // with a matrix so that the solution is of the form [dvm+dvx,dvx] on the
-  // right
-  // hand side after solving.
+  // right hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
+  // (TODO: Not used for BackwardEuler)
   this->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs

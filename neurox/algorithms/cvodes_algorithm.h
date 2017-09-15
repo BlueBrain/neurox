@@ -71,10 +71,10 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kRelativeTolerance = 1e-3;
 
   /// function defining the right-hand side function in y' = f(t,y).
-  static int F(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
+  static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
 
   /// g root function to compute g_i(t,y)
-  static int G(realtype t, N_Vector y_, realtype *gout, void *user_data);
+  static int RootFunction(realtype t, N_Vector y_, realtype *gout, void *user_data);
 
   /// jacobian: compute J(t,y)
   static int JacobianSparseMatrix(
@@ -83,7 +83,7 @@ class CvodesAlgorithm : public Algorithm {
           N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
   /// jacobian: compute J(t,y)
-  static int JacobianDenseMatrix(long int N, floble_t t,
+  static int JacobianDenseFunction(long int N, floble_t t,
                       N_Vector y_, N_Vector fy,
                       DlsMat J, void *user_data,
                       N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);

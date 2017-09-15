@@ -17,9 +17,18 @@ const char* CvodesAlgorithm::GetString() {
 
 
 /// f routine to compute y' = f(t,y).
-int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * b = (Branch*) user_data;
+    b->DeliverEvents(b->nt_->_t);
+    b->FixedPlayContinuous();
+    //Reminder: Current calculates RHS and G;
+
+    b->CallModFunction(Mechanism::ModFunctions::kCurrent);
+    //TODO this is an exception
+    //b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
+
+   // double a = _vec_shadow[i]; //computed by current functions
 
     realtype y1, y2, y3, yd1, yd3;
 
@@ -33,11 +42,12 @@ int CvodesAlgorithm::F(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 }
 
 /// g root function to compute g_i(t,y) .
-int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
+int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *user_data)
 {
     Branch * b = (Branch*) user_data;
-    int thvar_offset = b->thvar_ptr_ - b->nt_->_data;
-    realtype v = NV_Ith_S(y,thvar_offset);
+    //int thvar_offset = b->thvar_ptr_ - b->nt_->_data;
+    //realtype v = NV_Ith_S(y,thvar_offset);
+    realtype v = *b->thvar_ptr_;
 
     //How it works: when gout[x] is zero, a root is found
     gout[0] = v - b->soma_->threshold_; //AP threshold reached
@@ -48,58 +58,87 @@ int CvodesAlgorithm::G(realtype t, N_Vector y, realtype *gout, void *user_data)
     return 0;
 }
 
-//jacobian routine: compute J(t,y) = df/dy
 int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
                N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
                N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
-  realtype *yval;
-  int *colptrs = *JacMat->colptrs;
-  int *rowvals = *JacMat->rowvals;
+    //TODO;
+    assert(0);
+    return(0);
+}
 
-  yval = N_VGetArrayPointer_Serial(y);
-
-  SparseSetMatToZero(JacMat);
-
-  colptrs[0] = 0;
-  colptrs[1] = 3;
-  colptrs[2] = 6;
-  colptrs[3] = 9;
-
-  JacMat->data[0] = RCONST(-0.04);
-  rowvals[0] = 0;
-  JacMat->data[1] = RCONST(0.04);
-  rowvals[1] = 1;
-  JacMat->data[2] = 0.0;
-  rowvals[2] = 2;
-
-  JacMat->data[3] = RCONST(1.0e4)*yval[2];
-  rowvals[3] = 0;
-  JacMat->data[4] = (RCONST(-1.0e4)*yval[2]) - (RCONST(6.0e7)*yval[1]);
-  rowvals[4] = 1;
-  JacMat->data[5] = RCONST(6.0e7)*yval[1];
-  rowvals[5] = 2;
-
-  JacMat->data[6] = RCONST(1.0e4)*yval[1];
-  rowvals[6] = 0;
-  JacMat->data[7] = RCONST(-1.0e4)*yval[1];
-  rowvals[7] = 1;
-  JacMat->data[8] = 0;
-  rowvals[8] = 2;
-
-  return(0);
+double get_g()
+{
+    return 0.0;
 }
 
 //jacobian routine: compute J(t,y) = df/dy
-int CvodesAlgorithm::JacobianDenseMatrix(long int N, realtype t,
-               N_Vector y, N_Vector fy,
-               DlsMat J, void *user_data,
-               N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
+int CvodesAlgorithm::JacobianDenseFunction(
+        long int N, realtype t,
+        N_Vector y, N_Vector fy,
+        DlsMat J, void *user_data,
+        N_Vector, N_Vector, N_Vector)
 {
     realtype y1, y2, y3;
+    Branch * branch = (Branch*) user_data;
+    realtype * ydata = N_VGetArrayPointer_Serial(y);
+    assert(ydata==branch->nt_->_data);
+    assert(N==branch->nt_->_ndata);
+    assert(t==branch->nt_->_t);
+
+    //Jacobian for nt->data includes
+    //dV_0/dt, ..., dV_n/dt, i_0, i_1, ..., i_n
+    //constants have jacobi=0
+    //currents have jacobi=g (given by nrn_jacob)
+
+    //CVODES guide: must load NxN matrix J with the approximation
+    //of Jacobian J(t,y) at point (t,y)
+
+
+    realtype ** jacob = J->cols;
+    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
+    realtype ** jacob_v = &jacob[v_offset];
+
+    //TODO we can just set 'dt' to 1
+    //Scale derivatives to a one time-unit size
+    const realtype rev_dt = input_params_->rev_dt_;
+
+    //add parent/children compartments currents to C*dV/dt
+    //add rhs: includes all other currents
+    int compartments_count = branch->nt_->end;
+    realtype *a = branch->nt_->_actual_a ;
+    realtype *b = branch->nt_->_actual_b ;
+    realtype *rhs = branch->nt_->_actual_rhs ;
+
+    for (int c=0; c<compartments_count; c++)
+       jacob_v[c][0] += a[c]*rev_dt;
+
+    for (int c=0; c<compartments_count; c++)
+       jacob_v[c][0] += b[c]*rev_dt;
+
+    for (int c=0; c<compartments_count; c++)
+       jacob_v[c][0] += rhs[c]*rev_dt;
+
+    int compartment_id=-1;
+    int g_index=-1;
+    Memb_list * mech_instances= nullptr;
+    for (int m=0; m<mechanisms_count_; m++)
+    {
+        mech_instances = &branch->mechs_instances_[m];
+        for (int i=0; i<mech_instances->nodecount; b++)
+        {
+          compartment_id=mech_instances->nodeindices[i];
+
+          //updates the main current functions dV/dt
+          jacob_v[compartment_id][i] += get_g()*rev_dt; // g == di/dV
+
+          //update di/dV
+
+          //update rhs?
+        }
+    }
 
     y1 = NV_Ith_S(y,0); y2 = NV_Ith_S(y,1); y3 = NV_Ith_S(y,3);
-
     DENSE_ELEM(J,0,0) = RCONST(-0.04);
     DENSE_ELEM(J,0,1) = RCONST(1.0e4)*y3;
     DENSE_ELEM(J,0,2) = RCONST(1.0e4)*y2;
@@ -213,7 +252,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
     //CVodeInit allocates and initializes memory for a problem
-    flag = CVodeInit(cvode_mem, CvodesAlgorithm::F, 0.0 /*initial time*/, y);
+    flag = CVodeInit(cvode_mem, CvodesAlgorithm::RHSFunction, 0.0 /*initial time*/, y);
     assert(flag==CV_SUCCESS);
 
     //specify integration tolerances. MUST be called before CVode.
@@ -230,7 +269,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 #else
     int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
 #endif
-    flag = CVodeRootInit(cvode_mem, roots_count, CvodesAlgorithm::G);
+    flag = CVodeRootInit(cvode_mem, roots_count, CvodesAlgorithm::RootFunction);
     assert(flag==CV_SUCCESS);
 
     //initializes the memory record and sets various function
@@ -262,7 +301,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
       assert(flag==CV_SUCCESS);
 
       //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-      flag = CVDlsSetDenseJacFn(cvode_mem, CvodesAlgorithm::JacobianDenseMatrix);
+      flag = CVDlsSetDenseJacFn(cvode_mem, CvodesAlgorithm::JacobianDenseFunction);
       assert(flag==CV_SUCCESS);
     }
 
