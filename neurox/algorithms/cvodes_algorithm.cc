@@ -150,25 +150,17 @@ int CvodesAlgorithm::JacobianDenseFunction(
 
 
 void CvodesAlgorithm::Init() {
-    if (input_params_->allreduce_at_locality_)
-      { assert(0); }
-    else
-      neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
+  BranchCvodes::min_step_size_ = input_params_->dt_;
+  neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
 }
 
 void CvodesAlgorithm::Clear() {
-    if (input_params_->allreduce_at_locality_)
-      { assert(0); }
-    else
-        neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Clear);
+  neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Clear);
 }
 
 double CvodesAlgorithm::Launch() {
     hpx_time_t now = hpx_time_now();
-    if (input_params_->allreduce_at_locality_)
-      { assert(0); }
-    else
-      neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Run);
+    neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Run);
     return hpx_time_elapsed_ms(now) / 1e3;
 }
 

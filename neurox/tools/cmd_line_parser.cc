@@ -156,8 +156,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->algorithm_ = (algorithms::AlgorithmId)algorithm.getValue();
     neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
-    neurox::algorithms::CvodesAlgorithm::BranchCvodes::min_step_size_
-            = this->dt_;
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
