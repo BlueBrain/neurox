@@ -725,7 +725,6 @@ void Branch::SetupTreeMatrix() {
 
   this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   this->CallModFunction(Mechanism::ModFunctions::kCurrent);
-
   solver::HinesSolver::SetupMatrixRHS(this);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector

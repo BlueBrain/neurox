@@ -18,26 +18,55 @@ const char* CvodesAlgorithm::GetString() {
 }
 
 
-/// f routine to compute y' = f(t,y).
+/// f routine to compute f(t,y), i.e. compute new values of nt->data
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
 
+
+    ////// From HinesSolver::SetupTreeMatrix ///////
+
+    // Resets RHS an dD
+    solver::HinesSolver::ResetMatrixRHSandD(branch);
+
+    // current sums i and didv to parent ion, and adds contribnutions to RHS and D
     branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
-    //TODO this is an exception
-    //b->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
-   // double a = _vec_shadow[i]; //computed by current functions
+    //add parent and children currents (A*dv and B*dv) to RHS
+    solver::HinesSolver::SetupMatrixRHS(branch);
 
-    realtype y1, y2, y3, yd1, yd3;
+    //update positions holding jacobians (does nothing so far)
+    branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+    //(so far only calls nrn_jacob_capacitance, which sums contributions to D)
+    branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
-    y1 = NV_Ith_S(y,0); y2 = NV_Ith_S(y,1); y3 = NV_Ith_S(y,2);
+    //add parent and children currents (A and B) to D
+    solver::HinesSolver::SetupMatrixDiagonal(branch);
 
-    yd1 = NV_Ith_S(ydot,0) = RCONST(-0.04)*y1 + RCONST(1.0e4)*y2*y3;
-    yd3 = NV_Ith_S(ydot,2) = RCONST(3.0e7)*y2*y2;
-          NV_Ith_S(ydot,1) = -yd1 - yd3;
 
-    return(0);
+    ////// From HinesSolver::SolveTreeMatrix ///////
+
+    //Gaussian Elimination (sets RHS)
+    branch->SolveTreeMatrix();
+
+
+    ////// From eion.c::second_order_cur ///////
+
+    //updates ionic currents as rhs*didv from the children
+    second_order_cur(branch->nt_, input_params_->second_order_);
+
+
+    ////// From HinesSolver::UpdateV ///////
+
+    // v[i] += second_order_multiplier * rhs[i];
+    solver::HinesSolver::UpdateV(branch);
+
+
+    ////// From main loop - call state function
+
+    branch->CallModFunction(Mechanism::ModFunctions::kState);
+
+    return 0;
 }
 
 /// g root function to compute g_i(t,y) .
