@@ -61,6 +61,9 @@ class CvodesAlgorithm : public Algorithm {
       /// minimum step size
       static double min_step_size_;
 
+      /// number of equations/vars in the system of ODEs
+      static int equations_count_;
+
       static void RegisterHpxActions();
 
       static hpx_action_t Init;

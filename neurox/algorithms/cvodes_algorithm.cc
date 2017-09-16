@@ -4,6 +4,7 @@ using namespace neurox;
 using namespace neurox::algorithms;
 
 double CvodesAlgorithm::BranchCvodes::min_step_size_ = -1;
+int CvodesAlgorithm::BranchCvodes::equations_count_ = -1;
 
 CvodesAlgorithm::CvodesAlgorithm(){}
 
@@ -23,7 +24,10 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 {
     Branch * branch = (Branch*) user_data;
     assert(t == branch->nt_->_t);
-    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot) == branch->nt_->_ndata);
+    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot) == CvodesAlgorithm::BranchCvodes::equations_count_);
+
+    //TODO weights should be moved also to data!
+    branch->nt_->weights;
 
     //changes have to be made in ydot, y is the state at the previous step
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
@@ -115,7 +119,7 @@ int CvodesAlgorithm::JacobianDenseFunction(
     Branch * branch = (Branch*) user_data;
     realtype * ydata = N_VGetArrayPointer_Serial(y);
     assert(ydata==branch->nt_->_data);
-    assert(N==branch->nt_->_ndata);
+    assert(N==CvodesAlgorithm::BranchCvodes::equations_count_);
     assert(t==branch->nt_->_t);
 
     //Jacobian for nt->data includes
@@ -221,7 +225,6 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 
 //////////////////////////// BranchCvodes /////////////////////////
 
-
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
     :cvodes_mem_(nullptr), iterations_count_(0)
 {}
@@ -245,7 +248,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int flag = CV_ERR_FAILURE;
 
     //equations: one per vdata (some will be constants, with jacobian=0)
-    int num_equations = local->nt_->_ndata;
+    int num_equations = CvodesAlgorithm::BranchCvodes::equations_count_;
 
     //create serial vector for y
     //TODO guide page 157, we can have mem-protected N_Vectors
@@ -400,9 +403,7 @@ int CvodesAlgorithm::BranchCvodes::Clear_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-
-    N_VDestroy_Serial(branch_cvodes->y_);  /* Free y vector */
-    CVodeFree(&branch_cvodes->cvodes_mem_); /* Free integrator memory */
+    branch_cvodes->~BranchCvodes();
     return neurox::wrappers::MemoryUnpin(target);
 }
 
