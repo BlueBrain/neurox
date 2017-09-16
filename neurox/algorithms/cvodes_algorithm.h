@@ -58,6 +58,9 @@ class CvodesAlgorithm : public Algorithm {
       /// number of CVODES iterations
       unsigned iterations_count_;
 
+      /// minimum step size
+      static double min_step_size_;
+
       static void RegisterHpxActions();
 
       static hpx_action_t Init;
@@ -91,15 +94,6 @@ class CvodesAlgorithm : public Algorithm {
                       N_Vector y_, N_Vector fy,
                       DlsMat J, void *user_data,
                       N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
-
-  /// resets the integrator at time t (NEURON book page 173)
-  static void Initialize(Branch * b, floble_t t);
-
-  /// performs an integration step to a new time t, and returns t (NEURON book page 173)
-  static floble_t Advance(Branch *b);
-
-  /// integration step that returns before next discontinuity event (NEURON book page 173)
-  static floble_t Interpolate(Branch *b);
 
 };
 

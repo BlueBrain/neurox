@@ -25,7 +25,7 @@ class SlidingTimeWindowAlgorithm : public Algorithm {
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   const size_t kAllReducesCount = 2;
-  static hpx_t* allreduces;
+  static hpx_t* allreduces_;
 
  private:
 };

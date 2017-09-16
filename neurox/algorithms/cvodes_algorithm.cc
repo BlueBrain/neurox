@@ -3,6 +3,8 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
+double CvodesAlgorithm::BranchCvodes::min_step_size_ = -1;
+
 CvodesAlgorithm::CvodesAlgorithm(){}
 
 CvodesAlgorithm::~CvodesAlgorithm() {}
@@ -20,13 +22,6 @@ const char* CvodesAlgorithm::GetString() {
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
-
-    //TODO this should know next event data and cause break of solution (discontinuity)
-    //TODO deliver one or many events?
-    branch->DeliverEvents(branch->nt_->_t);
-
-    //No discontinuities: only sets vecplay->*pd for next discont. event
-    branch->FixedPlayContinuous();
 
     branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
     //TODO this is an exception
@@ -151,23 +146,8 @@ int CvodesAlgorithm::JacobianDenseFunction(
     return(0);
 }
 
-/// resets the integrator at time t (NEURON book page 173)
-void CvodesAlgorithm::Initialize(Branch * b, floble_t t)
-{
-    return;
-}
+/////////////////////// Algorithm abstract class ////////////////////////
 
-/// performs an integration step to a new time t, and returns t (NEURON book page 173)
-floble_t CvodesAlgorithm::Advance(Branch *b)
-{
-    return 0;
-}
-
-/// integration step that returns before next discontinuity event (NEURON book page 173)
-floble_t CvodesAlgorithm::Interpolate(Branch *b)
-{
-    return 0;
-}
 
 void CvodesAlgorithm::Init() {
     if (input_params_->allreduce_at_locality_)
@@ -193,10 +173,10 @@ double CvodesAlgorithm::Launch() {
 }
 
 
+void CvodesAlgorithm::StepBegin(Branch*)
+{
 
-/////////////////////// Algorithm abstract class ////////////////////////
-
-void CvodesAlgorithm::StepBegin(Branch*) {}
+}
 
 void CvodesAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
 }
@@ -215,7 +195,7 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :cvodes_mem_(nullptr)
+    :cvodes_mem_(nullptr), iterations_count_(0)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
@@ -307,10 +287,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
       assert(flag==CV_SUCCESS);
     }
 
-
     //TODO added Bruno (see cvs_guide.pdf page 43)
-    CVodeSetInitStep(cvode_mem, input_params_->dt_);
-    CVodeSetMinStep(cvode_mem, input_params_->dt_);
+    CVodeSetInitStep(cvode_mem, min_step_size_);
+    CVodeSetMinStep(cvode_mem, min_step_size_);
     CVodeSetMaxStep(cvode_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
     CVodeSetStopTime(cvode_mem, input_params_->tstop_);
     CVodeSetMaxOrd(cvode_mem, 5); //max order of the BDF method
@@ -327,7 +306,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-
+    void * cvodes_mem = branch_cvodes->cvodes_mem_;
 
 #ifdef NDEBUG
     int roots_count = 1; //AP threshold
@@ -335,13 +314,11 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
 #endif
     int roots_found[roots_count];
-    int iterations = branch_cvodes->iterations_count_;
-    void * cvodes_mem = branch_cvodes->cvodes_mem_;
+
     int flag=0;
     realtype tout = 0;
-
     hpx_t spikes_lco = HPX_NULL;
-    BranchCvodes * branch_cv = (BranchCvodes*) local->soma_->algorithm_metadata_;
+    TimedEvent * top_event = nullptr;
 
     while(local->nt_->_t < input_params_->tstop_)
     {
@@ -349,54 +326,48 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       hpx_lco_sema_p(local->events_queue_mutex_);
       if (!local->events_queue_.empty())
           tout = local->events_queue_.top().first;
-      else
-          tout = input_params_->tstop_;
       hpx_lco_sema_v_sync(local->events_queue_mutex_);
+
+      //time of next step
+      tout = std::min(input_params_->tstop_, tout);
 
       //call CVODE method: take internal steps until it has
       //reached or just passed tout; update t;
-      flag = CVode(branch_cv->cvodes_mem_, tout, branch_cv->y_, &local->nt_->_t, CV_NORMAL);
+      //TODO can it walk backwards for missed event?
+      flag = CVode(branch_cvodes->cvodes_mem_, tout,
+                   branch_cvodes->y_, &local->nt_->_t, CV_NORMAL);
 
       printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
-             local->nt_->_t,
-             NV_Ith_S(branch_cv->y_,0),
-             NV_Ith_S(branch_cv->y_,1),
-              NV_Ith_S(branch_cv->y_,2)
-             );
+             local->nt_->_t, NV_Ith_S(branch_cvodes->y_,0),
+             NV_Ith_S(branch_cvodes->y_,1), NV_Ith_S(branch_cvodes->y_,2));
 
-      //CVODE succeeded and found 1 or more roots
-      if(flag==CV_ROOT_RETURN)
+      if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
         //CVode succeeded, and found roots
         //(+1 value ascending, -1 valued descending)
        flag = CVodeGetRootInfo(cvodes_mem, roots_found);
        assert(flag==CV_SUCCESS);
-       assert(roots_found[0]!=0); //AP threshold reached
+       assert(roots_found[0]!=0); //only possible root: AP threshold reached
 #ifndef NDEBUG
-       assert(roots_found[1]==0); //can't be found or V too high
-       assert(roots_found[2]==0); //can't be found or V too low
+       assert(roots_found[1]==0); //root can't be found or V too high
+       assert(roots_found[2]==0); //root can't be found or V too low
 #endif
-
-       printf(" rootsfound[0]=%d; rootsfound[1]=%d; rootsfound[2]=%d;\n",
-            roots_found[0], roots_found[1], roots_found[2]);
-
+       //if root is found, integrator time is at time of root!
        if (roots_found[0] > 0) //AP threshold reached from below
        {
+           //TODO
+           //use several hpx-all reduce to mark performance?
            spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
-
        }
-
-
       }
+      else if (flag == CV_SUCCESS)
+        branch_cvodes->iterations_count_++;
 
-      if (flag>0) break;
+      //delivers all events whithin the next min step size
+      local->DeliverEvents(local->nt_->_t + min_step_size_);
 
-      if (flag == CV_SUCCESS) {
-        iterations++;
-        tout *= 10; //output time factor
-      }
-
-      if (iterations == 12) break; //number of output times
+      //No discontinuities: only sets vecplay->*pd for next discont. event
+      local->FixedPlayContinuous();
     }
 
     /* Print some final statistics */

@@ -3,7 +3,7 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-hpx_t* SlidingTimeWindowAlgorithm::allreduces = nullptr;
+hpx_t* SlidingTimeWindowAlgorithm::allreduces_ = nullptr;
 
 SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
   AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ =
@@ -22,13 +22,13 @@ const char* SlidingTimeWindowAlgorithm::GetString() {
 
 void SlidingTimeWindowAlgorithm::Init() {
   AllreduceAlgorithm::SubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allreduces,
+      SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 void SlidingTimeWindowAlgorithm::Clear() {
   AllreduceAlgorithm::UnsubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allreduces,
+      SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
