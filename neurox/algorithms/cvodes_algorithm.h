@@ -58,11 +58,11 @@ class CvodesAlgorithm : public Algorithm {
       /// number of CVODES iterations
       unsigned iterations_count_;
 
+      /// number of equations/vars in the system of ODEs
+      int equations_count_;
+
       /// minimum step size
       static double min_step_size_;
-
-      /// number of equations/vars in the system of ODEs
-      static int equations_count_;
 
       static void RegisterHpxActions();
 

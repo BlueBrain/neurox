@@ -4,7 +4,6 @@ using namespace neurox;
 using namespace neurox::algorithms;
 
 double CvodesAlgorithm::BranchCvodes::min_step_size_ = -1;
-int CvodesAlgorithm::BranchCvodes::equations_count_ = -1;
 
 CvodesAlgorithm::CvodesAlgorithm(){}
 
@@ -24,7 +23,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 {
     Branch * branch = (Branch*) user_data;
     assert(t == branch->nt_->_t);
-    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot) == CvodesAlgorithm::BranchCvodes::equations_count_);
+    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot));
 
     //TODO weights should be moved also to data!
     branch->nt_->weights;
@@ -119,7 +118,6 @@ int CvodesAlgorithm::JacobianDenseFunction(
     Branch * branch = (Branch*) user_data;
     realtype * ydata = N_VGetArrayPointer_Serial(y);
     assert(ydata==branch->nt_->_data);
-    assert(N==CvodesAlgorithm::BranchCvodes::equations_count_);
     assert(t==branch->nt_->_t);
 
     //Jacobian for nt->data includes
@@ -226,7 +224,7 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 //////////////////////////// BranchCvodes /////////////////////////
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :cvodes_mem_(nullptr), iterations_count_(0)
+    :cvodes_mem_(nullptr), iterations_count_(-1), equations_count_(-1)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
@@ -242,38 +240,46 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
     N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
-    N_Vector y = branch_cvodes->y_;
-    void * cvode_mem = branch_cvodes->cvodes_mem_;
+    void * cvodes_mem = branch_cvodes->cvodes_mem_;
+    int & equations_count = branch_cvodes->equations_count_;
+    NrnThread *& nt = local->nt_;
 
     int flag = CV_ERR_FAILURE;
 
-    //equations: one per vdata (some will be constants, with jacobian=0)
-    int num_equations = CvodesAlgorithm::BranchCvodes::equations_count_;
+    //equations: one per data and weight (constant have jacob=0)
+    equations_count = local->nt_->_ndata + local->nt_->n_weight;
+    branch_cvodes->iterations_count_=0;
 
-    //create serial vector for y
-    //TODO guide page 157, we can have mem-protected N_Vectors
-    y = N_VMake_Serial(num_equations, local->nt_->_data);
+    //create y array with nt->data and nt->weights
+    floble_t * y_data = new floble_t[equations_count];
+    std::copy(nt->_data, nt->_data+local->nt_->_ndata, y_data);
+    std::copy(nt->weights, nt->weights + nt->n_weight, y_data + nt->_ndata);
+    tools::Vectorizer::Delete(nt->_data);
+    delete[] nt->weights;
+    nt->_data = y_data;
+    nt->weights = &y_data[nt->_ndata];
+    branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
     //absolute tolerance array
-    absolute_tolerance = N_VNew_Serial(num_equations);
-    for (int i=0; i<num_equations; i++) //TODO set values
+    absolute_tolerance = N_VNew_Serial(equations_count);
+    for (int i=0; i<equations_count; i++) //TODO set values
         NV_Ith_S(absolute_tolerance, i) = kRelativeTolerance;
 
     //CVodeCreate creates an internal memory block for a problem to
     //be solved by CVODES, with Backward Differentiation (or Adams)
     //and Newton solver (recommended for stiff problems, see header)
-    cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
+    cvodes_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
     //CVodeInit allocates and initializes memory for a problem
-    flag = CVodeInit(cvode_mem, CvodesAlgorithm::RHSFunction, 0.0 /*initial time*/, y);
+    flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, 0.0 /*initial time*/, branch_cvodes->y_);
     assert(flag==CV_SUCCESS);
 
     //specify integration tolerances. MUST be called before CVode.
-    flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance, absolute_tolerance);
+    flag = CVodeSVtolerances(cvodes_mem, kRelativeTolerance, absolute_tolerance);
     assert(flag==CV_SUCCESS);
 
     //specify this branch as user data parameter to be past to functions
-    flag = CVodeSetUserData(cvode_mem, local);
+    flag = CVodeSetUserData(cvodes_mem, local);
     assert(flag==CV_SUCCESS);
 
     //specify g as root function and roots
@@ -282,7 +288,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 #else
     int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
 #endif
-    flag = CVodeRootInit(cvode_mem, roots_count, CvodesAlgorithm::RootFunction);
+    flag = CVodeRootInit(cvodes_mem, roots_count, CvodesAlgorithm::RootFunction);
     assert(flag==CV_SUCCESS);
 
     //initializes the memory record and sets various function
@@ -310,19 +316,19 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     }
     else
     {
-      flag = CVDense(cvode_mem, num_equations);
+      flag = CVDense(cvodes_mem, equations_count);
       assert(flag==CV_SUCCESS);
 
       //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-      flag = CVDlsSetDenseJacFn(cvode_mem, CvodesAlgorithm::JacobianDenseFunction);
+      flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianDenseFunction);
       assert(flag==CV_SUCCESS);
     }
 
-    CVodeSetInitStep(cvode_mem, min_step_size_);
-    CVodeSetMinStep(cvode_mem, min_step_size_);
-    CVodeSetMaxStep(cvode_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
-    CVodeSetStopTime(cvode_mem, input_params_->tstop_);
-    CVodeSetMaxOrd(cvode_mem, 5); //max order of the BDF method
+    CVodeSetInitStep(cvodes_mem, min_step_size_);
+    CVodeSetMinStep(cvodes_mem, min_step_size_);
+    CVodeSetMaxStep(cvodes_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
+    CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
+    CVodeSetMaxOrd(cvodes_mem, 5); //max order of the BDF method
 
     //see chapter 6.4 -- User supplied functions
     //see chapter 8 -- providing alternate linear solver modules

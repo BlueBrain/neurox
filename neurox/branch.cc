@@ -349,9 +349,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 }
 
 Branch::~Branch() {
+  delete[] this->nt_->weights;
   Vectorizer::Delete(this->nt_->_data);
   Vectorizer::Delete(this->nt_->_v_parent_index);
-  delete[] this->nt_->weights;
   delete[] this->nt_->_ml_list;
 
   hpx_lco_delete_sync(this->events_queue_mutex_);
