@@ -18,13 +18,14 @@ const char* CvodesAlgorithm::GetString() {
 }
 
 
-/// f routine to compute f(t,y), i.e. compute new values of nt->data
+/// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
+    assert(t == branch->nt_->_t);
+    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot) == branch->nt_->_ndata);
 
-    //set input and output vectors
-    //NOTE: changes have to be made in ydot, y is the previous step state
+    //changes have to be made in ydot, y is the state at the previous step
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
     branch->nt_->_data = NV_DATA_S(ydot);
 
@@ -66,6 +67,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     ////// From HinesSolver::UpdateV ///////
     // v[i] += second_order_multiplier * rhs[i];
     solver::HinesSolver::UpdateV(branch);
+
+    branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
     ////// From main loop - call state function
     branch->CallModFunction(Mechanism::ModFunctions::kState);
