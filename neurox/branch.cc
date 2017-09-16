@@ -624,7 +624,9 @@ void Branch::BackwardEulerStep() {
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt_->_dt;
-  FixedPlayContinuous();
+  //TODO: commenting the call below changes nothing
+  //(it changes the variables used in the current function only)
+  //FixedPlayContinuous();
   CallModFunction(Mechanism::ModFunctions::kState);
   CallModFunction(Mechanism::ModFunctions::kAfterSolve);
   CallModFunction(Mechanism::ModFunctions::kBeforeStep);

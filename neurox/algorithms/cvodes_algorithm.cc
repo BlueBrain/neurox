@@ -23,6 +23,10 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 {
     Branch * branch = (Branch*) user_data;
 
+    //Updates internal states of point processes that are vecplay
+    //e.g. stimulus. vecplay->pd points to a read-only var used by
+    //point proc mechanisms' nrn_current function
+    branch->FixedPlayContinuous();
 
     ////// From HinesSolver::SetupTreeMatrix ///////
 
@@ -45,25 +49,20 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 
 
     ////// From HinesSolver::SolveTreeMatrix ///////
-
     //Gaussian Elimination (sets RHS)
     branch->SolveTreeMatrix();
 
 
     ////// From eion.c::second_order_cur ///////
-
     //updates ionic currents as rhs*didv from the children
     second_order_cur(branch->nt_, input_params_->second_order_);
 
 
     ////// From HinesSolver::UpdateV ///////
-
     // v[i] += second_order_multiplier * rhs[i];
     solver::HinesSolver::UpdateV(branch);
 
-
     ////// From main loop - call state function
-
     branch->CallModFunction(Mechanism::ModFunctions::kState);
 
     return 0;
@@ -343,9 +342,6 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     {
       //delivers all events whithin the next min step size
       local->DeliverEvents(local->nt_->_t + min_step_size_);
-
-      //Sets vecplay->*pd for next discontinuity event of type VecPlay
-      local->FixedPlayContinuous();
 
       //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
