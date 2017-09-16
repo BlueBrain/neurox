@@ -18,9 +18,9 @@ ELSE()
 ENDIF()
 include_directories(${TCLAP_INCLUDE_DIR})
 
-# Include HPX
-#As a requirement for pkg_check_modules we need to provide the path of
-#PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the $PATH)
+# Include HPX via hpx-config
+# As a requirement for pkg_check_modules we need to provide the path of
+# PKG_CONFIG_EXECUTABLE (in this case we pass only the binary as it's in the $PATH)
 find_package(PkgConfig REQUIRED)
 message (STATUS "Found pkg-config ${PKG_CONFIG_VERSION_STRING}: ${PKG_CONFIG_EXECUTABLE}")
 pkg_check_modules(HPX REQUIRED hpx )
@@ -39,6 +39,13 @@ ELSE()
   link_directories(${HPX_LIBRARY_DIRS})
 ENDIF()
 
+# Include CVODES (Cmake/FindCVODES.cmake)
+find_package(CVODES 2.9.0 REQUIRED)
+include_directories(${CVODES_INCLUDE_DIRS})
+link_directories(${CVODES_LIBRARIES})
+#message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
+#message(STATUS "  CVODES_LIBRARIES: ${CVODES_LIBRARIES}")
+
 #binary (copy from apps/CMakeLists.txt)
 include_directories(
     ${PROJECT_SOURCE_DIR}
@@ -49,13 +56,13 @@ include_directories(
     ${PROJECT_BINARY_DIR}/neurox
     )
 
-FILE(GLOB_RECURSE neurox_all_headers "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
-FILE(GLOB_RECURSE neurox_all_c_files "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
+FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 
-target_link_libraries(neurox coreneuron ${HPX_LIBRARIES})
+target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODES_LIBRARIES})
 
 set_target_properties(neurox PROPERTIES
                              VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}

@@ -3,7 +3,7 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-hpx_t* SlidingTimeWindowAlgorithm::allreduces = nullptr;
+hpx_t* SlidingTimeWindowAlgorithm::allreduces_ = nullptr;
 
 SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
   AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ =
@@ -12,23 +12,23 @@ SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
 
 SlidingTimeWindowAlgorithm::~SlidingTimeWindowAlgorithm() {}
 
-const AlgorithmType SlidingTimeWindowAlgorithm::GetType() {
-  return AlgorithmType::kBackwardEulerSlidingTimeWindow;
+const AlgorithmId SlidingTimeWindowAlgorithm::GetId() {
+  return AlgorithmId::kBackwardEulerSlidingTimeWindow;
 }
 
-const char* SlidingTimeWindowAlgorithm::GetTypeString() {
+const char* SlidingTimeWindowAlgorithm::GetString() {
   return "BackwardEulerSlidingTimeWindow";
 }
 
 void SlidingTimeWindowAlgorithm::Init() {
   AllreduceAlgorithm::SubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allreduces,
+      SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
 void SlidingTimeWindowAlgorithm::Clear() {
   AllreduceAlgorithm::UnsubscribeAllReduces(
-      SlidingTimeWindowAlgorithm::allreduces,
+      SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
 }
 
@@ -57,7 +57,7 @@ void SlidingTimeWindowAlgorithm::Run(Branch* b, const void* args) {
   AllreduceAlgorithm::Run2(b, args);
 }
 
-hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* neuron, double tt,
+hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* n, double tt,
                                              double) {
-  return AllreduceAlgorithm::SendSpikes2(neuron, tt);
+  return Neuron::SendSpikesAsync(n, tt);
 }

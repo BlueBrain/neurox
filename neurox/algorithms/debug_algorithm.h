@@ -12,8 +12,8 @@ class DebugAlgorithm : public Algorithm {
   DebugAlgorithm();
   ~DebugAlgorithm();
 
-  const AlgorithmType GetType() override;
-  const char* GetTypeString() override;
+  const AlgorithmId GetId() override;
+  const char* GetString() override;
 
   void Init() override;
   void Clear() override;

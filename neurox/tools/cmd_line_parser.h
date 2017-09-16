@@ -1,7 +1,16 @@
 #pragma once
 #include "neurox/neurox.h"
 
+
 namespace neurox {
+
+//Forward declarations
+namespace algorithms
+{
+  enum class AlgorithmId : int;
+
+  class Algorithm;
+}
 
 namespace tools {
 /**
@@ -45,8 +54,7 @@ class CmdLineParser {
                          /// and branches
   int branch_parallelism_depth_;  ///> depth tree-based parallelism of
                                   /// morphologies
-  neurox::algorithms::AlgorithmType
-      algorithm_;  ///> neurons sychronization algorithm
+  algorithms::AlgorithmId algorithm_;  ///> neurons sychronization algorithm
 
  private:
   /// Parses command line arguments and populates structure

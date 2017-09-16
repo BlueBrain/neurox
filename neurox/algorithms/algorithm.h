@@ -7,12 +7,38 @@ namespace neurox {
 namespace algorithms {
 
 /**
+ * @brief The AlgorithmIds enum
+ * Uniquely identifies the Id of each algorithm
+ */
+enum class AlgorithmId : int {
+  kBackwardEulerDebug = 0,  // For debug only
+  kBackwardEulerAllReduce = 1,
+  kBackwardEulerSlidingTimeWindow = 2,
+  kBackwardEulerTimeDependencyLCO = 3,
+  kBackwardEulerCoreneuron = 4,
+  kCvodes = 5,
+  kBenchmarkAll = 9  // Benchmark of all non-debug modes
+};
+
+/**
+ * @brief The NeuronMetaData class
+ * Purely abstract class, represents metadata at neuron level
+ * relative to a neuron
+ */
+class AlgorithmMetadata{
+  public:
+    /// Returns an instantiated metadata for the algorithm of given type
+    static AlgorithmMetadata* New(AlgorithmId);
+};
+
+/**
  * @brief The Algorithm class
  * Virtual class describing all methods required to be implemented by all
  * different algorithms
  */
 class Algorithm {
  public:
+
   Algorithm(){};
   virtual ~Algorithm(){};
 
@@ -20,16 +46,16 @@ class Algorithm {
   static int GetTotalStepsCount();
 
   /// Returns an instantiated class of the given type
-  static Algorithm* New(AlgorithmType);
+  static Algorithm* New(AlgorithmId);
 
   /// Prints info on algorithm, data size, and steps count
   void PrintStartInfo();
 
   /// Returns class type
-  const virtual AlgorithmType GetType() = 0;
+  const virtual AlgorithmId GetId() = 0;
 
   /// Returns class type as string
-  const virtual char* GetTypeString() = 0;
+  const virtual char* GetString() = 0;
 
   /// Launch simulation on all neurons or localities
   virtual double Launch() = 0;
@@ -67,3 +93,4 @@ class Algorithm {
 #include "neurox/algorithms/debug_algorithm.h"
 #include "neurox/algorithms/sliding_time_window_algorithm.h"
 #include "neurox/algorithms/time_dependency_lco_algorithm.h"
+#include "neurox/algorithms/cvodes_algorithm.h"

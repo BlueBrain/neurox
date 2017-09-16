@@ -6,6 +6,12 @@
 
 namespace neurox {
 
+/// forward declarations
+namespace algorithms
+{
+  class AlgorithmMetadata;
+};
+
 /**
  * @brief The Neuron class
  * Represents the soma structure and outgoing spikes network of a neuron
@@ -51,6 +57,9 @@ class Neuron {
   /// fires AP, returns LCO for sent synapses
   hpx_t SendSpikes(floble_t t);
 
+  /// fires AP, and returns HPX address (to be called by some Algorithms)
+  static hpx_t SendSpikesAsync(Neuron*, double);
+
   /// add hpx address of post-synaptic branch
   void AddSynapse(
       Synapse* target);
@@ -58,6 +67,7 @@ class Neuron {
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
+  /// Algorithm-dependent metadata
   algorithms::AlgorithmMetadata* algorithm_metadata_;
 
   /// the outgoing neuron connections:

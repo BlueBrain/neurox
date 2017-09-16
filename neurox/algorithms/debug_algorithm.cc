@@ -16,11 +16,11 @@ DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const AlgorithmType DebugAlgorithm::GetType() {
-  return AlgorithmType::kBackwardEulerDebug;
+const AlgorithmId DebugAlgorithm::GetId() {
+  return AlgorithmId::kBackwardEulerDebug;
 }
 
-const char* DebugAlgorithm::GetTypeString() {
+const char* DebugAlgorithm::GetString() {
   return "BackwardEulerCoreneuronDebug";
 }
 

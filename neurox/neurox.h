@@ -12,9 +12,6 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 // Coreneuron basic datatypes, input methods, and mechs functions
 #include "coreneuron/coreneuron.h"
 
-// Definition of meta data specific to a given algorithm
-#include "neurox/algorithms/algorithm_metadata.h"
-
 // auxiliary classes defining events, synapses and mechanisms
 #include "neurox/event.h"
 #include "neurox/mechanism.h"

@@ -516,7 +516,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(nargs == (input_params_->algorithm_ ==
-                           AlgorithmType::kBackwardEulerTimeDependencyLCO
+                           AlgorithmId::kBackwardEulerTimeDependencyLCO
                        ? 3
                        : 2));
 
@@ -651,8 +651,8 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
   NEUROX_MEM_PIN(uint64_t);
   assert(input_params_->allreduce_at_locality_);
   assert(input_params_->algorithm_ ==
-             AlgorithmType::kBackwardEulerSlidingTimeWindow ||
-         input_params_->algorithm_ == AlgorithmType::kBackwardEulerAllReduce);
+             AlgorithmId::kBackwardEulerSlidingTimeWindow ||
+         input_params_->algorithm_ == AlgorithmId::kBackwardEulerAllReduce);
 
   const int locality_neurons_count =
       AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
@@ -728,14 +728,13 @@ void Branch::SetupTreeMatrix() {
   solver::HinesSolver::SetupMatrixRHS(this);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
-  // multiplication
-  // calculate left hand side of
+  // multiplication. calculate left hand side of
   // cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
   // cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
   // with a matrix so that the solution is of the form [dvm+dvx,dvx] on the
-  // right
-  // hand side after solving.
+  // right hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
+  // (TODO: Not used for BackwardEuler)
   this->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
