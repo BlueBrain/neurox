@@ -264,6 +264,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     size_t size = ppi.size;
     int m = mechanisms_map_[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
+    assert(mechanisms_[m]->pnt_map_>0);
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);

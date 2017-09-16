@@ -150,7 +150,7 @@ int CvodesAlgorithm::JacobianDenseFunction(
 
 
 void CvodesAlgorithm::Init() {
-  BranchCvodes::min_step_size_ = input_params_->dt_;
+  BranchCvodes::min_step_size_ = input_params_->dt_ * 0.5;
   neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
 }
 
@@ -279,7 +279,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
       assert(flag==CV_SUCCESS);
     }
 
-    //TODO added Bruno (see cvs_guide.pdf page 43)
     CVodeSetInitStep(cvode_mem, min_step_size_);
     CVodeSetMinStep(cvode_mem, min_step_size_);
     CVodeSetMaxStep(cvode_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
@@ -287,8 +286,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     CVodeSetMaxOrd(cvode_mem, 5); //max order of the BDF method
 
     //see chapter 6.4 -- User supplied functions
-
     //see chapter 8 -- providing alternate linear solver modules
+
     return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -310,21 +309,23 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     int flag=0;
     realtype tout = 0;
     hpx_t spikes_lco = HPX_NULL;
-    TimedEvent * top_event = nullptr;
 
     while(local->nt_->_t < input_params_->tstop_)
     {
-      //get tout i.e. max time of next step
+      //delivers all events whithin the next min step size
+      local->DeliverEvents(local->nt_->_t + min_step_size_);
+
+      //Sets vecplay->*pd for next discontinuity event of type VecPlay
+      local->FixedPlayContinuous();
+
+      //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
       if (!local->events_queue_.empty())
           tout = local->events_queue_.top().first;
       hpx_lco_sema_v_sync(local->events_queue_mutex_);
-
-      //time of next step
       tout = std::min(input_params_->tstop_, tout);
 
-      //call CVODE method: take internal steps until it has
-      //reached or just passed tout; update t;
+      //call CVODE method: steps until reaching/passing tout;
       //TODO can it walk backwards for missed event?
       flag = CVode(branch_cvodes->cvodes_mem_, tout,
                    branch_cvodes->y_, &local->nt_->_t, CV_NORMAL);
@@ -335,8 +336,6 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
-        //CVode succeeded, and found roots
-        //(+1 value ascending, -1 valued descending)
        flag = CVodeGetRootInfo(cvodes_mem, roots_found);
        assert(flag==CV_SUCCESS);
        assert(roots_found[0]!=0); //only possible root: AP threshold reached
@@ -344,22 +343,17 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
        assert(roots_found[1]==0); //root can't be found or V too high
        assert(roots_found[2]==0); //root can't be found or V too low
 #endif
-       //if root is found, integrator time is at time of root!
+       //NOTE: if root is found, integrator time is now at time of root!
+       //(+1 value ascending, -1 valued descending)
        if (roots_found[0] > 0) //AP threshold reached from below
        {
-           //TODO
+           //TODO we can use a root to stop progress in time and wait for deliver?
            //use several hpx-all reduce to mark performance?
            spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
        }
       }
       else if (flag == CV_SUCCESS)
         branch_cvodes->iterations_count_++;
-
-      //delivers all events whithin the next min step size
-      local->DeliverEvents(local->nt_->_t + min_step_size_);
-
-      //No discontinuities: only sets vecplay->*pd for next discont. event
-      local->FixedPlayContinuous();
     }
 
     /* Print some final statistics */
