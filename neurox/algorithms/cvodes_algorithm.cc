@@ -23,7 +23,12 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 {
     Branch * branch = (Branch*) user_data;
 
-    //Updates internal states of point processes that are vecplay
+    //set input and output vectors
+    //NOTE: changes have to be made in ydot, y is the previous step state
+    memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
+    branch->nt_->_data = NV_DATA_S(ydot);
+
+    //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
     //point proc mechanisms' nrn_current function
     branch->FixedPlayContinuous();

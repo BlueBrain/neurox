@@ -626,7 +626,7 @@ void Branch::BackwardEulerStep() {
   t += .5 * this->nt_->_dt;
   //TODO: commenting the call below changes nothing
   //(it changes the variables used in the current function only)
-  //FixedPlayContinuous();
+  FixedPlayContinuous();
   CallModFunction(Mechanism::ModFunctions::kState);
   CallModFunction(Mechanism::ModFunctions::kAfterSolve);
   CallModFunction(Mechanism::ModFunctions::kBeforeStep);
@@ -736,7 +736,7 @@ void Branch::SetupTreeMatrix() {
   // with a matrix so that the solution is of the form [dvm+dvx,dvx] on the
   // right hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
-  // (TODO: Not used for BackwardEuler)
+  // (TODO: Not for BackwardEuler)
   this->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
