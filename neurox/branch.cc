@@ -264,6 +264,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     size_t size = ppi.size;
     int m = mechanisms_map_[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
+    assert(mechanisms_[m]->pnt_map_>0);
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);
@@ -348,9 +349,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 }
 
 Branch::~Branch() {
+  delete[] this->nt_->weights;
   Vectorizer::Delete(this->nt_->_data);
   Vectorizer::Delete(this->nt_->_v_parent_index);
-  delete[] this->nt_->weights;
   delete[] this->nt_->_ml_list;
 
   hpx_lco_delete_sync(this->events_queue_mutex_);
@@ -623,6 +624,8 @@ void Branch::BackwardEulerStep() {
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt_->_dt;
+  //TODO: commenting the call below changes nothing
+  //(it changes the variables used in the current function only)
   FixedPlayContinuous();
   CallModFunction(Mechanism::ModFunctions::kState);
   CallModFunction(Mechanism::ModFunctions::kAfterSolve);
@@ -724,7 +727,6 @@ void Branch::SetupTreeMatrix() {
 
   this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   this->CallModFunction(Mechanism::ModFunctions::kCurrent);
-
   solver::HinesSolver::SetupMatrixRHS(this);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
@@ -734,7 +736,7 @@ void Branch::SetupTreeMatrix() {
   // with a matrix so that the solution is of the form [dvm+dvx,dvx] on the
   // right hand side after solving.
   // This is a common operation for fixed step, cvode, and daspk methods
-  // (TODO: Not used for BackwardEuler)
+  // (TODO: Not for BackwardEuler)
   this->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
