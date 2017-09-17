@@ -47,8 +47,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     NV_DATA_S(ydot)[branch_cvodes->equations_count_-1] = t;
     assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 
-
-
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
     //point proc mechanisms' nrn_current function
@@ -139,6 +137,7 @@ int CvodesAlgorithm::JacobianFunction(
 
     //TODO double-check: Jacob has been stored in f(y,y), not y???
     realtype *y_data = N_VGetArrayPointer_Serial(y);
+    realtype *fy_data = N_VGetArrayPointer_Serial(fy);
     realtype *a = &y_data[a_offset];
     realtype *b = &y_data[b_offset];
     realtype *v = &y_data[v_offset];
@@ -160,7 +159,8 @@ int CvodesAlgorithm::JacobianFunction(
 
     //Scale factor for derivatives (based on previous step taken)
     const int t_index = branch_cvodes->equations_count_-1;
-    realtype dt = t - y_data[t_index];
+    assert(fy_data[t_index] > y_data[t_index]);
+    realtype dt = fy_data[t_index] - y_data[t_index];
     const realtype rev_dt = 1 / dt;
 
 
@@ -241,6 +241,10 @@ int CvodesAlgorithm::JacobianFunction(
     {
         vecplay=(VecplayContinuousX*) branch->nt_->_vecplay[v];
         vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
+        jacob[vecplay_pd_offset][t_index] =
+                 ( vecplay->Interpolate(fy_data[t_index])
+                  -vecplay->Interpolate(y_data[t_index])
+                 ) / dt;
     }
 
     return 0;
