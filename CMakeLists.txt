@@ -158,6 +158,9 @@ endif()
 # using this macro for CoreNeuron build
 add_definitions(-DCORENEURON_BUILD)
 
+# Forces jacobian variables g and V to be written to ml->data
+add_definitions(-DNRN_PRCELLSTATE=1)
+
 option (ENABLE_SELECTIVE_GPU_PROFILING "Enable GPU profiling only for Solver" ON)
 option (ENABLE_OPENACC "Enable use of OpenACC" OFF)
 
