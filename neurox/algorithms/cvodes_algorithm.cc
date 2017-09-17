@@ -22,7 +22,9 @@ const char* CvodesAlgorithm::GetString() {
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
+    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot));
+
 
     //changes have to be made in ydot, y is the state at the previous step
     //so we copy y to ydot, and apply the changes to ydot
@@ -32,6 +34,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //set time step to the time we want to jump to
     assert(t > branch->nt_->_t);
     branch->nt_->_dt = t - branch->nt_->_t;
+    NV_DATA_S(ydot)[branch_cvodes->equations_count_-1] = t;
     assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 
     //Updates internal states of continuous point processes (vecplay)
@@ -41,7 +44,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 
     ////// From HinesSolver::SetupTreeMatrix ///////
 
-    // Resets RHS an dD
+    // Sets RHS an D to zero
     solver::HinesSolver::ResetMatrixRHSandD(branch);
 
     // current sums i and didv to parent ion, and adds contribnutions to RHS and D
@@ -113,36 +116,58 @@ int CvodesAlgorithm::JacobianFunction(
 {
 
     Branch * branch = (Branch*) user_data;
+    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
 
-    //TODO double-check
-    //Jacob has been stored in f(y,y), not y
-    realtype * fy_data = N_VGetArrayPointer_Serial(fy);
-    assert(fy_data==branch->nt_->_data);
+    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
+    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
+    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
+    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
+    int rhs_offset = branch->nt_->_actual_rhs - branch->nt_->_data;
+    int compartments_count = branch->nt_->end;
+
+    //TODO double-check: Jacob has been stored in f(y,y), not y???
+    realtype *y_data = N_VGetArrayPointer_Serial(y);
+    realtype *a = &y_data[a_offset];
+    realtype *b = &y_data[b_offset];
+    realtype *v = &y_data[v_offset];
+    realtype *d = &y_data[d_offset];
+    realtype *rhs = &y_data[rhs_offset];
+    int *p = branch->nt_->_v_parent_index;
+    assert(y_data==branch->nt_->_data);
     assert(t==branch->nt_->_t);
 
-    //Jacobian for nt->data includes
-    //dV_0/dt, ..., dV_n/dt, i_0, i_1, ..., i_n
-    //constants have jacobi=0
-    //currents have jacobi=g (given by nrn_jacob)
+    //Jacobian for nt->data includes all voltages, currents,
+    //ions states and point-processes wreights
 
     //CVODES guide: must load NxN matrix J with the approximation
     //of Jacobian J(t,y) at point (t,y)
 
-
     realtype ** jacob = J->cols;
-    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
     realtype ** jacob_d = &jacob[d_offset];
+    realtype ** jacob_rhs = &jacob[rhs_offset];
 
-    //TODO we can just set 'dt' to 1
-    //Scale derivatives to a one time-unit size
-    const realtype rev_dt = input_params_->rev_dt_;
+    //Scale factor for derivatives (based on previous step taken)
+    realtype dt = t - y_data[branch_cvodes->equations_count_-1];
+    const realtype rev_dt = 1 / dt;
 
-    //add parent/children compartments currents to C*dV/dt
-    //add rhs: includes all other currents
-    int compartments_count = branch->nt_->end;
-    realtype *a = branch->nt_->_actual_a ;
-    realtype *b = branch->nt_->_actual_b ;
-    realtype *rhs = branch->nt_->_actual_rhs ;
+
+    //add constributions from parent/children compartments
+    //TODO fix positions
+    floble_t dv=-1;
+    for (offset_t i = 1; i < compartments_count; i++)
+    {
+      //from HinesSolver::SetupMatrixRHS
+      dv = v[p[i]] - v[i];
+      jacob_rhs[i][i] -= b[i] * dv * rev_dt;
+      jacob_rhs[p[i]][i] += a[i] * dv * rev_dt;
+
+      //from HinesSolver::SetupMatrixDiagonal
+      jacob_d[i][i] -= b[i] * rev_dt;
+      jacob_d[p[i]][i] -= a[i] * rev_dt;
+    }
+
+
+    //Add contributions from mechanisms
 
     for (int c=0; c<compartments_count; c++)
        jacob_d[c][0] += a[c]*rev_dt;
@@ -161,9 +186,16 @@ int CvodesAlgorithm::JacobianFunction(
         Mechanism * mech=mechanisms_[m];
         Memb_list* mech_instances = &branch->mechs_instances_[m];
 
-        //if no current function, no current jacobian
-        if (mech->memb_func_.current != NULL)
+        //ions, insert updates from second order corrent
+        if (mech->is_ion_)
         {
+            //TODO not needed, its inserted below?
+
+    }
+        //if no current function, no current jacobian
+        else if (mech->memb_func_.current != NULL)
+        {
+            //TODO add for capacitance
           //index of g is "typically" size of data -1;
           //TODO hard-coded expection
           int g_index = mech->data_size_-1;
@@ -180,7 +212,7 @@ int CvodesAlgorithm::JacobianFunction(
             g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_index + n;
 #endif
             //updates the main current functions dV/dt
-            g = fy_data[data_offset];
+            g = y_data[data_offset];
             compartment_id = mech_instances->nodeindices[m];
             jacob_d[compartment_id][g_data_offset] += g*rev_dt; // g == di/dV
           }
@@ -249,14 +281,15 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 
     int flag = CV_ERR_FAILURE;
 
-    //equations: one per data and weight (constant have jacob=0)
-    equations_count = local->nt_->_ndata + local->nt_->n_weight;
+    //equations: one per data, weight and time (constant have jacob=0)
+    equations_count = local->nt_->_ndata + local->nt_->n_weight + 1;
     branch_cvodes->iterations_count_=0;
 
-    //create y array with nt->data and nt->weights
+    //create array y for state: nt->data, nt->weights and time
     floble_t * y_data = new floble_t[equations_count];
     std::copy(nt->_data, nt->_data+local->nt_->_ndata, y_data);
     std::copy(nt->weights, nt->weights + nt->n_weight, y_data + nt->_ndata);
+    y_data[equations_count=-1]=local->nt_->_t;
     tools::Vectorizer::Delete(nt->_data);
     delete[] nt->weights;
     nt->_data = y_data;
