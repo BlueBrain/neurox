@@ -248,6 +248,9 @@ int CvodesAlgorithm::JacobianFunction(
     }
 
     return 0;
+
+    //jacobian for time
+    jacob[t_index][t_index] = 1;
 }
 
 /////////////////////// Algorithm abstract class ////////////////////////
