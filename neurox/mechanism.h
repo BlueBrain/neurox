@@ -11,6 +11,7 @@ class NetconX;
 /// hard-coded mechanism types
 enum MechanismTypes {
   kIClamp = 7,
+  kExpSyn = 9,
   kProbAMPANMDA_EMS = 137,
   kProbGABAAB_EMS = 139,
   kStochKv = 151

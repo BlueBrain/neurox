@@ -22,15 +22,17 @@ const char* CvodesAlgorithm::GetString() {
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
-    assert(t == branch->nt_->_t);
     assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot));
 
-    //TODO weights should be moved also to data!
-    branch->nt_->weights;
-
     //changes have to be made in ydot, y is the state at the previous step
+    //so we copy y to ydot, and apply the changes to ydot
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
     branch->nt_->_data = NV_DATA_S(ydot);
+
+    //set time step to the time we want to jump to
+    assert(t > branch->nt_->_t);
+    branch->nt_->_dt = t - branch->nt_->_t;
+    assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -102,22 +104,20 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
     return(0);
 }
 
-double get_g()
-{
-    return 0.0;
-}
-
 //jacobian routine: compute J(t,y) = df/dy
-int CvodesAlgorithm::JacobianDenseFunction(
+int CvodesAlgorithm::JacobianFunction(
         long int N, realtype t,
         N_Vector y, N_Vector fy,
         DlsMat J, void *user_data,
         N_Vector, N_Vector, N_Vector)
 {
-    realtype y1, y2, y3;
+
     Branch * branch = (Branch*) user_data;
-    realtype * ydata = N_VGetArrayPointer_Serial(y);
-    assert(ydata==branch->nt_->_data);
+
+    //TODO double-check
+    //Jacob has been stored in f(y,y), not y
+    realtype * fy_data = N_VGetArrayPointer_Serial(fy);
+    assert(fy_data==branch->nt_->_data);
     assert(t==branch->nt_->_t);
 
     //Jacobian for nt->data includes
@@ -130,8 +130,8 @@ int CvodesAlgorithm::JacobianDenseFunction(
 
 
     realtype ** jacob = J->cols;
-    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
-    realtype ** jacob_v = &jacob[v_offset];
+    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
+    realtype ** jacob_d = &jacob[d_offset];
 
     //TODO we can just set 'dt' to 1
     //Scale derivatives to a one time-unit size
@@ -145,43 +145,50 @@ int CvodesAlgorithm::JacobianDenseFunction(
     realtype *rhs = branch->nt_->_actual_rhs ;
 
     for (int c=0; c<compartments_count; c++)
-       jacob_v[c][0] += a[c]*rev_dt;
+       jacob_d[c][0] += a[c]*rev_dt;
 
     for (int c=0; c<compartments_count; c++)
-       jacob_v[c][0] += b[c]*rev_dt;
+       jacob_d[c][0] += b[c]*rev_dt;
 
     for (int c=0; c<compartments_count; c++)
-       jacob_v[c][0] += rhs[c]*rev_dt;
+       jacob_d[c][0] += rhs[c]*rev_dt;
 
-    int compartment_id=-1;
-    int g_index=-1;
-    Memb_list * mech_instances= nullptr;
-    for (int m=0; m<mechanisms_count_; m++)
+    int compartment_id=-1, g_data_offset=-1;
+    int data_offset=  tools::Vectorizer::SizeOf(compartments_count)*6;
+    realtype g=-1;
+    for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
-        mech_instances = &branch->mechs_instances_[m];
-        for (int i=0; i<mech_instances->nodecount; b++)
+        Mechanism * mech=mechanisms_[m];
+        Memb_list* mech_instances = &branch->mechs_instances_[m];
+
+        //if no current function, no current jacobian
+        if (mech->memb_func_.current != NULL)
         {
-          compartment_id=mech_instances->nodeindices[i];
+          //index of g is "typically" size of data -1;
+          //TODO hard-coded expection
+          int g_index = mech->data_size_-1;
+          if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
+                || mech->type_ == MechanismTypes::kProbGABAAB_EMS
+                || mech->type_ == MechanismTypes::kExpSyn)
+              g_index = mech->data_size_-2;
 
-          //updates the main current functions dV/dt
-          jacob_v[compartment_id][i] += get_g()*rev_dt; // g == di/dV
-
-          //update di/dV
-
-          //update rhs?
+          for (int n=0; n<mech_instances->nodecount; n++)
+          {
+#if LAYOUT == 1
+            g_data_offset = data_offset + mech->data_size_ * n + g_index;
+#else
+            g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_index + n;
+#endif
+            //updates the main current functions dV/dt
+            g = fy_data[data_offset];
+            compartment_id = mech_instances->nodeindices[m];
+            jacob_d[compartment_id][g_data_offset] += g*rev_dt; // g == di/dV
+          }
         }
+        data_offset = tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
 
-    y1 = NV_Ith_S(y,0); y2 = NV_Ith_S(y,1); y3 = NV_Ith_S(y,3);
-    DENSE_ELEM(J,0,0) = RCONST(-0.04);
-    DENSE_ELEM(J,0,1) = RCONST(1.0e4)*y3;
-    DENSE_ELEM(J,0,2) = RCONST(1.0e4)*y2;
-    DENSE_ELEM(J,1,0) = RCONST(0.04);
-    DENSE_ELEM(J,1,1) = RCONST(-1.0e4)*y3-RCONST(6.0e7)*y2;
-    DENSE_ELEM(J,1,2) = RCONST(-1.0e4)*y2;
-    DENSE_ELEM(J,2,1) = RCONST(6.0e7)*y2;
-
-    return(0);
+    return 0;
 }
 
 /////////////////////// Algorithm abstract class ////////////////////////
@@ -203,17 +210,13 @@ double CvodesAlgorithm::Launch() {
 }
 
 
-void CvodesAlgorithm::StepBegin(Branch*)
-{
-
+void CvodesAlgorithm::StepBegin(Branch*){
 }
 
 void CvodesAlgorithm::StepEnd(Branch* b, hpx_t spikesLco) {
 }
 
-void CvodesAlgorithm::Run(Branch* b, const void* args)
-{
-
+void CvodesAlgorithm::Run(Branch* b, const void* args){
 }
 
 hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
@@ -298,31 +301,25 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     //Indirect solvers require iterations (eg Jacobi method)
     //sundials_direct.h wraps solvers??
 
-    if (kSparseMatrix)
-    {
-        /* install superlumt and klu first
+    /* install superlumt and klu first
 
-      // Call CVSuperLUMT to specify the CVSuperLUMT sparse direct linear solver
-      int nnz = kNumEquations * kNumEquations;
-      flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
-      //TODO? flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
-      assert(flag==CV_SUCCESS);
+    // Call CVSuperLUMT to specify the CVSuperLUMT sparse direct linear solver
+    int nnz = kNumEquations * kNumEquations;
+    flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
+    //TODO? flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
+    assert(flag==CV_SUCCESS);
 
-      //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-      flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseMatrix);
-      assert(flag==CV_SUCCESS);
-      */
-        assert(0);
-    }
-    else
-    {
-      flag = CVDense(cvodes_mem, equations_count);
-      assert(flag==CV_SUCCESS);
+    //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
+    flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseMatrix);
+    assert(flag==CV_SUCCESS);
+    */
 
-      //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-      flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianDenseFunction);
-      assert(flag==CV_SUCCESS);
-    }
+    flag = CVDense(cvodes_mem, equations_count);
+    assert(flag==CV_SUCCESS);
+
+    //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
+    flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianFunction);
+    assert(flag==CV_SUCCESS);
 
     CVodeSetInitStep(cvodes_mem, min_step_size_);
     CVodeSetMinStep(cvodes_mem, min_step_size_);
@@ -394,8 +391,13 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
            spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
        }
       }
-      else if (flag == CV_SUCCESS)
+
+      //Success from CVodeGetRootInfo or CVode
+      if (flag == CV_SUCCESS)
+      {
         branch_cvodes->iterations_count_++;
+        local->nt_->_t = tout;
+      }
     }
 
     /* Print some final statistics */
