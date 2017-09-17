@@ -77,7 +77,6 @@ class CvodesAlgorithm : public Algorithm {
   };
 
  private:
-  static const bool kSparseMatrix = false;
   constexpr static double kRelativeTolerance = 1e-3;
 
   /// function defining the right-hand side function in y' = f(t,y).
@@ -93,7 +92,7 @@ class CvodesAlgorithm : public Algorithm {
           N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
   /// jacobian: compute J(t,y)
-  static int JacobianDenseFunction(long int N, floble_t t,
+  static int JacobianFunction(long int N, floble_t t,
                       N_Vector y_, N_Vector fy,
                       DlsMat J, void *user_data,
                       N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
