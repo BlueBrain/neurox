@@ -29,6 +29,16 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //changes have to be made in ydot, y is the state at the previous step
     //so we copy y to ydot, and apply the changes to ydot
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
+
+    //update vecplay pointers to point to right place
+    VecplayContinuousX * vecplay = nullptr;
+    int vecplay_pd_offset=-1;
+    for (int v=0; v<branch->nt_->n_vecplay; v++)
+    {
+        vecplay=(VecplayContinuousX*) branch->nt_->_vecplay[v];
+        vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
+        vecplay->pd_ = &NV_DATA_S(ydot)[vecplay_pd_offset];
+    }
     branch->nt_->_data = NV_DATA_S(ydot);
 
     //set time step to the time we want to jump to
@@ -127,6 +137,7 @@ int CvodesAlgorithm::JacobianFunction(
 
     //TODO double-check: Jacob has been stored in f(y,y), not y???
     realtype *y_data = N_VGetArrayPointer_Serial(y);
+    realtype *fy_data = N_VGetArrayPointer_Serial(fy);
     realtype *a = &y_data[a_offset];
     realtype *b = &y_data[b_offset];
     realtype *v = &y_data[v_offset];
@@ -147,7 +158,9 @@ int CvodesAlgorithm::JacobianFunction(
     realtype ** jacob_rhs = &jacob[rhs_offset];
 
     //Scale factor for derivatives (based on previous step taken)
-    realtype dt = t - y_data[branch_cvodes->equations_count_-1];
+    const int t_index = branch_cvodes->equations_count_-1;
+    assert(fy_data[t_index] > y_data[t_index]);
+    realtype dt = fy_data[t_index] - y_data[t_index];
     const realtype rev_dt = 1 / dt;
 
 
@@ -219,6 +232,23 @@ int CvodesAlgorithm::JacobianFunction(
         }
         data_offset = tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
+
+
+    //update of weights of VecPlayContinuous based on time
+    VecplayContinuousX * vecplay = nullptr;
+    int vecplay_pd_offset=-1;
+    for (int v=0; v<branch->nt_->n_vecplay; v++)
+    {
+        vecplay=(VecplayContinuousX*) branch->nt_->_vecplay[v];
+        vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
+        jacob[vecplay_pd_offset][t_index] =
+                 ( vecplay->Interpolate(fy_data[t_index])
+                  -vecplay->Interpolate(y_data[t_index])
+                 ) / dt;
+    }
+
+    //jacobian for time
+    jacob[t_index][t_index] = dt;
 
     return 0;
 }
