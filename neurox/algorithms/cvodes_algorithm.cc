@@ -25,7 +25,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot));
 
-
     //changes have to be made in ydot, y is the state at the previous step
     //so we copy y to ydot, and apply the changes to ydot
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
@@ -39,6 +38,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
         vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
         vecplay->pd_ = &NV_DATA_S(ydot)[vecplay_pd_offset];
     }
+    int weights_offset=branch->nt_->weights - branch->nt_->_data;
+    branch->nt_->weights = &NV_DATA_S(ydot)[weights_offset];
     branch->nt_->_data = NV_DATA_S(ydot);
 
     //set time step to the time we want to jump to
@@ -179,19 +180,8 @@ int CvodesAlgorithm::JacobianFunction(
       jacob_d[p[i]][i] -= a[i] * rev_dt;
     }
 
-
     //Add contributions from mechanisms
-
-    for (int c=0; c<compartments_count; c++)
-       jacob_d[c][0] += a[c]*rev_dt;
-
-    for (int c=0; c<compartments_count; c++)
-       jacob_d[c][0] += b[c]*rev_dt;
-
-    for (int c=0; c<compartments_count; c++)
-       jacob_d[c][0] += rhs[c]*rev_dt;
-
-    int compartment_id=-1, g_data_offset=-1;
+    int compartment_id=-1, g_data_offset=-1, ion_cur_data_offset=-1;
     int data_offset=  tools::Vectorizer::SizeOf(compartments_count)*6;
     realtype g=-1;
     for (int m = 0; m < neurox::mechanisms_count_; m++)
@@ -199,42 +189,43 @@ int CvodesAlgorithm::JacobianFunction(
         Mechanism * mech=mechanisms_[m];
         Memb_list* mech_instances = &branch->mechs_instances_[m];
 
-        //ions, insert updates from second order corrent
-        if (mech->is_ion_)
+        if (mech->type_ == CAP)
         {
-            //TODO not needed, its inserted below?
 
-    }
-        //if no current function, no current jacobian
-        else if (mech->memb_func_.current != NULL)
+        }
+        //if has didv
+        if (mech->memb_func_.current != NULL)
         {
-            //TODO add for capacitance
-          //index of g is "typically" size of data -1;
-          //TODO hard-coded expection
-          int g_index = mech->data_size_-1;
-          if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
+          int didv_index =-1;
+          if (mech->is_ion_)
+              didv_index = 4; //dcurcv in eion.c::second_order_cur()
+          else if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
                 || mech->type_ == MechanismTypes::kProbGABAAB_EMS
                 || mech->type_ == MechanismTypes::kExpSyn)
-              g_index = mech->data_size_-2;
+              didv_index = mech->data_size_-2; //_g_unused in c-mod files
+          else
+              mech->data_size_-1; //all other mechs
 
           for (int n=0; n<mech_instances->nodecount; n++)
           {
 #if LAYOUT == 1
             g_data_offset = data_offset + mech->data_size_ * n + g_index;
 #else
-            g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_index + n;
+            g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * didv_index + n;
 #endif
             //updates the main current functions dV/dt
             g = y_data[data_offset];
             compartment_id = mech_instances->nodeindices[m];
-            jacob_d[compartment_id][g_data_offset] += g*rev_dt; // g == di/dV
+            assert(jacob_d[compartment_id][g_data_offset]==0);
+            jacob_d[compartment_id][g_data_offset] = g*rev_dt; // g==di/dV
           }
         }
-        data_offset = tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
+        data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
 
 
-    //update of weights of VecPlayContinuous based on time
+    //update of weights of VecPlayContinuous based on time (dw/dt)
+    /* NO!
     VecplayContinuousX * vecplay = nullptr;
     int vecplay_pd_offset=-1;
     for (int v=0; v<branch->nt_->n_vecplay; v++)
@@ -245,11 +236,7 @@ int CvodesAlgorithm::JacobianFunction(
                  ( vecplay->Interpolate(fy_data[t_index])
                   -vecplay->Interpolate(y_data[t_index])
                  ) / dt;
-    }
-
-    //jacobian for time
-    jacob[t_index][t_index] = dt;
-
+    }*/
     return 0;
 }
 
