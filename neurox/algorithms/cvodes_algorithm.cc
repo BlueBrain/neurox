@@ -129,11 +129,10 @@ int CvodesAlgorithm::JacobianFunction(
     Branch * branch = (Branch*) user_data;
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
 
-    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
-    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
     int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
     int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
-    int rhs_offset = branch->nt_->_actual_rhs - branch->nt_->_data;
+    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
+    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
     int compartments_count = branch->nt_->end;
 
     //TODO double-check: Jacob has been stored in f(y,y), not y???
@@ -141,9 +140,6 @@ int CvodesAlgorithm::JacobianFunction(
     realtype *fy_data = N_VGetArrayPointer_Serial(fy);
     realtype *a = &y_data[a_offset];
     realtype *b = &y_data[b_offset];
-    realtype *v = &y_data[v_offset];
-    realtype *d = &y_data[d_offset];
-    realtype *rhs = &y_data[rhs_offset];
     int *p = branch->nt_->_v_parent_index;
     assert(y_data==branch->nt_->_data);
     assert(t==branch->nt_->_t);
@@ -156,34 +152,25 @@ int CvodesAlgorithm::JacobianFunction(
 
     realtype ** jacob = J->cols;
     realtype ** jacob_d = &jacob[d_offset];
-    realtype ** jacob_rhs = &jacob[rhs_offset];
 
     //Scale factor for derivatives (based on previous step taken)
+    //TODO de we need t in the state?
     const int t_index = branch_cvodes->equations_count_-1;
     assert(fy_data[t_index] > y_data[t_index]);
-    realtype dt = fy_data[t_index] - y_data[t_index];
-    const realtype rev_dt = 1 / dt;
-
 
     //add constributions from parent/children compartments
-    //TODO fix positions
-    floble_t dv=-1;
     for (offset_t i = 1; i < compartments_count; i++)
     {
-      //from HinesSolver::SetupMatrixRHS
-      dv = v[p[i]] - v[i];
-      jacob_rhs[i][i] -= b[i] * dv * rev_dt;
-      jacob_rhs[p[i]][i] += a[i] * dv * rev_dt;
-
       //from HinesSolver::SetupMatrixDiagonal
-      jacob_d[i][i] -= b[i] * rev_dt;
-      jacob_d[p[i]][i] -= a[i] * rev_dt;
+      jacob_d[i][i] -= b[i];
+      jacob_d[p[i]][i] -= a[i];
     }
 
     //Add di/dv contributions from mechanisms currents to compartments
-    int compartment_id=-1, g_data_offset=-1, didv_index=-1;
+    int compartment_id=-1;
+    int y_data_offset=-1, y_data_index=-1;
     int data_offset=tools::Vectorizer::SizeOf(compartments_count)*6;
-    realtype g=-1;
+    realtype y_val=-1;
     const double cfac = .001 * branch->nt_->cj; //capac.c::nrn_jacob_capacitance
     for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
@@ -192,49 +179,47 @@ int CvodesAlgorithm::JacobianFunction(
 
         if (mech->memb_func_.current != NULL) //if it has di/dv
         {
-          if (mech->type_== CAP) //capac.c::nrn_jacob_capacitance
-              didv_index = 0;
+          if (mech->type_== MechanismTypes::kCapacitance)
+              y_data_index = 0; //capac.c::nrn_jacob_capacitance
           else if (mech->is_ion_)
-              didv_index = 4; //dcurdv in eion.c::second_order_cur()
+              y_data_index = 4; //dcurdv in eion.c::second_order_cur()
           else if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
                 || mech->type_ == MechanismTypes::kProbGABAAB_EMS
                 || mech->type_ == MechanismTypes::kExpSyn)
-              didv_index = mech->data_size_-2; //_g_unused in c-mod files
+              y_data_index = mech->data_size_-2; //_g_unused in c-mod files
           else
               mech->data_size_-1; //all other mechs
 
           for (int n=0; n<mech_instances->nodecount; n++)
           {
 #if LAYOUT == 1
-            g_data_offset = data_offset + mech->data_size_ * n + didv_index;
+            y_data_offset = data_offset + mech->data_size_ * n + y_data_index;
 #else
-            g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * didv_index + n;
+            y_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * y_data_index + n;
 #endif
-            //updates the main current functions dV/dt
-            g = y_data[data_offset];
-            if (mech->type_==CAP) g*=cfac;
-            compartment_id = mech_instances->nodeindices[m];
-            assert(jacob_d[compartment_id][g_data_offset]==0);
-            jacob_d[compartment_id][g_data_offset] = g*rev_dt; // g==di/dV
+            y_val = y_data[y_data_offset];
+            if (mech->is_ion_) //y is second order current (mechs functions di/dV)
+            {
+              //cur variable is one position before dcurdv (eion.c)
+              jacob[y_data_offset-1][v_offset+compartment_id] = y_val; //dcurdv
+            }
+            else //y is first order current (current function vec_D for currents C*dV/dt)
+            {
+              if (mech->type_==MechanismTypes::kCapacitance)
+                  y_val*=cfac; //eion.c::nrn_jacob_capacitance
+              compartment_id = mech_instances->nodeindices[m];
+              assert(jacob_d[compartment_id][y_data_offset]==0);
+              jacob_d[compartment_id][y_data_offset] = y_val;
+
+
+              //TODO aren't we missing shadow_didv
+              //dcurdv for current mechanism
+            }
           }
         }
         data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
 
-
-    //update of weights of VecPlayContinuous based on time (dw/dt)
-    /* NO!
-    VecplayContinuousX * vecplay = nullptr;
-    int vecplay_pd_offset=-1;
-    for (int v=0; v<branch->nt_->n_vecplay; v++)
-    {
-        vecplay=(VecplayContinuousX*) branch->nt_->_vecplay[v];
-        vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
-        jacob[vecplay_pd_offset][t_index] =
-                 ( vecplay->Interpolate(fy_data[t_index])
-                  -vecplay->Interpolate(y_data[t_index])
-                 ) / dt;
-    }*/
     return 0;
 }
 
