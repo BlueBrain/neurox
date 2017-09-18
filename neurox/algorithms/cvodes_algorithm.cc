@@ -17,29 +17,9 @@ const char* CvodesAlgorithm::GetString() {
   return "CVODES";
 }
 
-
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
-int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+int CvodesAlgorithm::ReevaluateBranch(Branch * branch)
 {
-    Branch * branch = (Branch*) user_data;
-    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
-    assert(NV_LENGTH_S(y) == NV_LENGTH_S(ydot));
-
-    //changes have to be made in ydot, y is the state at the previous step
-    //so we copy y to ydot, and apply the changes to ydot
-    memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
-
-    //we swap old/new pointers so that internal pointers in NrnThread
-    //are still pointing to right place
-    double * nt_data_copy = NV_DATA_S(ydot);
-    N_VSetArrayPointer(NV_DATA_S(y), ydot);
-    N_VSetArrayPointer(nt_data_copy, y);
-
-    //set time step to the time we want to jump to
-    assert(t > branch->nt_->_t);
-    branch->nt_->_dt = t - branch->nt_->_t;
-    assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
-
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
     //point proc mechanisms' nrn_current function
@@ -108,6 +88,27 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
 {
     assert(0);
     return(0);
+}
+
+int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+{
+    Branch * branch = (Branch*) user_data;
+    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+
+    //changes have to be made in ydot, y is the state at the previous step
+    //so we copy y to ydot, and apply the changes to ydot
+    memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
+
+    //we swap old/new pointers so that internal pointers in NrnThread
+    //are still pointing to right place
+    double * nt_data_copy = NV_DATA_S(ydot);
+    N_VSetArrayPointer(NV_DATA_S(y), ydot);
+    N_VSetArrayPointer(nt_data_copy, y);
+
+    //set time step to the time we want to jump to
+    assert(t > branch->nt_->_t);
+    branch->nt_->_dt = t - branch->nt_->_t;
+    assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -253,7 +254,7 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 //////////////////////////// BranchCvodes /////////////////////////
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :cvodes_mem_(nullptr), iterations_count_(-1), equations_count_(-1)
+    :cvodes_mem_(nullptr), equations_count_(-1)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
@@ -270,29 +271,62 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
     N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
     void * cvodes_mem = branch_cvodes->cvodes_mem_;
-    int & equations_count = branch_cvodes->equations_count_;
+    int compartments_count = local->nt_->end;
     NrnThread *& nt = local->nt_;
 
     int flag = CV_ERR_FAILURE;
 
-    //equations: one per data and weight (constant have jacob=0)
-    equations_count = local->nt_->_ndata + local->nt_->n_weight;
-    branch_cvodes->iterations_count_=0;
+    //equations: voltages per compartments + mechanisms * states
+    int & equations_count = branch_cvodes->equations_count_ = 0;
+    equations_count += compartments_count;
+    for (int m = 0; m < neurox::mechanisms_count_; m++)
+    {
+        Mechanism * mech=mechanisms_[m];
+        Memb_list* mech_instances = &local->mechs_instances_[m];
+        equations_count += mech_instances->nodecount * mech->cvode_states_count_;
+    }
 
-    //create array y for state: nt->data and nt->weights
+    //create array y for state
     floble_t * y_data = new floble_t[equations_count];
-    std::copy(nt->_data, nt->_data+local->nt_->_ndata, y_data);
-    std::copy(nt->weights, nt->weights + nt->n_weight, y_data + nt->_ndata);
-    tools::Vectorizer::Delete(nt->_data);
-    delete[] nt->weights;
-    nt->_data = y_data;
-    nt->weights = &y_data[nt->_ndata];
+    for (int i=0; i<compartments_count; i++)
+    {
+      y_data[i] = nt->_actual_v[i];
+      branch_cvodes->equations_map_[i]=&local->nt_->_actual_v[i];
+    }
+
+    //create map from y to NrnThread->data (mech-states)
+    branch_cvodes->equations_map_ = new double*[equations_count];
+    int equations_map_offset=compartments_count;
+    for (int m = 0; m < neurox::mechanisms_count_; m++)
+    {
+        Mechanism * mech = mechanisms_[m];
+        Memb_list* mech_instances = &local->mechs_instances_[m];
+        int ml_data_offset=0;
+        for (int n=0; n<mech_instances->nodecount; n++)
+        {
+            for (int s=0; s<mech->cvode_states_count_; s++)
+            {
+              int state_index = mech->cvode_states_offsets_[s];
+#if LAYOUT == 1
+              int state_data_offset = ml_data_offset + mech->data_size_ * n +  state_index;
+#else
+              int state_data_offset = ml_data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_index + n;
+#endif
+              branch_cvodes->equations_map_[equations_map_offset] = &mech_instances->data[state_data_offset];
+              equations_map_offset++;
+            }
+            ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
+        }
+        equations_map_offset += mech_instances->nodecount * mech->cvode_states_count_;
+    }
     branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
-    //absolute tolerance array
+    //absolute tolerance array (low for voltages, high for mech states)
     absolute_tolerance = N_VNew_Serial(equations_count);
-    for (int i=0; i<equations_count; i++) //TODO set values
-        NV_Ith_S(absolute_tolerance, i) = kRelativeTolerance;
+    for (int i=0; i<compartments_count; i++)
+        NV_Ith_S(absolute_tolerance, i) = kAbsToleranceVoltage;
+    for (int i=compartments_count; i<equations_count; i++)
+        NV_Ith_S(absolute_tolerance, i) = kAbsToleranceMechStates;
 
     //CVodeCreate creates an internal memory block for a problem to
     //be solved by CVODES, with Backward Differentiation (or Adams)
@@ -334,11 +368,11 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 #else //sparse colver
     //Requires installation of Superlumt or KLU
     flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseFunction);
-    int nnz = kNumEquations * kNumEquations;
+    int nnz = equations_count * equations_count;
 #if NEUROX_CVODES_JACOBIAN_SOLVER==1
-    flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
+    flag = CVKLU(cvode_mem, 1, equations_count, nnz);
 #else //==2
-    flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
+    flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
 #endif
     assert(flag==CV_SUCCESS);
 #endif
@@ -420,10 +454,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       //Success from CVodeGetRootInfo or CVode
       if (flag == CV_SUCCESS)
-      {
-        branch_cvodes->iterations_count_++;
         local->nt_->_t = tout;
-      }
 
       long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
 #ifdef NEUROX_CVODES_JACOBIAN_SOLVER==0

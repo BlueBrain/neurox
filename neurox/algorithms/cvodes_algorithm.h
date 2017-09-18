@@ -55,15 +55,21 @@ class CvodesAlgorithm : public Algorithm {
       /// CVODES structure
       void *cvodes_mem_;
 
-      /// number of CVODES iterations
-      unsigned iterations_count_;
-
       /// number of equations/vars in the system of ODEs
+      /// i.e. compartments * equations per compartment
       int equations_count_;
+
+      /// number of states per compartment
+      int equations_per_compartment_;
+
+      /// mapping of equations y to NrnThread->data
+      /// (similar to ode_map in NEURON)
+      double **equations_map_;
 
       /// minimum step size
       static double min_step_size_;
 
+      /// HPX actions registration
       static void RegisterHpxActions();
 
       static hpx_action_t Init;
@@ -78,6 +84,11 @@ class CvodesAlgorithm : public Algorithm {
 
  private:
   constexpr static double kRelativeTolerance = 1e-3;
+  constexpr static double kAbsToleranceVoltage = 1e-3;
+  constexpr static double kAbsToleranceMechStates = 1e-2;
+
+  /// function that reavaluates all elementes in NrnThread->data
+  static int ReevaluateBranch(Branch * branch);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
