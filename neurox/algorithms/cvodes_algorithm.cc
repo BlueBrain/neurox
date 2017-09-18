@@ -314,8 +314,11 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     //specify g as root function and roots
 #ifdef NDEBUG
     int roots_count = 1; //AP threshold
+    int roots_direction [roots_count] = {1}; //root [0] only increasing
 #else
     int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
+    int roots_direction[roots_count] = {1,0,0};
+    //root [0] only increasing, [1] and [2] both ways
 #endif
     flag = CVodeRootInit(cvodes_mem, roots_count, CvodesAlgorithm::RootFunction);
     assert(flag==CV_SUCCESS);
@@ -352,6 +355,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     CVodeSetMaxStep(cvodes_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
     CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
     CVodeSetMaxOrd(cvodes_mem, 5); //max order of the BDF method
+    CVodeSetRootDirection(cvodes_mem, roots_direction);
 
     //see chapter 6.4 -- User supplied functions
     //see chapter 8 -- providing alternate linear solver modules
