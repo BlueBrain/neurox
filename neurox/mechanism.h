@@ -60,8 +60,8 @@ class Mechanism {
 
   int dependency_ion_index_;  ///> index of parent ion (if any)
 
-  int cvode_states_count_; ///> number of cvode state variables
-  int *cvode_states_offsets_; ///>offset of state vars in ml->data
+  int state_vars_count_; ///> number of cvode state variables
+  int *state_vars_offsets_; ///>offset of state vars in ml->data
 
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;

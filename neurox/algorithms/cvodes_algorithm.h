@@ -88,7 +88,10 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kAbsToleranceMechStates = 1e-2;
 
   /// function that reavaluates all elementes in NrnThread->data
-  static int ReevaluateBranch(Branch * branch);
+  static void ReevaluateBranch(Branch *branch);
+
+  /// update NrnThread->data from with new CVODES state
+  static void UpdateNrnThreadFromCvodeState(Branch *branch);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
@@ -99,14 +102,16 @@ class CvodesAlgorithm : public Algorithm {
   /// jacobian: compute J(t,y)
   static int JacobianSparseMatrix(
           realtype t,
-          N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
+          N_Vector y, N_Vector fy,
+          SlsMat JacMat, void *user_data,
           N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
   /// jacobian: compute J(t,y)
-  static int JacobianFunction(long int N, floble_t t,
-                      N_Vector y_, N_Vector fy,
-                      DlsMat J, void *user_data,
-                      N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
+  static int JacobianFunction(
+          long int N, floble_t t,
+          N_Vector y_, N_Vector fy,
+          DlsMat J, void *user_data,
+          N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
 };
 

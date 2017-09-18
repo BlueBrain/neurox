@@ -18,8 +18,11 @@ const char* CvodesAlgorithm::GetString() {
 }
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
-int CvodesAlgorithm::ReevaluateBranch(Branch * branch)
+void CvodesAlgorithm::ReevaluateBranch(Branch * branch)
 {
+    //delivers all events whithin the next min step size
+    branch->DeliverEvents(branch->nt_->_t + BranchCvodes::min_step_size_);
+
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
     //point proc mechanisms' nrn_current function
@@ -63,8 +66,15 @@ int CvodesAlgorithm::ReevaluateBranch(Branch * branch)
 
     ////// From main loop - call state function
     branch->CallModFunction(Mechanism::ModFunctions::kState);
+}
 
-    return 0;
+
+void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch)
+{
+    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+    double * y = NV_DATA_S(branch_cvodes->y_);
+    for (int i=0; i<branch_cvodes->equations_count_; i++)
+        *branch_cvodes->equations_map_[i] = y[i];
 }
 
 /// g root function to compute g_i(t,y) .
@@ -95,20 +105,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     Branch * branch = (Branch*) user_data;
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
 
-    //changes have to be made in ydot, y is the state at the previous step
-    //so we copy y to ydot, and apply the changes to ydot
-    memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
+    // d/dV (C dV/dt) = sum_i g_i x_i (V-E) +
 
-    //we swap old/new pointers so that internal pointers in NrnThread
-    //are still pointing to right place
-    double * nt_data_copy = NV_DATA_S(ydot);
-    N_VSetArrayPointer(NV_DATA_S(y), ydot);
-    N_VSetArrayPointer(nt_data_copy, y);
-
-    //set time step to the time we want to jump to
-    assert(t > branch->nt_->_t);
-    branch->nt_->_dt = t - branch->nt_->_t;
-    assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -118,7 +116,7 @@ int CvodesAlgorithm::JacobianFunction(
         DlsMat J, void *user_data,
         N_Vector, N_Vector, N_Vector)
 {
-
+    realtype ** jacob = J->cols;
     Branch * branch = (Branch*) user_data;
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(N==branch_cvodes->equations_count_);
@@ -128,23 +126,10 @@ int CvodesAlgorithm::JacobianFunction(
     int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
     int compartments_count = branch->nt_->end;
 
-    //TODO double-check: Jacob has been stored in f(y,y), not y???
     realtype *y_data = N_VGetArrayPointer_Serial(y);
-    realtype *fy_data = N_VGetArrayPointer_Serial(fy);
-    realtype *a = &y_data[a_offset];
-    realtype *b = &y_data[b_offset];
+    double *a = &branch->nt_->_data[a_offset];
+    double *b = &branch->nt_->_data[b_offset];
     int *p = branch->nt_->_v_parent_index;
-    assert(y_data==branch->nt_->_data);
-    assert(t==branch->nt_->_t);
-
-    //Jacobian for nt->data includes all voltages, currents,
-    //ions states and point-processes wreights
-
-    //CVODES guide: must load NxN matrix J with the approximation
-    //of Jacobian J(t,y) at point (t,y)
-
-    realtype ** jacob = J->cols;
-    realtype ** jacob_v = &jacob[v_offset];
 
     //Jacobian for main current equation:
     // d(C dV/dt) / dV     = sum_i g_i x_i   //mechs currents
@@ -156,14 +141,13 @@ int CvodesAlgorithm::JacobianFunction(
     {
       //from HinesSolver::SetupMatrixDiagonal
       //Reminder: derivative of V is in vector D
-      jacob[v_offset+i][v_offset+p[i]] -= a[i];
-      jacob[v_offset+p[i]][v_offset+i] -= b[i];
+      jacob[i][p[i]] -= a[i];
+      jacob[p[i]][i] -= b[i];
     }
 
-    //Add di/dv contributions from mechanisms currents to compartments
-    int compartment_id=-1;
-    int y_data_offset=-1, y_data_index=-1;
-    int data_offset=tools::Vectorizer::SizeOf(compartments_count)*6;
+    //Add di/dv contributions from mechanisms currents to current equation
+    int compartment_id=-1, y_data_offset=-1, g_data_index=-1;
+    int data_offset=compartments_count;
     realtype y_val=-1;
     const double cfac = .001 * branch->nt_->cj; //capac.c::nrn_jacob_capacitance
     for (int m = 0; m < neurox::mechanisms_count_; m++)
@@ -174,26 +158,27 @@ int CvodesAlgorithm::JacobianFunction(
         if (mech->memb_func_.current != NULL) //if it has di/dv
         {
           if (mech->type_== MechanismTypes::kCapacitance)
-              y_data_index = 0; //capac.c::nrn_jacob_capacitance
+              g_data_index = 0; //capac.c::nrn_jacob_capacitance
           else if (mech->is_ion_)
-              y_data_index = 4; //dcurdv in eion.c::second_order_cur()
+              g_data_index = 4; //dcurdv in eion.c::second_order_cur()
           else if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
                 || mech->type_ == MechanismTypes::kProbGABAAB_EMS
                 || mech->type_ == MechanismTypes::kExpSyn)
-              y_data_index = mech->data_size_-2; //_g_unused in c-mod files
+              g_data_index = mech->data_size_-2; //_g_unused in c-mod files
           else
               mech->data_size_-1; //all other mechs
 
           for (int n=0; n<mech_instances->nodecount; n++)
           {
 #if LAYOUT == 1
-            y_data_offset = data_offset + mech->data_size_ * n + y_data_index;
+            y_data_offset = data_offset + mech->data_size_ * n + g_data_index;
 #else
-            y_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * y_data_index + n;
+            y_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_data_index + n;
 #endif
             y_val = y_data[y_data_offset];
             if (mech->is_ion_) //y is second order current (mechs functions di/dV)
             {
+                //TODO this is wrong
               //cur variable is one position before dcurdv (eion.c)
               jacob[y_data_offset-1][v_offset+compartment_id] = y_val; //dcurdv
             }
@@ -203,8 +188,8 @@ int CvodesAlgorithm::JacobianFunction(
               if (mech->type_==MechanismTypes::kCapacitance)
                   y_val*=cfac; //eion.c::nrn_jacob_capacitance
               compartment_id = mech_instances->nodeindices[m];
-              assert(jacob_v[compartment_id][y_data_offset]==0);
-              jacob_v[compartment_id][y_data_offset] = y_val;
+              assert(jacob[compartment_id][y_data_offset]==0);
+              jacob[compartment_id][y_data_offset] = y_val;
 
 
               //TODO aren't we missing shadow_didv
@@ -283,7 +268,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     {
         Mechanism * mech=mechanisms_[m];
         Memb_list* mech_instances = &local->mechs_instances_[m];
-        equations_count += mech_instances->nodecount * mech->cvode_states_count_;
+        equations_count += mech_instances->nodecount * mech->state_vars_count_;
     }
 
     //create array y for state
@@ -304,9 +289,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
         int ml_data_offset=0;
         for (int n=0; n<mech_instances->nodecount; n++)
         {
-            for (int s=0; s<mech->cvode_states_count_; s++)
+            for (int s=0; s<mech->state_vars_count_; s++)
             {
-              int state_index = mech->cvode_states_offsets_[s];
+              int state_index = mech->state_vars_offsets_[s];
 #if LAYOUT == 1
               int state_data_offset = ml_data_offset + mech->data_size_ * n +  state_index;
 #else
@@ -317,7 +302,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
             }
             ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
         }
-        equations_map_offset += mech_instances->nodecount * mech->cvode_states_count_;
+        equations_map_offset += mech_instances->nodecount * mech->state_vars_count_;
     }
     branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
@@ -414,8 +399,9 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
     while(local->nt_->_t < input_params_->tstop_)
     {
-      //delivers all events whithin the next min step size
-      local->DeliverEvents(local->nt_->_t + min_step_size_);
+      //Beginning of execution of new event, update status
+      CvodesAlgorithm::UpdateNrnThreadFromCvodeState(local);
+      CvodesAlgorithm::ReevaluateBranch(local);
 
       //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
