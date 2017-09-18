@@ -152,20 +152,18 @@ int CvodesAlgorithm::JacobianFunction(
     realtype ** jacob = J->cols;
     realtype ** jacob_v = &jacob[v_offset];
 
-    //Jacobian:
-    // d/dV     (C dV/dt) = sum_i g_i x_i   //mechs currents
-    // d/dV_p   (C dV/dt) = A               //parent compartment
-    // d/dV_c_i (C dV/dt) = B_c_i           //children_i compartment
+    //Jacobian for main current equation:
+    // d(C dV/dt) / dV     = sum_i g_i x_i   //mechs currents
+    // d(C dV/dt) / dV_p   = -A          //parent compartment
+    // d(C dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
     //add constributions from parent/children compartments to V
-    for (offset_t i = 1; i < compartments_count; i++)
+    for (int i=1; i<compartments_count; i++)
     {
       //from HinesSolver::SetupMatrixDiagonal
       //Reminder: derivative of V is in vector D
-
-
-      jacob[v_offset+i][v_offset+i] -= b[i];
-      jacob[v_offset+p[i]][v_offset+i] -= a[v_offset+i];
+      jacob[v_offset+i][v_offset+p[i]] -= a[i];
+      jacob[v_offset+p[i]][v_offset+i] -= b[i];
     }
 
     //Add di/dv contributions from mechanisms currents to compartments
