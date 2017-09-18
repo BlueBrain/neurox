@@ -127,6 +127,7 @@ int CvodesAlgorithm::JacobianFunction(
 
     Branch * branch = (Branch*) user_data;
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+    assert(N==branch_cvodes->equations_count_);
 
     int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
     int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
@@ -325,29 +326,28 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 
     //initializes the memory record and sets various function
     //fields specific to the dense linear solver module.
-    //TODO this is newton solver, shall we use direct solve instead?
     //Note: direct solvers give the solution (LU-decomposition, etc)
     //Indirect solvers require iterations (eg Jacobi method)
-    //sundials_direct.h wraps solvers??
 
-    /* install superlumt and klu first
-
-    // Call CVSuperLUMT to specify the CVSuperLUMT sparse direct linear solver
-    int nnz = kNumEquations * kNumEquations;
-    flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
-    //TODO? flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
-    assert(flag==CV_SUCCESS);
-
-    //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-    flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseMatrix);
-    assert(flag==CV_SUCCESS);
-    */
-
+#if NEUROX_CVODES_JACOBIAN_SOLVER==0 //dense solver
     flag = CVDense(cvodes_mem, equations_count);
+    flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianFunction);
+#else //sparse colver
+    //Requires installation of Superlumt or KLU
+    flag = CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseFunction);
+    int nnz = kNumEquations * kNumEquations;
+#if NEUROX_CVODES_JACOBIAN_SOLVER==1
+    flag = CVKLU(cvode_mem, 1, kNumEquations, nnz);
+#else //==2
+    flag = CVSuperLUMT(cvode_mem, 1, kNumEquations, nnz);
+#endif
+    assert(flag==CV_SUCCESS);
+#endif
+
     assert(flag==CV_SUCCESS);
 
     //specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-    flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianFunction);
+    //see chapter 8 -- providing alternate linear solver modules
     assert(flag==CV_SUCCESS);
 
     CVodeSetInitStep(cvodes_mem, min_step_size_);
@@ -356,9 +356,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
     CVodeSetMaxOrd(cvodes_mem, 5); //max order of the BDF method
     CVodeSetRootDirection(cvodes_mem, roots_direction);
-
-    //see chapter 6.4 -- User supplied functions
-    //see chapter 8 -- providing alternate linear solver modules
 
     return neurox::wrappers::MemoryUnpin(target);
 }
@@ -428,6 +425,21 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
         branch_cvodes->iterations_count_++;
         local->nt_->_t = tout;
       }
+
+      long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
+#ifdef NEUROX_CVODES_JACOBIAN_SOLVER==0
+      CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+      CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+#else
+      CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+      CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+#endif
+
+      CVodeGetNumSteps(cvodes_mem, &num_steps);
+      realtype last_step_size=-1;
+      CVodeGetLastStep(cvodes_mem, &last_step_size);
+      N_Vector estimated_local_errors = N_VNewEmpty_Serial(branch_cvodes->equations_count_);
+      CVodeGetEstLocalErrors(cvodes_mem, estimated_local_errors);
     }
 
     /* Print some final statistics */
