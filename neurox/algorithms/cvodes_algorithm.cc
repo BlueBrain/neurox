@@ -152,12 +152,20 @@ int CvodesAlgorithm::JacobianFunction(
     realtype ** jacob = J->cols;
     realtype ** jacob_v = &jacob[v_offset];
 
-    //add constributions from parent/children compartments
+    //Jacobian:
+    // d/dV     (C dV/dt) = sum_i g_i x_i   //mechs currents
+    // d/dV_p   (C dV/dt) = A               //parent compartment
+    // d/dV_c_i (C dV/dt) = B_c_i           //children_i compartment
+
+    //add constributions from parent/children compartments to V
     for (offset_t i = 1; i < compartments_count; i++)
     {
       //from HinesSolver::SetupMatrixDiagonal
-      jacob_v[i][i] -= b[i];
-      jacob_v[p[i]][i] -= a[i];
+      //Reminder: derivative of V is in vector D
+
+
+      jacob[v_offset+i][v_offset+i] -= b[i];
+      jacob[v_offset+p[i]][v_offset+i] -= a[v_offset+i];
     }
 
     //Add di/dv contributions from mechanisms currents to compartments
@@ -199,6 +207,7 @@ int CvodesAlgorithm::JacobianFunction(
             }
             else //y is first order current (current function vec_D for currents C*dV/dt)
             {
+              //NOTE: vec_D is d(dV/dt) so y_val is the jacob of dV/dt
               if (mech->type_==MechanismTypes::kCapacitance)
                   y_val*=cfac; //eion.c::nrn_jacob_capacitance
               compartment_id = mech_instances->nodeindices[m];
