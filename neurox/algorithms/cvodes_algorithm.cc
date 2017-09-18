@@ -45,7 +45,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //set time step to the time we want to jump to
     assert(t > branch->nt_->_t);
     branch->nt_->_dt = t - branch->nt_->_t;
-    NV_DATA_S(ydot)[branch_cvodes->equations_count_-1] = t;
     assert(branch->nt_->_dt >= BranchCvodes::min_step_size_);
 
     //Updates internal states of continuous point processes (vecplay)
@@ -152,11 +151,6 @@ int CvodesAlgorithm::JacobianFunction(
 
     realtype ** jacob = J->cols;
     realtype ** jacob_d = &jacob[d_offset];
-
-    //Scale factor for derivatives (based on previous step taken)
-    //TODO de we need t in the state?
-    const int t_index = branch_cvodes->equations_count_-1;
-    assert(fy_data[t_index] > y_data[t_index]);
 
     //add constributions from parent/children compartments
     for (offset_t i = 1; i < compartments_count; i++)
@@ -281,15 +275,14 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
 
     int flag = CV_ERR_FAILURE;
 
-    //equations: one per data, weight and time (constant have jacob=0)
-    equations_count = local->nt_->_ndata + local->nt_->n_weight + 1;
+    //equations: one per data and weight (constant have jacob=0)
+    equations_count = local->nt_->_ndata + local->nt_->n_weight;
     branch_cvodes->iterations_count_=0;
 
-    //create array y for state: nt->data, nt->weights and time
+    //create array y for state: nt->data and nt->weights
     floble_t * y_data = new floble_t[equations_count];
     std::copy(nt->_data, nt->_data+local->nt_->_ndata, y_data);
     std::copy(nt->weights, nt->weights + nt->n_weight, y_data + nt->_ndata);
-    y_data[equations_count=-1]=local->nt_->_t;
     tools::Vectorizer::Delete(nt->_data);
     delete[] nt->weights;
     nt->_data = y_data;
