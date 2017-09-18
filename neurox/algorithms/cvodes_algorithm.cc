@@ -130,7 +130,6 @@ int CvodesAlgorithm::JacobianFunction(
     assert(N==branch_cvodes->equations_count_);
 
     int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
-    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
     int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
     int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
     int compartments_count = branch->nt_->end;
@@ -151,14 +150,14 @@ int CvodesAlgorithm::JacobianFunction(
     //of Jacobian J(t,y) at point (t,y)
 
     realtype ** jacob = J->cols;
-    realtype ** jacob_d = &jacob[d_offset];
+    realtype ** jacob_v = &jacob[v_offset];
 
     //add constributions from parent/children compartments
     for (offset_t i = 1; i < compartments_count; i++)
     {
       //from HinesSolver::SetupMatrixDiagonal
-      jacob_d[i][i] -= b[i];
-      jacob_d[p[i]][i] -= a[i];
+      jacob_v[i][i] -= b[i];
+      jacob_v[p[i]][i] -= a[i];
     }
 
     //Add di/dv contributions from mechanisms currents to compartments
@@ -203,8 +202,8 @@ int CvodesAlgorithm::JacobianFunction(
               if (mech->type_==MechanismTypes::kCapacitance)
                   y_val*=cfac; //eion.c::nrn_jacob_capacitance
               compartment_id = mech_instances->nodeindices[m];
-              assert(jacob_d[compartment_id][y_data_offset]==0);
-              jacob_d[compartment_id][y_data_offset] = y_val;
+              assert(jacob_v[compartment_id][y_data_offset]==0);
+              jacob_v[compartment_id][y_data_offset] = y_val;
 
 
               //TODO aren't we missing shadow_didv
