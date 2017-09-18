@@ -29,18 +29,11 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //so we copy y to ydot, and apply the changes to ydot
     memcpy(NV_DATA_S(ydot), NV_DATA_S(y), NV_LENGTH_S(y)*sizeof(floble_t));
 
-    //update vecplay pointers to point to right place
-    VecplayContinuousX * vecplay = nullptr;
-    int vecplay_pd_offset=-1;
-    for (int v=0; v<branch->nt_->n_vecplay; v++)
-    {
-        vecplay=(VecplayContinuousX*) branch->nt_->_vecplay[v];
-        vecplay_pd_offset = vecplay->pd_ - branch->nt_->_data;
-        vecplay->pd_ = &NV_DATA_S(ydot)[vecplay_pd_offset];
-    }
-    int weights_offset=branch->nt_->weights - branch->nt_->_data;
-    branch->nt_->weights = &NV_DATA_S(ydot)[weights_offset];
-    branch->nt_->_data = NV_DATA_S(ydot);
+    //we swap old/new pointers so that internal pointers in NrnThread
+    //are still pointing to right place
+    double * nt_data_copy = NV_DATA_S(ydot);
+    N_VSetArrayPointer(NV_DATA_S(y), ydot);
+    N_VSetArrayPointer(nt_data_copy, y);
 
     //set time step to the time we want to jump to
     assert(t > branch->nt_->_t);
