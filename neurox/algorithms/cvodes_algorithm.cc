@@ -180,25 +180,22 @@ int CvodesAlgorithm::JacobianFunction(
       jacob_d[p[i]][i] -= a[i] * rev_dt;
     }
 
-    //Add contributions from mechanisms
-    int compartment_id=-1, g_data_offset=-1, ion_cur_data_offset=-1;
-    int data_offset=  tools::Vectorizer::SizeOf(compartments_count)*6;
+    //Add di/dv contributions from mechanisms currents to compartments
+    int compartment_id=-1, g_data_offset=-1, didv_index=-1;
+    int data_offset=tools::Vectorizer::SizeOf(compartments_count)*6;
     realtype g=-1;
+    const double cfac = .001 * branch->nt_->cj; //capac.c::nrn_jacob_capacitance
     for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
         Mechanism * mech=mechanisms_[m];
         Memb_list* mech_instances = &branch->mechs_instances_[m];
 
-        if (mech->type_ == CAP)
+        if (mech->memb_func_.current != NULL) //if it has di/dv
         {
-
-        }
-        //if has didv
-        if (mech->memb_func_.current != NULL)
-        {
-          int didv_index =-1;
-          if (mech->is_ion_)
-              didv_index = 4; //dcurcv in eion.c::second_order_cur()
+          if (mech->type_== CAP) //capac.c::nrn_jacob_capacitance
+              didv_index = 0;
+          else if (mech->is_ion_)
+              didv_index = 4; //dcurdv in eion.c::second_order_cur()
           else if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
                 || mech->type_ == MechanismTypes::kProbGABAAB_EMS
                 || mech->type_ == MechanismTypes::kExpSyn)
@@ -209,12 +206,13 @@ int CvodesAlgorithm::JacobianFunction(
           for (int n=0; n<mech_instances->nodecount; n++)
           {
 #if LAYOUT == 1
-            g_data_offset = data_offset + mech->data_size_ * n + g_index;
+            g_data_offset = data_offset + mech->data_size_ * n + didv_index;
 #else
             g_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * didv_index + n;
 #endif
             //updates the main current functions dV/dt
             g = y_data[data_offset];
+            if (mech->type_==CAP) g*=cfac;
             compartment_id = mech_instances->nodeindices[m];
             assert(jacob_d[compartment_id][g_data_offset]==0);
             jacob_d[compartment_id][g_data_offset] = g*rev_dt; // g==di/dV
