@@ -60,15 +60,16 @@ class Mechanism {
 
   int dependency_ion_index_;  ///> index of parent ion (if any)
 
-  int state_vars_count_; ///> number of cvode state variables
-  int *state_vars_offsets_; ///>offset of state vars in ml->data
-
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
   pnt_receive2_t pnt_receive_;
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
+
+  // The following two vars are used on CVODES only (so far)
+  short state_vars_count_; ///> number of cvode state variables
+  short *state_vars_offsets_; ///>offset of state vars in ml->data
 
   enum ModFunctions {
     // BA functions start here (of size BEFORE_AFTER_SIZE)

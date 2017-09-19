@@ -157,19 +157,9 @@ int CvodesAlgorithm::JacobianFunction(
 
         if (mech->memb_func_.current != NULL) //if it has di/dv
         {
-          if (mech->type_== MechanismTypes::kCapacitance)
-              g_data_index = 0; //capac.c::nrn_jacob_capacitance
-          else if (mech->is_ion_)
-              g_data_index = 4; //dcurdv in eion.c::second_order_cur()
-          else if (mech->type_ == MechanismTypes::kProbAMPANMDA_EMS
-                || mech->type_ == MechanismTypes::kProbGABAAB_EMS
-                || mech->type_ == MechanismTypes::kExpSyn)
-              g_data_index = mech->data_size_-2; //_g_unused in c-mod files
-          else
-              mech->data_size_-1; //all other mechs
-
           for (int n=0; n<mech_instances->nodecount; n++)
           {
+            g_data_index = mech->state_vars_offsets_[0];
 #if LAYOUT == 1
             y_data_offset = data_offset + mech->data_size_ * n + g_data_index;
 #else

@@ -25,7 +25,10 @@ Mechanism::Mechanism(const int type, const short int data_size,
       is_artificial_(is_artificial),
       is_ion_(is_ion),
       dependencies_(nullptr),
-      successors_(nullptr) {
+      successors_(nullptr),
+      state_vars_count_(0),
+      state_vars_offsets_(nullptr)
+{
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -62,7 +65,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current_parallel = nrn_cur_parallel_ion;
   }
 
-  switch (type) {
+  //TODO: hard-coded exceptions of vdata size
+  switch (this->type_) {
     case MechanismTypes::kIClamp:
       vdata_size_ = 1;
       break;
@@ -78,6 +82,26 @@ Mechanism::Mechanism(const int type, const short int data_size,
     default:
       vdata_size_ = 0;
   }
+
+  //TODO: hard-coded exception of state-vars
+  this->state_vars_count_=1;
+  this->state_vars_offsets_ = new short[this->state_vars_count_];
+
+  if (this->type_== MechanismTypes::kCapacitance)
+      //capac.c::nrn_jacob_capacitance
+      this->state_vars_offsets_[0] = 0;
+  else if (this->is_ion_)
+      //dcurdv in eion.c::second_order_cur()
+      this->state_vars_offsets_[0] = 4;
+  else if (this->type_ == MechanismTypes::kProbAMPANMDA_EMS
+        || this->type_ == MechanismTypes::kProbGABAAB_EMS
+        || this->type_ == MechanismTypes::kExpSyn)
+       //_g_unused in c-mod files
+      this->state_vars_offsets_[0] = this->data_size_-2;
+  else
+      //all other mechs
+      this->state_vars_offsets_[0] = this->data_size_-1;
+
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
 
   if (dependencies != nullptr) {
