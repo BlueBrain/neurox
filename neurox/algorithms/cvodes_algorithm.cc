@@ -18,10 +18,11 @@ const char* CvodesAlgorithm::GetString() {
 }
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
-void CvodesAlgorithm::ReevaluateBranch(Branch * branch)
+void CvodesAlgorithm::ReevaluateBranch(Branch * branch, double t)
 {
-    //delivers all events whithin the next min step size
-    branch->DeliverEvents(branch->nt_->_t + BranchCvodes::min_step_size_);
+    double t_old = branch->nt_->_t;
+    branch->nt_->_dt = t - branch->nt_->_t;
+    assert(t>0);
 
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -47,34 +48,42 @@ void CvodesAlgorithm::ReevaluateBranch(Branch * branch)
     //add parent and children currents (A and B) to D
     solver::HinesSolver::SetupMatrixDiagonal(branch);
 
-
-    ////// From HinesSolver::SolveTreeMatrix ///////
-    //Gaussian Elimination (sets RHS)
+    //Gaussian Elimination (sets final RHS and D)
     branch->SolveTreeMatrix();
 
+    //TODO only needed when we introduce mechs states)
 
-    ////// From eion.c::second_order_cur ///////
-    //updates ionic currents as rhs*didv from the children
+    /*
+    //update ions currents based on RHS and dI/dV
     second_order_cur(branch->nt_, input_params_->second_order_);
 
-
-    ////// From HinesSolver::UpdateV ///////
-    // v[i] += second_order_multiplier * rhs[i];
-    solver::HinesSolver::UpdateV(branch);
-
+    //update capacitance current based on RHS and dI/dV
     branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
+
+    //updates V: v[i] += second_order_multiplier * rhs[i]
+    //TODO second order or not?
+    solver::HinesSolver::UpdateV(branch);
 
     ////// From main loop - call state function
     branch->CallModFunction(Mechanism::ModFunctions::kState);
+    */
+
+    branch->nt_->_t = t_old;
 }
 
 
-void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch)
+void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch, N_Vector y)
 {
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
-    double * y = NV_DATA_S(branch_cvodes->y_);
-    for (int i=0; i<branch_cvodes->equations_count_; i++)
-        *branch_cvodes->equations_map_[i] = y[i];
+    double * y_data = NV_DATA_S(y);
+
+    //copy voltage
+    int compartments_count = branch->nt_->end;
+    memcpy(branch->nt_->_actual_v, y_data, sizeof(double)*compartments_count);
+
+    //use map to copy states to NrnThread->data
+    for (int i=0; i<branch_cvodes->equations_count_ - compartments_count; i++)
+        *branch_cvodes->equations_map_[i] = y_data[i];
 }
 
 /// g root function to compute g_i(t,y) .
@@ -102,7 +111,33 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
 
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-    const Branch * branch = (Branch*) user_data;
+    Branch * branch = (Branch*) user_data;
+
+    //NOTE: status has to be full recoverable as it will step with several ts,
+    //and update the status based on the best f(y,t) found;
+    //Therefore, we back up NrnThread->data and time (weights are only
+    //changed on net_receive), and we recoved them later
+
+    double t_bak = branch->nt_->_t;
+    double *data_bak  = new double[branch->nt_->_ndata];
+    memcpy(data_bak, branch->nt_->_data, sizeof(double)*branch->nt_->_ndata);
+
+    //Note: due to current stae of the art, this function will compute
+    //both the RHS  (vec_RHS) and jacobian (D).
+
+    //update vars in NrnThread->data described by our CVODES state
+    CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
+    CvodesAlgorithm::ReevaluateBranch(branch, t); //gets new RHS and D for new state
+
+    //recover previous state
+    branch->nt_->_t = t_bak;
+    memcpy(branch->nt_->_data, data_bak, sizeof(double)*branch->nt_->_ndata);
+    delete [] data_bak; //TODO get a fixed placeholder
+
+    //set RHS ie ydot state
+    memcpy(NV_DATA_S(ydot), branch->nt_->_actual_rhs, sizeof(branch->nt_->end));
+
+    /*** old code
 
     const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
     const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
@@ -111,7 +146,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     const int * p = branch->nt_->_v_parent_index;
     const int compartments_count = branch->nt_->end;
 
-    double * v   = NV_DATA_S(y);
+    double * v    = NV_DATA_S(y);
     double * vdot = NV_DATA_S(ydot);
 
     // contribution from parent and children compartments
@@ -133,6 +168,9 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
         vdot[i] -= b[i] * dv;
         vdot[p[i]] += a[i] * dv;  // writes to parent    }
     }
+    */
+
+    return 0;
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -297,14 +335,11 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     //create initial state y_0 for state array y
     floble_t * y_data = new floble_t[equations_count];
     for (int i=0; i<compartments_count; i++)
-    {
       y_data[i] = nt->_actual_v[i];
-      branch_cvodes->equations_map_[i]=&local->nt_->_actual_v[i];
-    }
 
     //create map from y to NrnThread->data (mech-states)
-    branch_cvodes->equations_map_ = new double*[equations_count];
-    int equations_map_offset=compartments_count;
+    branch_cvodes->equations_map_ = new double*[equations_count - compartments_count];
+    int equations_map_offset=0;
     for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
         Mechanism * mech = mechanisms_[m];
@@ -422,10 +457,6 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
     while(local->nt_->_t < input_params_->tstop_)
     {
-      //Beginning of execution of new event, update status
-      CvodesAlgorithm::UpdateNrnThreadFromCvodeState(local);
-      CvodesAlgorithm::ReevaluateBranch(local);
-
       //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
       if (!local->events_queue_.empty())
@@ -444,21 +475,24 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
-       flag = CVodeGetRootInfo(cvodes_mem, roots_found);
-       assert(flag==CV_SUCCESS);
-       assert(roots_found[0]!=0); //only possible root: AP threshold reached
+        //delivers all events whithin the next min step size
+        local->DeliverEvents(local->nt_->_t + BranchCvodes::min_step_size_);
+
+        flag = CVodeGetRootInfo(cvodes_mem, roots_found);
+        assert(flag==CV_SUCCESS);
+        assert(roots_found[0]!=0); //only possible root: AP threshold reached
 #ifndef NDEBUG
-       assert(roots_found[1]==0); //root can't be found or V too high
-       assert(roots_found[2]==0); //root can't be found or V too low
+        assert(roots_found[1]==0); //root can't be found or V too high
+        assert(roots_found[2]==0); //root can't be found or V too low
 #endif
-       //NOTE: if root is found, integrator time is now at time of root!
-       //(+1 value ascending, -1 valued descending)
-       if (roots_found[0] > 0) //AP threshold reached from below
-       {
+        //NOTE: if root is found, integrator time is now at time of root!
+        //(+1 value ascending, -1 valued descending)
+        if (roots_found[0] > 0) //AP threshold reached from below
+        {
            //TODO we can use a root to stop progress in time and wait for deliver?
            //use several hpx-all reduce to mark performance?
            spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
-       }
+        }
       }
 
       //Success from CVodeGetRootInfo or CVode
@@ -466,7 +500,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
         local->nt_->_t = tout;
 
       long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
-#ifdef NEUROX_CVODES_JACOBIAN_SOLVER==0
+#if NEUROX_CVODES_JACOBIAN_SOLVER==0
       CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
       CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
 #else

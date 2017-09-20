@@ -88,10 +88,10 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kAbsToleranceMechStates = 1e-2;
 
   /// function that reavaluates all elementes in NrnThread->data
-  static void ReevaluateBranch(Branch *branch);
+  static void ReevaluateBranch(Branch *branch, double t);
 
   /// update NrnThread->data from with new CVODES state
-  static void UpdateNrnThreadFromCvodeState(Branch *branch);
+  static void UpdateNrnThreadFromCvodeState(Branch *branch, N_Vector y);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);

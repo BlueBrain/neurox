@@ -614,11 +614,15 @@ void Branch::BackwardEulerStep() {
   FixedPlayContinuous();
   SetupTreeMatrix();
   SolveTreeMatrix();
+
+  //update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateV(this);
+  //TODO this can be placed after the next operation
 
+  //update capacitance currents based on RHS and dI/dV
   CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
