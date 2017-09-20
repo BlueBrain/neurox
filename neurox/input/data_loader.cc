@@ -191,9 +191,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void*) {
     Mechanism *mech = GetMechanismFromType(type);
     assert(mech->type_ == type);
     int ion_offset = mech->GetIonIndex();
-    for (int n = 0; n < ml->nodecount; n++)  // for every mech instance (or
-                                             // compartment this mech is applied
-                                             // to)
+
+    // for every mech instance (or compartment this mech is applied to)
+    for (int n = 0; n < ml->nodecount; n++)
     {
       if (mech->is_ion_) {
         if (n == 0) {

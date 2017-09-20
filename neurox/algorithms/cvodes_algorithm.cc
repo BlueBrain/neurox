@@ -103,10 +103,36 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
     Branch * branch = (Branch*) user_data;
-    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
 
-    // d/dV (C dV/dt) = sum_i g_i x_i (V-E) +
+    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
+    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
+    const double *a = &branch->nt_->_data[a_offset];
+    const double *b = &branch->nt_->_data[b_offset];
+    int * p = branch->nt_->_v_parent_index;
+    int compartments_count = branch->nt_->end;
 
+    double * v   = NV_DATA_S(y);
+    double * vdot = NV_DATA_S(ydot);
+
+    // contribution from parent and children compartments
+    // d/dV (C dV/dt) = b * V_p + sum_i a_i V_c_i (parent + sum of all children)
+    // reminder: a and b arrays are constant
+    // Note: from "Coreneuron Overview" report from Ben (page 4)
+    // vdot[i] is rhs[i] which is the r.h.s. of dV/dt= C * ...
+
+    for (int i = 0; i < compartments_count; i++) {
+      assert(vdot[i]==0); //checking if its necessary or not
+      vdot[i] = 0;
+    }
+
+    // simillar to HinesSolver::SetupMatrixRHS
+    double dv=-1;
+    for (int i=0; i<compartments_count; i++)
+    {
+        dv = v[p[i]] - v[i];  // reads from parent
+        vdot[i] -= b[i] * dv;
+        vdot[p[i]] += a[i] * dv;  // writes to parent    }
+    }
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -116,19 +142,19 @@ int CvodesAlgorithm::JacobianFunction(
         DlsMat J, void *user_data,
         N_Vector, N_Vector, N_Vector)
 {
-    realtype ** jacob = J->cols;
+    realtype ** jac = J->cols;
     Branch * branch = (Branch*) user_data;
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(N==branch_cvodes->equations_count_);
 
-    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
     int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
     int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
+    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
     int compartments_count = branch->nt_->end;
 
-    realtype *y_data = N_VGetArrayPointer_Serial(y);
     double *a = &branch->nt_->_data[a_offset];
     double *b = &branch->nt_->_data[b_offset];
+    realtype *v = NV_DATA_S(y);
     int *p = branch->nt_->_v_parent_index;
 
     //Jacobian for main current equation:
@@ -136,13 +162,13 @@ int CvodesAlgorithm::JacobianFunction(
     // d(C dV/dt) / dV_p   = -A          //parent compartment
     // d(C dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
-    //add constributions from parent/children compartments to V
-    for (int i=1; i<compartments_count; i++)
+    // simillar to HinesSolver::SetupMatrixDiagonal
+    // Reminder: vec_d is the derivative of V so we sum
+    // partial derivatives A and B for parents/children contribution
+    for (int i=0; i<compartments_count; i++)
     {
-      //from HinesSolver::SetupMatrixDiagonal
-      //Reminder: derivative of V is in vector D
-      jacob[i][p[i]] -= a[i];
-      jacob[p[i]][i] -= b[i];
+        jac[i][p[i]] -= a[i];
+        jac[p[i]][i] -= b[i];
     }
 
     //Add di/dv contributions from mechanisms currents to current equation
@@ -165,12 +191,12 @@ int CvodesAlgorithm::JacobianFunction(
 #else
             y_data_offset = data_offset + tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_data_index + n;
 #endif
-            y_val = y_data[y_data_offset];
+            y_val = v[y_data_offset];
             if (mech->is_ion_) //y is second order current (mechs functions di/dV)
             {
                 //TODO this is wrong
               //cur variable is one position before dcurdv (eion.c)
-              jacob[y_data_offset-1][v_offset+compartment_id] = y_val; //dcurdv
+              jac[y_data_offset-1][v_offset+compartment_id] = y_val; //dcurdv
             }
             else //y is first order current (current function vec_D for currents C*dV/dt)
             {
@@ -178,8 +204,8 @@ int CvodesAlgorithm::JacobianFunction(
               if (mech->type_==MechanismTypes::kCapacitance)
                   y_val*=cfac; //eion.c::nrn_jacob_capacitance
               compartment_id = mech_instances->nodeindices[m];
-              assert(jacob[compartment_id][y_data_offset]==0);
-              jacob[compartment_id][y_data_offset] = y_val;
+              assert(jac[compartment_id][y_data_offset]==0);
+              jac[compartment_id][y_data_offset] = y_val;
 
 
               //TODO aren't we missing shadow_didv
@@ -261,7 +287,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
         equations_count += mech_instances->nodecount * mech->state_vars_count_;
     }
 
-    //create array y for state
+    //create initial state y_0 for state array y
     floble_t * y_data = new floble_t[equations_count];
     for (int i=0; i<compartments_count; i++)
     {

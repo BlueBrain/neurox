@@ -85,22 +85,26 @@ Mechanism::Mechanism(const int type, const short int data_size,
 
   //TODO: hard-coded exception of state-vars
   this->state_vars_count_=1;
-  this->state_vars_offsets_ = new short[this->state_vars_count_];
 
-  if (this->type_== MechanismTypes::kCapacitance)
+  if (this->state_vars_count_>0)
+  {
+    this->state_vars_offsets_ = new short[this->state_vars_count_];
+
+    if (this->type_== MechanismTypes::kCapacitance)
       //capac.c::nrn_jacob_capacitance
       this->state_vars_offsets_[0] = 0;
-  else if (this->is_ion_)
+    else if (this->is_ion_)
       //dcurdv in eion.c::second_order_cur()
       this->state_vars_offsets_[0] = 4;
-  else if (this->type_ == MechanismTypes::kProbAMPANMDA_EMS
+    else if (this->type_ == MechanismTypes::kProbAMPANMDA_EMS
         || this->type_ == MechanismTypes::kProbGABAAB_EMS
         || this->type_ == MechanismTypes::kExpSyn)
        //_g_unused in c-mod files
       this->state_vars_offsets_[0] = this->data_size_-2;
-  else
+    else
       //all other mechs
       this->state_vars_offsets_[0] = this->data_size_-1;
+  }
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
 
