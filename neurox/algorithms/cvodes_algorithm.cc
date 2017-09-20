@@ -149,16 +149,16 @@ int CvodesAlgorithm::JacobianFunction(
 
     int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
     int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
-    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
+    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
     int compartments_count = branch->nt_->end;
 
     double *a = &branch->nt_->_data[a_offset];
     double *b = &branch->nt_->_data[b_offset];
-    realtype *v = NV_DATA_S(y);
+    double *d = &branch->nt_->_data[d_offset];
     int *p = branch->nt_->_v_parent_index;
 
     //Jacobian for main current equation:
-    // d(C dV/dt) / dV     = sum_i g_i x_i   //mechs currents
+    // d(C dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
     // d(C dV/dt) / dV_p   = -A          //parent compartment
     // d(C dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
@@ -167,9 +167,18 @@ int CvodesAlgorithm::JacobianFunction(
     // partial derivatives A and B for parents/children contribution
     for (int i=0; i<compartments_count; i++)
     {
+        jac[i][i]     = d[i]; //diagonal //TODO is this needed?
+        if (i==0) continue;
         jac[i][p[i]] -= b[i]; //lower-diag (children) in same row
         jac[p[i]][i] -= a[i]; //upper-diag (parents) in same column
     }
+
+    /*
+
+
+    //USE voltage to update states
+    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
+    realtype *v = NV_DATA_S(y);
 
     //Add di/dv contributions from mechanisms currents to current equation
     int compartment_id=-1, y_data_offset=-1, g_data_index=-1;
@@ -215,7 +224,7 @@ int CvodesAlgorithm::JacobianFunction(
         }
         data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
-
+    */
     return 0;
 }
 
