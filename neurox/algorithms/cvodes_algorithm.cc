@@ -102,20 +102,20 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
 
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
-    Branch * branch = (Branch*) user_data;
+    const Branch * branch = (Branch*) user_data;
 
-    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
-    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
+    const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
+    const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
     const double *a = &branch->nt_->_data[a_offset];
     const double *b = &branch->nt_->_data[b_offset];
-    int * p = branch->nt_->_v_parent_index;
-    int compartments_count = branch->nt_->end;
+    const int * p = branch->nt_->_v_parent_index;
+    const int compartments_count = branch->nt_->end;
 
     double * v   = NV_DATA_S(y);
     double * vdot = NV_DATA_S(ydot);
 
     // contribution from parent and children compartments
-    // d/dV (C dV/dt) = b * V_p + sum_i a_i V_c_i (parent + sum of all children)
+    // dV_n/dt = d*V_n  b*V_p + sum_i a_i*V_c_i (parent + sum of all children)
     // reminder: a and b arrays are constant
     // Note: from "Coreneuron Overview" report from Ben (page 4)
     // vdot[i] is rhs[i] which is the r.h.s. of dV/dt= C * ...
@@ -143,19 +143,19 @@ int CvodesAlgorithm::JacobianFunction(
         N_Vector, N_Vector, N_Vector)
 {
     realtype ** jac = J->cols;
-    Branch * branch = (Branch*) user_data;
-    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+    const Branch * branch = (Branch*) user_data;
+    const BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(N==branch_cvodes->equations_count_);
 
-    int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
-    int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
-    int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
-    int compartments_count = branch->nt_->end;
+    const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
+    const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
+    const int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
+    const int compartments_count = branch->nt_->end;
 
-    double *a = &branch->nt_->_data[a_offset];
-    double *b = &branch->nt_->_data[b_offset];
-    double *d = &branch->nt_->_data[d_offset];
-    int *p = branch->nt_->_v_parent_index;
+    const double *a = &branch->nt_->_data[a_offset];
+    const double *b = &branch->nt_->_data[b_offset];
+    const double *d = &branch->nt_->_data[d_offset];
+    const int *p = branch->nt_->_v_parent_index;
 
     //Jacobian for main current equation:
     // d(C dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
@@ -167,15 +167,13 @@ int CvodesAlgorithm::JacobianFunction(
     // partial derivatives A and B for parents/children contribution
     for (int i=0; i<compartments_count; i++)
     {
-        jac[i][i]     = d[i]; //diagonal //TODO is this needed?
+        jac[i][i]    = d[i]; //diagonal
         if (i==0) continue;
-        jac[i][p[i]] -= b[i]; //lower-diag (children) in same row
-        jac[p[i]][i] -= a[i]; //upper-diag (parents) in same column
+        jac[i][p[i]] = b[i]; //lower-diag (children) in same row
+        jac[p[i]][i] = a[i]; //upper-diag (parents) in same column
     }
 
     /*
-
-
     //USE voltage to update states
     int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
     realtype *v = NV_DATA_S(y);

@@ -84,7 +84,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
   }
 
   //TODO: hard-coded exception of state-vars
-  this->state_vars_count_=1;
+  this->state_vars_count_=0;
 
   if (this->state_vars_count_>0)
   {
