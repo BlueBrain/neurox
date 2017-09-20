@@ -167,8 +167,8 @@ int CvodesAlgorithm::JacobianFunction(
     // partial derivatives A and B for parents/children contribution
     for (int i=0; i<compartments_count; i++)
     {
-        jac[i][p[i]] -= a[i];
-        jac[p[i]][i] -= b[i];
+        jac[i][p[i]] -= b[i]; //lower-diag (children) in same row
+        jac[p[i]][i] -= a[i]; //upper-diag (parents) in same column
     }
 
     //Add di/dv contributions from mechanisms currents to current equation
