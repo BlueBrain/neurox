@@ -76,6 +76,13 @@ class CvodesAlgorithm : public Algorithm {
       static hpx_action_t Run;
       static hpx_action_t Clear;
 
+      struct UserData
+      {
+          Branch *branch;
+          double * jacob_d;
+          double * data_bak;
+      };
+
     private:
       static int Init_handler();
       static int Run_handler();
@@ -86,9 +93,6 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kRelativeTolerance = 1e-3;
   constexpr static double kAbsToleranceVoltage = 1e-3;
   constexpr static double kAbsToleranceMechStates = 1e-2;
-
-  /// function that reavaluates all elementes in NrnThread->data
-  static void ReevaluateBranch(Branch *branch, double t);
 
   /// update NrnThread->data from with new CVODES state
   static void UpdateNrnThreadFromCvodeState(Branch *branch, N_Vector y);

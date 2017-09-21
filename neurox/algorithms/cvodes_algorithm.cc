@@ -17,61 +17,6 @@ const char* CvodesAlgorithm::GetString() {
   return "CVODES";
 }
 
-/// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
-void CvodesAlgorithm::ReevaluateBranch(Branch * branch, double t)
-{
-    double t_old = branch->nt_->_t;
-    branch->nt_->_dt = t - branch->nt_->_t;
-    assert(t>0);
-
-    //Updates internal states of continuous point processes (vecplay)
-    //e.g. stimulus. vecplay->pd points to a read-only var used by
-    //point proc mechanisms' nrn_current function
-    branch->FixedPlayContinuous();
-
-    ////// From HinesSolver::SetupTreeMatrix ///////
-
-    // Sets RHS an D to zero
-    solver::HinesSolver::ResetMatrixRHSandD(branch);
-
-    // current sums i and didv to parent ion, and adds contribnutions to RHS and D
-    branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
-
-    //add parent and children currents (A*dv and B*dv) to RHS
-    solver::HinesSolver::SetupMatrixRHS(branch);
-
-    //update positions holding jacobians (does nothing so far)
-    branch->CallModFunction(Mechanism::ModFunctions::kJacob);
-    //(so far only calls nrn_jacob_capacitance, which sums contributions to D)
-    branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-
-    //add parent and children currents (A and B) to D
-    solver::HinesSolver::SetupMatrixDiagonal(branch);
-
-    //Gaussian Elimination (sets final RHS and D)
-    branch->SolveTreeMatrix();
-
-    //TODO only needed when we introduce mechs states)
-
-    /*
-    //update ions currents based on RHS and dI/dV
-    second_order_cur(branch->nt_, input_params_->second_order_);
-
-    //update capacitance current based on RHS and dI/dV
-    branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
-
-    //updates V: v[i] += second_order_multiplier * rhs[i]
-    //TODO second order or not?
-    solver::HinesSolver::UpdateV(branch);
-
-    ////// From main loop - call state function
-    branch->CallModFunction(Mechanism::ModFunctions::kState);
-    */
-
-    branch->nt_->_t = t_old;
-}
-
-
 void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch, N_Vector y)
 {
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
@@ -87,9 +32,9 @@ void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch, N_Vector y)
 }
 
 /// g root function to compute g_i(t,y) .
-int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *user_data)
+int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *user_data_ptr)
 {
-    Branch * b = (Branch*) user_data;
+    Branch * b = ((BranchCvodes::UserData*) user_data_ptr)->branch;
     realtype v = *b->thvar_ptr_;
 
     //How it works: when gout[x] is zero, a root is found
@@ -109,33 +54,81 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
     return(0);
 }
 
-int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data)
+/// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
+int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data_ptr)
 {
-    Branch * branch = (Branch*) user_data;
+    BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
+    Branch * branch = user_data->branch;
+    NrnThread * nt = branch->nt_;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
     //and update the status based on the best f(y,t) found;
     //Therefore, we back up NrnThread->data and time (weights are only
     //changed on net_receive), and we recoved them later
 
-    double t_bak = branch->nt_->_t;
-    double *data_bak  = new double[branch->nt_->_ndata];
-    memcpy(data_bak, branch->nt_->_data, sizeof(double)*branch->nt_->_ndata);
+    //backup previous state
+    double t_bak = nt->_t;
+    memcpy(user_data->data_bak, nt->_data, sizeof(double)*nt->_ndata);
 
     //Note: due to current stae of the art, this function will compute
     //both the RHS  (vec_RHS) and jacobian (D).
 
     //update vars in NrnThread->data described by our CVODES state
     CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
-    CvodesAlgorithm::ReevaluateBranch(branch, t); //gets new RHS and D for new state
+
+    /////////   Get new RHS and D from current state ///////////
+
+    //Updates internal states of continuous point processes (vecplay)
+    //e.g. stimulus. vecplay->pd points to a read-only var used by
+    //point proc mechanisms' nrn_current function
+    branch->FixedPlayContinuous();
+
+    // Sets RHS an D to zero
+    solver::HinesSolver::ResetMatrixRHSandD(branch);
+
+    // current sums i and didv to parent ion, and adds contribnutions to RHS and D
+    branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+
+    //add parent and children currents (A*dv and B*dv) to RHS
+    solver::HinesSolver::SetupMatrixRHS(branch);
+
+    //update positions holding jacobians (does nothing so far)
+    branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+    //(so far only calls nrn_jacob_capacitance, which sums contributions to D)
+    branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
+
+    //backup up D (will be used for jacobian diagonal)
+    memcpy(user_data->jacob_d, nt->_actual_d, sizeof(double)*nt->end);
+
+    //add parent and children currents (A and B) to D
+    solver::HinesSolver::SetupMatrixDiagonal(branch);
+
+    //Gaussian Elimination (sets dV/dt=RHS[i])
+    branch->SolveTreeMatrix();
 
     //recover previous state
-    branch->nt_->_t = t_bak;
-    memcpy(branch->nt_->_data, data_bak, sizeof(double)*branch->nt_->_ndata);
-    delete [] data_bak; //TODO get a fixed placeholder
+    nt->_t = t_bak;
+    memcpy(nt->_data, user_data->data_bak, sizeof(double)*nt->_ndata);
 
     //set RHS ie ydot state
     memcpy(NV_DATA_S(ydot), branch->nt_->_actual_rhs, sizeof(branch->nt_->end));
+
+    //TODO only needed when we introduce mechs states)
+
+    /*
+    //update ions currents based on RHS and dI/dV
+    second_order_cur(branch->nt_, input_params_->second_order_);
+
+    //update capacitance current based on RHS and dI/dV
+    branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
+
+    //updates V: v[i] += second_order_multiplier * rhs[i]
+    //TODO second order or not?
+    solver::HinesSolver::UpdateV(branch);
+
+    ////// From main loop - call state function
+    branch->CallModFunction(Mechanism::ModFunctions::kState);
+    */
 
     /*** old code
 
@@ -177,22 +170,22 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 int CvodesAlgorithm::JacobianFunction(
         long int N, realtype t,
         N_Vector y, N_Vector fy,
-        DlsMat J, void *user_data,
+        DlsMat J, void *user_data_ptr,
         N_Vector, N_Vector, N_Vector)
 {
     realtype ** jac = J->cols;
-    const Branch * branch = (Branch*) user_data;
+    BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
+    const Branch * branch = user_data->branch;
     const BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(N==branch_cvodes->equations_count_);
 
     const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
     const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
-    const int d_offset = branch->nt_->_actual_d - branch->nt_->_data;
     const int compartments_count = branch->nt_->end;
 
     const double *a = &branch->nt_->_data[a_offset];
     const double *b = &branch->nt_->_data[b_offset];
-    const double *d = &branch->nt_->_data[d_offset];
+    const double *d = user_data->jacob_d;
     const int *p = branch->nt_->_v_parent_index;
 
     //Jacobian for main current equation:
@@ -319,6 +312,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     void * cvodes_mem = branch_cvodes->cvodes_mem_;
     int compartments_count = local->nt_->end;
     NrnThread *& nt = local->nt_;
+
+    //set dt to 1, so that dV/dt equations are on the right scale
+    nt->_dt=1.0;
 
     int flag = CV_ERR_FAILURE;
 
@@ -466,8 +462,10 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       //call CVODE method: steps until reaching/passing tout;
       //TODO can it walk backwards for missed event?
+      local->disableRNG();
       flag = CVode(branch_cvodes->cvodes_mem_, tout,
                    branch_cvodes->y_, &local->nt_->_t, CV_NORMAL);
+      local->enableRNG();
 
       printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
              local->nt_->_t, NV_Ith_S(branch_cvodes->y_,0),
