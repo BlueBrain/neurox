@@ -462,10 +462,8 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       //call CVODE method: steps until reaching/passing tout;
       //TODO can it walk backwards for missed event?
-      local->disableRNG();
       flag = CVode(branch_cvodes->cvodes_mem_, tout,
                    branch_cvodes->y_, &local->nt_->_t, CV_NORMAL);
-      local->enableRNG();
 
       printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
              local->nt_->_t, NV_Ith_S(branch_cvodes->y_,0),
