@@ -59,9 +59,6 @@ class CvodesAlgorithm : public Algorithm {
       /// i.e. compartments * equations per compartment
       int equations_count_;
 
-      /// number of states per compartment
-      int equations_per_compartment_;
-
       /// mapping of equations y to NrnThread->data
       /// (similar to ode_map in NEURON)
       double **equations_map_;
@@ -79,9 +76,13 @@ class CvodesAlgorithm : public Algorithm {
       class UserData
       {
         public:
-          Branch *branch;
-          double * jacob_d;
-          double * data_bak;
+          UserData()=delete;
+          UserData(Branch*);
+          ~UserData();
+
+          Branch * branch_;
+          double * jacob_d_;
+          double * data_bak_;
       } * user_data_;
 
     private:

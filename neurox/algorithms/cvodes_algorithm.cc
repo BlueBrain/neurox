@@ -34,16 +34,14 @@ void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch, N_Vector y)
 /// g root function to compute g_i(t,y) .
 int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *user_data_ptr)
 {
-    Branch * b = ((BranchCvodes::UserData*) user_data_ptr)->branch;
-    realtype v = *b->thvar_ptr_;
+    Branch * branch = ((BranchCvodes::UserData*) user_data_ptr)->branch_;
+    int v_offset = branch->thvar_ptr_- branch->nt_->_actual_v;
+    double v = NV_Ith_S(y, v_offset);
 
     //How it works: when gout[x] is zero, a root is found
-    gout[0] = v - b->soma_->threshold_; //AP threshold reached
-#ifndef NDEBUG
-    gout[1] = v - 30; //Debug: reached   50 mV (too high)
-    gout[2] = v + 90; //Debug: reached -100 mV (too low )
-#endif
-    return 0;
+    assert(v>=-100 && v<30);
+    gout[0] = v - branch->soma_->threshold_; //AP threshold reached
+    return CV_SUCCESS;
 }
 
 int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
@@ -58,7 +56,7 @@ int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data_ptr)
 {
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
-    Branch * branch = user_data->branch;
+    Branch * branch = user_data->branch_;
     NrnThread * nt = branch->nt_;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
@@ -68,7 +66,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 
     //backup previous state
     double t_bak = nt->_t;
-    memcpy(user_data->data_bak, nt->_data, sizeof(double)*nt->_ndata);
+    memcpy(user_data->data_bak_, nt->_data, sizeof(double)*nt->_ndata);
 
     //Note: due to current stae of the art, this function will compute
     //both the RHS  (vec_RHS) and jacobian (D).
@@ -77,6 +75,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
 
     /////////   Get new RHS and D from current state ///////////
+
+    nt->_t += .5 * BranchCvodes::min_step_size_;
 
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -98,7 +98,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
     //backup up D (will be used for jacobian diagonal)
-    memcpy(user_data->jacob_d, nt->_actual_d, sizeof(double)*nt->end);
+    memcpy(user_data->jacob_d_, nt->_actual_d, sizeof(double)*nt->end);
 
     //add parent and children currents (A and B) to D
     solver::HinesSolver::SetupMatrixDiagonal(branch);
@@ -106,16 +106,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //Gaussian Elimination (sets dV/dt=RHS[i])
     branch->SolveTreeMatrix();
 
-    //recover previous state
-    nt->_t = t_bak;
-    memcpy(nt->_data, user_data->data_bak, sizeof(double)*nt->_ndata);
-
-    //set RHS ie ydot state
-    memcpy(NV_DATA_S(ydot), branch->nt_->_actual_rhs, sizeof(branch->nt_->end));
-
-    //TODO only needed when we introduce mechs states)
-
-    /*
     //update ions currents based on RHS and dI/dV
     second_order_cur(branch->nt_, input_params_->second_order_);
 
@@ -123,47 +113,22 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
     //updates V: v[i] += second_order_multiplier * rhs[i]
-    //TODO second order or not?
     solver::HinesSolver::UpdateV(branch);
 
-    ////// From main loop - call state function
+    nt->_t += .5 * BranchCvodes::min_step_size_;
+
+    // update mechanisms state (eg opening vars) based on voltage
+    //TODO until we add mechanisms, changes below will be ignored, as state is overwritten
     branch->CallModFunction(Mechanism::ModFunctions::kState);
-    */
 
-    /*** old code
+    //set ydot with RHS state
+    memcpy(NV_DATA_S(ydot), branch->nt_->_actual_rhs, sizeof(branch->nt_->end));
 
-    const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
-    const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
-    const double *a = &branch->nt_->_data[a_offset];
-    const double *b = &branch->nt_->_data[b_offset];
-    const int * p = branch->nt_->_v_parent_index;
-    const int compartments_count = branch->nt_->end;
+    //recover previous state
+    nt->_t = t_bak;
+    memcpy(nt->_data, user_data->data_bak_, sizeof(double)*nt->_ndata);
 
-    double * v    = NV_DATA_S(y);
-    double * vdot = NV_DATA_S(ydot);
-
-    // contribution from parent and children compartments
-    // dV_n/dt = d*V_n  b*V_p + sum_i a_i*V_c_i (parent + sum of all children)
-    // reminder: a and b arrays are constant
-    // Note: from "Coreneuron Overview" report from Ben (page 4)
-    // vdot[i] is rhs[i] which is the r.h.s. of dV/dt= C * ...
-
-    for (int i = 0; i < compartments_count; i++) {
-      assert(vdot[i]==0); //checking if its necessary or not
-      vdot[i] = 0;
-    }
-
-    // simillar to HinesSolver::SetupMatrixRHS
-    double dv=-1;
-    for (int i=0; i<compartments_count; i++)
-    {
-        dv = v[p[i]] - v[i];  // reads from parent
-        vdot[i] -= b[i] * dv;
-        vdot[p[i]] += a[i] * dv;  // writes to parent    }
-    }
-    */
-
-    return 0;
+    return CV_SUCCESS;
 }
 
 //jacobian routine: compute J(t,y) = df/dy
@@ -175,7 +140,7 @@ int CvodesAlgorithm::JacobianFunction(
 {
     realtype ** jac = J->cols;
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
-    const Branch * branch = user_data->branch;
+    const Branch * branch = user_data->branch_;
     const BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     assert(N==branch_cvodes->equations_count_);
 
@@ -185,7 +150,7 @@ int CvodesAlgorithm::JacobianFunction(
 
     const double *a = &branch->nt_->_data[a_offset];
     const double *b = &branch->nt_->_data[b_offset];
-    const double *d = user_data->jacob_d;
+    const double *d = user_data->jacob_d_;
     const int *p = branch->nt_->_v_parent_index;
 
     //Jacobian for main current equation:
@@ -254,14 +219,14 @@ int CvodesAlgorithm::JacobianFunction(
         data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
     */
-    return 0;
+    return CV_SUCCESS;
 }
 
 /////////////////////// Algorithm abstract class ////////////////////////
 
 
 void CvodesAlgorithm::Init() {
-  BranchCvodes::min_step_size_ = input_params_->dt_ * 0.5;
+  BranchCvodes::min_step_size_ = input_params_->dt_ * 0.1;
   neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
 }
 
@@ -293,23 +258,40 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 //////////////////////////// BranchCvodes /////////////////////////
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
-    :cvodes_mem_(nullptr), equations_count_(-1)
+    :cvodes_mem_(nullptr), equations_count_(-1),
+     equations_map_(nullptr),  user_data_(nullptr),
+     y_(nullptr)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
 {
     N_VDestroy_Serial(y_); /* Free y vector */
     CVodeFree(&cvodes_mem_); /* Free integrator memory */
+    delete this->user_data_;
+}
+
+CvodesAlgorithm::BranchCvodes::UserData::UserData(Branch * branch)
+{
+    this->branch_ = branch;
+    this->jacob_d_ = new double [branch->nt_->end];
+    this->data_bak_ = new double [branch->nt_->_ndata];
+}
+
+CvodesAlgorithm::BranchCvodes::UserData::~UserData()
+{
+    delete [] data_bak_;
+    delete [] jacob_d_;
+    branch_=nullptr;
 }
 
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
 int CvodesAlgorithm::BranchCvodes::Init_handler()
 {
     NEUROX_MEM_PIN(neurox::Branch);
-    assert(local->soma_);
+    assert(local->soma_->algorithm_metadata_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-    N_Vector absolute_tolerance = branch_cvodes->absolute_tolerance_;
-    void * cvodes_mem = branch_cvodes->cvodes_mem_;
+    void *& cvodes_mem = branch_cvodes->cvodes_mem_;
+    int & equations_count = branch_cvodes->equations_count_;
     int compartments_count = local->nt_->end;
     NrnThread *& nt = local->nt_;
 
@@ -319,14 +301,15 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int flag = CV_ERR_FAILURE;
 
     //equations: voltages per compartments + mechanisms * states
-    int & equations_count = branch_cvodes->equations_count_ = 0;
-    equations_count += compartments_count;
+    equations_count = compartments_count;
+    /*
     for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
         Mechanism * mech=mechanisms_[m];
         Memb_list* mech_instances = &local->mechs_instances_[m];
         equations_count += mech_instances->nodecount * mech->state_vars_count_;
     }
+    */
 
     //create initial state y_0 for state array y
     floble_t * y_data = new floble_t[equations_count];
@@ -361,11 +344,11 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
     //absolute tolerance array (low for voltages, high for mech states)
-    absolute_tolerance = N_VNew_Serial(equations_count);
+    branch_cvodes->absolute_tolerance_ = N_VNew_Serial(equations_count);
     for (int i=0; i<compartments_count; i++)
-        NV_Ith_S(absolute_tolerance, i) = kAbsToleranceVoltage;
+        NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = kAbsToleranceVoltage;
     for (int i=compartments_count; i<equations_count; i++)
-        NV_Ith_S(absolute_tolerance, i) = kAbsToleranceMechStates;
+        NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = kAbsToleranceMechStates;
 
     //CVodeCreate creates an internal memory block for a problem to
     //be solved by CVODES, with Backward Differentiation (or Adams)
@@ -373,31 +356,21 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     cvodes_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
     //CVodeInit allocates and initializes memory for a problem
-    flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, 0.0 /*initial time*/, branch_cvodes->y_);
+    flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, 0.0 /*t_0*/, branch_cvodes->y_);
     assert(flag==CV_SUCCESS);
 
     //specify integration tolerances. MUST be called before CVode.
-    flag = CVodeSVtolerances(cvodes_mem, kRelativeTolerance, absolute_tolerance);
+    flag = CVodeSVtolerances(cvodes_mem, kRelativeTolerance, branch_cvodes->absolute_tolerance_);
     assert(flag==CV_SUCCESS);
 
     //specify user data to be used on functions as void* user_data_ptr;
-    branch_cvodes->user_data_ = new BranchCvodes::UserData();
-    branch_cvodes->user_data_->branch = local;
-    branch_cvodes->user_data_->jacob_d = new double [compartments_count];
-    branch_cvodes->user_data_->data_bak = new double [local->nt_->_ndata];
+    branch_cvodes->user_data_ = new BranchCvodes::UserData(local);
     flag = CVodeSetUserData(cvodes_mem,  branch_cvodes->user_data_);
     assert(flag==CV_SUCCESS);
 
     //specify g as root function and roots
-#ifdef NDEBUG
-    int roots_count = 1; //AP threshold
-    int roots_direction [roots_count] = {1}; //root [0] only increasing
-#else
-    int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
-    int roots_direction[roots_count] = {1,0,0};
-    //root [0] only increasing, [1] and [2] both ways
-#endif
-    flag = CVodeRootInit(cvodes_mem, roots_count, CvodesAlgorithm::RootFunction);
+    int roots_direction [1] = {1}; //AP threshold reached for increasing voltage
+    flag = CVodeRootInit(cvodes_mem, 1, CvodesAlgorithm::RootFunction);
     assert(flag==CV_SUCCESS);
 
     //initializes the memory record and sets various function
@@ -442,22 +415,16 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
-    delete [] branch_cvodes->user_data_->data_bak;
-    delete [] branch_cvodes->user_data_->jacob_d;
+    NrnThread * nt = local->nt_;
     void * cvodes_mem = branch_cvodes->cvodes_mem_;
 
-#ifdef NDEBUG
-    int roots_count = 1; //AP threshold
-#else
-    int roots_count = 3; //AP threshold + alarm for impossible minimum+max voltage
-#endif
-    int roots_found[roots_count];
+    int roots_found[1]; //AP threshold
 
-    int flag=0;
+    int flag = CV_ERR_FAILURE;
     realtype tout = 0;
     hpx_t spikes_lco = HPX_NULL;
 
-    while(local->nt_->_t < input_params_->tstop_)
+    while(nt->_t < input_params_->tstop_)
     {
       //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
@@ -468,39 +435,35 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
       //call CVODE method: steps until reaching/passing tout;
       //TODO can it walk backwards for missed event?
-      flag = CVode(branch_cvodes->cvodes_mem_, tout,
-                   branch_cvodes->y_, &local->nt_->_t, CV_NORMAL);
+      flag = CVode(cvodes_mem, tout, branch_cvodes->y_, &(nt->_t), CV_NORMAL);
 
       printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
-             local->nt_->_t, NV_Ith_S(branch_cvodes->y_,0),
+             nt->_t, NV_Ith_S(branch_cvodes->y_,0),
              NV_Ith_S(branch_cvodes->y_,1), NV_Ith_S(branch_cvodes->y_,2));
 
       if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
         //delivers all events whithin the next min step size
-        local->DeliverEvents(local->nt_->_t + BranchCvodes::min_step_size_);
+        local->DeliverEvents(nt->_t + BranchCvodes::min_step_size_);
 
         flag = CVodeGetRootInfo(cvodes_mem, roots_found);
         assert(flag==CV_SUCCESS);
         assert(roots_found[0]!=0); //only possible root: AP threshold reached
-#ifndef NDEBUG
-        assert(roots_found[1]==0); //root can't be found or V too high
-        assert(roots_found[2]==0); //root can't be found or V too low
-#endif
         //NOTE: if root is found, integrator time is now at time of root!
         //(+1 value ascending, -1 valued descending)
         if (roots_found[0] > 0) //AP threshold reached from below
         {
            //TODO we can use a root to stop progress in time and wait for deliver?
            //use several hpx-all reduce to mark performance?
-           spikes_lco=local->soma_->SendSpikes(local->nt_->_t);
+           spikes_lco=local->soma_->SendSpikes(nt->_t);
         }
       }
 
       //Success from CVodeGetRootInfo or CVode
       if (flag == CV_SUCCESS)
-        local->nt_->_t = tout;
+        nt->_t = tout;
 
+      /*
       long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
 #if NEUROX_CVODES_JACOBIAN_SOLVER==0
       CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
@@ -515,6 +478,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       CVodeGetLastStep(cvodes_mem, &last_step_size);
       N_Vector estimated_local_errors = N_VNewEmpty_Serial(branch_cvodes->equations_count_);
       CVodeGetEstLocalErrors(cvodes_mem, estimated_local_errors);
+      */
     }
 
     /* Print some final statistics */
