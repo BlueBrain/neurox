@@ -67,6 +67,10 @@ class Mechanism {
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
 
+  // The following two vars are used on CVODES only (so far)
+  short state_vars_count_; ///> number of cvode state variables
+  short *state_vars_offsets_; ///>offset of state vars in ml->data
+
   enum ModFunctions {
     // BA functions start here (of size BEFORE_AFTER_SIZE)
     kBeforeInitialize = 0,

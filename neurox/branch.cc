@@ -249,9 +249,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     this->nt_->_ml_list[mech->type_] = &instances;
     if (mech->is_ion_) ionsCount++;
   }
-  assert(ionsCount ==
-         Mechanism::IonTypes::kSizeWriteableIons +
-             1);  // ttx excluded (no writes to ttx state)
+
+  // ttx excluded (no writes to ttx state)
+  assert(ionsCount==Mechanism::IonTypes::kSizeWriteableIons+1);
 
   // vecplay
   nt->n_vecplay = vecplay_ppi_count;
@@ -614,11 +614,15 @@ void Branch::BackwardEulerStep() {
   FixedPlayContinuous();
   SetupTreeMatrix();
   SolveTreeMatrix();
+
+  //update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateV(this);
+  //TODO this can be placed after the next operation
 
+  //update capacitance currents based on RHS and dI/dV
   CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
@@ -721,8 +725,8 @@ int Branch::Finitialize_handler() {
 }
 
 void Branch::SetupTreeMatrix() {
-  // treeset_core.c::nrn_rhs: Set up Right-Hand-Side of Matrix-Vector
-  // multiplication
+  // treeset_core.c::nrn_rhs: Set up Right-Hand-Side
+  // of Matrix-Vector multiplication
   solver::HinesSolver::ResetMatrixRHSandD(this);
 
   this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);

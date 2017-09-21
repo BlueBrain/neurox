@@ -55,20 +55,35 @@ class CvodesAlgorithm : public Algorithm {
       /// CVODES structure
       void *cvodes_mem_;
 
-      /// number of CVODES iterations
-      unsigned iterations_count_;
-
       /// number of equations/vars in the system of ODEs
+      /// i.e. compartments * equations per compartment
       int equations_count_;
+
+      /// mapping of equations y to NrnThread->data
+      /// (similar to ode_map in NEURON)
+      double **equations_map_;
 
       /// minimum step size
       static double min_step_size_;
 
+      /// HPX actions registration
       static void RegisterHpxActions();
 
       static hpx_action_t Init;
       static hpx_action_t Run;
       static hpx_action_t Clear;
+
+      class UserData
+      {
+        public:
+          UserData()=delete;
+          UserData(Branch*);
+          ~UserData();
+
+          Branch * branch_;
+          double * jacob_d_;
+          double * data_bak_;
+      } * user_data_;
 
     private:
       static int Init_handler();
@@ -78,6 +93,11 @@ class CvodesAlgorithm : public Algorithm {
 
  private:
   constexpr static double kRelativeTolerance = 1e-3;
+  constexpr static double kAbsToleranceVoltage = 1e-3;
+  constexpr static double kAbsToleranceMechStates = 1e-2;
+
+  /// update NrnThread->data from with new CVODES state
+  static void UpdateNrnThreadFromCvodeState(Branch *branch, N_Vector y);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
@@ -88,14 +108,16 @@ class CvodesAlgorithm : public Algorithm {
   /// jacobian: compute J(t,y)
   static int JacobianSparseMatrix(
           realtype t,
-          N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
+          N_Vector y, N_Vector fy,
+          SlsMat JacMat, void *user_data,
           N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
   /// jacobian: compute J(t,y)
-  static int JacobianFunction(long int N, floble_t t,
-                      N_Vector y_, N_Vector fy,
-                      DlsMat J, void *user_data,
-                      N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
+  static int JacobianFunction(
+          long int N, floble_t t,
+          N_Vector y_, N_Vector fy,
+          DlsMat J, void *user_data,
+          N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
 };
 
