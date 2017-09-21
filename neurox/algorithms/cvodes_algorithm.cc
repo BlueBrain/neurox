@@ -380,8 +380,12 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     flag = CVodeSVtolerances(cvodes_mem, kRelativeTolerance, absolute_tolerance);
     assert(flag==CV_SUCCESS);
 
-    //specify this branch as user data parameter to be past to functions
-    flag = CVodeSetUserData(cvodes_mem, local);
+    //specify user data to be used on functions as void* user_data_ptr;
+    branch_cvodes->user_data_ = new BranchCvodes::UserData();
+    branch_cvodes->user_data_->branch = local;
+    branch_cvodes->user_data_->jacob_d = new double [compartments_count];
+    branch_cvodes->user_data_->data_bak = new double [local->nt_->_ndata];
+    flag = CVodeSetUserData(cvodes_mem,  branch_cvodes->user_data_);
     assert(flag==CV_SUCCESS);
 
     //specify g as root function and roots
@@ -438,6 +442,8 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     NEUROX_MEM_PIN(neurox::Branch);
     assert(local->soma_);
     BranchCvodes * branch_cvodes = (BranchCvodes*) local->soma_->algorithm_metadata_;
+    delete [] branch_cvodes->user_data_->data_bak;
+    delete [] branch_cvodes->user_data_->jacob_d;
     void * cvodes_mem = branch_cvodes->cvodes_mem_;
 
 #ifdef NDEBUG
@@ -513,6 +519,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
 
     /* Print some final statistics */
     //PrintFinalStats(cvode_mem_);
+
     return neurox::wrappers::MemoryUnpin(target);
 }
 

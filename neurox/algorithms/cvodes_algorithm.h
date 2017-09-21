@@ -76,12 +76,13 @@ class CvodesAlgorithm : public Algorithm {
       static hpx_action_t Run;
       static hpx_action_t Clear;
 
-      struct UserData
+      class UserData
       {
+        public:
           Branch *branch;
           double * jacob_d;
           double * data_bak;
-      };
+      } * user_data_;
 
     private:
       static int Init_handler();
