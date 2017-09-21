@@ -142,43 +142,44 @@ int CvodesAlgorithm::JacobianFunction(
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
     const Branch * branch = user_data->branch_;
     const BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+    const NrnThread * nt = branch->nt_;
     assert(N==branch_cvodes->equations_count_);
 
-    const int a_offset = branch->nt_->_actual_a - branch->nt_->_data;
-    const int b_offset = branch->nt_->_actual_b - branch->nt_->_data;
-    const int compartments_count = branch->nt_->end;
+    const int a_offset = nt->_actual_a - nt->_data;
+    const int b_offset =nt->_actual_b -nt->_data;
+    const int compartments_count = nt->end;
 
-    const double *a = &branch->nt_->_data[a_offset];
-    const double *b = &branch->nt_->_data[b_offset];
-    const double *d = user_data->jacob_d_;
-    const int *p = branch->nt_->_v_parent_index;
+    const double *a = &nt->_data[a_offset];
+    const double *b = &nt->_data[b_offset];
+    const double *d = user_data->jacob_d_; //computed by RHS
+    const int *p =nt->_v_parent_index;
 
     //Jacobian for main current equation:
-    // d(C dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
-    // d(C dV/dt) / dV_p   = -A          //parent compartment
-    // d(C dV/dt) / dV_c_i = -B_c_i  //children_i compartment
+    // d(dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
+    // d(dV/dt) / dV_p   = -A          //parent compartment
+    // d(dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
-    // simillar to HinesSolver::SetupMatrixDiagonal
-    // Reminder: vec_d is the derivative of V so we sum
-    // partial derivatives A and B for parents/children contribution
-    for (int i=0; i<compartments_count; i++)
+    //jac[a][b] = d/dV_b (dV_a/dt)
+    for (int n=0; n<compartments_count; n++)
     {
-        jac[i][i]    = d[i]; //diagonal
-        if (i==0) continue;
-        jac[i][p[i]] = b[i]; //lower-diag (children) in same row
-        jac[p[i]][i] = a[i]; //upper-diag (parents) in same column
+        assert(a[n]<=0 && b[n]<=0); //negative (resistance)
+        assert(d[n]>=0) ; //positive (currents and mechs contribution, if any)
+        jac[n][n]    = d[n]; // C = d/dV_n (dV_n/dt)
+        if (n==0) continue;
+        jac[p[n]][n] = b[n]; // B = d/dV_n (dV_p/dt)
+        jac[n][p[n]] = a[n]; // A = d/dV_p (dV_n/dt)
     }
 
     /*
     //USE voltage to update states
-    int v_offset = branch->nt_->_actual_v - branch->nt_->_data;
+    int v_offset = nt_->_actual_v - nt->_data;
     realtype *v = NV_DATA_S(y);
 
     //Add di/dv contributions from mechanisms currents to current equation
     int compartment_id=-1, y_data_offset=-1, g_data_index=-1;
     int data_offset=compartments_count;
     realtype y_val=-1;
-    const double cfac = .001 * branch->nt_->cj; //capac.c::nrn_jacob_capacitance
+    const double cfac = .001 * nt->cj; //capac.c::nrn_jacob_capacitance
     for (int m = 0; m < neurox::mechanisms_count_; m++)
     {
         Mechanism * mech=mechanisms_[m];
