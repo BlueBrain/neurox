@@ -57,7 +57,12 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     Branch * branch = user_data->branch_;
     NrnThread * nt = branch->nt_;
     realtype * ydot_data =NV_DATA_S(ydot);
+    realtype * y_data =NV_DATA_S(y);
     user_data->rhs_last_time_=t;
+
+    //Note: as far as I know, only FixedPlayContinuous depends on time
+    //(updates vecplay->*pd based on current time's value)
+    nt->_t = t;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
     //and update the status based on the best f(y,t) found;
@@ -68,7 +73,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
 
     //backup state to revert later
-    double t_bak = nt->_t;
     memcpy(user_data->data_bak_, nt->_data, sizeof(double)*nt->_ndata);
 
     //Note: due to current stae of the art, this function will compute
@@ -118,14 +122,10 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     nt->_t += .125; //Backward-Euler half-step
 
     // update mechanisms state (eg opening vars) based on voltage
-    //TODO until we add mechanisms, changes below will be ignored, as state is overwritten
     branch->CallModFunction(Mechanism::ModFunctions::kState);
 
-    //set ydot with RHS state
+    //set ydot with RHS state, and recover NrnThread->data state
     memcpy(ydot_data, nt->_actual_rhs, sizeof(double)*nt->end);
-
-    //recover previous state
-    nt->_t = t_bak;
     memcpy(nt->_data, user_data->data_bak_, sizeof(double)*nt->_ndata);
 
     return CV_SUCCESS;
