@@ -15,18 +15,37 @@ const char* CvodesAlgorithm::GetString() {
   return "CVODES";
 }
 
-void CvodesAlgorithm::UpdateNrnThreadFromCvodeState(Branch * branch, N_Vector y)
+void CvodesAlgorithm::CopyCvodesToNrnThread(N_Vector y, Branch * branch)
 {
     BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     double * y_data = NV_DATA_S(y);
 
-    //copy voltage
     int compartments_count = branch->nt_->end;
     memcpy(branch->nt_->_actual_v, y_data, sizeof(double)*compartments_count);
 
     //use map to copy states to NrnThread->data
+    //TODO wrong: must copy derivatives instead!
     for (int i=0; i<branch_cvodes->equations_count_ - compartments_count; i++)
         *branch_cvodes->equations_map_[i] = y_data[i];
+}
+
+void CvodesAlgorithm::CopyNrnThreadToCvodes(Branch * branch, N_Vector ydot)
+{
+    BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
+    double * nt_data = branch->nt_->_data;
+    double * ydot_data = NV_DATA_S(ydot);
+
+    int compartments_count = branch->nt_->end;
+    memcpy( ydot_data, branch->nt_->_actual_rhs, sizeof(double)*compartments_count);
+
+    //use map to copy states to NrnThread->data
+    //TODO wrong: must copy derivatives instead!
+    int data_offset=-1;
+    for (int i=0; i<branch_cvodes->equations_count_ - compartments_count; i++)
+    {
+        data_offset = branch_cvodes->equations_map_[i] - nt_data;
+        ydot_data[i] = nt_data[data_offset];
+    }
 }
 
 /// g root function to compute g_i(t,y) .
@@ -58,11 +77,13 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     NrnThread * nt = branch->nt_;
     realtype * ydot_data =NV_DATA_S(ydot);
     realtype * y_data =NV_DATA_S(y);
-    user_data->rhs_last_time_=t;
 
-    //Note: as far as I know, only FixedPlayContinuous depends on time
-    //(updates vecplay->*pd based on current time's value)
+    //nt->t influences FixedPlayContinuous
+    //nt->dt influences nrn_state
     nt->_t = t;
+    nt->_dt = t-user_data->rhs_last_time_;
+    user_data->rhs_second_last_time_ = user_data->rhs_last_time_;
+    user_data->rhs_last_time_=t;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
     //and update the status based on the best f(y,t) found;
@@ -70,17 +91,14 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //changed on net_receive), and we recoved them later
 
     //update vars in NrnThread->data described by our CVODES state
-    CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
-
-    //backup state to revert later
-    memcpy(user_data->data_bak_, nt->_data, sizeof(double)*nt->_ndata);
+    CvodesAlgorithm::CopyCvodesToNrnThread(y, branch);
 
     //Note: due to current stae of the art, this function will compute
     //both the RHS  (vec_RHS) and jacobian (D).
 
     /////////   Get new RHS and D from current state ///////////
 
-    nt->_t += .125; //Backward-Euler half-step
+    nt->_t += nt->_dt*0.5; //Backward-Euler half-step
 
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -119,14 +137,13 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //updates V: v[i] += second_order_multiplier * rhs[i]
     solver::HinesSolver::UpdateV(branch);
 
-    nt->_t += .125; //Backward-Euler half-step
+    nt->_t += nt->_dt*0.5; //Backward-Euler half-step
 
     // update mechanisms state (eg opening vars) based on voltage
     branch->CallModFunction(Mechanism::ModFunctions::kState);
 
     //set ydot with RHS state, and recover NrnThread->data state
-    memcpy(ydot_data, nt->_actual_rhs, sizeof(double)*nt->end);
-    memcpy(nt->_data, user_data->data_bak_, sizeof(double)*nt->_ndata);
+    CvodesAlgorithm::CopyNrnThreadToCvodes(branch, ydot);
 
     return CV_SUCCESS;
 }
@@ -161,8 +178,13 @@ int CvodesAlgorithm::JacobianFunction(
     //jac[a][b] = d/dV_b (dV_a/dt)
     for (int n=0; n<compartments_count; n++)
     {
-        assert(a[n]<=0 && b[n]<=0); //negative (resistance)
-        assert(d[n]>=0) ; //positive (currents and mechs contribution, if any)
+        //if not stepping backwards
+        // assert(user_data->rhs_last_time_ != user_data->rhs_second_last_time_);
+        if (user_data->rhs_last_time_ > user_data->rhs_second_last_time_)
+        {
+            assert(d[n]>=0); //positive (currents and mechs contribution, if any)
+            assert(a[n]<=0 && b[n]<=0); //negative (resistance)
+        }
         jac[n][n]    = d[n]; // C = d/dV_n (dV_n/dt)
         if (n==0) continue;
         jac[p[n]][n] = b[n]; // B = d/dV_n (dV_p/dt)
@@ -270,7 +292,7 @@ CvodesAlgorithm::BranchCvodes::~BranchCvodes()
 }
 
 CvodesAlgorithm::BranchCvodes::UserData::UserData(Branch * branch):
-    branch_(branch), rhs_last_time_(-1)
+    branch_(branch), rhs_last_time_(0.0)
 {
     this->jacob_d_ = new double [branch->nt_->end];
     this->data_bak_ = new double [branch->nt_->_ndata];
@@ -294,9 +316,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int compartments_count = local->nt_->end;
     NrnThread *& nt = local->nt_;
 
-    //set dt to 1, so that dV/dt equations are on the right scale
-    nt->_dt=1.0;
-
     int flag = CV_ERR_FAILURE;
 
     //equations: voltages per compartments + mechanisms * states
@@ -314,9 +333,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     floble_t * y_data = new floble_t[equations_count];
     for (int i=0; i<compartments_count; i++)
       y_data[i] = nt->_actual_v[i];
-
-    y_data[0]=-10;
-    y_data[1]=-10;
 
     //create map from y to NrnThread->data (mech-states)
     branch_cvodes->equations_map_ = new double*[equations_count - compartments_count];

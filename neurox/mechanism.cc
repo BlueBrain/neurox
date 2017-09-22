@@ -27,7 +27,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
       dependencies_(nullptr),
       successors_(nullptr),
       state_vars_count_(0),
-      state_vars_offsets_(nullptr)
+      state_vars_offsets_(nullptr),
+      state_vars_dv_offsets_(nullptr)
 {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
@@ -83,12 +84,11 @@ Mechanism::Mechanism(const int type, const short int data_size,
       vdata_size_ = 0;
   }
 
-  //TODO: hard-coded exception of state-vars
-  this->state_vars_count_=0;
-
+  //TODO: hard-coded values of state-vars
   if (this->state_vars_count_>0)
   {
     this->state_vars_offsets_ = new short[this->state_vars_count_];
+    this->state_vars_dv_offsets_ = new short[this->state_vars_count_];
 
     if (this->type_== MechanismTypes::kCapacitance)
       //capac.c::nrn_jacob_capacitance

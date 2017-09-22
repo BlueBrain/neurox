@@ -92,6 +92,7 @@ class CvodesAlgorithm : public Algorithm {
 
           /// execution time of last RHS function call
           realtype rhs_last_time_;
+          realtype rhs_second_last_time_;
 
       } * user_data_;
 
@@ -103,7 +104,7 @@ class CvodesAlgorithm : public Algorithm {
 
  private:
   /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize=1e-9;
+  constexpr static double kMinStepSize=1e-12;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
@@ -119,7 +120,10 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kEventsDeliveryTimeWindow=0.125;
 
   /// update NrnThread->data from with new CVODES state
-  static void UpdateNrnThreadFromCvodeState(Branch *branch, N_Vector y);
+  static void CopyCvodesToNrnThread(N_Vector y, Branch *branch);
+
+  /// update CVODES from NrnThread->data
+  static void CopyNrnThreadToCvodes(Branch * branch, N_Vector ydot);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot, void *user_data);
