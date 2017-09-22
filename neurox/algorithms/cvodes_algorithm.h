@@ -63,8 +63,8 @@ class CvodesAlgorithm : public Algorithm {
       /// (similar to ode_map in NEURON)
       double **equations_map_;
 
-      /// minimum step size
-      static double min_step_size_;
+      /// hpx for last sent spikes
+      hpx_t spikes_lco_;
 
       /// HPX actions registration
       static void RegisterHpxActions();
@@ -73,6 +73,7 @@ class CvodesAlgorithm : public Algorithm {
       static hpx_action_t Run;
       static hpx_action_t Clear;
 
+      /// Data structure past as user-data argument to CVODES functions
       class UserData
       {
         public:
@@ -80,9 +81,18 @@ class CvodesAlgorithm : public Algorithm {
           UserData(Branch*);
           ~UserData();
 
+          /// Branch this user data belongs to;
           Branch * branch_;
+
+          /// VEC_D of last RHS call, before hines solver
           double * jacob_d_;
+
+          /// temporary placeholder for data
           double * data_bak_;
+
+          /// execution time of last RHS function call
+          realtype rhs_last_time_;
+
       } * user_data_;
 
     private:
@@ -92,9 +102,21 @@ class CvodesAlgorithm : public Algorithm {
   };
 
  private:
+  /// CVODES Mininum step size allowed
+  constexpr static double kMinStepSize=1e-9;
+
+  /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
+
+  /// CVODES Absolute tolerance for voltage values
   constexpr static double kAbsToleranceVoltage = 1e-3;
+
+  /// CVODES Absolute tolerance for mechanism states values
   constexpr static double kAbsToleranceMechStates = 1e-2;
+
+  /// Time-window size for grouping of events to be delivered
+  /// simmultaneously (0 for no grouping)
+  constexpr static double kEventsDeliveryTimeWindow=0.125;
 
   /// update NrnThread->data from with new CVODES state
   static void UpdateNrnThreadFromCvodeState(Branch *branch, N_Vector y);

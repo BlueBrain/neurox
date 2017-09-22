@@ -3,8 +3,6 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-double CvodesAlgorithm::BranchCvodes::min_step_size_ = -1;
-
 CvodesAlgorithm::CvodesAlgorithm(){}
 
 CvodesAlgorithm::~CvodesAlgorithm() {}
@@ -58,6 +56,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
     Branch * branch = user_data->branch_;
     NrnThread * nt = branch->nt_;
+    user_data->rhs_last_time_=t;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
     //and update the status based on the best f(y,t) found;
@@ -76,7 +75,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
 
     /////////   Get new RHS and D from current state ///////////
 
-    nt->_t += .5 * BranchCvodes::min_step_size_;
+    nt->_t += .125; //Backward-Euler half-step
 
     //Updates internal states of continuous point processes (vecplay)
     //e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -115,7 +114,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //updates V: v[i] += second_order_multiplier * rhs[i]
     solver::HinesSolver::UpdateV(branch);
 
-    nt->_t += .5 * BranchCvodes::min_step_size_;
+    nt->_t += .125; //Backward-Euler half-step
 
     // update mechanisms state (eg opening vars) based on voltage
     //TODO until we add mechanisms, changes below will be ignored, as state is overwritten
@@ -141,9 +140,8 @@ int CvodesAlgorithm::JacobianFunction(
     realtype ** jac = J->cols;
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
     const Branch * branch = user_data->branch_;
-    const BranchCvodes* branch_cvodes = (BranchCvodes*) branch->soma_->algorithm_metadata_;
     const NrnThread * nt = branch->nt_;
-    assert(N==branch_cvodes->equations_count_);
+    assert(t==user_data->rhs_last_time_);
 
     const int a_offset = nt->_actual_a - nt->_data;
     const int b_offset =nt->_actual_b -nt->_data;
@@ -227,7 +225,6 @@ int CvodesAlgorithm::JacobianFunction(
 
 
 void CvodesAlgorithm::Init() {
-  BranchCvodes::min_step_size_ = input_params_->dt_ * 0.1;
   neurox::wrappers::CallAllNeurons(CvodesAlgorithm::BranchCvodes::Init);
 }
 
@@ -261,7 +258,7 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron* n, double tt, double) {
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
     :cvodes_mem_(nullptr), equations_count_(-1),
      equations_map_(nullptr),  user_data_(nullptr),
-     y_(nullptr)
+     y_(nullptr), spikes_lco_(HPX_NULL)
 {}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes()
@@ -271,9 +268,9 @@ CvodesAlgorithm::BranchCvodes::~BranchCvodes()
     delete this->user_data_;
 }
 
-CvodesAlgorithm::BranchCvodes::UserData::UserData(Branch * branch)
+CvodesAlgorithm::BranchCvodes::UserData::UserData(Branch * branch):
+    branch_(branch), rhs_last_time_(-1)
 {
-    this->branch_ = branch;
     this->jacob_d_ = new double [branch->nt_->end];
     this->data_bak_ = new double [branch->nt_->_ndata];
 }
@@ -400,8 +397,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     //see chapter 8 -- providing alternate linear solver modules
     assert(flag==CV_SUCCESS);
 
-    CVodeSetInitStep(cvodes_mem, min_step_size_);
-    CVodeSetMinStep(cvodes_mem, min_step_size_);
+    //TODO
+    //CVodeSetInitStep(cvodes_mem, kMinStepSize);
+    //CVodeSetMinStep(cvodes_mem, kMinStepSize);
     CVodeSetMaxStep(cvodes_mem, CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
     CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
     CVodeSetMaxOrd(cvodes_mem, 5); //max order of the BDF method
@@ -420,13 +418,14 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
     void * cvodes_mem = branch_cvodes->cvodes_mem_;
 
     int roots_found[1]; //AP threshold
-
     int flag = CV_ERR_FAILURE;
     realtype tout = 0;
-    hpx_t spikes_lco = HPX_NULL;
 
     while(nt->_t < input_params_->tstop_)
     {
+      //delivers all events whithin the next min step size
+      local->DeliverEvents(nt->_t+CvodesAlgorithm::kEventsDeliveryTimeWindow);
+
       //get tout as time of next undelivered event (if any)
       hpx_lco_sema_p(local->events_queue_mutex_);
       if (!local->events_queue_.empty())
@@ -438,15 +437,12 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       //TODO can it walk backwards for missed event?
       flag = CVode(cvodes_mem, tout, branch_cvodes->y_, &(nt->_t), CV_NORMAL);
 
-      printf("At t = %0.4e   V =%14.6e  %14.6e  %14.6e\n",
-             nt->_t, NV_Ith_S(branch_cvodes->y_,0),
-             NV_Ith_S(branch_cvodes->y_,1), NV_Ith_S(branch_cvodes->y_,2));
+      double *v = NV_DATA_S(branch_cvodes->y_);
+      printf("At t = %0.4e   V =\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n",
+             v[0], v[1], v[2], v[3], v[4], v[5]);
 
       if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
-        //delivers all events whithin the next min step size
-        local->DeliverEvents(nt->_t + BranchCvodes::min_step_size_);
-
         flag = CVodeGetRootInfo(cvodes_mem, roots_found);
         assert(flag==CV_SUCCESS);
         assert(roots_found[0]!=0); //only possible root: AP threshold reached
@@ -456,34 +452,34 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
         {
            //TODO we can use a root to stop progress in time and wait for deliver?
            //use several hpx-all reduce to mark performance?
-           spikes_lco=local->soma_->SendSpikes(nt->_t);
+           branch_cvodes->spikes_lco_=local->soma_->SendSpikes(nt->_t);
         }
       }
-
-      //Success from CVodeGetRootInfo or CVode
-      if (flag == CV_SUCCESS)
-        nt->_t = tout;
-
       /*
-      long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
-#if NEUROX_CVODES_JACOBIAN_SOLVER==0
-      CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-      CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
-#else
-      CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-      CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
-#endif
-
-      CVodeGetNumSteps(cvodes_mem, &num_steps);
-      realtype last_step_size=-1;
-      CVodeGetLastStep(cvodes_mem, &last_step_size);
       N_Vector estimated_local_errors = N_VNewEmpty_Serial(branch_cvodes->equations_count_);
       CVodeGetEstLocalErrors(cvodes_mem, estimated_local_errors);
       */
     }
 
-    /* Print some final statistics */
-    //PrintFinalStats(cvode_mem_);
+    //Final statistics output:
+    long num_steps=-1, num_jacob_evals=-1, num_rhs_evals=-1;
+    realtype last_step_size=-1;
+
+    CVodeGetNumSteps(cvodes_mem, &num_steps);
+    CVodeGetLastStep(cvodes_mem, &last_step_size);
+#if NEUROX_CVODES_JACOBIAN_SOLVER==0
+    CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+#else
+    CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+#endif
+
+    printf("- num_steps: %d\n", num_steps);
+    printf("- num_jacob_evals: %d\n", num_jacob_evals);
+    printf("- num_rhs_evals: %d\n", num_rhs_evals);
+    printf("- last_step_size: %d\n", last_step_size);
+
 
     return neurox::wrappers::MemoryUnpin(target);
 }

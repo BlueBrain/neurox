@@ -757,7 +757,7 @@ void Branch::SolveTreeMatrix() {
   solver::HinesSolver::ForwardSubstituion(this);
 }
 
-void Branch::DeliverEvents(floble_t til)  // til=t+0.5*dt
+void Branch::DeliverEvents(floble_t til) //Coreneuron: til=t+0.5*dt
 {
   // delivers events in the preivous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
