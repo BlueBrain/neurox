@@ -56,6 +56,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     BranchCvodes::UserData *user_data = (BranchCvodes::UserData*)  user_data_ptr;
     Branch * branch = user_data->branch_;
     NrnThread * nt = branch->nt_;
+    realtype * ydot_data =NV_DATA_S(ydot);
     user_data->rhs_last_time_=t;
 
     //NOTE: status has to be full recoverable as it will step with several ts,
@@ -63,15 +64,15 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     //Therefore, we back up NrnThread->data and time (weights are only
     //changed on net_receive), and we recoved them later
 
-    //backup previous state
+    //update vars in NrnThread->data described by our CVODES state
+    CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
+
+    //backup state to revert later
     double t_bak = nt->_t;
     memcpy(user_data->data_bak_, nt->_data, sizeof(double)*nt->_ndata);
 
     //Note: due to current stae of the art, this function will compute
     //both the RHS  (vec_RHS) and jacobian (D).
-
-    //update vars in NrnThread->data described by our CVODES state
-    CvodesAlgorithm::UpdateNrnThreadFromCvodeState(branch, y);
 
     /////////   Get new RHS and D from current state ///////////
 
@@ -121,7 +122,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *us
     branch->CallModFunction(Mechanism::ModFunctions::kState);
 
     //set ydot with RHS state
-    memcpy(NV_DATA_S(ydot), branch->nt_->_actual_rhs, sizeof(branch->nt_->end));
+    memcpy(ydot_data, nt->_actual_rhs, sizeof(double)*nt->end);
 
     //recover previous state
     nt->_t = t_bak;
@@ -314,6 +315,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     for (int i=0; i<compartments_count; i++)
       y_data[i] = nt->_actual_v[i];
 
+    y_data[0]=-10;
+    y_data[1]=-10;
+
     //create map from y to NrnThread->data (mech-states)
     branch_cvodes->equations_map_ = new double*[equations_count - compartments_count];
     int equations_map_offset=0;
@@ -438,8 +442,8 @@ int CvodesAlgorithm::BranchCvodes::Run_handler()
       flag = CVode(cvodes_mem, tout, branch_cvodes->y_, &(nt->_t), CV_NORMAL);
 
       double *v = NV_DATA_S(branch_cvodes->y_);
-      printf("At t = %0.4e   V =\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n",
-             v[0], v[1], v[2], v[3], v[4], v[5]);
+      printf("Neuron %d: t = %0.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n",
+             nt->id, nt->_t, v[0], v[1], v[2], v[3], v[4], v[5]);
 
       if(flag==CV_ROOT_RETURN) //CVODE succeeded and roots found
       {
