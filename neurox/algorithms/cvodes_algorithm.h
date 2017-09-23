@@ -132,13 +132,6 @@ class CvodesAlgorithm : public Algorithm {
   static int RootFunction(realtype t, N_Vector y_, realtype *gout, void *user_data);
 
   /// jacobian: compute J(t,y)
-  static int JacobianSparseMatrix(
-          realtype t,
-          N_Vector y, N_Vector fy,
-          SlsMat JacMat, void *user_data,
-          N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
-
-  /// jacobian: compute J(t,y)
   static int JacobianFunction(
           long int N, floble_t t,
           N_Vector y_, N_Vector fy,

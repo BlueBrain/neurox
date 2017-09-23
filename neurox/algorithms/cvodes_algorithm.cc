@@ -61,14 +61,6 @@ int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout, void *
     return CV_SUCCESS;
 }
 
-int CvodesAlgorithm::JacobianSparseMatrix(realtype t,
-               N_Vector y, N_Vector fy, SlsMat JacMat, void *user_data,
-               N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
-{
-    assert(0);
-    return(0);
-}
-
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot, void *user_data_ptr)
 {
@@ -344,9 +336,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
         int ml_data_offset=0;
         for (int n=0; n<mech_instances->nodecount; n++)
         {
-            for (int s=0; s<mech->state_vars_count_; s++)
+            for (int s=0; s<mech->state_vars_->count_; s++)
             {
-              int state_index = mech->state_vars_offsets_[s];
+              int state_index = mech->state_vars_->offsets_[s];
 #if LAYOUT == 1
               int state_data_offset = ml_data_offset + mech->data_size_ * n +  state_index;
 #else
@@ -357,7 +349,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
             }
             ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
         }
-        equations_map_offset += mech_instances->nodecount * mech->state_vars_count_;
+        equations_map_offset += mech_instances->nodecount * mech->state_vars_->count_;
     }
     branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 

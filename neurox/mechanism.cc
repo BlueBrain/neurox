@@ -26,9 +26,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
       is_ion_(is_ion),
       dependencies_(nullptr),
       successors_(nullptr),
-      state_vars_count_(0),
-      state_vars_offsets_(nullptr),
-      state_vars_dv_offsets_(nullptr)
+      state_vars_(0)
 {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
@@ -85,25 +83,16 @@ Mechanism::Mechanism(const int type, const short int data_size,
   }
 
   //TODO: hard-coded values of state-vars
-  if (this->state_vars_count_>0)
+  switch (this->type_)
   {
-    this->state_vars_offsets_ = new short[this->state_vars_count_];
-    this->state_vars_dv_offsets_ = new short[this->state_vars_count_];
-
-    if (this->type_== MechanismTypes::kCapacitance)
-      //capac.c::nrn_jacob_capacitance
-      this->state_vars_offsets_[0] = 0;
-    else if (this->is_ion_)
-      //dcurdv in eion.c::second_order_cur()
-      this->state_vars_offsets_[0] = 4;
-    else if (this->type_ == MechanismTypes::kProbAMPANMDA_EMS
-        || this->type_ == MechanismTypes::kProbGABAAB_EMS
-        || this->type_ == MechanismTypes::kExpSyn)
-       //_g_unused in c-mod files
-      this->state_vars_offsets_[0] = this->data_size_-2;
-    else
-      //all other mechs
-      this->state_vars_offsets_[0] = this->data_size_-1;
+  case(MechanismTypes::kCapacitance):
+      this->state_vars_ = new StateVars(1, nullptr, nullptr);
+  break;
+  case(IonTypes::kCa || IonTypes::kNa || IonTypes::kK || IonTypes::kTTX):
+      this->state_vars_ = new StateVars(0, nullptr, nullptr);
+  break;
+  default:
+    throw std::runtime_error("Unknown mechanisms state variables");
   }
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
@@ -121,6 +110,16 @@ Mechanism::Mechanism(const int type, const short int data_size,
     std::memcpy(this->successors_, successors, successors_count * sizeof(int));
   }
 };
+
+Mechanism::StateVars::StateVars(short count, short *offsets, short *dv_offsets):
+    count_(count), offsets_(offsets), dv_offsets_(dv_offsets)
+{}
+
+Mechanism::StateVars::~StateVars()
+{
+    delete [] offsets_;
+    delete [] dv_offsets_;
+}
 
 Mechanism::IonTypes Mechanism::GetIonIndex() {
   assert(this->memb_func_.sym);
