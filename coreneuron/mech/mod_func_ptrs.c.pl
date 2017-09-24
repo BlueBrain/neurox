@@ -129,15 +129,29 @@ mod_parallel_f_t get_cur_parallel_function(const char * sym)
 __eof
 
 
+#output get_state_vars functions (ions only)
+
+print <<"__eof";
+
+extern void \n  @{[join ",\n  ", map {"_stave_vars_function__${_}(short*, short**, short**)"} @suffixes_with_cur]};
+
+state_vars_f_t get_state_vars_function(const char * sym)
+{
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _stave_vars_function__${_};"} @suffixes_with_cur]}
+  return NULL;
+}
+__eof
+
 #output BA functions (not available yet)
 print <<"__eof";
+
 mod_f_t get_BA_function(const char * sym, int BA_func_id)
 {
   return NULL;
 }
 __eof
 
-#output BA functions (not available yet)
+#output jacob functions (not available yet)
 # TODO get rid of this
 print <<"__eof";
 mod_f_t get_jacob_function(const char * sym)

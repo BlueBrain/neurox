@@ -82,18 +82,12 @@ Mechanism::Mechanism(const int type, const short int data_size,
       vdata_size_ = 0;
   }
 
-  //TODO: hard-coded values of state-vars
-  switch (this->type_)
-  {
-  case(MechanismTypes::kCapacitance):
-      this->state_vars_ = new StateVars(1, nullptr, nullptr);
-  break;
-  case(IonTypes::kCa || IonTypes::kNa || IonTypes::kK || IonTypes::kTTX):
-      this->state_vars_ = new StateVars(0, nullptr, nullptr);
-  break;
-  default:
-    throw std::runtime_error("Unknown mechanisms state variables");
-  }
+  //get state variables count, values and offsets
+  state_vars_f_t stf = get_state_vars_function(this->memb_func_.sym);
+  if (stf != NULL)
+      stf(&this->state_vars_->count_,
+          &this->state_vars_->offsets_,
+          &this->state_vars_->dv_offsets_);
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
 

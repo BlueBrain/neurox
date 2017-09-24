@@ -59,6 +59,7 @@ extern mod_f_t get_jacob_function(const char* sym);
 extern mod_f_t get_BA_function(const char* sym, int BA_func_id);
 extern pnt_receive2_t get_net_receive_function(const char* sym);
 extern mod_parallel_f_t get_cur_parallel_function(const char* sym);
+extern state_vars_f_t get_state_vars_function(const char * sym);
 #endif
 
 // from nrnoc/capac.c
