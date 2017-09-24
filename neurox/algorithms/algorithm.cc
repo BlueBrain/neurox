@@ -53,3 +53,20 @@ void Algorithm::PrintStartInfo() {
 int Algorithm::GetTotalStepsCount() {
   return (input_params_->tstop_ - input_params_->tstart_) / input_params_->dt_;
 }
+
+void Algorithm::FixedStepMethodsInit()
+{
+    DebugMessage("neurox::Branch::Finitialize...\n");
+    neurox::wrappers::CallAllNeurons(Branch::Finitialize);
+  #ifndef NDEBUG
+    hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
+    neurox::input::Debugger::CompareAllBranches();
+  #endif
+
+    DebugMessage("neurox::Branch::threadTableCheck...\n");
+    neurox::wrappers::CallAllNeurons(Branch::ThreadTableCheck);
+  #ifndef NDEBUG
+    hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
+    neurox::input::Debugger::CompareAllBranches();
+  #endif
+}

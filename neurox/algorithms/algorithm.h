@@ -42,6 +42,9 @@ class Algorithm {
   Algorithm(){};
   virtual ~Algorithm(){};
 
+  /// Init for Fixed Step methods
+  static void FixedStepMethodsInit();
+
   /// Returns total count of steps of fixed size defined by user
   static int GetTotalStepsCount();
 

@@ -21,7 +21,10 @@ const char* CoreneuronAlgorithm::GetString() {
   return "BackwardEulerCoreneuron";
 }
 
-void CoreneuronAlgorithm::Init() { assert(0); }
+void CoreneuronAlgorithm::Init() {
+    assert(0);
+    Algorithm::FixedStepMethodsInit();
+}
 
 void CoreneuronAlgorithm::Clear() {}
 

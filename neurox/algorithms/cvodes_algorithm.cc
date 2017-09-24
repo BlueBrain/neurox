@@ -308,6 +308,14 @@ int CvodesAlgorithm::BranchCvodes::Init_handler()
     int compartments_count = local->nt_->end;
     NrnThread *& nt = local->nt_;
 
+    //Setting dt to 1, used in nrn_init of StochKv, ProbAMPANMDA_EMS,
+    //ProbGABAAB_EMS.c, and matsol of most methods
+    local->nt_->_dt = 1.0;
+
+    //calling same methods as Algorithm::FixedStepInit()
+    local->Finitialize2();
+    local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+
     int flag = CV_ERR_FAILURE;
 
     //equations: voltages per compartments + mechanisms * states

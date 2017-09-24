@@ -21,6 +21,7 @@ const char* SlidingTimeWindowAlgorithm::GetString() {
 }
 
 void SlidingTimeWindowAlgorithm::Init() {
+    Algorithm::FixedStepMethodsInit();
   AllreduceAlgorithm::SubscribeAllReduces(
       SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);

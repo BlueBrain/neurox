@@ -21,6 +21,7 @@ const char* AllreduceAlgorithm::GetString() {
 }
 
 void AllreduceAlgorithm::Init() {
+  Algorithm::FixedStepMethodsInit();
   SubscribeAllReduces(AllreduceAlgorithm::allreduces_,
                       AllreduceAlgorithm::kAllReducesCount);
 }

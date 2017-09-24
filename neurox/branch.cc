@@ -572,7 +572,8 @@ void Branch::Finitialize2() {
   DeliverEvents(t);
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
-  for (int n = 0; n < this->nt_->end; n++) v[n] = input_params_->voltage_;
+  for (int n = 0; n < this->nt_->end; n++)
+      v[n] = input_params_->voltage_;
 
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read

@@ -133,11 +133,11 @@ __eof
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_stave_vars_function__${_}(short*, short**, short**)"} @suffixes_with_cur]};
+extern void \n  @{[join ",\n  ", map {"_nrn_stave_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
 
 state_vars_f_t get_state_vars_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _stave_vars_function__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_stave_vars__${_};"} @suffixes_with_cur]}
   return NULL;
 }
 __eof

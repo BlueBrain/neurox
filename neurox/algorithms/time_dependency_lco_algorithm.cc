@@ -20,6 +20,7 @@ const char* TimeDependencyLCOAlgorithm::GetString() {
 }
 
 void TimeDependencyLCOAlgorithm::Init() {
+    Algorithm::FixedStepMethodsInit();
   if (input_params_->allreduce_at_locality_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependencyLCO with allReduceAtLocality\n");
