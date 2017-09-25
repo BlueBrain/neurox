@@ -355,6 +355,26 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  static int _ca_type;
  static int _k_type;
  
+
+ void _nrn_state_vars__cc(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 6;
+     *var_offsets = (short*) malloc(sizeof(short)* *count);
+     *dv_offsets = (short*) malloc(sizeof(short)* *count);
+     *var_offsets[0] = 10;
+     *var_offsets[1] = 11;
+     *var_offsets[2] = 12;
+     *var_offsets[3] = 13;
+     *var_offsets[4] = 14;
+     *var_offsets[5] = 15;
+     *dv_offsets[0] = 29;
+     *dv_offsets[1] = 30;
+     *dv_offsets[2] = 31;
+     *dv_offsets[3] = 32;
+     *dv_offsets[4] = 33;
+     *dv_offsets[5] = 34;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
