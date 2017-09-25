@@ -1,15 +1,13 @@
 #pragma once
 #include "neurox/neurox.h"
 
-
 namespace neurox {
 
-//Forward declarations
-namespace algorithms
-{
-  enum class AlgorithmId : int;
+// Forward declarations
+namespace algorithms {
+enum class AlgorithmId : int;
 
-  class Algorithm;
+class Algorithm;
 }
 
 namespace tools {
@@ -43,17 +41,17 @@ class CmdLineParser {
                             /// output_spikes.h format raster file.)
 
   // neurox specific options
-  bool output_statistics_;       ///> outputs statistics file
-  bool output_mechanisms_dot_;   ///> outputs mechanisms.dot file
-  bool output_netcons_dot;       ///> outputs netcons.dot file
-  bool output_compartments_dot_; ///> outputs compartments*.dot files
-  bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
-  bool allreduce_at_locality_;   ///> whether to perform HPX all-reduce LCOs at
-                                 /// neuron or node level
+  bool output_statistics_;        ///> outputs statistics file
+  bool output_mechanisms_dot_;    ///> outputs mechanisms.dot file
+  bool output_netcons_dot;        ///> outputs netcons.dot file
+  bool output_compartments_dot_;  ///> outputs compartments*.dot files
+  bool mechs_parallelism_;        ///> graph-based parallelism of mechanisms
+  bool allreduce_at_locality_;    ///> whether to perform HPX all-reduce LCOs at
+                                  /// neuron or node level
   bool load_balancing_;  ///> Whether to perform dynamic load balancing of bodes
                          /// and branches
-  int branch_parallelism_depth_;  ///> depth tree-based parallelism of
-                                  /// morphologies
+  int branch_parallelism_depth_;       ///> depth tree-based parallelism of
+                                       /// morphologies
   algorithms::AlgorithmId algorithm_;  ///> neurons sychronization algorithm
 
  private:

@@ -16,11 +16,10 @@ const AlgorithmId AllreduceAlgorithm::GetId() {
   return AlgorithmId::kBackwardEulerAllReduce;
 }
 
-const char* AllreduceAlgorithm::GetString() {
-  return "BackwardEulerAllReduce";
-}
+const char* AllreduceAlgorithm::GetString() { return "BackwardEulerAllReduce"; }
 
 void AllreduceAlgorithm::Init() {
+  Algorithm::FixedStepMethodsInit();
   SubscribeAllReduces(AllreduceAlgorithm::allreduces_,
                       AllreduceAlgorithm::kAllReducesCount);
 }
@@ -152,8 +151,7 @@ void AllreduceAlgorithm::Run2(Branch* b, const void* args) {
                                               stw->allreduce_id_[r], NULL, 0);
       }
 
-      for (int n = 0; n < steps_per_reduction; n++)
-          b->BackwardEulerStep();
+      for (int n = 0; n < steps_per_reduction; n++) b->BackwardEulerStep();
       // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
       // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
     }

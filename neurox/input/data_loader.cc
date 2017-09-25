@@ -90,7 +90,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
   return ppi;
 }
 
-int DataLoader::CreateNeuron(int neuron_idx, void*) {
+int DataLoader::CreateNeuron(int neuron_idx, void *) {
   NrnThread *nt = &nrn_threads[neuron_idx];
   neuron_id_t neuron_id = GetNeuronIdFromNrnThreadId(nt->id);
   int N = nt->end;
@@ -103,7 +103,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void*) {
   size_t data_size_padded = 6 * tools::Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
     data_size_padded += tools::Vectorizer::SizeOf(tml->ml->nodecount) *
-                      mechanisms_[mechanisms_map_[tml->index]]->data_size_;
+                        mechanisms_[mechanisms_map_[tml->index]]->data_size_;
 
   // map of post- to pre-padding values of pdata
   // only used for branched neurons, otherwise pointers for padded and
@@ -193,8 +193,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void*) {
     int ion_offset = mech->GetIonIndex();
 
     // for every mech instance (or compartment this mech is applied to)
-    for (int n = 0; n < ml->nodecount; n++)
-    {
+    for (int n = 0; n < ml->nodecount; n++) {
       if (mech->is_ion_) {
         if (n == 0) {
           ions_instances_info[ion_offset].mech_type = type;
@@ -241,7 +240,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void*) {
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
           assert(data_offsets.at(pd) != -99999);
           pdata.push_back(data_offsets.at(pd));  // offset to non-padded SoA
-                                                // value
+                                                 // value
         } else
           pdata.push_back(pd);
 #endif
@@ -340,12 +339,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void*) {
     assert(weights_offset < nt->n_weight);
 
     int node_id = nrn_threads[nc->target_->_tid]
-                     ._ml_list[mech_type]
-                     ->nodeindices[nc->target_->_i_instance];
+                      ._ml_list[mech_type]
+                      ->nodeindices[nc->target_->_i_instance];
     Compartment *comp = compartments.at(node_id);
     NetconX *nx = new NetconX(mech_type, (offset_t)nc->target_->_i_instance,
-                              (floble_t)nc->delay_, weights_offset, weights_count,
-                              nc->active_);
+                              (floble_t)nc->delay_, weights_offset,
+                              weights_count, nc->active_);
     double *weights = &nt->weights[weights_offset];
     comp->AddNetcon(srcgid, nx, weights);
     netcons[srcgid].push_back(nx);
@@ -466,8 +465,8 @@ int DataLoader::InitMechanisms_handler() {
           if ((*it)->index == tml->index) {
             auto it_next = std::next(it, 1);
             ordered_mechs.insert(it_next, tml->next);  // reminder: .insert adds
-                                                      // elements in position
-                                                      // before iterator
+                                                       // elements in position
+                                                       // before iterator
             // we have it -> it_new -> it_next. Now we will set the value of
             // next pointer
             // auto it_new = std::prev(it_next,1);
@@ -615,10 +614,10 @@ int DataLoader::InitNeurons_handler() {
   if (input_params_->output_compartments_dot_) {
     for (int i = 0; i < my_nrn_threads_count; i++) {
       neuron_id_t neuron_id = GetNeuronIdFromNrnThreadId(i);
-      FILE *file_compartments =
-          fopen(string("compartments_" + to_string(neuron_id) + "_NrnThread.dot")
-                    .c_str(),
-                "wt");
+      FILE *file_compartments = fopen(
+          string("compartments_" + to_string(neuron_id) + "_NrnThread.dot")
+              .c_str(),
+          "wt");
       fprintf(file_compartments, "graph G%d\n{  node [shape=cylinder];\n",
               neuron_id);
 
@@ -760,8 +759,8 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
       int sym_length =
           memb_func[type].sym ? std::strlen(memb_func[type].sym) : 0;
       const int *mech_dependencies = dependencies_count[m] == 0
-                                        ? nullptr
-                                        : &dependencies[dependencies_offset];
+                                         ? nullptr
+                                         : &dependencies[dependencies_offset];
       const int *mech_successors =
           successors_count[m] == 0 ? nullptr : &successors[successors_offset];
       Mechanism *mech = new Mechanism(
@@ -916,8 +915,9 @@ void DataLoader::GetAllChildrenCompartments(deque<Compartment *> &sub_section,
     GetAllChildrenCompartments(sub_section, top_compartment->branches_.at(c));
 }
 
-void DataLoader::GetMechInstanceMap(deque<Compartment *> &compartments,
-                                    vector<map<int, int>> &mechs_instances_map) {
+void DataLoader::GetMechInstanceMap(
+    deque<Compartment *> &compartments,
+    vector<map<int, int>> &mechs_instances_map) {
   vector<deque<int>> mechs_instances_ids(
       neurox::mechanisms_count_);  // mech offset -> list of mech instance id
   for (Compartment *comp : compartments)
@@ -936,19 +936,19 @@ void DataLoader::GetMechInstanceMap(deque<Compartment *> &compartments,
     }
 }
 
-void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
-                                      vector<NetconX> &branch_netcons,
-                                      vector<neuron_id_t> &branch_netcons_pre_id,
-                                      vector<floble_t> &branch_weights,
-                                      vector<map<int, int>> *mech_instance_map) {
+void DataLoader::GetNetConsBranchData(
+    deque<Compartment *> &compartments, vector<NetconX> &branch_netcons,
+    vector<neuron_id_t> &branch_netcons_pre_id,
+    vector<floble_t> &branch_weights,
+    vector<map<int, int>> *mech_instance_map) {
   for (auto &comp : compartments) {
     branch_netcons.insert(branch_netcons.end(), comp->netcons_.begin(),
-                         comp->netcons_.end());
+                          comp->netcons_.end());
     branch_netcons_pre_id.insert(branch_netcons_pre_id.end(),
-                              comp->netcons_pre_syn_ids_.begin(),
-                              comp->netcons_pre_syn_ids_.end());
+                                 comp->netcons_pre_syn_ids_.begin(),
+                                 comp->netcons_pre_syn_ids_.end());
     branch_weights.insert(branch_weights.end(), comp->netcons_weights_.begin(),
-                         comp->netcons_weights_.end());
+                          comp->netcons_weights_.end());
   }
 
   // correct weighIndex variables
@@ -963,14 +963,13 @@ void DataLoader::GetNetConsBranchData(deque<Compartment *> &compartments,
     for (NetconX &nc : branch_netcons)
       nc.mech_instance_ =
           (*mech_instance_map)[neurox::mechanisms_map_[nc.mech_type_]]
-                            [nc.mech_instance_];
+                              [nc.mech_instance_];
 }
 
-void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
-                                      vector<floble_t> &vecplay_t_data,
-                                      vector<floble_t> &vecplay_y_data,
-                                      vector<PointProcInfo> &vecplay_info,
-                                      vector<map<int, int>> *mech_instance_map) {
+void DataLoader::GetVecPlayBranchData(
+    deque<Compartment *> &compartments, vector<floble_t> &vecplay_t_data,
+    vector<floble_t> &vecplay_y_data, vector<PointProcInfo> &vecplay_info,
+    vector<map<int, int>> *mech_instance_map) {
   // convert node id and mech instance id in PointProcess from neuron to branch
   // level
   if (mech_instance_map) {
@@ -982,18 +981,18 @@ void DataLoader::GetVecPlayBranchData(deque<Compartment *> &compartments,
       PointProcInfo &ppi = vecplay_info[p];
       ppi.mech_instance =
           (offset_t)(*mech_instance_map)[neurox::mechanisms_map_[ppi.mech_type]]
-                                      [ppi.mech_instance];
+                                        [ppi.mech_instance];
       ppi.node_id = from_old_to_new_compartment_id[ppi.node_id];
     }
   }
 
   for (auto comp : compartments) {
     vecplay_t_data.insert(vecplay_t_data.end(), comp->vecplay_tdata_.begin(),
-                        comp->vecplay_tdata_.end());
+                          comp->vecplay_tdata_.end());
     vecplay_y_data.insert(vecplay_y_data.end(), comp->vecplay_ydata_.begin(),
-                        comp->vecplay_ydata_.end());
+                          comp->vecplay_ydata_.end());
     vecplay_info.insert(vecplay_info.end(), comp->vecplay_info_.begin(),
-                       comp->vecplay_info_.end());
+                        comp->vecplay_info_.end());
   }
 }
 
@@ -1042,7 +1041,8 @@ int DataLoader::GetBranchData(
       neurox::mechanisms_count_);  // mech-offset -> list of pointers to mech
                                    // instance value
 
-  // from pair of <ion mech type, OLD node id> to ion offset in NEW representation
+  // from pair of <ion mech type, OLD node id> to ion offset in NEW
+  // representation
   map<pair<int, offset_t>, offset_t> ion_instance_to_data_offset;
 
   for (Compartment *comp : compartments) {
@@ -1099,7 +1099,8 @@ int DataLoader::GetBranchData(
     int data_offset = 0;
     int pdata_offset = 0;
     int vdata_offset = 0;
-    for (int i = 0; i < nodes_indices_mechs[m].size(); i++)  // for all instances
+    for (int i = 0; i < nodes_indices_mechs[m].size();
+         i++)  // for all instances
     {
       assert(ion_instance_to_data_offset.find(
                  make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
@@ -1177,12 +1178,14 @@ int DataLoader::GetBranchData(
 
                 int instance_offset =
                     trunc((double)(pd - data_start) / (double)ion->data_size_);
-                int instance_variable_offset = (pd - data_start) % ion->data_size_;
+                int instance_variable_offset =
+                    (pd - data_start) % ion->data_size_;
                 int node_id = ion_info.node_ids.at(instance_offset);
                 int new_node_id = from_old_to_new_compartment_id.at(node_id);
-                pdata_mechs.at(m).at(p) = ion_instance_to_data_offset.at(
-                                             make_pair(ion->type_, new_node_id)) +
-                                         instance_variable_offset;
+                pdata_mechs.at(m).at(p) =
+                    ion_instance_to_data_offset.at(
+                        make_pair(ion->type_, new_node_id)) +
+                    instance_variable_offset;
                 assert(pdata_mechs.at(m).at(p) >= n * 6);
               } else if (ptype >= 1000)  // name not preffixed
               {
@@ -1220,8 +1223,9 @@ bool CompareCompartmentsPtrsIds(Compartment *a, Compartment *b) {
 hpx_t DataLoader::CreateBranch(
     int nrn_threadId, hpx_t soma_branch_addr,
     deque<Compartment *> &all_compartments, Compartment *top_compartment,
-    vector<DataLoader::IonInstancesInfo> &ions_instances_info, int branching_depth,
-    int thvar_index /*AIS*/, floble_t ap_threshold /*AIS*/) {
+    vector<DataLoader::IonInstancesInfo> &ions_instances_info,
+    int branching_depth, int thvar_index /*AIS*/,
+    floble_t ap_threshold /*AIS*/) {
   assert(top_compartment != NULL);
   offset_t n;              // number of compartments in branch
   vector<floble_t> data;   // compartments info (RHS, D, A, B, V, AREA)*n
@@ -1253,8 +1257,8 @@ hpx_t DataLoader::CreateBranch(
                       nodes_indices, N, ions_instances_info, NULL);
     GetVecPlayBranchData(all_compartments, vecplay_t, vecplay_y, vecplay_info,
                          NULL);
-    GetNetConsBranchData(all_compartments, branch_netcons, branch_netcons_pre_id,
-                         branch_weights, NULL);
+    GetNetConsBranchData(all_compartments, branch_netcons,
+                         branch_netcons_pre_id, branch_weights, NULL);
   } else if (input_params_->branch_parallelism_depth_ >
              0)  // branch-parallelism
   {
@@ -1277,7 +1281,8 @@ hpx_t DataLoader::CreateBranch(
     // this step is only necesary so that data has the same alignment as
     // CoreNeuron
     // and allows one to compare results . (can be removed for non-debug mode)
-    std::sort(sub_section.begin(), sub_section.end(), CompareCompartmentsPtrsIds);
+    std::sort(sub_section.begin(), sub_section.end(),
+              CompareCompartmentsPtrsIds);
 
     // create sub-section of branch
 
@@ -1286,7 +1291,8 @@ hpx_t DataLoader::CreateBranch(
 
     GetMechInstanceMap(sub_section, mech_instance_map);
     n = GetBranchData(sub_section, data, pdata, vdata, p, instances_count,
-                      nodes_indices, N, ions_instances_info, &mech_instance_map);
+                      nodes_indices, N, ions_instances_info,
+                      &mech_instance_map);
     GetVecPlayBranchData(sub_section, vecplay_t, vecplay_y, vecplay_info,
                          &mech_instance_map);
     GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
@@ -1296,7 +1302,8 @@ hpx_t DataLoader::CreateBranch(
   int neuron_rank = hpx_get_my_rank();
   if (input_params_->load_balancing_ || input_params_->output_statistics_) {
     // Benchmark and assign this branch to least busy compute node (except soma
-    // and AIS). Note: we do this after children creation so that we use top (lighter)
+    // and AIS). Note: we do this after children creation so that we use top
+    // (lighter)
     // branches to balance work load
     hpx_t temp_branch_addr = hpx_gas_alloc_local(
         1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment);
@@ -1306,14 +1313,14 @@ hpx_t DataLoader::CreateBranch(
     hpx_call_sync(
         temp_branch_addr, Branch::Init, &time_elapsed,
         sizeof(time_elapsed),  // output
-        &n, sizeof(offset_t), &nrn_threadId, sizeof(int), &dumb_threshold_offset,
-        sizeof(int), data.size() > 0 ? data.data() : nullptr,
-        sizeof(floble_t) * data.size(),
+        &n, sizeof(offset_t), &nrn_threadId, sizeof(int),
+        &dumb_threshold_offset, sizeof(int),
+        data.size() > 0 ? data.data() : nullptr, sizeof(floble_t) * data.size(),
         pdata.size() > 0 ? pdata.data() : nullptr,
         sizeof(offset_t) * pdata.size(), instances_count.data(),
         instances_count.size() * sizeof(offset_t), nodes_indices.data(),
-        nodes_indices.size() * sizeof(offset_t), &soma_branch_addr, sizeof(hpx_t),
-        nullptr, 0,                             // no branches
+        nodes_indices.size() * sizeof(offset_t), &soma_branch_addr,
+        sizeof(hpx_t), nullptr, 0,              // no branches
         p.data(), sizeof(offset_t) * p.size(),  // force use of parent index
         vecplay_t.size() > 0 ? vecplay_t.data() : nullptr,
         sizeof(floble_t) * vecplay_t.size(),
@@ -1323,7 +1330,8 @@ hpx_t DataLoader::CreateBranch(
         sizeof(PointProcInfo) * vecplay_info.size(),
         branch_netcons.size() > 0 ? branch_netcons.data() : nullptr,
         sizeof(NetconX) * branch_netcons.size(),
-        branch_netcons_pre_id.size() > 0 ? branch_netcons_pre_id.data() : nullptr,
+        branch_netcons_pre_id.size() > 0 ? branch_netcons_pre_id.data()
+                                         : nullptr,
         sizeof(neuron_id_t) * branch_netcons_pre_id.size(),
         branch_weights.size() > 0 ? branch_weights.data() : nullptr,
         sizeof(floble_t) * branch_weights.size(),
@@ -1339,12 +1347,12 @@ hpx_t DataLoader::CreateBranch(
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &neuron_rank, sizeof(int),       // output
                     &time_elapsed, sizeof(double));  // input [0]
-    } else if (input_params_->output_statistics_)   // no load balancing
+    } else if (input_params_->output_statistics_)    // no load balancing
     {
       // compute node already decided, tell master rank to store benchmark info,
       // to be able to output statistics
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
-                    nullptr, 0,                    // output
+                    nullptr, 0,                     // output
                     &time_elapsed, sizeof(double),  // input[0]
                     &neuron_rank, sizeof(int));     // input[1]
     }
@@ -1367,16 +1375,18 @@ hpx_t DataLoader::CreateBranch(
   // allocate children branches recursively (if any)
   if (bottom_compartment)
     for (size_t c = 0; c < bottom_compartment->branches_.size(); c++)
-      branches.push_back(CreateBranch(
-          nrn_threadId, soma_branch_addr, all_compartments,
-          bottom_compartment->branches_[c], ions_instances_info,
-          branching_depth - 1,
-          is_soma && c == 0 ? thvar_index - n
+      branches.push_back(
+          CreateBranch(nrn_threadId, soma_branch_addr, all_compartments,
+                       bottom_compartment->branches_[c], ions_instances_info,
+                       branching_depth - 1,
+                       is_soma && c == 0
+                           ? thvar_index - n
                            : -1)); /*offset in AIS = offset in soma - nt->end */
 
   // if branching, soma has not threshold var (it was past to AIS above)
-  thvar_index =
-      is_soma && input_params_->branch_parallelism_depth_ > 0 ? -1 : thvar_index;
+  thvar_index = is_soma && input_params_->branch_parallelism_depth_ > 0
+                    ? -1
+                    : thvar_index;
 
   hpx_call_sync(
       branch_addr, Branch::Init, NULL, 0,  // no timing
@@ -1434,8 +1444,7 @@ int DataLoader::InitNetcons_handler() {
       dependencies;  // set of <srcGid, nextNotificationtime> for dependencies
 
   const floble_t impossibly_large_delay = 99999999;
-  for (int i = 0; i < all_neurons_gids_->size(); i++)
-  {
+  for (int i = 0; i < all_neurons_gids_->size(); i++) {
     neuron_id_t src_gid = all_neurons_gids_->at(i);
 
     // if I'm connected to it (ie is not artificial or non-existent)
@@ -1446,7 +1455,8 @@ int DataLoader::InitNetcons_handler() {
         if (nc->active_) min_delay = min(min_delay, nc->delay_);
 
 #if NETCONS_OUTPUT_ADDITIONAL_VALIDATION_FILE == true
-      if (input_params_->output_netcons_dot && min_delay != impossibly_large_delay)
+      if (input_params_->output_netcons_dot &&
+          min_delay != impossibly_large_delay)
         fprintf(file_netcons_, "%d -> %d [label=\"%d (%.2fms)\"];\n", src_gid,
                 local->soma->gid, local->netcons.at(src_gid).size(), min_delay);
 #endif
@@ -1465,7 +1475,7 @@ int DataLoader::InitNetcons_handler() {
           spike_time_t notificationTime =
               input_params_->tstart_ +
               min_delay * TimeDependencyLCOAlgorithm::TimeDependencies::
-                             kNotificationIntervalRatio;
+                              kNotificationIntervalRatio;
           dependencies.push_back(make_pair(src_gid, notificationTime));
         }
       }

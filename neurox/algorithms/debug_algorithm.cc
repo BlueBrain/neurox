@@ -26,6 +26,7 @@ const char* DebugAlgorithm::GetString() {
 
 void DebugAlgorithm::Init() {
   const int allReducesCount = 0;
+  Algorithm::FixedStepMethodsInit();
   hpx_bcast_rsync(AllreduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
                   &allReducesCount, sizeof(int));
 }

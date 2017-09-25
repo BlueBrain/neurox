@@ -7,9 +7,8 @@
 namespace neurox {
 
 /// forward declarations
-namespace algorithms
-{
-  class AlgorithmMetadata;
+namespace algorithms {
+class AlgorithmMetadata;
 };
 
 /**
@@ -61,8 +60,7 @@ class Neuron {
   static hpx_t SendSpikesAsync(Neuron*, double);
 
   /// add hpx address of post-synaptic branch
-  void AddSynapse(
-      Synapse* target);
+  void AddSynapse(Synapse* target);
 
   /// get size of vector synapse
   size_t GetSynapsesCount();
@@ -72,6 +70,7 @@ class Neuron {
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
+
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses
 

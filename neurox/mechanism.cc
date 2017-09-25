@@ -26,9 +26,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
       is_ion_(is_ion),
       dependencies_(nullptr),
       successors_(nullptr),
-      state_vars_count_(0),
-      state_vars_offsets_(nullptr)
-{
+      state_vars_(nullptr) {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -65,7 +63,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current_parallel = nrn_cur_parallel_ion;
   }
 
-  //TODO: hard-coded exceptions of vdata size
+  // TODO: hard-coded exceptions of vdata size
   switch (this->type_) {
     case MechanismTypes::kIClamp:
       vdata_size_ = 1;
@@ -83,27 +81,12 @@ Mechanism::Mechanism(const int type, const short int data_size,
       vdata_size_ = 0;
   }
 
-  //TODO: hard-coded exception of state-vars
-  this->state_vars_count_=0;
-
-  if (this->state_vars_count_>0)
-  {
-    this->state_vars_offsets_ = new short[this->state_vars_count_];
-
-    if (this->type_== MechanismTypes::kCapacitance)
-      //capac.c::nrn_jacob_capacitance
-      this->state_vars_offsets_[0] = 0;
-    else if (this->is_ion_)
-      //dcurdv in eion.c::second_order_cur()
-      this->state_vars_offsets_[0] = 4;
-    else if (this->type_ == MechanismTypes::kProbAMPANMDA_EMS
-        || this->type_ == MechanismTypes::kProbGABAAB_EMS
-        || this->type_ == MechanismTypes::kExpSyn)
-       //_g_unused in c-mod files
-      this->state_vars_offsets_[0] = this->data_size_-2;
-    else
-      //all other mechs
-      this->state_vars_offsets_[0] = this->data_size_-1;
+  // get state variables count, values and offsets
+  if (!this->is_ion_) {
+    state_vars_f_t stf = get_state_vars_function(this->memb_func_.sym);
+    if (stf != NULL)
+      stf(&this->state_vars_->count_, &this->state_vars_->offsets_,
+          &this->state_vars_->dv_offsets_);
   }
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
@@ -121,6 +104,14 @@ Mechanism::Mechanism(const int type, const short int data_size,
     std::memcpy(this->successors_, successors, successors_count * sizeof(int));
   }
 };
+
+Mechanism::StateVars::StateVars(short count, short *offsets, short *dv_offsets)
+    : count_(count), offsets_(offsets), dv_offsets_(dv_offsets) {}
+
+Mechanism::StateVars::~StateVars() {
+  delete[] offsets_;
+  delete[] dv_offsets_;
+}
 
 Mechanism::IonTypes Mechanism::GetIonIndex() {
   assert(this->memb_func_.sym);

@@ -37,10 +37,7 @@ VecplayContinuousX::~VecplayContinuousX() {
   delete[] t_;
 };
 
-void VecplayContinuousX::Continuous(double tt)
-{
-    *pd_ = Interpolate(tt);
-}
+void VecplayContinuousX::Continuous(double tt) { *pd_ = Interpolate(tt); }
 
 double VecplayContinuousX::Interpolate(double tt) {
   if (tt >= t_[ubound_index_]) {

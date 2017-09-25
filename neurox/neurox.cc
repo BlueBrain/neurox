@@ -50,22 +50,8 @@ static int Main_handler() {
   neurox::input::Debugger::CompareMechanismsFunctions();
   neurox::input::Debugger::CompareAllBranches();
 
-  DebugMessage("neurox::Branch::Finitialize...\n");
-  neurox::wrappers::CallAllNeurons(Branch::Finitialize);
-#ifndef NDEBUG
-  hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
-  neurox::input::Debugger::CompareAllBranches();
-#endif
-
-  DebugMessage("neurox::Branch::threadTableCheck...\n");
-  neurox::wrappers::CallAllNeurons(Branch::ThreadTableCheck);
-#ifndef NDEBUG
-  hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
-  neurox::input::Debugger::CompareAllBranches();
-#endif
-
   double total_time_elapsed = 0;
-  if (input_params_->algorithm_ ==AlgorithmId::kBenchmarkAll) {
+  if (input_params_->algorithm_ == AlgorithmId::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
       algorithm_ = Algorithm::New((AlgorithmId)type);
