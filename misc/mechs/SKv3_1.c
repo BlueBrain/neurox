@@ -208,6 +208,15 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _k_type;
  
+ void _nrn_state_vars__SKv3_1(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 1;
+     *var_offsets = (short*) malloc(sizeof(short)* *count);
+     *dv_offsets = (short*) malloc(sizeof(short)* *count);
+     *var_offsets[0] = 3;
+     *dv_offsets[0] = 7;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/

@@ -225,7 +225,14 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0,
  0,
  0};
- 
+
+ void _nrn_state_vars__HalfGap(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 0;
+     *var_offsets = NULL;
+     *dv_offsets = NULL;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/

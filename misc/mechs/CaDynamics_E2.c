@@ -204,6 +204,15 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _ca_type;
  
+void _nrn_state_vars__CaDynamics_E2(short * count, short** var_offsets, short ** dv_offsets)
+{
+    *count = 1;
+    *var_offsets = (short*) malloc(sizeof(short)* *count);
+    *dv_offsets = (short*) malloc(sizeof(short)* *count);
+    *var_offsets[0] = 5;
+    *dv_offsets[0] = 6;
+}
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/

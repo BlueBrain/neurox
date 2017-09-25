@@ -344,6 +344,21 @@ static int _ode_count(int);
  "rng",
  0};
  
+ void _nrn_state_vars__ProbAMPANMDA_EMS(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 4;
+     *var_offsets = (short*) malloc(sizeof(short)* *count);
+     *dv_offsets = (short*) malloc(sizeof(short)* *count);
+     *var_offsets[0] = 27;
+     *var_offsets[1] = 28;
+     *var_offsets[2] = 29;
+     *var_offsets[3] = 30;
+     *dv_offsets[0] = 19;
+     *dv_offsets[1] = 20;
+     *dv_offsets[2] = 21;
+     *dv_offsets[3] = 22;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
