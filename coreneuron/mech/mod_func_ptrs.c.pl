@@ -129,19 +129,6 @@ mod_parallel_f_t get_cur_parallel_function(const char * sym)
 __eof
 
 
-#output get_state_vars functions (ions only)
-
-print <<"__eof";
-
-extern void \n  @{[join ",\n  ", map {"_nrn_state_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
-
-state_vars_f_t get_state_vars_function(const char * sym)
-{
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_state_vars__${_};"} @suffixes_with_cur]}
-  return NULL;
-}
-__eof
-
 #output BA functions (not available yet)
 print <<"__eof";
 
@@ -149,15 +136,48 @@ mod_f_t get_BA_function(const char * sym, int BA_func_id)
 {
   return NULL;
 }
+
 __eof
 
-#output jacob functions (not available yet)
-# TODO get rid of this
+#output jacob functions (TODO not available yet)
 print <<"__eof";
+
 mod_f_t get_jacob_function(const char * sym)
 {
   return NULL;
 }
+
 __eof
 
+
+# CVODES-specifc methods
+print <<"__eof";
+
+extern void \n  @{[join ",\n  ", map {"_nrn_state_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
+
+state_vars_f_t get_ode_state_vars_function(const char * sym)
+{
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_state_vars__${_};"} @suffixes_with_cur]}
+  return NULL;
+}
+
+
+extern void \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_cur]};
+
+ode_matsol1_f_t get_ode_matsol_function(const char * sym)
+{
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_matsol1__${_};"} @suffixes_with_cur]}
+  return NULL;
+}
+
+
+extern void \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_cur]};
+
+ode_spec1_f_t get_ode_spec_function(const char * sym)
+{
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_spec1__${_};"} @suffixes_with_cur]}
+  return NULL;
+}
+
+__eof
 

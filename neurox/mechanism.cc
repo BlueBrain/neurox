@@ -26,7 +26,12 @@ Mechanism::Mechanism(const int type, const short int data_size,
       is_ion_(is_ion),
       dependencies_(nullptr),
       successors_(nullptr),
-      state_vars_(nullptr) {
+      state_vars_(nullptr),
+      pnt_receive_(nullptr),
+      pnt_receive_init_(nullptr),
+      ode_matsol_(nullptr),
+      ode_spec_(nullptr)
+{
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -81,12 +86,19 @@ Mechanism::Mechanism(const int type, const short int data_size,
       vdata_size_ = 0;
   }
 
-  // get state variables count, values and offsets
+  //CVODES-specific
   if (!this->is_ion_) {
-    state_vars_f_t stf = get_state_vars_function(this->memb_func_.sym);
+    // get state variables count, values and offsets
+    state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
     if (stf != NULL)
       stf(&this->state_vars_->count_, &this->state_vars_->offsets_,
           &this->state_vars_->dv_offsets_);
+
+    // state variables diagonal at given point
+    this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
+
+    // derivative description
+    this->ode_spec_   = get_ode_spec_function(this->memb_func_.sym);
   }
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;

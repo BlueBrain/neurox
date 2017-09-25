@@ -41,7 +41,6 @@ struct NrnThread;
 
 typedef void (*mod_alloc_t)(double*, Datum*, int);
 typedef void (*mod_f_t)(struct NrnThread*, Memb_list*, int);
-typedef void (*state_vars_f_t)(short*, short**, short**);
 typedef void (*pnt_receive_t)(Point_process*, int, double);
 typedef void (*pnt_receive2_t)(struct NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
 
@@ -50,6 +49,12 @@ typedef void (*mod_acc_f_t) (struct NrnThread*, Memb_list *, int, void*); //type
 typedef void (*mod_parallel_f_t)(struct NrnThread*, Memb_list*, int, //same as mod_f_t
                          mod_acc_f_t, mod_acc_f_t, //functions to accumulate RHS+D+I and dIdV
                          void * args); //last argument passed to all acc functions
+
+//CVODES-specific functions
+#define threadargsproto int, int, double*, int*, ThreadDatum*, struct NrnThread*, double
+typedef void (*state_vars_f_t)(short*, short**, short**);
+typedef int (*ode_spec1_f_t)(threadargsproto);
+typedef int (*ode_matsol1_f_t)(threadargsproto);
 
 typedef struct Memb_func {
     mod_alloc_t alloc;

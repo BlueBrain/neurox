@@ -67,6 +67,10 @@ class Mechanism {
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
 
+  //CVODES-specific
+  ode_spec1_f_t ode_spec_;
+  ode_matsol1_f_t ode_matsol_;
+
   /// State variables info (used by CVODES only)
   class StateVars {
    public:
@@ -101,7 +105,10 @@ class Mechanism {
     kJacobCapacitance = 16,
     // net_receive
     kNetReceive = 17,
-    kNetReceiveInit = 18
+    kNetReceiveInit = 18,
+    // CVODE-specific methods
+    kODESpec = 19,
+    kODEMat = 20
   };
 
   Mechanism::IonTypes GetIonIndex();

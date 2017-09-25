@@ -301,6 +301,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 
   // Setting dt to 1, used in nrn_init of StochKv, ProbAMPANMDA_EMS,
   // ProbGABAAB_EMS.c, and matsol of most methods
+  // at runtime set to step size
   local->nt_->_dt = 1.0;
 
   // calling same methods as Algorithm::FixedStepInit()
