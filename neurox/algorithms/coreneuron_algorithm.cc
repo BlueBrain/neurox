@@ -22,8 +22,8 @@ const char* CoreneuronAlgorithm::GetString() {
 }
 
 void CoreneuronAlgorithm::Init() {
-    assert(0);
-    Algorithm::FixedStepMethodsInit();
+  assert(0);
+  Algorithm::FixedStepMethodsInit();
 }
 
 void CoreneuronAlgorithm::Clear() {}

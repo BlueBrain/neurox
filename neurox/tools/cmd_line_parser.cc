@@ -185,11 +185,13 @@ void CmdLineParser::Parse(int argc, char** argv) {
               to_string(algorithms::CoreneuronAlgorithm::CommunicationBarrier::
                             kCommStepSize *
                         this->dt_) +
-              " ms", "tstop");
+              " ms",
+          "tstop");
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->algorithm_ == algorithms::AlgorithmId::kCvodes)
-        throw TCLAP::ArgException ("cant run branch-level parallelism with variable-step methods");
+      throw TCLAP::ArgException(
+          "cant run branch-level parallelism with variable-step methods");
 
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());

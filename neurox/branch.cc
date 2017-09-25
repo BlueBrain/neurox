@@ -251,7 +251,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   }
 
   // ttx excluded (no writes to ttx state)
-  assert(ionsCount==Mechanism::IonTypes::kSizeWriteableIons+1);
+  assert(ionsCount == Mechanism::IonTypes::kSizeWriteableIons + 1);
 
   // vecplay
   nt->n_vecplay = vecplay_ppi_count;
@@ -264,7 +264,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     size_t size = ppi.size;
     int m = mechanisms_map_[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
-    assert(mechanisms_[m]->pnt_map_>0);
+    assert(mechanisms_[m]->pnt_map_ > 0);
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);
@@ -572,8 +572,7 @@ void Branch::Finitialize2() {
   DeliverEvents(t);
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
-  for (int n = 0; n < this->nt_->end; n++)
-      v[n] = input_params_->voltage_;
+  for (int n = 0; n < this->nt_->end; n++) v[n] = input_params_->voltage_;
 
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read
@@ -616,20 +615,20 @@ void Branch::BackwardEulerStep() {
   SetupTreeMatrix();
   SolveTreeMatrix();
 
-  //update ions currents based on RHS and dI/dV
+  // update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateV(this);
-  //TODO this can be placed after the next operation
+  // TODO this can be placed after the next operation
 
-  //update capacitance currents based on RHS and dI/dV
+  // update capacitance currents based on RHS and dI/dV
   CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt_->_dt;
-  //TODO: commenting the call below changes nothing
+  // TODO: commenting the call below changes nothing
   //(it changes the variables used in the current function only)
   FixedPlayContinuous();
   CallModFunction(Mechanism::ModFunctions::kState);
@@ -758,7 +757,7 @@ void Branch::SolveTreeMatrix() {
   solver::HinesSolver::ForwardSubstituion(this);
 }
 
-void Branch::DeliverEvents(floble_t til) //Coreneuron: til=t+0.5*dt
+void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
   // delivers events in the preivous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic

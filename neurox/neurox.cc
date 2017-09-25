@@ -51,7 +51,7 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 
   double total_time_elapsed = 0;
-  if (input_params_->algorithm_ ==AlgorithmId::kBenchmarkAll) {
+  if (input_params_->algorithm_ == AlgorithmId::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
       algorithm_ = Algorithm::New((AlgorithmId)type);

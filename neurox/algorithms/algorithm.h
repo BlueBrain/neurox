@@ -25,10 +25,10 @@ enum class AlgorithmId : int {
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
-class AlgorithmMetadata{
-  public:
-    /// Returns an instantiated metadata for the algorithm of given type
-    static AlgorithmMetadata* New(AlgorithmId);
+class AlgorithmMetadata {
+ public:
+  /// Returns an instantiated metadata for the algorithm of given type
+  static AlgorithmMetadata* New(AlgorithmId);
 };
 
 /**
@@ -38,7 +38,6 @@ class AlgorithmMetadata{
  */
 class Algorithm {
  public:
-
   Algorithm(){};
   virtual ~Algorithm(){};
 
@@ -93,7 +92,7 @@ class Algorithm {
 // TODO can we move this somewhere else?
 #include "neurox/algorithms/allreduce_algorithm.h"
 #include "neurox/algorithms/coreneuron_algorithm.h"
+#include "neurox/algorithms/cvodes_algorithm.h"
 #include "neurox/algorithms/debug_algorithm.h"
 #include "neurox/algorithms/sliding_time_window_algorithm.h"
 #include "neurox/algorithms/time_dependency_lco_algorithm.h"
-#include "neurox/algorithms/cvodes_algorithm.h"

@@ -68,16 +68,14 @@ class Mechanism {
   bbcore_read_t nrn_bbcore_read_;
 
   /// State variables info (used by CVODES only)
-  class StateVars
-  {
-    public:
-      StateVars()=delete;
-      StateVars(short count, short *offsets, short *dv_offsets);
-      ~StateVars();
-      short count_;       ///> number of cvode state variables
-      short *offsets_;    ///>offset of state vars in ml->data
-      short *dv_offsets_; ///> offset of dx/dV for state vars
-
+  class StateVars {
+   public:
+    StateVars() = delete;
+    StateVars(short count, short *offsets, short *dv_offsets);
+    ~StateVars();
+    short count_;        ///> number of cvode state variables
+    short *offsets_;     ///>offset of state vars in ml->data
+    short *dv_offsets_;  ///> offset of dx/dV for state vars
   } * state_vars_;
 
   enum ModFunctions {

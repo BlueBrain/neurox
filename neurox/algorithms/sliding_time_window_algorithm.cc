@@ -21,7 +21,7 @@ const char* SlidingTimeWindowAlgorithm::GetString() {
 }
 
 void SlidingTimeWindowAlgorithm::Init() {
-    Algorithm::FixedStepMethodsInit();
+  Algorithm::FixedStepMethodsInit();
   AllreduceAlgorithm::SubscribeAllReduces(
       SlidingTimeWindowAlgorithm::allreduces_,
       SlidingTimeWindowAlgorithm::kAllReducesCount);
@@ -58,7 +58,6 @@ void SlidingTimeWindowAlgorithm::Run(Branch* b, const void* args) {
   AllreduceAlgorithm::Run2(b, args);
 }
 
-hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* n, double tt,
-                                             double) {
+hpx_t SlidingTimeWindowAlgorithm::SendSpikes(Neuron* n, double tt, double) {
   return Neuron::SendSpikesAsync(n, tt);
 }
