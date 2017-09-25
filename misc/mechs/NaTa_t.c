@@ -80,14 +80,16 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__NaTa_t
 #define _nrn_current _nrn_current__NaTa_t
 #define nrn_jacob _nrn_jacob__NaTa_t
-#define nrn_state _nrn_state__NaTa_t
+#define nrn_ode_state _nrn_ode_state__NaTa_t
 #define initmodel initmodel__NaTa_t
 #define _net_receive _net_receive__NaTa_t
-#define nrn_state_launcher nrn_state_NaTa_t_launcher
+#define nrn_ode_state_launcher nrn_ode_state_NaTa_t_launcher
 #define nrn_cur_launcher nrn_cur_NaTa_t_launcher
 #define nrn_jacob_launcher nrn_jacob_NaTa_t_launcher 
 #define rates rates_NaTa_t 
 #define states states_NaTa_t 
+#define _ode_matsol1 _nrn_ode_matsol1__NaTa_t
+#define _ode_spec1 _nrn_ode_spec1__NaTa_t
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -205,7 +207,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_state(_NrnThread*, _Memb_list*, int);
+void nrn_ode_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
@@ -223,7 +225,7 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  static int _na_type;
  static int _ttx_type;
  
-void _nrn_state_vars__NaTa_t(short * count, short** var_offsets, short ** dv_offsets)
+void _nrn_ode_state_vars__NaTa_t(short * count, short** var_offsets, short ** dv_offsets)
 {
     *count = 2;
     *var_offsets = (short*) malloc(sizeof(short)* *count);
@@ -276,7 +278,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  	_ttx_sym = hoc_lookup("ttx_ion");
  
 #endif /*BBCORE*/
- 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init, hoc_nrnpointerindex, 1);
+ 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init, hoc_nrnpointerindex, 1);
   hoc_register_prop_size(_mechtype, _psize, _ppsize);
   hoc_register_dparam_semantics(_mechtype, 0, "na_ion");
   hoc_register_dparam_semantics(_mechtype, 1, "na_ion");
@@ -293,8 +295,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsproto_);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_NaTa_t
 int* _slist1;
@@ -306,7 +308,7 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    if ( ttxi  == 0.015625  && ttxo > 1e-12 ) {
      mInf = 0.0 ;
      mTau = 1e-12 ;
@@ -321,7 +323,7 @@ int* _dlist1;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  if ( ttxi  == 0.015625  && ttxo > 1e-12 ) {
    mInf = 0.0 ;
    mTau = 1e-12 ;
@@ -470,7 +472,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -556,7 +558,7 @@ _PRCELLSTATE_G
  if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -567,7 +569,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 

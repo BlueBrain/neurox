@@ -83,10 +83,10 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__StochKv
 #define _nrn_current _nrn_current__StochKv
 #define nrn_jacob _nrn_jacob__StochKv
-#define nrn_state _nrn_state__StochKv
+#define nrn_ode_state _nrn_ode_state__StochKv
 #define initmodel initmodel__StochKv
 #define _net_receive _net_receive__StochKv
-#define nrn_state_launcher nrn_state_StochKv_launcher
+#define nrn_ode_state_launcher nrn_ode_state_StochKv_launcher
 #define nrn_cur_launcher nrn_cur_StochKv_launcher
 #define nrn_jacob_launcher nrn_jacob_StochKv_launcher 
 #define ChkProb ChkProb_StochKv 
@@ -94,7 +94,9 @@ extern double hoc_Exp(double);
 #define setRNG setRNG_StochKv 
 #define states states_StochKv 
 #define trates trates_StochKv 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__StochKv
+#define _ode_spec1 _nrn_ode_spec1__StochKv
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -335,7 +337,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_state(_NrnThread*, _Memb_list*, int);
+void nrn_ode_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
@@ -359,7 +361,7 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _k_type;
  
- void _nrn_state_vars__StochKv(short * count, short** var_offsets, short ** dv_offsets)
+ void _nrn_ode_state_vars__StochKv(short * count, short** var_offsets, short ** dv_offsets)
  {
      assert(0);
      *count = 1;
@@ -411,7 +413,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  	_k_sym = hoc_lookup("k_ion");
  
 #endif /*BBCORE*/
- 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init, hoc_nrnpointerindex, 2);
+ 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init, hoc_nrnpointerindex, 2);
   _extcall_thread = (ThreadDatum*)ecalloc(1, sizeof(ThreadDatum));
   _thread_mem_init(_extcall_thread);
   _thread1data_inuse = 0;
@@ -443,8 +445,8 @@ static int _f_trates(_threadargsprotocomma_ double);
 static int setRNG(_threadargsproto_);
 static int trates(_threadargsprotocomma_ double);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  static void _n_trates(_threadargsprotocomma_ double _lv);
  
 #define _slist1 _slist1_StochKv
@@ -471,7 +473,7 @@ void* nrn_random_arg(int argpos);
 
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    trates ( _threadargscomma_ v ) ;
    Dn = a - ( a + b ) * n ;
    if ( deterministic  || dt > 1.0 ) {
@@ -491,7 +493,7 @@ void* nrn_random_arg(int argpos);
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  trates ( _threadargscomma_ v ) ;
  Dn = Dn  / (1. - dt*( ( - (( a + b ))*(1.0) ) )) ;
  return 0;
@@ -1141,7 +1143,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -1220,7 +1222,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -1231,7 +1233,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 

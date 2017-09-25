@@ -88,11 +88,11 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__ExpSyn
 #define _nrn_current _nrn_current__ExpSyn
 #define nrn_jacob _nrn_jacob__ExpSyn
-#define nrn_state _nrn_state__ExpSyn
+#define nrn_ode_state _nrn_ode_state__ExpSyn
 #define initmodel initmodel__ExpSyn
 #define _net_receive _net_receive__ExpSyn
 #define _net_receive2 _net_receive2__ExpSyn
-#define nrn_state_launcher nrn_state_ExpSyn_launcher
+#define nrn_ode_state_launcher nrn_ode_state_ExpSyn_launcher
 #define nrn_cur_launcher nrn_cur_ExpSyn_launcher
 #define nrn_jacob_launcher nrn_jacob_ExpSyn_launcher 
 #if NET_RECEIVE_BUFFERING
@@ -100,7 +100,9 @@ extern double hoc_Exp(double);
 static void _net_buf_receive(_NrnThread*);
 #endif
  
-#define state state_ExpSyn 
+#define state state_ExpSyn
+#define _ode_matsol1 _nrn_ode_matsol1__ExpSyn
+#define _ode_spec1 _nrn_ode_spec1__ExpSyn
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -224,7 +226,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_state(_NrnThread*, _Memb_list*, int);
+void nrn_ode_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  
 #if 0 /*BBCORE*/
@@ -246,7 +248,7 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0,
  0};
  
- void _nrn_state_vars__ExpSyn(short * count, short** var_offsets, short ** dv_offsets)
+ void _nrn_ode_state_vars__ExpSyn(short * count, short** var_offsets, short ** dv_offsets)
  {
      *count = 1;
      *var_offsets = (short*) malloc(sizeof(short)* *count);
@@ -286,7 +288,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  
 #endif /*BBCORE*/
  	_pointtype = point_register_mech(_mechanism,
-	 nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init,
+	 nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init,
 	 hoc_nrnpointerindex,
 	 NULL/*_hoc_create_pnt*/, NULL/*_hoc_destroy_pnt*/, /*_member_func,*/
 	 1);
@@ -308,8 +310,8 @@ static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_ExpSyn
 int* _slist1;
@@ -321,12 +323,13 @@ int* _dlist1;
  static inline int state(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    Dg = - g / tau ;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+
+int _ode_matsol1 (_threadargsproto_) {
  Dg = Dg  / (1. - dt*( ( - 1.0 ) / tau )) ;
  return 0;
 }
@@ -504,7 +507,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -578,7 +581,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -589,7 +592,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 

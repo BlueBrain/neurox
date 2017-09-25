@@ -80,13 +80,15 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__pas
 #define _nrn_current _nrn_current__pas
 #define nrn_jacob _nrn_jacob__pas
-#define nrn_state _nrn_state__pas
+#define nrn_ode_state _nrn_ode_state__pas
 #define initmodel initmodel__pas
 #define _net_receive _net_receive__pas
-#define nrn_state_launcher nrn_state_pas_launcher
+#define nrn_ode_state_launcher nrn_ode_state_pas_launcher
 #define nrn_cur_launcher nrn_cur_pas_launcher
 #define nrn_jacob_launcher nrn_jacob_pas_launcher 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__pas
+#define _ode_spec1 _nrn_ode_spec1__pas
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -179,7 +181,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_state(_NrnThread*, _Memb_list*, int);
+void nrn_ode_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
@@ -193,7 +195,7 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0,
  0};
  
- void _nrn_state_vars__pas(short * count, short** var_offsets, short ** dv_offsets)
+ void _nrn_ode_state_vars__pas(short * count, short** var_offsets, short ** dv_offsets)
  {
      *count = 0;
      *var_offsets = NULL;
@@ -229,7 +231,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
 #if 0 /*BBCORE*/
  
 #endif /*BBCORE*/
- 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init, hoc_nrnpointerindex, 1);
+ 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init, hoc_nrnpointerindex, 1);
   hoc_register_prop_size(_mechtype, _psize, _ppsize);
  	hoc_register_var(hoc_scdoub, hoc_vdoub, NULL);
  }
@@ -239,6 +241,15 @@ static int error;
 static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
+
+/*CVODE*/
+int _ode_spec1 (_threadargsproto_) {
+   return 0;
+}
+int _ode_matsol1 (_threadargsproto_) {
+   return 0;
+}
+ /*END CVODE*/
 
 static void initmodel(_threadargsproto_) {
   int _i; double _save;{
@@ -297,7 +308,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -369,7 +380,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 
 }
 
