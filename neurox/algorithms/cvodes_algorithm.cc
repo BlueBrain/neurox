@@ -19,29 +19,42 @@ void CvodesAlgorithm::CopyCvodesToNrnThread(N_Vector y, Branch *branch) {
   int compartments_count = branch->nt_->end;
   memcpy(branch->nt_->_actual_v, y_data, sizeof(double) * compartments_count);
 
-  // use map to copy states to NrnThread->data
-  // TODO wrong: must copy derivatives instead!
+  //TODO can we remove this map?
+  //or add one below?
   for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
     *branch_cvodes->equations_map_[i] = y_data[i];
 }
 
 void CvodesAlgorithm::CopyNrnThreadToCvodes(Branch *branch, N_Vector ydot) {
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->soma_->algorithm_metadata_;
-  double *nt_data = branch->nt_->_data;
   double *ydot_data = NV_DATA_S(ydot);
-
   int compartments_count = branch->nt_->end;
   memcpy(ydot_data, branch->nt_->_actual_rhs,
          sizeof(double) * compartments_count);
 
-  // use map to copy states to NrnThread->data
-  // TODO wrong: must copy derivatives instead!
-  int data_offset = -1;
-  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count;
-       i++) {
-    data_offset = branch_cvodes->equations_map_[i] - nt_data;
-    ydot_data[i] = nt_data[data_offset];
+  int ydot_data_offset = compartments_count;
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    Mechanism *mech = mechanisms_[m];
+    Memb_list *mech_instances = &branch->mechs_instances_[m];
+    double * mech_instances_data = mech_instances->data;
+    int ml_data_offset = 0;
+    for (int n = 0; n < mech_instances->nodecount; n++) {
+      for (int s = 0; s < mech->state_vars_->count_; s++) {
+        int state_dv_index = mech->state_vars_->dv_offsets_[s];
+#if LAYOUT == 1
+        int state_dv_offset =
+            ml_data_offset + mech->data_size_ * n + state_var_dv_index;
+#else
+        int state_dv_offset =
+            ml_data_offset +
+            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
+            n;
+#endif
+        ydot_data[ydot_data_offset] = mech_instances_data[state_dv_offset];
+        ydot_data_offset++;
+      }
+      ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
+                        mech->data_size_;
+    }
   }
 }
 
@@ -68,7 +81,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *y_data = NV_DATA_S(y);
 
   // nt->t influences FixedPlayContinuous
-  // nt->dt influences nrn_state
+  // nt->dt influences nrn_state and ode_matsol1
   nt->_t = t;
   nt->_dt = t - user_data->rhs_last_time_;
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
@@ -127,11 +140,12 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // updates V: v[i] += second_order_multiplier * rhs[i]
   solver::HinesSolver::UpdateV(branch);
 
-  nt->_t += nt->_dt * 0.5;  // Backward-Euler half-step
-
-  // TODO: nrn_jacob_capacitance
   // update mechanisms state (eg opening vars) based on voltage
-  branch->CallModFunction(Mechanism::ModFunctions::kState);
+  // State is now given by CVODE
+  // branch->CallModFunction(Mechanism::ModFunctions::kState);
+
+  // compute ydot=f(t,y) for values of mechanisms opening vars
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
   // set ydot with RHS state, and recover NrnThread->data state
   CvodesAlgorithm::CopyNrnThreadToCvodes(branch, ydot);
@@ -146,7 +160,7 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
                                       N_Vector) {
   realtype **jac = J->cols;
   BranchCvodes::UserData *user_data = (BranchCvodes::UserData *)user_data_ptr;
-  const Branch *branch = user_data->branch_;
+  Branch *branch = user_data->branch_;
   const NrnThread *nt = branch->nt_;
   assert(t == user_data->rhs_last_time_);
 
@@ -178,59 +192,38 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
     jac[n][p[n]] = a[n];  // A = d/dV_p (dV_n/dt)
   }
 
-  /*
-  //USE voltage to update states
-  int v_offset = nt_->_actual_v - nt->_data;
-  realtype *v = NV_DATA_S(y);
+  // get new derivative of mechs states
+  branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
-  //Add di/dv contributions from mechanisms currents to current equation
-  int compartment_id=-1, y_data_offset=-1, g_data_index=-1;
-  int data_offset=compartments_count;
-  realtype y_val=-1;
-  const double cfac = .001 * nt->cj; //capac.c::nrn_jacob_capacitance
-  for (int m = 0; m < neurox::mechanisms_count_; m++)
-  {
-      Mechanism * mech=mechanisms_[m];
-      Memb_list* mech_instances = &branch->mechs_instances_[m];
-
-      if (mech->memb_func_.current != NULL) //if it has di/dv
-      {
-        for (int n=0; n<mech_instances->nodecount; n++)
-        {
-          g_data_index = mech->state_vars_offsets_[0];
+  int state_dv_index=-1;
+  int compartment_id=-1;
+  int jac_offset = compartments_count;
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    Mechanism *mech = mechanisms_[m];
+    Memb_list *mech_instances = &branch->mechs_instances_[m];
+    double * mech_instances_data = mech_instances->data;
+    int ml_data_offset = 0;
+    for (int n = 0; n < mech_instances->nodecount; n++) {
+      for (int s = 0; s < mech->state_vars_->count_; s++) {
+        state_dv_index = mech->state_vars_->dv_offsets_[s];
+        compartment_id = mech_instances->nodeindices[n];
 #if LAYOUT == 1
-          y_data_offset = data_offset + mech->data_size_ * n + g_data_index;
+        int state_dv_offset =
+            ml_data_offset + mech->data_size_ * n + state_var_dv_index;
 #else
-          y_data_offset = data_offset +
-tools::Vectorizer::SizeOf(mech_instances->nodecount) * g_data_index + n;
+        int state_dv_offset =
+            ml_data_offset +
+            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
+            n;
 #endif
-          y_val = v[y_data_offset];
-          if (mech->is_ion_) //y is second order current (mechs functions di/dV)
-          {
-              //TODO this is wrong
-            //cur variable is one position before dcurdv (eion.c)
-            jac[y_data_offset-1][v_offset+compartment_id] = y_val; //dcurdv
-          }
-          else //y is first order current (current function vec_D for currents
-C*dV/dt)
-          {
-            //NOTE: vec_D is d(dV/dt) so y_val is the jacob of dV/dt
-            if (mech->type_==MechanismTypes::kCapacitance)
-                y_val*=cfac; //eion.c::nrn_jacob_capacitance
-            compartment_id = mech_instances->nodeindices[m];
-            assert(jac[compartment_id][y_data_offset]==0);
-            jac[compartment_id][y_data_offset] = y_val;
-
-
-            //TODO aren't we missing shadow_didv
-            //dcurdv for current mechanism
-          }
-        }
+        jac[jac_offset][compartment_id] = mech_instances_data[state_dv_offset];
+        jac_offset++;
       }
-      data_offset +=
-tools::Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
+      ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
+                        mech->data_size_;
+    }
   }
-  */
+
   return CV_SUCCESS;
 }
 

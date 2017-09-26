@@ -108,7 +108,7 @@ class Mechanism {
     kNetReceiveInit = 18,
     // CVODE-specific methods
     kODESpec = 19,
-    kODEMat = 20
+    kODEMatsol = 20
   };
 
   Mechanism::IonTypes GetIonIndex();
