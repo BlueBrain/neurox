@@ -217,10 +217,10 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  void _nrn_ode_state_vars__Ih(short * count, short** var_offsets, short ** dv_offsets)
  {
      *count = 1;
-     *var_offsets = (short*) malloc(sizeof(short)* *count);
-     *dv_offsets = (short*) malloc(sizeof(short)* *count);
-     *var_offsets[0] = 3;
-     *dv_offsets[0] = 8;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 3;
+     (*dv_offsets)[0] = 8;
  }
 
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {

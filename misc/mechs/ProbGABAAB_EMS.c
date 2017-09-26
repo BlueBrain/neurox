@@ -347,16 +347,16 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  void _nrn_ode_state_vars__ProbGABAAB_EMS(short * count, short** var_offsets, short ** dv_offsets)
  {
      *count = 4;
-     *var_offsets = (short*) malloc(sizeof(short)* *count);
-     *dv_offsets = (short*) malloc(sizeof(short)* *count);
-     *var_offsets[0] = 27;
-     *var_offsets[1] = 28;
-     *var_offsets[2] = 29;
-     *var_offsets[3] = 30;
-     *dv_offsets[0] = 33;
-     *dv_offsets[1] = 34;
-     *dv_offsets[2] = 35;
-     *dv_offsets[3] = 36;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 27;
+     (*var_offsets)[1] = 28;
+     (*var_offsets)[2] = 29;
+     (*var_offsets)[3] = 30;
+     (*dv_offsets)[0] = 33;
+     (*dv_offsets)[1] = 34;
+     (*dv_offsets)[2] = 35;
+     (*dv_offsets)[3] = 36;
  }
 
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {

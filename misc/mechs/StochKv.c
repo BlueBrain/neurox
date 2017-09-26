@@ -365,10 +365,10 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  {
      assert(0);
      *count = 1;
-     *var_offsets = (short*) malloc(sizeof(short)* *count);
-     *dv_offsets = (short*) malloc(sizeof(short)* *count);
-     *var_offsets[0] = 10;
-     *dv_offsets[0] = 15;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 10;
+     (*dv_offsets)[0] = 15;
  }
 
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {

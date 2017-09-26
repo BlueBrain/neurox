@@ -232,8 +232,8 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  void _nrn_ode_state_vars__IClamp(short * count, short** var_offsets, short ** dv_offsets)
  {
      *count = 0;
-     *var_offsets = NULL;
-     *dv_offsets = NULL;
+     (*var_offsets) = NULL;
+     (*dv_offsets) = NULL;
  }
 
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
