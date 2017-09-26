@@ -7,11 +7,14 @@
 #undef PI
  
 #include "coreneuron/nrnoc/md1redef.h"
-#include "coreneuron/coreneuron.h"
+#include "coreneuron/nrnconf.h"
+#include "coreneuron/nrnoc/multicore.h"
 
 #if defined(_OPENACC) && !defined(DISABLE_OPENACC)
 #include "coreneuron/nrniv/nrn_acc_manager.h"
+
 #endif
+#include "coreneuron/utils/randoms/nrnran123.h"
 
 #include "coreneuron/nrnoc/md2redef.h"
 #if METHOD3
@@ -26,7 +29,7 @@ extern int _method3;
 extern double hoc_Exp(double);
 #endif
  
-#define _thread_present_ /**/ 
+#define _thread_present_ /**/ , _slist1[0:4], _dlist1[0:4] 
  
 #if defined(_OPENACC) && !defined(DISABLE_OPENACC)
 #include <openacc.h>
@@ -35,7 +38,7 @@ extern double hoc_Exp(double);
 #else
 #define _PRAGMA_FOR_INIT_ACC_LOOP_ _Pragma("acc parallel loop present(_ni[0:_cntml_actual], _nt_data[0:_nt->_ndata], _p[0:_cntml_padded*_psize], _ppvar[0:_cntml_padded*_ppsize], _vec_v[0:_nt->end], nrn_ion_global_map[0:nrn_ion_global_map_size], _nt[0:1] _thread_present_) if(_nt->compute_gpu)")
 #endif
-#define _PRAGMA_FOR_STATE_ACC_LOOP_ _Pragma("acc parallel loop present(_ni[0:_cntml_actual], _nt_data[0:_nt->_ndata], _p[0:_cntml_padded*_psize], _ppvar[0:_cntml_padded*_ppsize], _vec_v[0:_nt->end], _nt[0:1] _thread_present_) if(_nt->compute_gpu) async(stream_id)")
+#define _PRAGMA_FOR_STATE_ACC_LOOP_ _Pragma("acc parallel loop present(_ni[0:_cntml_actual], _nt_data[0:_nt->_ndata], _p[0:_cntml_padded*_psize], _ppvar[0:_cntml_padded*_ppsize], _vec_v[0:_nt->end], _nt[0:1], _ml[0:1] _thread_present_) if(_nt->compute_gpu) async(stream_id)")
 #define _PRAGMA_FOR_CUR_ACC_LOOP_ _Pragma("acc parallel loop present(_ni[0:_cntml_actual], _nt_data[0:_nt->_ndata], _p[0:_cntml_padded*_psize], _ppvar[0:_cntml_padded*_ppsize], _vec_v[0:_nt->end], _vec_d[0:_nt->end], _vec_rhs[0:_nt->end], _nt[0:1] _thread_present_) if(_nt->compute_gpu) async(stream_id)")
 #define _PRAGMA_FOR_CUR_SYN_ACC_LOOP_ _Pragma("acc parallel loop present(_ni[0:_cntml_actual], _nt_data[0:_nt->_ndata], _p[0:_cntml_padded*_psize], _ppvar[0:_cntml_padded*_ppsize], _vec_v[0:_nt->end], _vec_shadow_rhs[0:_nt->shadow_rhs_cnt], _vec_shadow_d[0:_nt->shadow_rhs_cnt], _vec_d[0:_nt->end], _vec_rhs[0:_nt->end], _nt[0:1]) if(_nt->compute_gpu) async(stream_id)")
 #define _PRAGMA_FOR_NETRECV_ACC_LOOP_ _Pragma("acc parallel loop present(_pnt[0:_pnt_length], _nrb[0:1], _nt[0:1], nrn_threads[0:nrn_nthread]) if(_nt->compute_gpu) async(stream_id)")
@@ -82,14 +85,14 @@ extern double hoc_Exp(double);
  
 #define nrn_init _nrn_init__ProbGABAAB_EMS
 #define nrn_cur _nrn_cur__ProbGABAAB_EMS
-#define nrn_cur_parallel _nrn_cur_parallel__ProbGABAAB_EMS
 #define _nrn_current _nrn_current__ProbGABAAB_EMS
+#define nrn_cur_parallel _nrn_cur_parallel__ProbGABAAB_EMS
 #define nrn_jacob _nrn_jacob__ProbGABAAB_EMS
-#define nrn_ode_state _nrn_ode_state__ProbGABAAB_EMS
+#define nrn_state _nrn_state__ProbGABAAB_EMS
 #define initmodel initmodel__ProbGABAAB_EMS
 #define _net_receive _net_receive__ProbGABAAB_EMS
 #define _net_receive2 _net_receive2__ProbGABAAB_EMS
-#define nrn_ode_state_launcher nrn_ode_state_ProbGABAAB_EMS_launcher
+#define nrn_state_launcher nrn_state_ProbGABAAB_EMS_launcher
 #define nrn_cur_launcher nrn_cur_ProbGABAAB_EMS_launcher
 #define nrn_jacob_launcher nrn_jacob_ProbGABAAB_EMS_launcher 
 #if NET_RECEIVE_BUFFERING
@@ -188,7 +191,6 @@ extern "C" {
 #if 0 /*BBCORE*/
  /* declaration of user functions */
  static double _hoc_setRNG();
- static double _hoc_state();
  static double _hoc_toggleVerbose();
  static double _hoc_urand();
  
@@ -226,7 +228,6 @@ extern Memb_func* memb_func;
  "has_loc", _hoc_has_loc,
  "get_loc", _hoc_get_loc_pnt,
  "setRNG", _hoc_setRNG,
- "state", _hoc_state,
  "toggleVerbose", _hoc_toggleVerbose,
  "urand", _hoc_urand,
  0, 0
@@ -292,8 +293,8 @@ static void _acc_globals_update() {
 };
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
-void  nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_ode_state(_NrnThread*, _Memb_list*, int);
+void nrn_init(_NrnThread*, _Memb_list*, int);
+void nrn_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  
 #if 0 /*BBCORE*/
@@ -302,8 +303,6 @@ void nrn_ode_state(_NrnThread*, _Memb_list*, int);
 }
  
 #endif /*BBCORE*/
- 
-static int _ode_count(int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
  "6.2.0",
@@ -354,10 +353,10 @@ static int _ode_count(int);
      *var_offsets[1] = 28;
      *var_offsets[2] = 29;
      *var_offsets[3] = 30;
-     *dv_offsets[0] = 18;
-     *dv_offsets[1] = 19;
-     *dv_offsets[2] = 20;
-     *dv_offsets[3] = 21;
+     *dv_offsets[0] = 33;
+     *dv_offsets[1] = 34;
+     *dv_offsets[2] = 35;
+     *dv_offsets[3] = 36;
  }
 
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
@@ -405,7 +404,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  
 #endif /*BBCORE*/
  	_pointtype = point_register_mech(_mechanism,
-	 nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init,
+	 nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init,
 	 hoc_nrnpointerindex,
 	 NULL/*_hoc_create_pnt*/, NULL/*_hoc_destroy_pnt*/, /*_member_func,*/
 	 1);
@@ -429,48 +428,50 @@ static int error;
 static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
-
-/*CVODE*/
-int _ode_spec1 (_threadargsproto_) {
-    assert(0);
-   return 0;
-}
-int _ode_matsol1 (_threadargsproto_) {
-    assert(0);
-   return 0;
-}
- /*END CVODE*/
-
 static int setRNG(_threadargsproto_);
-static int state(_threadargsproto_);
+ 
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
+ 
+#define _slist1 _slist1_ProbGABAAB_EMS
+int* _slist1;
+#pragma acc declare create(_slist1)
+
+#define _dlist1 _dlist1_ProbGABAAB_EMS
+int* _dlist1;
+#pragma acc declare create(_dlist1)
+ static inline int state(_threadargsproto_);
  
 /*VERBATIM*/
 #include "nrnran123.h"
  
-static int  state ( _threadargsproto_ ) {
-   A_GABAA = A_GABAA * A_GABAA_step ;
-   B_GABAA = B_GABAA * B_GABAA_step ;
-   A_GABAB = A_GABAB * A_GABAB_step ;
-   B_GABAB = B_GABAB * B_GABAB_step ;
-    return 0; }
- 
-#if 0 /*BBCORE*/
- 
-static double _hoc_state(void* _vptr) {
- double _r;
-   double* _p; Datum* _ppvar; ThreadDatum* _thread; _NrnThread* _nt;
-   _p = ((Point_process*)_vptr)->_prop->param;
-  _ppvar = ((Point_process*)_vptr)->_prop->dparam;
-  _thread = _extcall_thread;
-  _nt = (_NrnThread*)((Point_process*)_vptr)->_vnt;
- _r = 1.;
- state ( _threadargs_ );
- return(_r);
+/*CVODE*/
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+   DA_GABAA = - A_GABAA / tau_r_GABAA ;
+   DB_GABAA = - B_GABAA / tau_d_GABAA ;
+   DA_GABAB = - A_GABAB / tau_r_GABAB ;
+   DB_GABAB = - B_GABAB / tau_d_GABAB ;
+   }
+ return _reset;
+}
+int _ode_matsol1 (_threadargsproto_) {
+ DA_GABAA = DA_GABAA  / (1. - dt*( ( - 1.0 ) / tau_r_GABAA )) ;
+ DB_GABAA = DB_GABAA  / (1. - dt*( ( - 1.0 ) / tau_d_GABAA )) ;
+ DA_GABAB = DA_GABAB  / (1. - dt*( ( - 1.0 ) / tau_r_GABAB )) ;
+ DB_GABAB = DB_GABAB  / (1. - dt*( ( - 1.0 ) / tau_d_GABAB )) ;
+ return 0;
+}
+ /*END CVODE*/
+ static int state (_threadargsproto_) { {
+    A_GABAA = A_GABAA + (1. - exp(dt*(( - 1.0 ) / tau_r_GABAA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_r_GABAA ) - A_GABAA) ;
+    B_GABAA = B_GABAA + (1. - exp(dt*(( - 1.0 ) / tau_d_GABAA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_d_GABAA ) - B_GABAA) ;
+    A_GABAB = A_GABAB + (1. - exp(dt*(( - 1.0 ) / tau_r_GABAB)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_r_GABAB ) - A_GABAB) ;
+    B_GABAB = B_GABAB + (1. - exp(dt*(( - 1.0 ) / tau_d_GABAB)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_d_GABAB ) - B_GABAB) ;
+   }
+  return 0;
 }
  
-#endif /*BBCORE*/
-
-#if NET_RECEIVE_BUFFERING
+#if NET_RECEIVE_BUFFERING 
 #undef t
 #define t _nrb_t
 static void _net_receive_kernel(double, Point_process*, int _weight_index, double _flag);
@@ -523,13 +524,13 @@ static void _net_receive_kernel(double _nrb_t, Point_process* _pnt, int _weight_
 #else
  
 void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_index, double _lflag);
-void _net_receive (Point_process* _pnt, int _weight_index, double _lflag)
+void _net_receive (Point_process* _pnt, int _weight_index, double _lflag) 
 #endif
  
 {   _Memb_list* _ml;  int _iml;
- 
+
    _NrnThread* _nt;
-   int _tid = _pnt->_tid; 
+   int _tid = _pnt->_tid;
    _nt = nrn_threads + _tid;
 
    _ml = _nt->_ml_list[_pnt->_type];
@@ -622,8 +623,7 @@ void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_ind
 #define t _nt->_t
 #endif
  }
-
-
+ 
 static void _net_init(Point_process* _pnt, int _weight_index, double _lflag) {
    
    double* _p; Datum* _ppvar; ThreadDatum* _thread; 
@@ -763,8 +763,6 @@ static double _hoc_toggleVerbose(void* _vptr) {
 }
  
 #endif /*BBCORE*/
- 
-static int _ode_count(int _type){ hoc_execerror("ProbGABAAB_EMS", "cannot be used with CVODE"); return 0;}
 
 static void initmodel(_threadargsproto_) {
   int _i; double _save;{
@@ -803,7 +801,7 @@ static void initmodel(_threadargsproto_) {
 }
 }
 
-void  nrn_init(_NrnThread* _nt, _Memb_list* _ml, int _type){
+void nrn_init(_NrnThread* _nt, _Memb_list* _ml, int _type){
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double _v, v; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -860,19 +858,19 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
 
-  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
-    nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
-  }
+void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+  nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
+}
 
-  void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
-                        const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
-  {
+void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
+{
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -881,8 +879,8 @@ _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
 double * _vec_d = _nt->_actual_d;
-double * _vec_shadow_rhs = _ml->_shadow_rhs;
-double * _vec_shadow_d = _ml->_shadow_d;
+double * _vec_shadow_rhs = _nt->_shadow_rhs;
+double * _vec_shadow_d = _nt->_shadow_d;
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
@@ -911,8 +909,8 @@ for (;;) { /* help clang-format properly indent */
     _v = _vec_v[_nd_idx];
     _PRCELLSTATE_V
  _g = _nrn_current(_threadargs_, _v + .001);
- 	{ _rhs = _nrn_current(_threadargs_, _v);
- 	}
+        { _rhs = _nrn_current(_threadargs_, _v);
+        }
  _g = (_g - _rhs)/.001;
  double _mfact =  1.e2/(_nd_area);
  _g *=  _mfact;
@@ -934,7 +932,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -945,7 +943,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 
@@ -970,7 +968,7 @@ for (;;) { /* help clang-format properly indent */
     _PRCELLSTATE_V
  v=_v;
 {
- {  { state(_threadargs_); }
+ {   state(_threadargs_);
   }}}
 
 }
@@ -984,6 +982,16 @@ static void _initlists(){
  int _cntml_padded=1;
  int _iml=0;
   if (!_first) return;
+ 
+ _slist1 = (int*)malloc(sizeof(int)*4);
+ _dlist1 = (int*)malloc(sizeof(int)*4);
+ _slist1[0] = &(A_GABAA) - _p;  _dlist1[0] = &(DA_GABAA) - _p;
+ _slist1[1] = &(B_GABAA) - _p;  _dlist1[1] = &(DB_GABAA) - _p;
+ _slist1[2] = &(A_GABAB) - _p;  _dlist1[2] = &(DA_GABAB) - _p;
+ _slist1[3] = &(B_GABAB) - _p;  _dlist1[3] = &(DB_GABAB) - _p;
+ #pragma acc enter data copyin(_slist1[0:4])
+ #pragma acc enter data copyin(_dlist1[0:4])
+
 _first = 0;
 }
 
