@@ -91,8 +91,11 @@ Mechanism::Mechanism(const int type, const short int data_size,
     // get state variables count, values and offsets
     state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
     if (stf != NULL)
+    {
+      this->state_vars_ = new StateVars();
       stf(&this->state_vars_->count_, &this->state_vars_->offsets_,
           &this->state_vars_->dv_offsets_);
+    }
 
     // state variables diagonal at given point
     this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
@@ -116,6 +119,9 @@ Mechanism::Mechanism(const int type, const short int data_size,
     std::memcpy(this->successors_, successors, successors_count * sizeof(int));
   }
 };
+
+Mechanism::StateVars::StateVars()
+    : count_(-1), offsets_(nullptr), dv_offsets_(nullptr) {}
 
 Mechanism::StateVars::StateVars(short count, short *offsets, short *dv_offsets)
     : count_(count), offsets_(offsets), dv_offsets_(dv_offsets) {}

@@ -74,7 +74,7 @@ class Mechanism {
   /// State variables info (used by CVODES only)
   class StateVars {
    public:
-    StateVars() = delete;
+    StateVars();
     StateVars(short count, short *offsets, short *dv_offsets);
     ~StateVars();
     short count_;        ///> number of cvode state variables

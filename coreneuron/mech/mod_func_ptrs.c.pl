@@ -153,11 +153,11 @@ __eof
 # CVODES-specifc methods
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_state_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
+extern void \n  @{[join ",\n  ", map {"_nrn_ode_state_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
 
 state_vars_f_t get_ode_state_vars_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_state_vars__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_state_vars__${_};"} @suffixes_with_cur]}
   return NULL;
 }
 

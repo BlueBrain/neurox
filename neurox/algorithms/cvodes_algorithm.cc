@@ -312,37 +312,37 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 
   // equations: voltages per compartments + mechanisms * states
   equations_count = compartments_count;
-  /*
   for (int m = 0; m < neurox::mechanisms_count_; m++)
   {
       Mechanism * mech=mechanisms_[m];
       Memb_list* mech_instances = &local->mechs_instances_[m];
-      equations_count += mech_instances->nodecount * mech->state_vars_count_;
+      equations_count += mech_instances->nodecount * mech->state_vars_->count_;
   }
-  */
 
   // create initial state y_0 for state array y
   floble_t *y_data = new floble_t[equations_count];
-  for (int i = 0; i < compartments_count; i++) y_data[i] = nt->_actual_v[i];
+  for (int i = 0; i < compartments_count; i++)
+      y_data[i] = nt->_actual_v[i];
+
 
   // create map from y to NrnThread->data (mech-states)
   branch_cvodes->equations_map_ =
       new double *[equations_count - compartments_count];
-  int equations_map_offset = 0;
+  int equations_map_offset = compartments_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
     int ml_data_offset = 0;
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
-        int state_index = mech->state_vars_->offsets_[s];
+        int state_var_index = mech->state_vars_->offsets_[s];
 #if LAYOUT == 1
         int state_data_offset =
             ml_data_offset + mech->data_size_ * n + state_index;
 #else
         int state_data_offset =
             ml_data_offset +
-            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_index +
+            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index +
             n;
 #endif
         branch_cvodes->equations_map_[equations_map_offset] =
