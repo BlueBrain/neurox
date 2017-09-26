@@ -86,11 +86,11 @@ extern double hoc_Exp(double);
 #define nrn_cur _nrn_cur__PatternStim
 #define _nrn_current _nrn_current__PatternStim
 #define nrn_jacob _nrn_jacob__PatternStim
-#define nrn_ode_state _nrn_ode_state__PatternStim
+#define nrn_state _nrn_state__PatternStim
 #define initmodel initmodel__PatternStim
 #define _net_receive _net_receive__PatternStim
 #define _net_receive2 _net_receive2__PatternStim
-#define nrn_ode_state_launcher nrn_ode_state_PatternStim_launcher
+#define nrn_state_launcher nrn_state_PatternStim_launcher
 #define nrn_cur_launcher nrn_cur_PatternStim_launcher
 #define nrn_jacob_launcher nrn_jacob_PatternStim_launcher 
  
@@ -213,7 +213,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_ode_state(_NrnThread*, _Memb_list*, int);
+void nrn_state(_NrnThread*, _Memb_list*, int);
  
 #if 0 /*BBCORE*/
  static void _hoc_destroy_pnt(_vptr) void* _vptr; {
@@ -525,13 +525,13 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
 
 
-void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -542,7 +542,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 

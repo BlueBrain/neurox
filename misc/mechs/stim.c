@@ -80,10 +80,10 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__IClamp
 #define _nrn_current _nrn_current__IClamp
 #define nrn_jacob _nrn_jacob__IClamp
-#define nrn_ode_state _nrn_ode_state__IClamp
+#define nrn_state _nrn_state__IClamp
 #define initmodel initmodel__IClamp
 #define _net_receive _net_receive__IClamp
-#define nrn_ode_state_launcher nrn_ode_state_IClamp_launcher
+#define nrn_state_launcher nrn_state_IClamp_launcher
 #define nrn_cur_launcher nrn_cur_IClamp_launcher
 #define nrn_jacob_launcher nrn_jacob_IClamp_launcher 
 #define _ode_matsol1 _nrn_ode_matsol1__IClamp
@@ -207,7 +207,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_ode_state(_NrnThread*, _Memb_list*, int);
+void nrn_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  
 #if 0 /*BBCORE*/
@@ -267,7 +267,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  
 #endif /*BBCORE*/
  	_pointtype = point_register_mech(_mechanism,
-	 nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init,
+	 nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init,
 	 hoc_nrnpointerindex,
 	 NULL/*_hoc_create_pnt*/, NULL/*_hoc_destroy_pnt*/, /*_member_func,*/
 	 1);
@@ -365,7 +365,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -449,7 +449,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 
 }
 

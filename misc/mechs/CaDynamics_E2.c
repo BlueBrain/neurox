@@ -79,10 +79,10 @@ extern double hoc_Exp(double);
 #define nrn_cur_parallel _nrn_cur_parallel__CaDynamics_E2
 #define _nrn_current _nrn_current__CaDynamics_E2
 #define nrn_jacob _nrn_jacob__CaDynamics_E2
-#define nrn_ode_state _nrn_ode_state__CaDynamics_E2
+#define nrn_state _nrn_state__CaDynamics_E2
 #define initmodel initmodel__CaDynamics_E2
 #define _net_receive _net_receive__CaDynamics_E2
-#define nrn_ode_state_launcher nrn_ode_state_CaDynamics_E2_launcher
+#define nrn_state_launcher nrn_state_CaDynamics_E2_launcher
 #define nrn_cur_launcher nrn_cur_CaDynamics_E2_launcher
 #define nrn_jacob_launcher nrn_jacob_CaDynamics_E2_launcher 
 #define states states_CaDynamics_E2 
@@ -190,7 +190,7 @@ static void _acc_globals_update() {
  static double _sav_indep;
  static void nrn_alloc(double*, Datum*, int);
 void nrn_init(_NrnThread*, _Memb_list*, int);
-void nrn_ode_state(_NrnThread*, _Memb_list*, int);
+void nrn_state(_NrnThread*, _Memb_list*, int);
  void nrn_cur(_NrnThread*, _Memb_list*, int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
@@ -255,7 +255,7 @@ extern void _cvode_abstol( Symbol**, double*, int);
  	_ca_sym = hoc_lookup("ca_ion");
  
 #endif /*BBCORE*/
- 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_ode_state, nrn_init, hoc_nrnpointerindex, 1);
+ 	register_mech(_mechanism, nrn_alloc,nrn_cur, NULL, nrn_state, nrn_init, hoc_nrnpointerindex, 1);
   hoc_register_prop_size(_mechtype, _psize, _ppsize);
   hoc_register_dparam_semantics(_mechtype, 0, "ca_ion");
   hoc_register_dparam_semantics(_mechtype, 1, "ca_ion");
@@ -365,7 +365,7 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 }
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC)
-  void nrn_ode_state_launcher(_NrnThread*, _Memb_list*, int, int);
+  void nrn_state_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
@@ -423,7 +423,7 @@ if (acc_rhs_d)  (*acc_rhs_d) (_nt, _ml, _type, args);
 if (acc_i_didv) (*acc_i_didv)(_nt, _ml, _type, args);
 }
 
-void nrn_ode_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_state(_NrnThread* _nt, _Memb_list* _ml, int _type) {
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 double v, _v = 0.0; int* _ni; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;
@@ -434,7 +434,7 @@ _thread = _ml->_thread;
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
   _Memb_list* d_ml = acc_deviceptr(_ml);
-  nrn_ode_state_launcher(d_nt, d_ml, _type, _cntml_actual);
+  nrn_state_launcher(d_nt, d_ml, _type, _cntml_actual);
   return;
 #endif
 
