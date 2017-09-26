@@ -87,21 +87,23 @@ Mechanism::Mechanism(const int type, const short int data_size,
   }
 
   //CVODES-specific
-  if (!this->is_ion_) {
-    // get state variables count, values and offsets
-    state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
-    if (stf != NULL)
+  if (input_params_->algorithm_ == algorithms::AlgorithmId::kCvodes)
+  {
+    this->state_vars_ = new StateVars();
+    if (!this->is_ion_ && this->type_!=MechanismTypes::kCapacitance)
     {
-      this->state_vars_ = new StateVars();
-      stf(&this->state_vars_->count_, &this->state_vars_->offsets_,
-          &this->state_vars_->dv_offsets_);
+        // get state variables count, values and offsets
+        state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
+        //if (stf != NULL)
+        stf(&this->state_vars_->count_, &this->state_vars_->offsets_,
+            &this->state_vars_->dv_offsets_);
+
+        // state variables diagonal at given point
+        this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
+
+        // derivative description
+        this->ode_spec_   = get_ode_spec_function(this->memb_func_.sym);
     }
-
-    // state variables diagonal at given point
-    this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
-
-    // derivative description
-    this->ode_spec_   = get_ode_spec_function(this->memb_func_.sym);
   }
 
   this->memb_func_.is_point = pnt_map > 0 ? 1 : 0;
@@ -121,7 +123,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
 };
 
 Mechanism::StateVars::StateVars()
-    : count_(-1), offsets_(nullptr), dv_offsets_(nullptr) {}
+    : count_(0), offsets_(nullptr), dv_offsets_(nullptr) {}
 
 Mechanism::StateVars::StateVars(short count, short *offsets, short *dv_offsets)
     : count_(count), offsets_(offsets), dv_offsets_(dv_offsets) {}

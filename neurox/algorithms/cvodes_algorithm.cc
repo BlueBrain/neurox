@@ -62,12 +62,14 @@ void CvodesAlgorithm::CopyNrnThreadToCvodes(Branch *branch, N_Vector ydot) {
 int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
                                   void *user_data_ptr) {
   Branch *branch = ((BranchCvodes::UserData *)user_data_ptr)->branch_;
-  int v_offset = branch->thvar_ptr_ - branch->nt_->_actual_v;
-  double v = NV_Ith_S(y, v_offset);
+
+  //get offset and voltage of Axon Initial Segment
+  int ais_offset = branch->thvar_ptr_ - branch->nt_->_actual_v;
+  double v_ais = NV_Ith_S(y, ais_offset);
 
   // How it works: when gout[x] is zero, a root is found
-  assert(v >= -100 && v < 30);
-  gout[0] = v - branch->soma_->threshold_;  // AP threshold reached
+  assert(v_ais >= -100 && v_ais < 30);
+  gout[0] = v_ais - branch->soma_->threshold_;  // AP threshold reached
   return CV_SUCCESS;
 }
 
@@ -80,32 +82,22 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
-  // nt->t influences FixedPlayContinuous
-  // nt->dt influences nrn_state and ode_matsol1
-  nt->_t = t;
-  nt->_dt = t - user_data->rhs_last_time_;
+  nt->_t = t;   // nt->t used in FixedPlayContinuous
+  nt->_dt = t - user_data->rhs_last_time_; // nt->dt used in ode_matsol1
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   user_data->rhs_second_last_time_ = user_data->rhs_last_time_;
   user_data->rhs_last_time_ = t;
 
-  // NOTE: status has to be full recoverable as it will step with several ts,
-  // and update the status based on the best f(y,t) found;
-  // Therefore, we back up NrnThread->data and time (weights are only
-  // changed on net_receive), and we recoved them later
-
   // update vars in NrnThread->data described by our CVODES state
   CvodesAlgorithm::CopyCvodesToNrnThread(y, branch);
 
-  // Note: due to current stae of the art, this function will compute
-  // both the RHS  (vec_RHS) and jacobian (D).
-
   /////////   Get new RHS and D from current state ///////////
-
-  nt->_t += nt->_dt * 0.5;  // Backward-Euler half-step
+  // Note: coreneuron computes RHS and jacobian (D) simultaneously.
 
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
+  nt->_t += nt->_dt * 0.5;  // Backward-Euler half-step
   branch->FixedPlayContinuous();
 
   // Sets RHS an D to zero
@@ -150,6 +142,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // set ydot with RHS state, and recover NrnThread->data state
   CvodesAlgorithm::CopyNrnThreadToCvodes(branch, ydot);
 
+  nt->_t = t;
   return CV_SUCCESS;
 }
 
@@ -192,7 +185,8 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
     jac[n][p[n]] = a[n];  // A = d/dV_p (dV_n/dt)
   }
 
-  // get new derivative of mechs states
+  // get new derivative of mechs states (ions do not have,
+  // capacitance added already to D in nrn_jacob_capacitance)
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
   int state_dv_index=-1;
@@ -292,9 +286,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   int compartments_count = local->nt_->end;
   NrnThread *&nt = local->nt_;
 
-  // Setting dt to 1, used in nrn_init of StochKv, ProbAMPANMDA_EMS,
-  // ProbGABAAB_EMS.c, and matsol of most methods
-  // at runtime set to step size
+  //used in all ode_matsol, nrn_state and nrn_init. Set at runtime by RHSFunction
   local->nt_->_dt = 1.0;
 
   // calling same methods as Algorithm::FixedStepInit()
