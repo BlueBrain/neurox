@@ -282,9 +282,11 @@ static void _modl_cleanup(){ _match_recurse=1;}
 
 /*CVODE*/
  int _ode_spec1 (_threadargsproto_) {
+     assert(0);
      return 0;
 }
  int _ode_matsol1 (_threadargsproto_) {
+     assert(0);
      return 0;
  }
  /*END CVODE*/

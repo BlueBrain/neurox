@@ -234,7 +234,7 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  
 void _nrn_ode_state_vars__PatternStim(short * count, short** var_offsets, short ** dv_offsets)
 {
-     *count = 1;
+     *count = 0;
      (*var_offsets) = NULL;
      (*dv_offsets) = NULL;
 }
