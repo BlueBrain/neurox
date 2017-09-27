@@ -57,9 +57,11 @@ class CvodesAlgorithm : public Algorithm {
     /// i.e. compartments * equations per compartment
     int equations_count_;
 
-    /// mapping of equations y to NrnThread->data
-    /// (similar to ode_map in NEURON)
-    double **equations_map_;
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_var_map_;
+
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_dv_map_;
 
     /// hpx for last sent spikes
     hpx_t spikes_lco_;
@@ -117,10 +119,10 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kEventsDeliveryTimeWindow = 0.125;
 
   /// update NrnThread->data from with new CVODES state
-  static void CopyCvodesToNrnThread(N_Vector y, Branch *branch);
+  static void CopyYToVoltage(N_Vector y, Branch *branch);
 
   /// update CVODES from NrnThread->data
-  static void CopyNrnThreadToCvodes(Branch *branch, N_Vector ydot);
+  static void CopyRHSToYdot(Branch *branch, N_Vector ydot);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,

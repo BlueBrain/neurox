@@ -11,7 +11,7 @@ const AlgorithmId CvodesAlgorithm::GetId() { return AlgorithmId::kCvodes; }
 
 const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 
-void CvodesAlgorithm::CopyCvodesToNrnThread(N_Vector y, Branch *branch) {
+void CvodesAlgorithm::CopyYToVoltage(N_Vector y, Branch *branch) {
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *y_data = NV_DATA_S(y);
@@ -19,43 +19,23 @@ void CvodesAlgorithm::CopyCvodesToNrnThread(N_Vector y, Branch *branch) {
   int compartments_count = branch->nt_->end;
   memcpy(branch->nt_->_actual_v, y_data, sizeof(double) * compartments_count);
 
-  //TODO can we remove this map?
-  //or add one below?
+  double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-    *branch_cvodes->equations_map_[i] = y_data[i];
+    *(var_map[i]) = y_data[i];
 }
 
-void CvodesAlgorithm::CopyNrnThreadToCvodes(Branch *branch, N_Vector ydot) {
+void CvodesAlgorithm::CopyRHSToYdot(Branch *branch, N_Vector ydot) {
+    BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *ydot_data = NV_DATA_S(ydot);
+
   int compartments_count = branch->nt_->end;
   memcpy(ydot_data, branch->nt_->_actual_rhs,
          sizeof(double) * compartments_count);
 
-  int ydot_data_offset = compartments_count;
-  for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    Mechanism *mech = mechanisms_[m];
-    Memb_list *mech_instances = &branch->mechs_instances_[m];
-    double * mech_instances_data = mech_instances->data;
-    int ml_data_offset = 0;
-    for (int n = 0; n < mech_instances->nodecount; n++) {
-      for (int s = 0; s < mech->state_vars_->count_; s++) {
-        int state_dv_index = mech->state_vars_->dv_offsets_[s];
-#if LAYOUT == 1
-        int state_dv_offset =
-            ml_data_offset + mech->data_size_ * n + state_var_dv_index;
-#else
-        int state_dv_offset =
-            ml_data_offset +
-            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
-            n;
-#endif
-        ydot_data[ydot_data_offset] = mech_instances_data[state_dv_offset];
-        ydot_data_offset++;
-      }
-      ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
-                        mech->data_size_;
-    }
-  }
+  double ** dv_map = branch_cvodes->state_dv_map_;
+  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
+      ydot_data[i] = *(dv_map[i]);
 }
 
 /// g root function to compute g_i(t,y) .
@@ -89,7 +69,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   user_data->rhs_last_time_ = t;
 
   // update vars in NrnThread->data described by our CVODES state
-  CvodesAlgorithm::CopyCvodesToNrnThread(y, branch);
+  CvodesAlgorithm::CopyYToVoltage(y, branch);
 
   /////////   Get new RHS and D from current state ///////////
   // Note: coreneuron computes RHS and jacobian (D) simultaneously.
@@ -140,7 +120,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
   // set ydot with RHS state, and recover NrnThread->data state
-  CvodesAlgorithm::CopyNrnThreadToCvodes(branch, ydot);
+  CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
 
   nt->_t = t;
   return CV_SUCCESS;
@@ -252,7 +232,8 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron *n, double tt, double) {
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
     : cvodes_mem_(nullptr),
       equations_count_(-1),
-      equations_map_(nullptr),
+      state_var_map_(nullptr),
+      state_dv_map_(nullptr),
       user_data_(nullptr),
       y_(nullptr),
       spikes_lco_(HPX_NULL) {}
@@ -280,20 +261,20 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_->algorithm_metadata_);
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)local->soma_->algorithm_metadata_;
+      (BranchCvodes*) local->soma_->algorithm_metadata_;
   void *&cvodes_mem = branch_cvodes->cvodes_mem_;
   int &equations_count = branch_cvodes->equations_count_;
   int compartments_count = local->nt_->end;
   NrnThread *&nt = local->nt_;
 
+  int flag = CV_ERR_FAILURE;
+
   //used in all ode_matsol, nrn_state and nrn_init. Set at runtime by RHSFunction
-  local->nt_->_dt = 1.0;
+  local->nt_->_dt = 1.0; //this shouldnt be necessary
 
   // calling same methods as Algorithm::FixedStepInit()
   local->Finitialize2();
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
-
-  int flag = CV_ERR_FAILURE;
 
   // equations: voltages per compartments + mechanisms * states
   equations_count = compartments_count;
@@ -304,41 +285,52 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
       equations_count += mech_instances->nodecount * mech->state_vars_->count_;
   }
 
-  // create initial state y_0 for state array y
+  ///// create initial state y_0 for state array y
+
+  //set voltages first
   floble_t *y_data = new floble_t[equations_count];
   for (int i = 0; i < compartments_count; i++)
       y_data[i] = nt->_actual_v[i];
 
-
-  // create map from y to NrnThread->data (mech-states)
-  branch_cvodes->equations_map_ =
+  // create map from y and dy to NrnThread->data (mech-states)
+  int map_offset = 0;
+  branch_cvodes->state_var_map_ =
       new double *[equations_count - compartments_count];
-  int equations_map_offset = compartments_count;
+  branch_cvodes->state_dv_map_ =
+      new double *[equations_count - compartments_count];
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
     int ml_data_offset = 0;
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
-        int state_var_index = mech->state_vars_->offsets_[s];
+        int state_var_index = mech->state_vars_->var_offsets_[s];
+        int state_dv_index = mech->state_vars_->dv_offsets_[s];
 #if LAYOUT == 1
-        int state_data_offset =
-            ml_data_offset + mech->data_size_ * n + state_index;
+        int state_var_offset =
+            ml_data_offset + mech->data_size_ * n + state_var_index;
+        int state_dv_offset =
+            ml_data_offset + mech->data_size_ * n + state_dv_index;
 #else
-        int state_data_offset =
+        int state_var_offset =
             ml_data_offset +
             tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index +
             n;
+
+        int state_dv_offset =
+            ml_data_offset +
+            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
+            n;
 #endif
-        branch_cvodes->equations_map_[equations_map_offset] =
-            &mech_instances->data[state_data_offset];
-        equations_map_offset++;
+        branch_cvodes->state_var_map_[map_offset] =
+            &mech_instances->data[state_var_offset];
+        branch_cvodes->state_dv_map_[map_offset] =
+            &mech_instances->data[state_dv_offset];
+        map_offset++;
       }
-      ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
-                        mech->data_size_;
     }
-    equations_map_offset +=
-        mech_instances->nodecount * mech->state_vars_->count_;
+    ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
+                        mech->data_size_;
   }
   branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
