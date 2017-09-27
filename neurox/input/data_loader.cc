@@ -877,11 +877,12 @@ int DataLoader::Finalize_handler() {
       Mechanism *mech = neurox::mechanisms_[m];
       printf(
           "- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
-          "isIon %d, symLength %d, %d successors, %d dependencies\n",
+          "isIon %d, symLength %d, %d successors, %d dependencies, %d state vars\n",
           mech->memb_func_.sym, mech->type_, mech->data_size_,
           mech->pdata_size_, mech->is_artificial_, mech->pnt_map_,
           mech->is_ion_, mech->sym_length_, mech->successors_count_,
-          mech->dependencies_count_);
+          mech->dependencies_count_,
+          mech->state_vars_ ? mech->state_vars_->count_ : 0);
     }
   }
 #endif

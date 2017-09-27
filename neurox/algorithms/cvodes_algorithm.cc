@@ -64,7 +64,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
-  nt->_dt = t - branch_cvodes->rhs_last_time_; // nt->dt used in ode_matsol1
+  // nt->dt used in ode_matsol1, ode_spec1 (via rates function)
+  nt->_dt = t - branch_cvodes->rhs_last_time_;
   if (nt->_dt==0)  nt->_dt=0.01;
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
 
@@ -112,9 +113,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   solver::HinesSolver::UpdateV(branch);
 
   // update mechanisms state (eg opening vars) based on voltage
-  // branch->CallModFunction(Mechanism::ModFunctions::kState);
-  // compute ydot=f(t,y) for values of mechanisms opening vars
-  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  // ode_spec1 is dx/dt and computes ydot=f(t,y) for new voltage values
+  branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
   // populate ydot
   CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
@@ -154,32 +154,32 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   // jac[a][b] = d/dV_b (dV_a/dt)
   for (int n = 0; n < compartments_count; n++) {
     // if not stepping backwards
-    // assert(user_data->rhs_last_time_ != user_data->rhs_second_last_time_);
     if (branch_cvodes->rhs_last_time_ > branch_cvodes->rhs_second_last_time_) {
-      assert(d[n] >= 0);  // positive (currents and mechs contribution, if any)
+      // assert(d[n] >= 0);
+      // positive (currents and mechs contribution, if any)
+      // or negative (exponential capacitance decay)
       assert(a[n] <= 0 && b[n] <= 0);  // negative (resistance)
     }
-    jac[n][n] = d[n];  // C = d/dV_n (dV_n/dt)
+    jac[n][n] = d[n];     // C = d (dV_n/dt) /dV_n
     if (n == 0) continue;
-    jac[p[n]][n] = b[n];  // B = d/dV_n (dV_p/dt)
-    jac[n][p[n]] = a[n];  // A = d/dV_p (dV_n/dt)
+    jac[p[n]][n] = b[n];  // B = d (dV_p/dt) /dV_n
+    jac[n][p[n]] = a[n];  // A = d (dV_n/dt) /dV_p
   }
 
   // get new derivative of mechs states (ions do not have,
   // capacitance added already to D in nrn_jacob_capacitance)
-  branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
-  int state_dv_index=-1;
   int compartment_id=-1;
   int dv_offset = compartments_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &branch->mechs_instances_[m];
     for (int n = 0; n < mech_instances->nodecount; n++) {
+      compartment_id = mech_instances->nodeindices[n];
       for (int s = 0; s < mech->state_vars_->count_; s++) {
-        state_dv_index = mech->state_vars_->dv_offsets_[s];
-        compartment_id = mech_instances->nodeindices[n];
-        jac[dv_offset][compartment_id] = *(branch_cvodes->state_dv_map_[dv_offset]);
+        // d (dx_i/dt) / dx_j  (from M. hines email)
+        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset]);
         dv_offset++;
       }
 
@@ -300,10 +300,12 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +n;
 #endif
+        assert(state_var_offset < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
+        assert(state_dv_offset  < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         branch_cvodes->state_var_map_[map_offset] =
-            &mech_instances->data[state_var_offset];
+            &(mech_instances->data[state_var_offset]);
         branch_cvodes->state_dv_map_[map_offset] =
-            &mech_instances->data[state_dv_offset];
+            &(mech_instances->data[state_dv_offset]);
         map_offset++;
       }
     }
