@@ -164,7 +164,7 @@ state_vars_f_t get_ode_state_vars_function(const char * sym)
 
 extern void \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_cur]};
 
-ode_matsol1_f_t get_ode_matsol_function(const char * sym)
+cvode_f_t get_ode_matsol_function(const char * sym)
 {
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_matsol1__${_};"} @suffixes_with_cur]}
   return NULL;
@@ -173,7 +173,7 @@ ode_matsol1_f_t get_ode_matsol_function(const char * sym)
 
 extern void \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_cur]};
 
-ode_spec1_f_t get_ode_spec_function(const char * sym)
+cvode_f_t get_ode_spec_function(const char * sym)
 {
 @{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_spec1__${_};"} @suffixes_with_cur]}
   return NULL;

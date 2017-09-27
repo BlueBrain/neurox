@@ -35,6 +35,9 @@ class Vectorizer {
     return coreneuron::soa_padded_size<kSOAPadding>(size, LAYOUT);
   }
 
+  /// Call function 'f' on a vectorized way
+  static void CallVecFunction(cvode_f_t, NrnThread*, Memb_list*, int);
+
   // C++11 does not support memory-aligned new[]/delete, this is a work around
 
   /// memory-aligned memory allocation

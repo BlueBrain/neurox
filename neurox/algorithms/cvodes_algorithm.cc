@@ -64,11 +64,9 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
-  nt->_t = t;   // nt->t used in FixedPlayContinuous
   nt->_dt = t - branch_cvodes->rhs_last_time_; // nt->dt used in ode_matsol1
+  if (nt->_dt==0)  nt->_dt=0.01;
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
-  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = t;
 
   // update vars in NrnThread->data described by our CVODES state
   CvodesAlgorithm::CopyYToVoltage(y, branch);
@@ -79,8 +77,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
-  nt->_t += nt->_dt * 0.5;  // Backward-Euler half-step
-  branch->FixedPlayContinuous();
+  branch->FixedPlayContinuous(nt->_t+nt->_dt * 0.5); //vec plays get value at half of the step
 
   // Sets RHS an D to zero
   solver::HinesSolver::ResetMatrixRHSandD(branch);
@@ -115,9 +112,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   solver::HinesSolver::UpdateV(branch);
 
   // update mechanisms state (eg opening vars) based on voltage
-  // State is now given by CVODE
   // branch->CallModFunction(Mechanism::ModFunctions::kState);
-
   // compute ydot=f(t,y) for values of mechanisms opening vars
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
@@ -125,6 +120,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
 
   nt->_t = t;
+  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
+  branch_cvodes->rhs_last_time_ = t;
   return CV_SUCCESS;
 }
 

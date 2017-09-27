@@ -53,8 +53,7 @@ typedef void (*mod_parallel_f_t)(struct NrnThread*, Memb_list*, int, //same as m
 //CVODES-specific functions
 #define threadargsproto int, int, double*, int*, ThreadDatum*, struct NrnThread*, double
 typedef void (*state_vars_f_t)(short*, short**, short**);
-typedef int (*ode_spec1_f_t)(threadargsproto);
-typedef int (*ode_matsol1_f_t)(threadargsproto);
+typedef int (*cvode_f_t)(threadargsproto);
 
 typedef struct Memb_func {
     mod_alloc_t alloc;

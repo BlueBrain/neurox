@@ -68,8 +68,8 @@ class Mechanism {
   bbcore_read_t nrn_bbcore_read_;
 
   //CVODES-specific
-  ode_spec1_f_t ode_spec_;
-  ode_matsol1_f_t ode_matsol_;
+  cvode_f_t ode_spec_;
+  cvode_f_t ode_matsol_;
 
   /// State variables info (used by CVODES only)
   class StateVars {

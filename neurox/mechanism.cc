@@ -273,6 +273,18 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         if (memb_func_.thread_cleanup_)
           memb_func_.thread_cleanup_(memb_list->_thread);
         break;
+      case Mechanism::ModFunctions::kODEMatsol: //CVODE-specific
+        if (this->ode_matsol_)
+            tools::Vectorizer::CallVecFunction(
+                        this->ode_matsol_,
+                        nrn_thread, memb_list, type_);
+        break;
+      case Mechanism::ModFunctions::kODESpec: //CVODE-specific
+      if (this->ode_spec_)
+          tools::Vectorizer::CallVecFunction(
+                      this->ode_spec_,
+                      nrn_thread, memb_list, type_);
+        break;
       default:
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);
