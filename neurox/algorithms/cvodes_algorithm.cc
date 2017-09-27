@@ -64,11 +64,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
-  // nt->dt used in ode_matsol1, ode_spec1 (via rates function)
-  nt->_dt = t - branch_cvodes->rhs_last_time_;
-  if (nt->_dt==0)  nt->_dt=0.01;
-  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
-
   // update vars in NrnThread->data described by our CVODES state
   CvodesAlgorithm::CopyYToVoltage(y, branch);
 
@@ -78,7 +73,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
-  branch->FixedPlayContinuous(nt->_t+nt->_dt * 0.5); //vec plays get value at half of the step
+  branch->FixedPlayContinuous(nt->_t);
 
   // Sets RHS an D to zero
   solver::HinesSolver::ResetMatrixRHSandD(branch);
@@ -91,7 +86,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   // update positions holding jacobians (does nothing so far)
   branch->CallModFunction(Mechanism::ModFunctions::kJacob);
-  //(so far only calls nrn_jacob_capacitance, which sums contributions to D)
+
+  // call nrn_jacob_capacitance, which sums contributions to D
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
   // backup up D (will be used for jacobian diagonal)
@@ -119,9 +115,9 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // populate ydot
   CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
 
-  nt->_t = t;
   branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = t;
+  branch_cvodes->rhs_last_time_ = nt->_t;
+  nt->_t = t;
   return CV_SUCCESS;
 }
 
@@ -134,8 +130,8 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   Branch *branch = (Branch*) user_data;
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
-  const NrnThread *nt = branch->nt_;
-  assert(t == branch_cvodes->rhs_last_time_);
+  NrnThread *nt = branch->nt_;
+  assert(t == nt->_t);
 
   const int a_offset = nt->_actual_a - nt->_data;
   const int b_offset = nt->_actual_b - nt->_data;
@@ -145,6 +141,15 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   const double *b = &nt->_data[b_offset];
   const double *d = branch_cvodes->jacob_d_;  // computed by RHS
   const int *p = nt->_v_parent_index;
+
+  //////////////////////////////////////////////////////////
+  ///
+  /// ATTENTION cj is being used by funcs called by RHS  ///
+  /// nrn_jacob_capacitance!!
+  /// ///////////////////////////////////////////////////////
+  nt->_dt = t - branch_cvodes->rhs_last_time_; //nt->dt used in ode_matsol1
+  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
+  assert(nt->_dt!=0);
 
   // Jacobian for main current equation:
   // d(dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
@@ -179,7 +184,7 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
       compartment_id = mech_instances->nodeindices[n];
       for (int s = 0; s < mech->state_vars_->count_; s++) {
         // d (dx_i/dt) / dx_j  (from M. hines email)
-        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset]);
+        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - compartments_count]);
         dv_offset++;
       }
 
@@ -372,8 +377,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   assert(flag == CV_SUCCESS);
 
   // TODO
-  // CVodeSetInitStep(cvodes_mem, kMinStepSize);
-  // CVodeSetMinStep(cvodes_mem, kMinStepSize);
+  CVodeSetInitStep(cvodes_mem, kMinStepSize);
+  CVodeSetMinStep(cvodes_mem, kMinStepSize);
   CVodeSetMaxStep(cvodes_mem,
                   CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);

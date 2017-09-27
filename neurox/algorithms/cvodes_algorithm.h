@@ -94,7 +94,7 @@ class CvodesAlgorithm : public Algorithm {
   const static int kBDFMaxOrder = 5;
 
   /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize = 1e-12;
+  constexpr static double kMinStepSize = 1e-9;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
