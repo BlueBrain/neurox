@@ -2,6 +2,7 @@
 
 using namespace neurox;
 using namespace neurox::algorithms;
+using namespace neurox::tools;
 
 CvodesAlgorithm::CvodesAlgorithm() {}
 
@@ -187,14 +188,12 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
 #else
         int state_dv_offset =
             ml_data_offset +
-            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
-            n;
+            Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index + n;
 #endif
         jac[jac_offset][compartment_id] = mech_instances_data[state_dv_offset];
         jac_offset++;
       }
-      ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
-                        mech->data_size_;
+      ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
     }
   }
 
@@ -314,13 +313,10 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 #else
         int state_var_offset =
             ml_data_offset +
-            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index +
-            n;
-
+            Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index +n;
         int state_dv_offset =
             ml_data_offset +
-            tools::Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +
-            n;
+            Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +n;
 #endif
         branch_cvodes->state_var_map_[map_offset] =
             &mech_instances->data[state_var_offset];
@@ -329,8 +325,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
         map_offset++;
       }
     }
-    ml_data_offset += tools::Vectorizer::SizeOf(mech_instances->nodecount) *
-                        mech->data_size_;
+    ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
   }
   branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
 
@@ -347,8 +342,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   cvodes_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
   // CVodeInit allocates and initializes memory for a problem
-  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, 0.0 /*t_0*/,
-                   branch_cvodes->y_);
+  double t0 = input_params_->tstart_;
+  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, t0, branch_cvodes->y_);
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
@@ -364,6 +359,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   // specify g as root function and roots
   int roots_direction[1] = {1};  // AP threshold reached for increasing voltage
   flag = CVodeRootInit(cvodes_mem, 1, CvodesAlgorithm::RootFunction);
+  CVodeSetRootDirection(cvodes_mem, roots_direction);
   assert(flag == CV_SUCCESS);
 
 // initializes the memory record and sets various function
@@ -384,13 +380,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 #else  //==2
   flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
 #endif
-  assert(flag == CV_SUCCESS);
 #endif
 
-  assert(flag == CV_SUCCESS);
-
-  // specify the dense (user-supplied) Jacobian function. Compute J(t,y).
-  // see chapter 8 -- providing alternate linear solver modules
   assert(flag == CV_SUCCESS);
 
   // TODO
@@ -399,8 +390,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   CVodeSetMaxStep(cvodes_mem,
                   CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
-  CVodeSetMaxOrd(cvodes_mem, 5);  // max order of the BDF method
-  CVodeSetRootDirection(cvodes_mem, roots_direction);
+  CVodeSetMaxOrd(cvodes_mem, kBDFMaxOrder);
 
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -411,20 +401,22 @@ int CvodesAlgorithm::BranchCvodes::Run_handler() {
   assert(local->soma_);
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)local->soma_->algorithm_metadata_;
-  NrnThread *nt = local->nt_;
   void *cvodes_mem = branch_cvodes->cvodes_mem_;
+  NrnThread *nt = local->nt_;
 
-  int roots_found[1];  // AP threshold
+  int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
-  realtype tout = 0;
+  realtype tout = input_params_->tstop_;
 
   while (nt->_t < input_params_->tstop_) {
-    // delivers all events whithin the next min step size
+    // delivers all events whithin the next delivery-time-window
     local->DeliverEvents(nt->_t + CvodesAlgorithm::kEventsDeliveryTimeWindow);
 
     // get tout as time of next undelivered event (if any)
     hpx_lco_sema_p(local->events_queue_mutex_);
-    if (!local->events_queue_.empty()) tout = local->events_queue_.top().first;
+    if (!local->events_queue_.empty()) {
+        tout = local->events_queue_.top().first;
+    }
     hpx_lco_sema_v_sync(local->events_queue_mutex_);
     tout = std::min(input_params_->tstop_, tout);
 

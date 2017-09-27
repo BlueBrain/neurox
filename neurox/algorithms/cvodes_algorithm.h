@@ -102,6 +102,9 @@ class CvodesAlgorithm : public Algorithm {
   };
 
  private:
+  /// CVODES BDF max-order
+  const static int kBDFMaxOrder = 5;
+
   /// CVODES Mininum step size allowed
   constexpr static double kMinStepSize = 1e-12;
 
