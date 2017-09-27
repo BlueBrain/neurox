@@ -57,43 +57,31 @@ class CvodesAlgorithm : public Algorithm {
     /// i.e. compartments * equations per compartment
     int equations_count_;
 
-    /// mapping of y in CVODES to NrnThread->data
-    double **state_var_map_;
-
-    /// mapping of y in CVODES to NrnThread->data
-    double **state_dv_map_;
-
     /// hpx for last sent spikes
     hpx_t spikes_lco_;
 
     /// HPX actions registration
     static void RegisterHpxActions();
 
+    /// VEC_D of last RHS call, before hines solver
+    double *jacob_d_;
+
+    /// temporary placeholder for data
+    double *data_bak_;
+
+    /// execution time of last RHS function call
+    realtype rhs_last_time_;
+    realtype rhs_second_last_time_;
+
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_var_map_;
+
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_dv_map_;
+
     static hpx_action_t Init;
     static hpx_action_t Run;
     static hpx_action_t Clear;
-
-    /// Data structure past as user-data argument to CVODES functions
-    class UserData {
-     public:
-      UserData() = delete;
-      UserData(Branch *);
-      ~UserData();
-
-      /// Branch this user data belongs to;
-      Branch *branch_;
-
-      /// VEC_D of last RHS call, before hines solver
-      double *jacob_d_;
-
-      /// temporary placeholder for data
-      double *data_bak_;
-
-      /// execution time of last RHS function call
-      realtype rhs_last_time_;
-      realtype rhs_second_last_time_;
-
-    } * user_data_;
 
    private:
     static int Init_handler();

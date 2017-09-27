@@ -17,12 +17,12 @@ void CvodesAlgorithm::CopyYToVoltage(N_Vector y, Branch *branch) {
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *y_data = NV_DATA_S(y);
 
-  int compartments_count = branch->nt_->end;
+  const int compartments_count = branch->nt_->end;
   memcpy(branch->nt_->_actual_v, y_data, sizeof(double) * compartments_count);
 
   double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-    *(var_map[i]) = y_data[i];
+    *(var_map[i]) = y_data[compartments_count+i];
 }
 
 void CvodesAlgorithm::CopyRHSToYdot(Branch *branch, N_Vector ydot) {
@@ -30,19 +30,19 @@ void CvodesAlgorithm::CopyRHSToYdot(Branch *branch, N_Vector ydot) {
         (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *ydot_data = NV_DATA_S(ydot);
 
-  int compartments_count = branch->nt_->end;
+  const int compartments_count = branch->nt_->end;
   memcpy(ydot_data, branch->nt_->_actual_rhs,
          sizeof(double) * compartments_count);
 
   double ** dv_map = branch_cvodes->state_dv_map_;
   for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-      ydot_data[i] = *(dv_map[i]);
+      ydot_data[compartments_count+i] = *(dv_map[i]);
 }
 
 /// g root function to compute g_i(t,y) .
 int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
-                                  void *user_data_ptr) {
-  Branch *branch = ((BranchCvodes::UserData *)user_data_ptr)->branch_;
+                                  void *user_data) {
+  Branch *branch = (Branch*)user_data;
 
   //get offset and voltage of Axon Initial Segment
   int ais_offset = branch->thvar_ptr_ - branch->nt_->_actual_v;
@@ -56,18 +56,19 @@ int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
-                                 void *user_data_ptr) {
-  BranchCvodes::UserData *user_data = (BranchCvodes::UserData *)user_data_ptr;
-  Branch *branch = user_data->branch_;
+                                 void *user_data) {
+  Branch *branch = (Branch*) user_data;
+  BranchCvodes *branch_cvodes =
+      (BranchCvodes *)branch->soma_->algorithm_metadata_;
   NrnThread *nt = branch->nt_;
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
   nt->_t = t;   // nt->t used in FixedPlayContinuous
-  nt->_dt = t - user_data->rhs_last_time_; // nt->dt used in ode_matsol1
+  nt->_dt = t - branch_cvodes->rhs_last_time_; // nt->dt used in ode_matsol1
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
-  user_data->rhs_second_last_time_ = user_data->rhs_last_time_;
-  user_data->rhs_last_time_ = t;
+  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
+  branch_cvodes->rhs_last_time_ = t;
 
   // update vars in NrnThread->data described by our CVODES state
   CvodesAlgorithm::CopyYToVoltage(y, branch);
@@ -84,7 +85,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // Sets RHS an D to zero
   solver::HinesSolver::ResetMatrixRHSandD(branch);
 
-  // current sums i and didv to parent ion, and adds contribnutions to RHS and D
+  // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
 
   // add parent and children currents (A*dv and B*dv) to RHS
@@ -96,7 +97,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
   // backup up D (will be used for jacobian diagonal)
-  memcpy(user_data->jacob_d_, nt->_actual_d, sizeof(double) * nt->end);
+  memcpy(branch_cvodes->jacob_d_, nt->_actual_d, sizeof(double) * nt->end);
 
   // add parent and children currents (A and B) to D
   solver::HinesSolver::SetupMatrixDiagonal(branch);
@@ -120,7 +121,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // compute ydot=f(t,y) for values of mechanisms opening vars
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
-  // set ydot with RHS state, and recover NrnThread->data state
+  // populate ydot
   CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
 
   nt->_t = t;
@@ -130,13 +131,14 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 // jacobian routine: compute J(t,y) = df/dy
 int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
                                       N_Vector fy, DlsMat J,
-                                      void *user_data_ptr, N_Vector, N_Vector,
+                                      void *user_data, N_Vector, N_Vector,
                                       N_Vector) {
   realtype **jac = J->cols;
-  BranchCvodes::UserData *user_data = (BranchCvodes::UserData *)user_data_ptr;
-  Branch *branch = user_data->branch_;
+  Branch *branch = (Branch*) user_data;
+  BranchCvodes *branch_cvodes =
+      (BranchCvodes *)branch->soma_->algorithm_metadata_;
   const NrnThread *nt = branch->nt_;
-  assert(t == user_data->rhs_last_time_);
+  assert(t == branch_cvodes->rhs_last_time_);
 
   const int a_offset = nt->_actual_a - nt->_data;
   const int b_offset = nt->_actual_b - nt->_data;
@@ -144,7 +146,7 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
 
   const double *a = &nt->_data[a_offset];
   const double *b = &nt->_data[b_offset];
-  const double *d = user_data->jacob_d_;  // computed by RHS
+  const double *d = branch_cvodes->jacob_d_;  // computed by RHS
   const int *p = nt->_v_parent_index;
 
   // Jacobian for main current equation:
@@ -156,7 +158,7 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   for (int n = 0; n < compartments_count; n++) {
     // if not stepping backwards
     // assert(user_data->rhs_last_time_ != user_data->rhs_second_last_time_);
-    if (user_data->rhs_last_time_ > user_data->rhs_second_last_time_) {
+    if (branch_cvodes->rhs_last_time_ > branch_cvodes->rhs_second_last_time_) {
       assert(d[n] >= 0);  // positive (currents and mechs contribution, if any)
       assert(a[n] <= 0 && b[n] <= 0);  // negative (resistance)
     }
@@ -172,28 +174,18 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
 
   int state_dv_index=-1;
   int compartment_id=-1;
-  int jac_offset = compartments_count;
+  int dv_offset = compartments_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &branch->mechs_instances_[m];
-    double * mech_instances_data = mech_instances->data;
-    int ml_data_offset = 0;
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
         state_dv_index = mech->state_vars_->dv_offsets_[s];
         compartment_id = mech_instances->nodeindices[n];
-#if LAYOUT == 1
-        int state_dv_offset =
-            ml_data_offset + mech->data_size_ * n + state_var_dv_index;
-#else
-        int state_dv_offset =
-            ml_data_offset +
-            Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index + n;
-#endif
-        jac[jac_offset][compartment_id] = mech_instances_data[state_dv_offset];
-        jac_offset++;
+        jac[dv_offset][compartment_id] = *(branch_cvodes->state_dv_map_[dv_offset]);
+        dv_offset++;
       }
-      ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount)*mech->data_size_;
+
     }
   }
 
@@ -233,26 +225,18 @@ CvodesAlgorithm::BranchCvodes::BranchCvodes()
       equations_count_(-1),
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
-      user_data_(nullptr),
       y_(nullptr),
-      spikes_lco_(HPX_NULL) {}
+      spikes_lco_(HPX_NULL),
+      rhs_last_time_(0.0)
+{
+
+}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes() {
   N_VDestroy_Serial(y_);   /* Free y vector */
   CVodeFree(&cvodes_mem_); /* Free integrator memory */
-  delete this->user_data_;
-}
-
-CvodesAlgorithm::BranchCvodes::UserData::UserData(Branch *branch)
-    : branch_(branch), rhs_last_time_(0.0) {
-  this->jacob_d_ = new double[branch->nt_->end];
-  this->data_bak_ = new double[branch->nt_->_ndata];
-}
-
-CvodesAlgorithm::BranchCvodes::UserData::~UserData() {
   delete[] data_bak_;
   delete[] jacob_d_;
-  branch_ = nullptr;
 }
 
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
@@ -297,6 +281,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
       new double *[equations_count - compartments_count];
   branch_cvodes->state_dv_map_ =
       new double *[equations_count - compartments_count];
+
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
@@ -328,13 +313,15 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
     ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
   }
   branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
+  assert(map_offset == equations_count-compartments_count);
 
   // absolute tolerance array (low for voltages, high for mech states)
   branch_cvodes->absolute_tolerance_ = N_VNew_Serial(equations_count);
-  for (int i = 0; i < compartments_count; i++)
-    NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = kAbsToleranceVoltage;
-  for (int i = compartments_count; i < equations_count; i++)
-    NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = kAbsToleranceMechStates;
+  for (int i = 0; i < equations_count; i++)
+  {
+    double tol = i<compartments_count ? kAbsToleranceVoltage : kAbsToleranceMechStates;
+    NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = tol;
+  }
 
   // CVodeCreate creates an internal memory block for a problem to
   // be solved by CVODES, with Backward Differentiation (or Adams)
@@ -352,8 +339,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   assert(flag == CV_SUCCESS);
 
   // specify user data to be used on functions as void* user_data_ptr;
-  branch_cvodes->user_data_ = new BranchCvodes::UserData(local);
-  flag = CVodeSetUserData(cvodes_mem, branch_cvodes->user_data_);
+  branch_cvodes->jacob_d_ = new double[local->nt_->end];
+  branch_cvodes->data_bak_ = new double[local->nt_->_ndata];
+  flag = CVodeSetUserData(cvodes_mem, local);
   assert(flag == CV_SUCCESS);
 
   // specify g as root function and roots
