@@ -156,7 +156,6 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   // d(dV/dt) / dV_p   = -A          //parent compartment
   // d(dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
-  // jac[a][b] = d/dV_b (dV_a/dt)
   for (int n = 0; n < compartments_count; n++) {
     // if not stepping backwards
     if (branch_cvodes->rhs_last_time_ > branch_cvodes->rhs_second_last_time_) {
@@ -165,10 +164,10 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
       // or negative (exponential capacitance decay)
       assert(a[n] <= 0 && b[n] <= 0);  // negative (resistance)
     }
-    jac[n][n] = d[n];     // C = d (dV_n/dt) /dV_n
+    jac[n][n] = d[n];     // D = d (dV_n/dt) /dV_n
     if (n == 0) continue;
-    jac[p[n]][n] = b[n];  // B = d (dV_p/dt) /dV_n
-    jac[n][p[n]] = a[n];  // A = d (dV_n/dt) /dV_p
+    jac[p[n]][n] = a[n];  // A = d (dV_p/dt) /dV_n  (rhs[p[i]]+=a[i]*dv;)
+    jac[n][p[n]] = b[n];  // B = d (dV_n/dt) /dV_p
   }
 
   // get new derivative of mechs states (ions do not have,
