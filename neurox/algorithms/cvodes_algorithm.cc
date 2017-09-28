@@ -1,5 +1,7 @@
 #include "neurox/algorithms/cvodes_algorithm.h"
 
+#include "cvodes/cvodes_impl.h"
+
 using namespace neurox;
 using namespace neurox::algorithms;
 using namespace neurox::tools;
@@ -12,7 +14,7 @@ const AlgorithmId CvodesAlgorithm::GetId() { return AlgorithmId::kCvodes; }
 
 const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 
-void CvodesAlgorithm::CopyYToVoltage(N_Vector y, Branch *branch) {
+void CvodesAlgorithm::ScatterY(N_Vector y, Branch *branch) {
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *y_data = NV_DATA_S(y);
@@ -25,7 +27,7 @@ void CvodesAlgorithm::CopyYToVoltage(N_Vector y, Branch *branch) {
     *(var_map[i]) = y_data[compartments_count+i];
 }
 
-void CvodesAlgorithm::CopyRHSToYdot(Branch *branch, N_Vector ydot) {
+void CvodesAlgorithm::GatherYdot(Branch *branch, N_Vector ydot) {
     BranchCvodes *branch_cvodes =
         (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *ydot_data = NV_DATA_S(ydot);
@@ -64,8 +66,15 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
+  //from neuron::occvode.cpp::solvex_thread:
+  double cv_gamma = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma;
+  assert(cv_gamma!=0.0);
+  //cvodeobj.cpp :: if cv->gam()== 0; return;
+  nt->_dt = cv_gamma;
+  nt->cj = 1/nt->_dt;
+
   // update vars in NrnThread->data described by our CVODES state
-  CvodesAlgorithm::CopyYToVoltage(y, branch);
+  CvodesAlgorithm::ScatterY(y, branch);
 
   /////////   Get new RHS and D from current state ///////////
   // Note: coreneuron computes RHS and jacobian (D) simultaneously.
@@ -73,12 +82,13 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
-  branch->FixedPlayContinuous(nt->_t);
+  branch->FixedPlayContinuous(nt->_t); /// TODO not in neuron
 
   // Sets RHS an D to zero
   solver::HinesSolver::ResetMatrixRHSandD(branch);
 
   // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
+  // in neuron as lhs_memc()->nrn_jacob (in CN nrn_current includes jacob D-update)
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
 
   // add parent and children currents (A*dv and B*dv) to RHS
@@ -97,8 +107,10 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   solver::HinesSolver::SetupMatrixDiagonal(branch);
 
   // Gaussian Elimination (sets dV/dt=RHS[i])
-  branch->SolveTreeMatrix();
+  solver::HinesSolver::BackwardTriangulation(branch);
+  solver::HinesSolver::ForwardSubstituion(branch);
 
+  //// TODO all methods below are not in neuron!
   // update ions currents based on RHS and dI/dV
   second_order_cur(branch->nt_, input_params_->second_order_);
 
@@ -108,12 +120,13 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // updates V: v[i] += second_order_multiplier * rhs[i]
   solver::HinesSolver::UpdateV(branch);
 
+  //This is is neuron, what is nrn_nonvint_block_ode_solve??
   // update mechanisms state (eg opening vars) based on voltage
   // ode_spec1 is dx/dt and computes ydot=f(t,y) for new voltage values
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
   // populate ydot
-  CvodesAlgorithm::CopyRHSToYdot(branch, ydot);
+  CvodesAlgorithm::GatherYdot(branch, ydot);
 
   branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
   branch_cvodes->rhs_last_time_ = nt->_t;
@@ -141,15 +154,6 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   const double *b = &nt->_data[b_offset];
   const double *d = branch_cvodes->jacob_d_;  // computed by RHS
   const int *p = nt->_v_parent_index;
-
-  //////////////////////////////////////////////////////////
-  ///
-  /// ATTENTION cj is being used by funcs called by RHS  ///
-  /// nrn_jacob_capacitance!!
-  /// ///////////////////////////////////////////////////////
-  nt->_dt = t - branch_cvodes->rhs_last_time_; //nt->dt used in ode_matsol1
-  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
-  assert(nt->_dt!=0);
 
   // Jacobian for main current equation:
   // d(dV/dt) / dV     = sum_i g_i x_i  + D  //mechs currents + D
