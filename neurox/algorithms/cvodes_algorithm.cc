@@ -240,6 +240,7 @@ CvodesAlgorithm::BranchCvodes::~BranchCvodes() {
   delete[] jacob_d_;
 }
 
+//Neuron :: occvode.cpp :: init_global()
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
 int CvodesAlgorithm::BranchCvodes::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
@@ -277,12 +278,13 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
       y_data[i] = nt->_actual_v[i];
 
   // create map from y and dy to NrnThread->data (mech-states)
-  int map_offset = 0;
+  // and set initial values for opening variables
   branch_cvodes->state_var_map_ =
       new double *[equations_count - compartments_count];
   branch_cvodes->state_dv_map_ =
       new double *[equations_count - compartments_count];
 
+  int state_var_count = 0;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
@@ -306,17 +308,19 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 #endif
         assert(state_var_offset < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         assert(state_dv_offset  < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
-        branch_cvodes->state_var_map_[map_offset] =
+        branch_cvodes->state_var_map_[state_var_count] =
             &(mech_instances->data[state_var_offset]);
-        branch_cvodes->state_dv_map_[map_offset] =
+        branch_cvodes->state_dv_map_[state_var_count] =
             &(mech_instances->data[state_dv_offset]);
-        map_offset++;
+        y_data[compartments_count + state_var_count] =
+            mech_instances->data[state_var_offset];
+        state_var_count++;
       }
     }
     ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
   }
   branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
-  assert(map_offset == equations_count-compartments_count);
+  assert(state_var_count == equations_count-compartments_count);
 
   // absolute tolerance array (low for voltages, high for mech states)
   branch_cvodes->absolute_tolerance_ = N_VNew_Serial(equations_count);
