@@ -90,6 +90,9 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   // CVODE expects dy/dt = f(y) and solve (I - gamma*J)*x = b with
   //approx to J=df/dy.
+  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
+     Note that y (state values) are available for constructing the jacobian
+     (if the problem is non-linear) */
 
   // update vars in NrnThread->data described by our CVODES state
   //CvodesAlgorithm::ScatterY(branch, y);
@@ -141,10 +144,6 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // updates V: v[i] += second_order_multiplier * rhs[i]
   solver::HinesSolver::UpdateV(branch);
 
-  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
-     Note that y (state values) are available for constructing the jacobian
-     (if the problem is non-linear) */
-
   //update mechanisms state (eg opening vars and derivatives)
   //branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
@@ -178,23 +177,14 @@ int CvodesAlgorithm::RHSFunction2(realtype t, N_Vector y, N_Vector ydot,
   branch_cvodes->rhs_last_time_ = nt->_t;
   nt->_t = t;
 
-  // CVODE expects dy/dt = f(y) and solve (I - gamma*J)*x = b with
-  //approx to J=df/dy.
-  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
-     Note that y (state values) are available for constructing the jacobian
-     (if the problem is non-linear) */
-
-  // update vars in NrnThread->data described by our CVODES state
-  //CvodesAlgorithm::ScatterY(branch, y);
-  CvodesAlgorithm::ScatterY(branch, y);
-
-  /////////   Get new RHS and D from current state ///////////
-  // Note: coreneuron computes RHS and jacobian (D) simultaneously.
-
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
   branch->FixedPlayContinuous(nt->_t); /// TODO not in neuron
+
+  // update vars in NrnThread->data described by our CVODES state
+  //CvodesAlgorithm::ScatterY(branch, y);
+  CvodesAlgorithm::ScatterY(branch, y);
 
   // Sets RHS an D to zero
   solver::HinesSolver::ResetMatrixRHSandD(branch);
@@ -209,7 +199,9 @@ int CvodesAlgorithm::RHSFunction2(realtype t, N_Vector y, N_Vector ydot,
   //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
 
   // add parent and children currents (A*dv and B*dv) to RHS
+  //TODO arithmetic is different from CoreNeuron to Neuron CVODES?
   solver::HinesSolver::SetupMatrixRHS(branch);
+  // wrong its for no_cap only?? solver::HinesSolver::UpdateVCvodes(branch);
 
   //update mechanisms state (eg opening vars and derivatives)
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);

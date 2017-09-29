@@ -243,3 +243,13 @@ void HinesSolver::UpdateV(Branch *branch) {
   for (int i = 0; i < branch->nt_->end; i++)
     v[i] += second_order_multiplier * rhs[i];
 }
+
+void HinesSolver::UpdateVCvodes(Branch *branch) {
+  floble_t *rhs = branch->nt_->_actual_rhs;
+  floble_t *d = branch->nt_->_actual_d;
+  floble_t *v = branch->nt_->_actual_v;
+
+  // D dV/dt = RHS  <=> dV/dt = RHS/D  ??
+  for (int i = 0; i < branch->nt_->end; i++)
+    v[i] = rhs[i]/d[i];
+}
