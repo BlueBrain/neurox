@@ -30,7 +30,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
       pnt_receive_(nullptr),
       pnt_receive_init_(nullptr),
       ode_matsol_(nullptr),
-      ode_spec_(nullptr)
+      ode_spec_(nullptr),
+      div_capacity_(nullptr)
 {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
@@ -57,13 +58,12 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.jacob = get_jacob_function(this->memb_func_.sym);
   } else if (this->type_ == CAP)  // capacitance: capac.c
   {
-    // these are not registered by capac.c
     this->memb_func_.current = nrn_cur_capacitance;
     this->memb_func_.current_parallel = nrn_cur_parallel_capacitance;
     this->memb_func_.jacob = nrn_jacob_capacitance;
+    this->div_capacity_ = nrn_div_capacity; //CVODE-specific
   } else if (this->is_ion_)  // ion: eion.c
   {
-    // these are not registered by eion.c
     this->memb_func_.current = nrn_cur_ion;
     this->memb_func_.current_parallel = nrn_cur_parallel_ion;
   }
@@ -240,7 +240,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
       case Mechanism::ModFunctions::kJacobCapacitance:
         assert(type_ == CAP);
         assert(memb_func_.jacob != NULL);
-        memb_func_.jacob(nrn_thread, memb_list, type_);
+        nrn_jacob_capacitance(nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kJacob:
         assert(type_ != CAP);
@@ -284,6 +284,12 @@ void Mechanism::CallModFunction(const void *branch_ptr,
           tools::Vectorizer::CallVecFunction(
                       this->ode_spec_,
                       nrn_thread, memb_list, type_);
+        break;
+      case Mechanism::ModFunctions::kDivCapacity: //CVODE-specific
+      if (this->ode_spec_)
+          assert(type_ == CAP);
+          assert(this->div_capacity_ != NULL);
+          nrn_div_capacity(nrn_thread, memb_list, type_);
         break;
       default:
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);

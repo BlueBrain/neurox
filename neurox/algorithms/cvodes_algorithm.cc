@@ -14,7 +14,7 @@ const AlgorithmId CvodesAlgorithm::GetId() { return AlgorithmId::kCvodes; }
 
 const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 
-void CvodesAlgorithm::ScatterY(N_Vector y, Branch *branch) {
+void CvodesAlgorithm::ScatterY(Branch *branch, N_Vector y) {
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *y_data = NV_DATA_S(y);
@@ -41,6 +41,20 @@ void CvodesAlgorithm::GatherYdot(Branch *branch, N_Vector ydot) {
       ydot_data[compartments_count+i] = *(dv_map[i]);
 }
 
+void CvodesAlgorithm::ScatterYdot(Branch *branch, N_Vector ydot) {
+    BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  double *ydot_data = NV_DATA_S(ydot);
+
+  const int compartments_count = branch->nt_->end;
+  memcpy(branch->nt_->_actual_rhs, ydot_data,
+         sizeof(double) * compartments_count);
+
+  double ** dv_map = branch_cvodes->state_dv_map_;
+  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
+    *(dv_map[i]) = ydot_data[compartments_count+i];
+}
+
 /// g root function to compute g_i(t,y) .
 int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
                                   void *user_data) {
@@ -57,6 +71,7 @@ int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
 }
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
+/// from neuron::occvode.cpp::solvex_thread:
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
   Branch *branch = (Branch*) user_data;
@@ -66,15 +81,19 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
 
-  //from neuron::occvode.cpp::solvex_thread:
-  double cv_gamma = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma;
-  assert(cv_gamma!=0.0);
-  //cvodeobj.cpp :: if cv->gam()== 0; return;
+  const double cv_gamma = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma;
+  if (cv_gamma==0) // i.e. (I - gamma * J)*x = b means x = b
+      return CV_SUCCESS;
+
   nt->_dt = cv_gamma;
   nt->cj = 1/nt->_dt;
 
+  // CVODE expects dy/dt = f(y) and solve (I - gamma*J)*x = b with
+  //approx to J=df/dy.
+
   // update vars in NrnThread->data described by our CVODES state
-  CvodesAlgorithm::ScatterY(y, branch);
+  //CvodesAlgorithm::ScatterY(branch, y);
+  CvodesAlgorithm::ScatterY(branch, y);
 
   /////////   Get new RHS and D from current state ///////////
   // Note: coreneuron computes RHS and jacobian (D) simultaneously.
@@ -88,7 +107,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   solver::HinesSolver::ResetMatrixRHSandD(branch);
 
   // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
-  // in neuron as lhs_memc()->nrn_jacob (in CN nrn_current includes jacob D-update)
+  // (in neuron is lhs()->nrn_jacob (in CN nrn_current includes jacob D-update))
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
 
   // add parent and children currents (A*dv and B*dv) to RHS
@@ -103,6 +122,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // backup up D (will be used for jacobian diagonal)
   memcpy(branch_cvodes->jacob_d_, nt->_actual_d, sizeof(double) * nt->end);
 
+  //TODO!!!!
+  // In neuron this is before the previous!
   // add parent and children currents (A and B) to D
   solver::HinesSolver::SetupMatrixDiagonal(branch);
 
@@ -120,10 +141,13 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // updates V: v[i] += second_order_multiplier * rhs[i]
   solver::HinesSolver::UpdateV(branch);
 
-  //This is is neuron, what is nrn_nonvint_block_ode_solve??
-  // update mechanisms state (eg opening vars) based on voltage
-  // ode_spec1 is dx/dt and computes ydot=f(t,y) for new voltage values
-  branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
+  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
+     Note that y (state values) are available for constructing the jacobian
+     (if the problem is non-linear) */
+
+  //update mechanisms state (eg opening vars and derivatives)
+  //branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
   // populate ydot
   CvodesAlgorithm::GatherYdot(branch, ydot);
@@ -131,6 +155,69 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
   branch_cvodes->rhs_last_time_ = nt->_t;
   nt->_t = t;
+  return CV_SUCCESS;
+}
+
+/// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
+/// from neuron::occvode.cpp::fun_thread(...)
+int CvodesAlgorithm::RHSFunction2(realtype t, N_Vector y, N_Vector ydot,
+                                 void *user_data) {
+  Branch *branch = (Branch*) user_data;
+  BranchCvodes *branch_cvodes =
+      (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  NrnThread *nt = branch->nt_;
+  realtype *ydot_data = NV_DATA_S(ydot);
+  realtype *y_data = NV_DATA_S(y);
+
+  //////// occvode.cpp: fun_thread_transfer_part1 /////////
+
+  const double h = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_h;
+  nt->_dt = h==0 ? 1e-8 : h;
+  nt->cj = 1/nt->_dt;
+  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
+  branch_cvodes->rhs_last_time_ = nt->_t;
+  nt->_t = t;
+
+  // CVODE expects dy/dt = f(y) and solve (I - gamma*J)*x = b with
+  //approx to J=df/dy.
+  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
+     Note that y (state values) are available for constructing the jacobian
+     (if the problem is non-linear) */
+
+  // update vars in NrnThread->data described by our CVODES state
+  //CvodesAlgorithm::ScatterY(branch, y);
+  CvodesAlgorithm::ScatterY(branch, y);
+
+  /////////   Get new RHS and D from current state ///////////
+  // Note: coreneuron computes RHS and jacobian (D) simultaneously.
+
+  // Updates internal states of continuous point processes (vecplay)
+  // e.g. stimulus. vecplay->pd points to a read-only var used by
+  // point proc mechanisms' nrn_current function
+  branch->FixedPlayContinuous(nt->_t); /// TODO not in neuron
+
+  // Sets RHS an D to zero
+  solver::HinesSolver::ResetMatrixRHSandD(branch);
+
+  // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
+  // (in neuron is lhs()->nrn_jacob (in CN nrn_current includes jacob D-update))
+  branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+
+  // update positions holding jacobians (does nothing so far)
+  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+
+  //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
+
+  // add parent and children currents (A*dv and B*dv) to RHS
+  solver::HinesSolver::SetupMatrixRHS(branch);
+
+  //update mechanisms state (eg opening vars and derivatives)
+  branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
+
+  branch->CallModFunction(Mechanism::ModFunctions::kDivCapacity);
+
+  CvodesAlgorithm::GatherYdot(branch, ydot);
+
   return CV_SUCCESS;
 }
 
@@ -176,17 +263,18 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
 
   // get new derivative of mechs states (ions do not have,
   // capacitance added already to D in nrn_jacob_capacitance)
-  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  // wrong: matsol does m = b/x for diagonal matrix solver
+  // branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
-  int compartment_id=-1;
+  //int compartment_id=-1;
   int dv_offset = compartments_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &branch->mechs_instances_[m];
     for (int n = 0; n < mech_instances->nodecount; n++) {
-      compartment_id = mech_instances->nodeindices[n];
+      //compartment_id = mech_instances->nodeindices[n];
       for (int s = 0; s < mech->state_vars_->count_; s++) {
-        // d (dx_i/dt) / dx_j  (from M. hines email)
+        //Reminder: state vars Dm represents d(dm_i/dt) / dm_j
         jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - compartments_count]);
         dv_offset++;
       }
@@ -340,8 +428,9 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   cvodes_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 
   // CVodeInit allocates and initializes memory for a problem
+  // In Neuron RHSFn is cvodeobj.cpp :: f_lvardt
   double t0 = input_params_->tstart_;
-  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, t0, branch_cvodes->y_);
+  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction2, t0, branch_cvodes->y_);
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
@@ -384,8 +473,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   assert(flag == CV_SUCCESS);
 
   // TODO
-  CVodeSetInitStep(cvodes_mem, kMinStepSize);
-  CVodeSetMinStep(cvodes_mem, kMinStepSize);
+  // CVodeSetInitStep(cvodes_mem, kMinStepSize);
+  // CVodeSetMinStep(cvodes_mem, kMinStepSize);
   CVodeSetMaxStep(cvodes_mem,
                   CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);

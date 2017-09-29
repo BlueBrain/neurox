@@ -63,6 +63,7 @@ class Mechanism {
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
+  mod_f_t div_capacity_;
   pnt_receive2_t pnt_receive_;
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
@@ -108,7 +109,8 @@ class Mechanism {
     kNetReceiveInit = 18,
     // CVODE-specific methods
     kODESpec = 19,
-    kODEMatsol = 20
+    kODEMatsol = 20,
+    kDivCapacity = 21
   };
 
   Mechanism::IonTypes GetIonIndex();

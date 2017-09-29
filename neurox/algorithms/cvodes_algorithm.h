@@ -110,13 +110,18 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kEventsDeliveryTimeWindow = 0.125;
 
   /// update NrnThread->data from with new y state
-  static void ScatterY(N_Vector y, Branch *branch);
+  static void ScatterY(Branch *branch, N_Vector y);
+
+  /// update CVODES from NrnThread->data
+  static void ScatterYdot(Branch *branch, N_Vector ydot);
 
   /// update CVODES from NrnThread->data
   static void GatherYdot(Branch *branch, N_Vector ydot);
 
   /// function defining the right-hand side function in y' = f(t,y).
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
+                         void *user_data);
+  static int RHSFunction2(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
 
   /// g root function to compute g_i(t,y)
