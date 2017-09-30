@@ -151,8 +151,6 @@ int CvodesAlgorithm::RHSFunction_old(realtype t, N_Vector y, N_Vector ydot,
   // populate ydot
   CvodesAlgorithm::GatherYdot(branch, ydot);
 
-  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = nt->_t;
   nt->_t = t;
   return CV_SUCCESS;
 }
@@ -171,10 +169,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //////// occvode.cpp: fun_thread_transfer_part1 /////////
 
   const double h = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_h;
-  nt->_dt = h==0 ? 1e-8 : h;
+  nt->_dt = h==0 ? CvodesAlgorithm::kMinStepSize : h;
   nt->cj = 1/nt->_dt;
-  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = nt->_t;
   nt->_t = t;
 
   // Updates internal states of continuous point processes (vecplay)
@@ -239,13 +235,6 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   // d(dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
   for (int n = 0; n < compartments_count; n++) {
-    // if not stepping backwards
-    if (branch_cvodes->rhs_last_time_ > branch_cvodes->rhs_second_last_time_) {
-      // assert(d[n] >= 0);
-      // positive (currents and mechs contribution, if any)
-      // or negative (exponential capacitance decay)
-      assert(a[n] <= 0 && b[n] <= 0);  // negative (resistance)
-    }
     jac[n][n] = d[n];     // D = d (dV_n/dt) /dV_n
     if (n == 0) continue;
     jac[p[n]][n] = a[n];  // A = d (dV_p/dt) /dV_n  (rhs[p[i]]+=a[i]*dv;)
@@ -310,8 +299,7 @@ CvodesAlgorithm::BranchCvodes::BranchCvodes()
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
-      spikes_lco_(HPX_NULL),
-      rhs_last_time_(0.0)
+      spikes_lco_(HPX_NULL)
 {
 
 }
@@ -463,9 +451,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 
   assert(flag == CV_SUCCESS);
 
-  // TODO
-  // CVodeSetInitStep(cvodes_mem, kMinStepSize);
-  // CVodeSetMinStep(cvodes_mem, kMinStepSize);
+  CVodeSetInitStep(cvodes_mem, kMinStepSize);
+  CVodeSetMinStep(cvodes_mem, kMinStepSize);
   CVodeSetMaxStep(cvodes_mem,
                   CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);

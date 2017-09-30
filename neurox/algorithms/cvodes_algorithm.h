@@ -69,10 +69,6 @@ class CvodesAlgorithm : public Algorithm {
     /// temporary placeholder for data
     double *data_bak_;
 
-    /// execution time of last RHS function call
-    realtype rhs_last_time_;
-    realtype rhs_second_last_time_;
-
     /// mapping of y in CVODES to NrnThread->data
     double **state_var_map_;
 
@@ -94,7 +90,7 @@ class CvodesAlgorithm : public Algorithm {
   const static int kBDFMaxOrder = 5;
 
   /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize = 1e-9;
+  constexpr static double kMinStepSize = 1e-6;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
