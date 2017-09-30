@@ -481,7 +481,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
 
   // only for capacitance mechanism
   if (function_id == Mechanism::ModFunctions::kCurrentCapacitance ||
-      function_id == Mechanism::ModFunctions::kJacobCapacitance) {
+      function_id == Mechanism::ModFunctions::kJacobCapacitance   ||
+      function_id == Mechanism::ModFunctions::kDivCapacity) {
     mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id);
   }
   // for all others except capacitance (mechanisms graph)
@@ -916,6 +917,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
                       sizeof(Mechanism::ModFunctions), &function_id);
     assert(function_id != Mechanism::ModFunctions::kJacobCapacitance);
     assert(function_id != Mechanism::ModFunctions::kCurrentCapacitance);
+    assert(function_id != Mechanism::ModFunctions::kDivCapacity);
     mech->CallModFunction(local, function_id);
 
     if (mech->successors_count_ == 0)  // bottom mechanism
