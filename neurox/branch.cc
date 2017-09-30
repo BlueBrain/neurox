@@ -582,8 +582,6 @@ void Branch::Finitialize2() {
   CallModFunction(Mechanism::ModFunctions::kInitialize);
   CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
 
-  // initEvents(t); //not needed because we copy the status and weights of
-  // events
   DeliverEvents(t);
   SetupTreeMatrix();
   CallModFunction(Mechanism::ModFunctions::kBeforeStep);
@@ -780,14 +778,17 @@ void Branch::DeliverEvents(floble_t til) //Coreneuron: til=t+0.5*dt
   this->nt_->_t = tsav;
 }
 
-void Branch::FixedPlayContinuous() {
-  double t = this->nt_->_t;
+void Branch::FixedPlayContinuous(double t)
+{
   for (int v = 0; v < this->nt_->n_vecplay; v++) {
     void *vecplay_void = this->nt_->_vecplay[v];
-    VecplayContinuousX *vecplay =
-        reinterpret_cast<VecplayContinuousX *>(vecplay_void);
+      VecplayContinuousX *vecplay =
+         reinterpret_cast<VecplayContinuousX *>(vecplay_void);
     vecplay->Continuous(t);
   }
+}
+void Branch::FixedPlayContinuous() {
+  FixedPlayContinuous(this->nt_->_t);
 }
 
 //////////////////// Branch::NeuronTree ///////////////////////

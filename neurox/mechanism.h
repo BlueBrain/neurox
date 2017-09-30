@@ -63,13 +63,14 @@ class Mechanism {
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
+  mod_f_t div_capacity_;
   pnt_receive2_t pnt_receive_;
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
 
   //CVODES-specific
-  ode_spec1_f_t ode_spec_;
-  ode_matsol1_f_t ode_matsol_;
+  cvode_f_t ode_spec_;
+  cvode_f_t ode_matsol_;
 
   /// State variables info (used by CVODES only)
   class StateVars {
@@ -78,7 +79,7 @@ class Mechanism {
     StateVars(short count, short *offsets, short *dv_offsets);
     ~StateVars();
     short count_;        ///> number of cvode state variables
-    short *offsets_;     ///>offset of state vars in ml->data
+    short *var_offsets_;     ///>offset of state vars in ml->data
     short *dv_offsets_;  ///> offset of dx/dV for state vars
   } * state_vars_;
 
@@ -108,7 +109,8 @@ class Mechanism {
     kNetReceiveInit = 18,
     // CVODE-specific methods
     kODESpec = 19,
-    kODEMatsol = 20
+    kODEMatsol = 20,
+    kDivCapacity = 21
   };
 
   Mechanism::IonTypes GetIonIndex();

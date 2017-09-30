@@ -57,41 +57,31 @@ class CvodesAlgorithm : public Algorithm {
     /// i.e. compartments * equations per compartment
     int equations_count_;
 
-    /// mapping of equations y to NrnThread->data
-    /// (similar to ode_map in NEURON)
-    double **equations_map_;
-
     /// hpx for last sent spikes
     hpx_t spikes_lco_;
 
     /// HPX actions registration
     static void RegisterHpxActions();
 
+    /// VEC_D of last RHS call, before hines solver
+    double *jacob_d_;
+
+    /// temporary placeholder for data
+    double *data_bak_;
+
+    /// execution time of last RHS function call
+    realtype rhs_last_time_;
+    realtype rhs_second_last_time_;
+
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_var_map_;
+
+    /// mapping of y in CVODES to NrnThread->data
+    double **state_dv_map_;
+
     static hpx_action_t Init;
     static hpx_action_t Run;
     static hpx_action_t Clear;
-
-    /// Data structure past as user-data argument to CVODES functions
-    class UserData {
-     public:
-      UserData() = delete;
-      UserData(Branch *);
-      ~UserData();
-
-      /// Branch this user data belongs to;
-      Branch *branch_;
-
-      /// VEC_D of last RHS call, before hines solver
-      double *jacob_d_;
-
-      /// temporary placeholder for data
-      double *data_bak_;
-
-      /// execution time of last RHS function call
-      realtype rhs_last_time_;
-      realtype rhs_second_last_time_;
-
-    } * user_data_;
 
    private:
     static int Init_handler();
@@ -100,8 +90,11 @@ class CvodesAlgorithm : public Algorithm {
   };
 
  private:
+  /// CVODES BDF max-order
+  const static int kBDFMaxOrder = 5;
+
   /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize = 1e-12;
+  constexpr static double kMinStepSize = 1e-9;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
@@ -116,13 +109,18 @@ class CvodesAlgorithm : public Algorithm {
   /// simmultaneously (0 for no grouping)
   constexpr static double kEventsDeliveryTimeWindow = 0.125;
 
-  /// update NrnThread->data from with new CVODES state
-  static void CopyCvodesToNrnThread(N_Vector y, Branch *branch);
+  /// update NrnThread->data from with new y state
+  static void ScatterY(Branch *branch, N_Vector y);
 
   /// update CVODES from NrnThread->data
-  static void CopyNrnThreadToCvodes(Branch *branch, N_Vector ydot);
+  static void ScatterYdot(Branch *branch, N_Vector ydot);
+
+  /// update CVODES from NrnThread->data
+  static void GatherYdot(Branch *branch, N_Vector ydot);
 
   /// function defining the right-hand side function in y' = f(t,y).
+  static int RHSFunction_old(floble_t t, N_Vector y_, N_Vector ydot,
+                         void *user_data);
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
 
