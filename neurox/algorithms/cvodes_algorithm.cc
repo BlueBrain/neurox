@@ -72,7 +72,7 @@ int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 /// from neuron::occvode.cpp::solvex_thread:
-int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
+int CvodesAlgorithm::RHSFunction_old(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
   Branch *branch = (Branch*) user_data;
   BranchCvodes *branch_cvodes =
@@ -159,7 +159,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 /// from neuron::occvode.cpp::fun_thread(...)
-int CvodesAlgorithm::RHSFunction2(realtype t, N_Vector y, N_Vector ydot,
+int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
   Branch *branch = (Branch*) user_data;
   BranchCvodes *branch_cvodes =
@@ -421,7 +421,7 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   // CVodeInit allocates and initializes memory for a problem
   // In Neuron RHSFn is cvodeobj.cpp :: f_lvardt
   double t0 = input_params_->tstart_;
-  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction2, t0, branch_cvodes->y_);
+  flag = CVodeInit(cvodes_mem, CvodesAlgorithm::RHSFunction, t0, branch_cvodes->y_);
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.

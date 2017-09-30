@@ -119,9 +119,9 @@ class CvodesAlgorithm : public Algorithm {
   static void GatherYdot(Branch *branch, N_Vector ydot);
 
   /// function defining the right-hand side function in y' = f(t,y).
-  static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
+  static int RHSFunction_old(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
-  static int RHSFunction2(floble_t t, N_Vector y_, N_Vector ydot,
+  static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
 
   /// g root function to compute g_i(t,y)
