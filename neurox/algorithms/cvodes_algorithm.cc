@@ -180,34 +180,33 @@ int CvodesAlgorithm::RHSFunction2(realtype t, N_Vector y, N_Vector ydot,
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
-  branch->FixedPlayContinuous(nt->_t); /// TODO not in neuron
+  //cvtrset.cpp :: CVode::fun_thread_transfer_part1()
+  branch->FixedPlayContinuous(nt->_t);
 
-  // update vars in NrnThread->data described by our CVODES state
-  //CvodesAlgorithm::ScatterY(branch, y);
+  //copies V and states from CVODES to NrnThread
   CvodesAlgorithm::ScatterY(branch, y);
-
-  // Sets RHS an D to zero
-  solver::HinesSolver::ResetMatrixRHSandD(branch);
-
-  // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
-  // (in neuron is lhs()->nrn_jacob (in CN nrn_current includes jacob D-update))
-  branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
-
-  // update positions holding jacobians (does nothing so far)
-  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
 
   //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
 
-  // add parent and children currents (A*dv and B*dv) to RHS
-  //TODO arithmetic is different from CoreNeuron to Neuron CVODES?
+  //cvtrset.cpp :: CVode::rhs
+  solver::HinesSolver::ResetMatrixRHS(branch);
+
+  //cvtrset.cpp :: CVode::rhs() -> rhs_memb()
+  branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+
+  // add parent and children axial currents (A*dv and B*dv) to RHS
+  // cvtrset.cpp :: CVode::rhs()
   solver::HinesSolver::SetupMatrixRHS(branch);
-  // wrong its for no_cap only?? solver::HinesSolver::UpdateVCvodes(branch);
 
   //update mechanisms state (eg opening vars and derivatives)
+  // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> do_ode()
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
+  // divide by Cm and compute capacity current
+  // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> nrn_div_capacity()
   branch->CallModFunction(Mechanism::ModFunctions::kDivCapacity);
 
+  //copies dV and states-derivative from NrnThread to CVODES
   CvodesAlgorithm::GatherYdot(branch, ydot);
 
   return CV_SUCCESS;
@@ -501,7 +500,6 @@ int CvodesAlgorithm::BranchCvodes::Run_handler() {
     tout = std::min(input_params_->tstop_, tout);
 
     // call CVODE method: steps until reaching/passing tout;
-    // TODO can it walk backwards for missed event?
     flag = CVode(cvodes_mem, tout, branch_cvodes->y_, &(nt->_t), CV_NORMAL);
 
     double *v = NV_DATA_S(branch_cvodes->y_);

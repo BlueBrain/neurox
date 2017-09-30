@@ -582,8 +582,6 @@ void Branch::Finitialize2() {
   CallModFunction(Mechanism::ModFunctions::kInitialize);
   CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
 
-  // initEvents(t); //not needed because we copy the status and weights of
-  // events
   DeliverEvents(t);
   SetupTreeMatrix();
   CallModFunction(Mechanism::ModFunctions::kBeforeStep);
