@@ -23,7 +23,6 @@ class HinesSolver {
                                     floble_t *threshold_v = NULL);
   static void ResetMatrixRHSandD(Branch *local);
   static void ResetMatrixV(Branch *local);
-  static void ResetMatrixRHS(Branch *local);
   static void SetupMatrixRHS(Branch *local);
   static void SetupMatrixDiagonal(Branch *local);
   static void BackwardTriangulation(Branch *local);

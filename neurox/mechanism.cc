@@ -31,7 +31,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
       pnt_receive_init_(nullptr),
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
-      div_capacity_(nullptr)
+      div_capacity_(nullptr),
+      mul_capacity_(nullptr)
 {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
@@ -62,6 +63,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current_parallel = nrn_cur_parallel_capacitance;
     this->memb_func_.jacob = nrn_jacob_capacitance;
     this->div_capacity_ = nrn_div_capacity; //CVODE-specific
+    this->mul_capacity_ = nrn_mul_capacity; //CVODE-specific
   } else if (this->is_ion_)  // ion: eion.c
   {
     this->memb_func_.current = nrn_cur_ion;
@@ -291,6 +293,12 @@ void Mechanism::CallModFunction(const void *branch_ptr,
           assert(this->div_capacity_ != NULL);
           nrn_div_capacity(nrn_thread, memb_list, type_);
         break;
+    case Mechanism::ModFunctions::kMulCapacity: //CVODE-specific
+    if (this->mul_capacity_)
+        assert(type_ == MechanismTypes::kCapacitance);
+        assert(this->div_capacity_ != NULL);
+        nrn_mul_capacity(nrn_thread, memb_list, type_);
+      break;
       default:
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);

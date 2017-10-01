@@ -16,6 +16,9 @@
 #include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
+// For Approx Diagonal matrix
+#include <cvodes/cvodes_diag.h>
+
 using namespace neurox;
 
 namespace neurox {
@@ -63,9 +66,6 @@ class CvodesAlgorithm : public Algorithm {
     /// HPX actions registration
     static void RegisterHpxActions();
 
-    /// VEC_D of last RHS call, before hines solver
-    double *jacob_d_;
-
     /// temporary placeholder for data
     double *data_bak_;
 
@@ -89,8 +89,8 @@ class CvodesAlgorithm : public Algorithm {
   /// CVODES BDF max-order
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize = 1e-6;
+  /// CVODES Mininum step size allowed (dt=0.025)
+  constexpr static double kMinStepSize = 1e-3;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
@@ -99,7 +99,7 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kAbsToleranceVoltage = 1e-3;
 
   /// CVODES Absolute tolerance for mechanism states values
-  constexpr static double kAbsToleranceMechStates = 1e-2;
+  constexpr static double kAbsToleranceMechStates = 1e-3;
 
   /// Time-window size for grouping of events to be delivered
   /// simmultaneously (0 for no grouping)
@@ -114,9 +114,6 @@ class CvodesAlgorithm : public Algorithm {
   /// update CVODES from NrnThread->data
   static void GatherYdot(Branch *branch, N_Vector ydot);
 
-  /// function defining the right-hand side function in y' = f(t,y).
-  static int RHSFunction_old(floble_t t, N_Vector y_, N_Vector ydot,
-                         void *user_data);
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
 
@@ -124,8 +121,8 @@ class CvodesAlgorithm : public Algorithm {
   static int RootFunction(realtype t, N_Vector y_, realtype *gout,
                           void *user_data);
 
-  /// jacobian: compute J(t,y)
-  static int JacobianFunction(long int N, floble_t t, N_Vector y_, N_Vector fy,
+  /// jacobian: compute J(t,y) on a dense matrix
+  static int JacobianDense(long int N, floble_t t, N_Vector y_, N_Vector fy,
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
 };

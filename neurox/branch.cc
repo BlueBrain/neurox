@@ -481,7 +481,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
 
   // only for capacitance mechanism
   if (function_id == Mechanism::ModFunctions::kCurrentCapacitance ||
-      function_id == Mechanism::ModFunctions::kJacobCapacitance   ||
+      function_id == Mechanism::ModFunctions::kJacobCapacitance ||
+      function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
     mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id);
   }

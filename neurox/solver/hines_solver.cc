@@ -40,14 +40,6 @@ void HinesSolver::ResetMatrixV(Branch *branch) {
     v[i] = 0;
 }
 
-
-void HinesSolver::ResetMatrixRHS(Branch *branch) {
-  floble_t *rhs = branch->nt_->_actual_rhs;
-  const int n = branch->nt_->end;
-  for (int i = 0; i < n; i++)
-    rhs[i] = 0;
-}
-
 void HinesSolver::SetupMatrixRHS(Branch *branch) {
   const offset_t n = branch->nt_->end;
   const floble_t *a = branch->nt_->_actual_a;

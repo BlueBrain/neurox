@@ -153,6 +153,7 @@ extern nrn_watch_check_t* nrn_watch_check;
 
 extern void nrn_jacob_capacitance(struct NrnThread*, Memb_list*, int);
 extern void nrn_div_capacity(struct NrnThread*, Memb_list*, int);
+extern void nrn_mul_capacity(struct NrnThread*, Memb_list*, int);
 extern void nrn_writes_conc(int, int);
 #if defined(_OPENACC)
 #pragma acc routine seq
