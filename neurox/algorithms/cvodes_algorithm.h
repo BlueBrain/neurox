@@ -1,9 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-// COPIED FROM cvsRoberts_dns.c (dense) and cvsRoberts_sps.c (sparse matrix)
-// NO SENSITIVITY ANALYSIS: FSA or ASA avaiable at cvsRoberts_ASA_idns.c
-
 #include <cvodes/cvodes.h>           /* prototypes for CVODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
@@ -18,6 +15,15 @@
 
 // For Approx Diagonal matrix
 #include <cvodes/cvodes_diag.h>
+
+/***
+ * NEUROX_CVODES_JACOBIAN_SOLVER:
+ * 0 for diagonal approxiamted matrix
+ * 1 for dense matrix
+ * 2 for KLU sparse-matrix solver
+ * 3 for SuperLMU sparse-matrix solver
+ */
+#define NEUROX_CVODES_JACOBIAN_SOLVER 0
 
 using namespace neurox;
 
@@ -90,7 +96,7 @@ class CvodesAlgorithm : public Algorithm {
   const static int kBDFMaxOrder = 5;
 
   /// CVODES Mininum step size allowed (dt=0.025)
-  constexpr static double kMinStepSize = 1e-3;
+  constexpr static double kMinStepSize = 0; //13-6;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
