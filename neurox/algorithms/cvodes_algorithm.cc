@@ -163,18 +163,13 @@ int CvodesAlgorithm::JacobianDense(long int N, realtype t, N_Vector y,
   //add axial currents to D (d[i] -= b[i] and d[p[i]] -= a[i])
   solver::HinesSolver::SetupMatrixDiagonal(branch);
 
-  //in neuron: b or ydot is the RHS input vector
-  //TODO CvodesAlgorithm::ScatterYdot(branch, ydot);
-
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
 
-  solver::HinesSolver::BackwardTriangulation(branch);
-  solver::HinesSolver::ForwardSubstituion(branch);
+  branch->SolveTreeMatrix();
+  //now we have 0A + 1D + 0B = RHS, ie dV/dt = RHS
 
-  //if mechs stiff
+  //if mechs stiff()==2. Matsol solves (1 + dt*jacobian)*x = b
   //branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
-
-  //TODO CvodesAlgorithm::GatherYdot(branch, ydot);
 
   /// end of neuron occvode.cpp::solvex_thread()
 
@@ -467,32 +462,28 @@ int CvodesAlgorithm::BranchCvodes::Run_handler() {
         branch_cvodes->spikes_lco_ = local->soma_->SendSpikes(nt->_t);
       }
     }
-    /*
-    N_Vector estimated_local_errors =
-    N_VNewEmpty_Serial(branch_cvodes->equations_count_);
-    CVodeGetEstLocalErrors(cvodes_mem, estimated_local_errors);
-    */
   }
 
   // Final statistics output:
-  long num_steps = -1, num_jacob_evals = -1, num_rhs_evals = -1;
-  realtype last_step_size = -1;
-
+  long num_steps = -1, num_rhs_evals = -1;
   CVodeGetNumSteps(cvodes_mem, &num_steps);
-  CVodeGetLastStep(cvodes_mem, &last_step_size);
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 0
-  CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-  CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  //CVodeGetLastStep(cvodes_mem, &last_step_size);
+#if NEUROX_CVODES_JACOBIAN_SOLVER == 0 //CVdiag (no jacobian)
+  CVDiagGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  printf("- num_steps: %d, num_rhs_evals: %d\n",
+         num_steps, num_rhs_evals);
 #else
-  CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-  CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  long num_jacob_evals = -1
+  #if NEUROX_CVODES_JACOBIAN_SOLVER == 1
+    CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  #else
+    CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  #endif
+  printf("- num_steps: %d,  num_jacob_evals: %d, num_rhs_evals: %d\n",
+         num_steps, num_jacob_evals, num_rhs_evals);
 #endif
-
-  printf("- num_steps: %d\n", num_steps);
-  printf("- num_jacob_evals: %d\n", num_jacob_evals);
-  printf("- num_rhs_evals: %d\n", num_rhs_evals);
-  printf("- last_step_size: %d\n", last_step_size);
-
   return neurox::wrappers::MemoryUnpin(target);
 }
 

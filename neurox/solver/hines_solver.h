@@ -27,7 +27,7 @@ class HinesSolver {
   static void SetupMatrixDiagonal(Branch *local);
   static void BackwardTriangulation(Branch *local);
   static void ForwardSubstituion(Branch *local);
-  static void UpdateV(Branch *local);
+  static void UpdateVoltagesWithRHS(Branch *local);
 
  private:
 };

@@ -243,11 +243,12 @@ void HinesSolver::ForwardSubstituion(Branch *branch) {
   }
 }
 
-void HinesSolver::UpdateV(Branch *branch) {
-  floble_t *rhs = branch->nt_->_actual_rhs;
+void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
+  const floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *v = branch->nt_->_actual_v;
 
-  floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
+  //Reminder: after Gaussian Elimination, RHS is dV/dt (?)
+  const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
   for (int i = 0; i < branch->nt_->end; i++)
     v[i] += second_order_multiplier * rhs[i];
 }

@@ -620,7 +620,7 @@ void Branch::BackwardEulerStep() {
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
-  solver::HinesSolver::UpdateV(this);
+  solver::HinesSolver::UpdateVoltagesWithRHS(this);
   //TODO this can be placed after the next operation
 
   //update capacitance currents based on RHS and dI/dV
