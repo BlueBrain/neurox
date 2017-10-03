@@ -19,7 +19,7 @@ const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 
 void CvodesAlgorithm::ScatterY(Branch *branch, N_Vector y) {
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->soma_->algorithm_metadata_;
+      (BranchCvodes *)branch->branch_cvodes_;
   const double *y_data = NV_DATA_S(y);
   double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
@@ -27,8 +27,8 @@ void CvodesAlgorithm::ScatterY(Branch *branch, N_Vector y) {
 }
 
 void CvodesAlgorithm::GatherY(Branch *branch, N_Vector y) {
-    BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->branch_cvodes_;
   double *y_data = NV_DATA_S(y);
   double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
@@ -36,8 +36,8 @@ void CvodesAlgorithm::GatherY(Branch *branch, N_Vector y) {
 }
 
 void CvodesAlgorithm::ScatterYdot(Branch *branch, N_Vector ydot) {
-    BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->branch_cvodes_;
   const double *ydot_data = NV_DATA_S(ydot);
   double ** dv_map = branch_cvodes->state_dv_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
@@ -45,8 +45,12 @@ void CvodesAlgorithm::ScatterYdot(Branch *branch, N_Vector ydot) {
 }
 
 void CvodesAlgorithm::GatherYdot(Branch *branch, N_Vector ydot) {
-    BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+
+  //on initialization we call RHS with ydot==NULL
+  if (ydot==nullptr) return;
+
+  BranchCvodes *branch_cvodes =
+      (BranchCvodes *)branch->branch_cvodes_;
   double *ydot_data = NV_DATA_S(ydot);
   double ** dv_map = branch_cvodes->state_dv_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
@@ -74,7 +78,7 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
   Branch *branch = (Branch*) user_data;
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->soma_->algorithm_metadata_;
+      (BranchCvodes *)branch->branch_cvodes_;
   NrnThread *nt = branch->nt_;
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
@@ -285,7 +289,8 @@ CvodesAlgorithm::BranchCvodes::~BranchCvodes() {
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
 int CvodesAlgorithm::BranchCvodes::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->branch_cvodes_);
+  assert(local->branch_cvodes_==nullptr);
+  local->branch_cvodes_ = new algorithms::CvodesAlgorithm::BranchCvodes();
   BranchCvodes *branch_cvodes =
       (BranchCvodes*) local->branch_cvodes_;
   void *&cvodes_mem = branch_cvodes->cvodes_mem_;
@@ -468,7 +473,8 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvodes_mem, kBDFMaxOrder);
 
-  // call one RHS
+  // call one RHS (cvodeobj.cpp :: Cvode::cvode_init)
+  GatherY(branch, branch_cvodes->y_);
   RHSFunction(input_params_->tstart_,
               branch_cvodes->y_,
               NULL, local);
