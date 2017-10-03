@@ -148,10 +148,13 @@ void tools::Vectorizer::CallVecFunction(
     double * vec_v =  nt->_actual_v;
     int nd_idx=-1;
 
+    const int psize=GetMechanismFromType(type)->data_size_;
+    const int ppsize=GetMechanismFromType(type)->pdata_size_;
+
     #if LAYOUT == 1 /*AoS*/
     for (int iml = 0; iml < cntml_actual; ++iml) {
-     p = ml->_data + iml*_psize;
-     ppvar = ml->pdata + iml*_ppsize;
+     p = ml->data + iml*psize;
+     ppvar = ml->pdata + iml*ppsize;
     #elif LAYOUT == 0 /*SoA*/
      p = ml->data;
      ppvar = ml->pdata;

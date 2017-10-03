@@ -1,6 +1,9 @@
 #include "neurox/algorithms/cvodes_algorithm.h"
 
 #include "cvodes/cvodes_impl.h"
+#include "cvodes/cvodes_diag.h"
+
+#include <set>
 
 using namespace neurox;
 using namespace neurox::algorithms;
@@ -17,42 +20,37 @@ const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 void CvodesAlgorithm::ScatterY(Branch *branch, N_Vector y) {
   BranchCvodes *branch_cvodes =
       (BranchCvodes *)branch->soma_->algorithm_metadata_;
-  double *y_data = NV_DATA_S(y);
-
-  const int compartments_count = branch->nt_->end;
-  memcpy(branch->nt_->_actual_v, y_data, sizeof(double) * compartments_count);
-
+  const double *y_data = NV_DATA_S(y);
   double ** var_map = branch_cvodes->state_var_map_;
-  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-    *(var_map[i]) = y_data[compartments_count+i];
+  for (int i = 0; i < branch_cvodes->equations_count_; i++)
+    *(var_map[i]) = y_data[i];
+}
+
+void CvodesAlgorithm::GatherY(Branch *branch, N_Vector y) {
+    BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  double *y_data = NV_DATA_S(y);
+  double ** var_map = branch_cvodes->state_var_map_;
+  for (int i = 0; i < branch_cvodes->equations_count_; i++)
+      y_data[i] = *(var_map[i]);
+}
+
+void CvodesAlgorithm::ScatterYdot(Branch *branch, N_Vector ydot) {
+    BranchCvodes *branch_cvodes =
+        (BranchCvodes *)branch->soma_->algorithm_metadata_;
+  const double *ydot_data = NV_DATA_S(ydot);
+  double ** dv_map = branch_cvodes->state_dv_map_;
+  for (int i = 0; i < branch_cvodes->equations_count_; i++)
+    *(dv_map[i]) = ydot_data[i];
 }
 
 void CvodesAlgorithm::GatherYdot(Branch *branch, N_Vector ydot) {
     BranchCvodes *branch_cvodes =
         (BranchCvodes *)branch->soma_->algorithm_metadata_;
   double *ydot_data = NV_DATA_S(ydot);
-
-  const int compartments_count = branch->nt_->end;
-  memcpy(ydot_data, branch->nt_->_actual_rhs,
-         sizeof(double) * compartments_count);
-
   double ** dv_map = branch_cvodes->state_dv_map_;
-  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-      ydot_data[compartments_count+i] = *(dv_map[i]);
-}
-
-void CvodesAlgorithm::ScatterYdot(Branch *branch, N_Vector ydot) {
-    BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->soma_->algorithm_metadata_;
-  double *ydot_data = NV_DATA_S(ydot);
-
-  const int compartments_count = branch->nt_->end;
-  memcpy(branch->nt_->_actual_rhs, ydot_data,
-         sizeof(double) * compartments_count);
-
-  double ** dv_map = branch_cvodes->state_dv_map_;
-  for (int i = 0; i < branch_cvodes->equations_count_ - compartments_count; i++)
-    *(dv_map[i]) = ydot_data[compartments_count+i];
+  for (int i = 0; i < branch_cvodes->equations_count_; i++)
+      ydot_data[i] = *(dv_map[i]);
 }
 
 /// g root function to compute g_i(t,y) .
@@ -71,93 +69,6 @@ int CvodesAlgorithm::RootFunction(realtype t, N_Vector y, realtype *gout,
 }
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
-/// from neuron::occvode.cpp::solvex_thread:
-int CvodesAlgorithm::RHSFunction_old(realtype t, N_Vector y, N_Vector ydot,
-                                 void *user_data) {
-  Branch *branch = (Branch*) user_data;
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->soma_->algorithm_metadata_;
-  NrnThread *nt = branch->nt_;
-  realtype *ydot_data = NV_DATA_S(ydot);
-  realtype *y_data = NV_DATA_S(y);
-
-  const double cv_gamma = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma;
-  if (cv_gamma==0) // i.e. (I - gamma * J)*x = b means x = b
-      return CV_SUCCESS;
-
-  nt->_dt = cv_gamma;
-  nt->cj = 1/nt->_dt;
-
-  // CVODE expects dy/dt = f(y) and solve (I - gamma*J)*x = b with
-  //approx to J=df/dy.
-  /* Solve mx=b or (1 + dt*jacobian)*x = b replacing b values with the x values.
-     Note that y (state values) are available for constructing the jacobian
-     (if the problem is non-linear) */
-
-  // update vars in NrnThread->data described by our CVODES state
-  //CvodesAlgorithm::ScatterY(branch, y);
-  CvodesAlgorithm::ScatterY(branch, y);
-
-  /////////   Get new RHS and D from current state ///////////
-  // Note: coreneuron computes RHS and jacobian (D) simultaneously.
-
-  // Updates internal states of continuous point processes (vecplay)
-  // e.g. stimulus. vecplay->pd points to a read-only var used by
-  // point proc mechanisms' nrn_current function
-  branch->FixedPlayContinuous(nt->_t); /// TODO not in neuron
-
-  // Sets RHS an D to zero
-  solver::HinesSolver::ResetMatrixRHSandD(branch);
-
-  // sums current I and dI/dV to parent ion, and adds contribnutions to RHS and D
-  // (in neuron is lhs()->nrn_jacob (in CN nrn_current includes jacob D-update))
-  branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
-
-  // add parent and children currents (A*dv and B*dv) to RHS
-  solver::HinesSolver::SetupMatrixRHS(branch);
-
-  // update positions holding jacobians (does nothing so far)
-  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
-
-  // call nrn_jacob_capacitance, which sums contributions to D
-  branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-
-  // backup up D (will be used for jacobian diagonal)
-  memcpy(branch_cvodes->jacob_d_, nt->_actual_d, sizeof(double) * nt->end);
-
-  //TODO!!!!
-  // In neuron this is before the previous!
-  // add parent and children currents (A and B) to D
-  solver::HinesSolver::SetupMatrixDiagonal(branch);
-
-  // Gaussian Elimination (sets dV/dt=RHS[i])
-  solver::HinesSolver::BackwardTriangulation(branch);
-  solver::HinesSolver::ForwardSubstituion(branch);
-
-  //// TODO all methods below are not in neuron!
-  // update ions currents based on RHS and dI/dV
-  second_order_cur(branch->nt_, input_params_->second_order_);
-
-  // update capacitance current based on RHS and dI/dV
-  branch->CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
-
-  // updates V: v[i] += second_order_multiplier * rhs[i]
-  solver::HinesSolver::UpdateV(branch);
-
-  //update mechanisms state (eg opening vars and derivatives)
-  //branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
-  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
-
-  // populate ydot
-  CvodesAlgorithm::GatherYdot(branch, ydot);
-
-  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = nt->_t;
-  nt->_t = t;
-  return CV_SUCCESS;
-}
-
-/// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 /// from neuron::occvode.cpp::fun_thread(...)
 int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
@@ -171,10 +82,8 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //////// occvode.cpp: fun_thread_transfer_part1 /////////
 
   const double h = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_h;
-  nt->_dt = h==0 ? 1e-8 : h;
+  nt->_dt = h==0 ? CvodesAlgorithm::kMinStepSize : h;
   nt->cj = 1/nt->_dt;
-  branch_cvodes->rhs_second_last_time_ = branch_cvodes->rhs_last_time_;
-  branch_cvodes->rhs_last_time_ = nt->_t;
   nt->_t = t;
 
   // Updates internal states of continuous point processes (vecplay)
@@ -183,15 +92,35 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //cvtrset.cpp :: CVode::fun_thread_transfer_part1()
   branch->FixedPlayContinuous(nt->_t);
 
-  //copies V and states from CVODES to NrnThread
+  //copies V and state-vars from CVODES to NrnThread
   CvodesAlgorithm::ScatterY(branch, y);
+
+  double * yy_data = NV_DATA_S(branch_cvodes->y_);
+  for (int i=0; i<NV_LENGTH_S(branch_cvodes->y_); i++)
+      if (yy_data[i]!=0)
+        fprintf(stderr, "y0[%d]=%.12f\n", i, yy_data[i]);
+
+  //start of occvode.cpp :: nocap_v
+  for (int i=0; i<branch_cvodes->no_cap_count; ++i)
+  {
+      int no_cap_id = branch_cvodes->no_cap_node[i];
+      nt->_actual_d[i] = 0;
+      nt->_actual_rhs[i] = 0;
+  }
+
+  //TODO call only on non-capacitance nodes!
+  solver::HinesSolver::ResetNoCapacitanceRHSandD(branch, branch_cvodes);
+  branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+  solver::HinesSolver::NoCapacitanceVoltage(branch, branch_cvodes);
 
   //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
 
   //cvtrset.cpp :: CVode::rhs
-  solver::HinesSolver::ResetMatrixRHS(branch);
+  solver::HinesSolver::ResetMatrixRHSandD(branch);
 
   //cvtrset.cpp :: CVode::rhs() -> rhs_memb()
+  //sum mech-instance contributions to D and RHS
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
 
   // add parent and children axial currents (A*dv and B*dv) to RHS
@@ -202,18 +131,21 @@ int CvodesAlgorithm::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> do_ode()
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
-  // divide by Cm and compute capacity current
+  // divide RHS by Cm and compute capacity current
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> nrn_div_capacity()
   branch->CallModFunction(Mechanism::ModFunctions::kDivCapacity);
 
-  //copies dV and states-derivative from NrnThread to CVODES
+  //copies dV/dt (RHS) and state-vars-derivative to CVODES
   CvodesAlgorithm::GatherYdot(branch, ydot);
+
+  printf ("RHS neuron %d, t%.10f, V=%.10f\n",
+          branch->soma_->gid_, t, *branch->thvar_ptr_);
 
   return CV_SUCCESS;
 }
 
 // jacobian routine: compute J(t,y) = df/dy
-int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
+int CvodesAlgorithm::JacobianDense(long int N, realtype t, N_Vector y,
                                       N_Vector fy, DlsMat J,
                                       void *user_data, N_Vector, N_Vector,
                                       N_Vector) {
@@ -224,13 +156,49 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
-  const int a_offset = nt->_actual_a - nt->_data;
-  const int b_offset = nt->_actual_b - nt->_data;
-  const int compartments_count = nt->end;
+  //RHS provided the righ-hand side
+  //We will now compute the LHS
+  //Newton Matrix: M = I - gamma*J
 
-  const double *a = &nt->_data[a_offset];
-  const double *b = &nt->_data[b_offset];
-  const double *d = branch_cvodes->jacob_d_;  // computed by RHS
+  //in neuron we solve Px=b with P approximates Id-gamma*J
+  //const double gamma = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma;
+  //nt->_dt = gamma;
+  //nt->cj = 1/nt->_dt;
+
+  //used in kJacobCapacitance
+  nt->_dt = 1;
+  nt->cj = 1;
+
+  // if I reset V, then nrn_current is wrong!
+  // cvtrset.cpp :: CVode:: lhs
+  // solver::HinesSolver::ResetMatrixV(branch);
+
+  //does nothing so far (called before as part of nrn_current)
+  // cvtrset.cpp :: CVode:: lhs -> lhs_memb()
+  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+
+  // D = D + cfac * .001 * _nt->cj // decay of D?
+  branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
+
+  /*
+  //add axial currents to D (d[i] -= b[i] and d[p[i]] -= a[i])
+  solver::HinesSolver::SetupMatrixDiagonal(branch);
+
+  //RHS = RHS* (.001 * nt->cj;)*cm; //decay of dV/dt
+  branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
+
+  branch->SolveTreeMatrix(); //Gaussian Elimination
+  //now we have 0A + 1D + 0B = RHS, ie dV/dt = RHS
+
+  //if mechs stiff()==2.
+  //branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  */
+  /// end of neuron occvode.cpp::solvex_thread()
+
+  const int capacitances_count = nt->end;
+  const double *a = nt->_actual_a;
+  const double *b = nt->_actual_b;
+  const double *d = nt->_actual_d;
   const int *p = nt->_v_parent_index;
 
   // Jacobian for main current equation:
@@ -238,40 +206,34 @@ int CvodesAlgorithm::JacobianFunction(long int N, realtype t, N_Vector y,
   // d(dV/dt) / dV_p   = -A          //parent compartment
   // d(dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
-  for (int n = 0; n < compartments_count; n++) {
-    // if not stepping backwards
-    if (branch_cvodes->rhs_last_time_ > branch_cvodes->rhs_second_last_time_) {
-      // assert(d[n] >= 0);
-      // positive (currents and mechs contribution, if any)
-      // or negative (exponential capacitance decay)
-      assert(a[n] <= 0 && b[n] <= 0);  // negative (resistance)
-    }
+  for (int n = 0; n < capacitances_count; n++) {
     jac[n][n] = d[n];     // D = d (dV_n/dt) /dV_n
     if (n == 0) continue;
-    jac[p[n]][n] = a[n];  // A = d (dV_p/dt) /dV_n  (rhs[p[i]]+=a[i]*dv;)
+    jac[p[n]][n] = a[n];  // A = d (dV_p/dt) /dV_n
     jac[n][p[n]] = b[n];  // B = d (dV_n/dt) /dV_p
   }
 
-  // get new derivative of mechs states (ions do not have,
-  // capacitance added already to D in nrn_jacob_capacitance)
-  // wrong: matsol does m = b/x for diagonal matrix solver
+  // Matsol  Matsol solves (1 + dt*jacobian)*x = b
+  // for direct diagonal matrix solver
   // branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
   //int compartment_id=-1;
-  int dv_offset = compartments_count;
+  int dv_offset = capacitances_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &branch->mechs_instances_[m];
-    for (int n = 0; n < mech_instances->nodecount; n++) {
-      //compartment_id = mech_instances->nodeindices[n];
+    for (int n = 0; n < mech_instances->nodecount; n++)
       for (int s = 0; s < mech->state_vars_->count_; s++) {
         //Reminder: state vars Dm represents d(dm_i/dt) / dm_j
-        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - compartments_count]);
+        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - capacitances_count]);
         dv_offset++;
       }
-
-    }
   }
+  assert(dv_offset==N);
+  printf ("Jac neuron %d, t%.10f\n", branch->soma_->gid_, t);
+  double* y_data = NV_DATA_S(y);
+  //for (int i=0; i<N; i++)
+  //    printf("t=%f\t RHS[%d] = %.10f\t Jac[%d] = %.10f\n", t, i, y_data[i], i, jac[i][i]);
 
   return CV_SUCCESS;
 }
@@ -306,21 +268,17 @@ hpx_t CvodesAlgorithm::SendSpikes(Neuron *n, double tt, double) {
 
 CvodesAlgorithm::BranchCvodes::BranchCvodes()
     : cvodes_mem_(nullptr),
+      capacitances_count_(-1),
       equations_count_(-1),
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
-      spikes_lco_(HPX_NULL),
-      rhs_last_time_(0.0)
-{
-
-}
+      spikes_lco_(HPX_NULL)
+{}
 
 CvodesAlgorithm::BranchCvodes::~BranchCvodes() {
   N_VDestroy_Serial(y_);   /* Free y vector */
   CVodeFree(&cvodes_mem_); /* Free integrator memory */
-  delete[] data_bak_;
-  delete[] jacob_d_;
 }
 
 //Neuron :: occvode.cpp :: init_global()
@@ -331,47 +289,81 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   BranchCvodes *branch_cvodes =
       (BranchCvodes*) local->soma_->algorithm_metadata_;
   void *&cvodes_mem = branch_cvodes->cvodes_mem_;
-  int &equations_count = branch_cvodes->equations_count_;
-  int compartments_count = local->nt_->end;
+  branch_cvodes->capacitances_count_ = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
 
   int flag = CV_ERR_FAILURE;
 
-  //used in all ode_matsol, nrn_state and nrn_init. Set at runtime by RHSFunction
-  local->nt_->_dt = 1.0; //this shouldnt be necessary
-
-  // calling same methods as Algorithm::FixedStepInit()
-  local->Finitialize2();
+  // some methods from Branch::Finitialize
+  local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+  local->InitVecPlayContinous();
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
 
-  // equations: voltages per compartments + mechanisms * states
-  equations_count = compartments_count;
+  // equations: capacitances + mechanisms * states
+  int & equations_count = branch_cvodes->equations_count_;
+  equations_count =  branch_cvodes->capacitances_count_;
   for (int m = 0; m < neurox::mechanisms_count_; m++)
   {
       Mechanism * mech=mechanisms_[m];
+      if (mech->type_==137 || mech->type_==139) continue; //TODO delete
       Memb_list* mech_instances = &local->mechs_instances_[m];
       equations_count += mech_instances->nodecount * mech->state_vars_->count_;
   }
 
   ///// create initial state y_0 for state array y
 
-  //set voltages first
-  floble_t *y_data = new floble_t[equations_count];
-  for (int i = 0; i < compartments_count; i++)
-      y_data[i] = nt->_actual_v[i];
+  // create map from y and dy to NrnThread->data
+  branch_cvodes->state_var_map_ = new double *[equations_count]();
+  branch_cvodes->state_dv_map_  = new double *[equations_count]();
 
-  // create map from y and dy to NrnThread->data (mech-states)
-  // and set initial values for opening variables
-  branch_cvodes->state_var_map_ =
-      new double *[equations_count - compartments_count];
-  branch_cvodes->state_dv_map_ =
-      new double *[equations_count - compartments_count];
+  int var_offset = 0;
+  Memb_list *capac_instances = &local->mechs_instances_[mechanisms_map_[CAP]];
+  std::set<int> capacitance_ids;
+  for (int c=0; c<capac_instances->nodecount; c++)
+  {
+      int compartment_id = capac_instances->nodeindices[c];
+      capacitance_ids.insert(compartment_id);
+      branch_cvodes->state_var_map_[var_offset] =
+          &(nt->_actual_v[compartment_id]);
+      branch_cvodes->state_dv_map_[var_offset] =
+          &(nt->_actual_rhs[compartment_id]);
+      var_offset++;
+  }
 
-  int state_var_count = 0;
+  /* MEM corruption
+  //based on previous RHS marks, build tree of nodes and children
+  branch_cvodes->no_cap_count = nt->end - branch_cvodes->capacitances_count_;
+  branch_cvodes->no_cap_child = new int[branch_cvodes->no_cap_count];
+  branch_cvodes->no_cap_node  = new int[branch_cvodes->no_cap_count];
+  int no_cap_offset=0;
+  int no_cap_child_count=0;
+  for (int i=0; i<nt->end; i++)
+  {
+      //if not a capacitance node
+      if (capacitance_ids.find(i)!=capacitance_ids.end())
+          branch_cvodes->no_cap_node[no_cap_offset++] = i;
+      else //build list of non-caps
+          branch_cvodes->no_cap_list.push_back(i);
+
+      //if parent is not a capacitance node
+      if (i > 0 && capacitance_ids.find(nt->_v_parent_index[i])!=capacitance_ids.end())
+          branch_cvodes->no_cap_child[no_cap_child_count++] = i;
+  }
+  branch_cvodes->no_cap_child_count = no_cap_child_count;
+  */
+
+  //build remaining map of state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
     int ml_data_offset = 0;
+
+      if (mech->type_==137 || mech->type_==139) continue; //TODO delete
+
+      fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
+             mech->type_,
+             mech_instances->nodecount, mech->state_vars_->count_,
+             var_offset);
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
         int state_var_index = mech->state_vars_->var_offsets_[s];
@@ -389,27 +381,27 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +n;
 #endif
+        //TODO this should be stored in SoA as well for LAYOUT=1 ??
         assert(state_var_offset < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         assert(state_dv_offset  < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
-        branch_cvodes->state_var_map_[state_var_count] =
+        branch_cvodes->state_var_map_[var_offset] =
             &(mech_instances->data[state_var_offset]);
-        branch_cvodes->state_dv_map_[state_var_count] =
+        branch_cvodes->state_dv_map_[var_offset] =
             &(mech_instances->data[state_dv_offset]);
-        y_data[compartments_count + state_var_count] =
-            mech_instances->data[state_var_offset];
-        state_var_count++;
+        var_offset++;
       }
     }
     ml_data_offset += Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_;
   }
-  branch_cvodes->y_ = N_VMake_Serial(equations_count, y_data);
-  assert(state_var_count == equations_count-compartments_count);
+  assert(var_offset == equations_count);
+  branch_cvodes->y_ = N_VNew_Serial(equations_count);
+  CvodesAlgorithm::GatherY(local, branch_cvodes->y_);
 
   // absolute tolerance array (low for voltages, high for mech states)
   branch_cvodes->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++)
   {
-    double tol = i<compartments_count ? kAbsToleranceVoltage : kAbsToleranceMechStates;
+    double tol = i<branch_cvodes->capacitances_count_ ? kAbsToleranceVoltage : kAbsToleranceMechStates;
     NV_Ith_S(branch_cvodes->absolute_tolerance_, i) = tol;
   }
 
@@ -417,6 +409,10 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   // be solved by CVODES, with Backward Differentiation (or Adams)
   // and Newton solver (recommended for stiff problems, see header)
   cvodes_mem = CVodeCreate(CV_BDF, CV_NEWTON);
+
+  // from cvodeobj.cpp :: cvode_init()
+  ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_gamma = 0.;
+  ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_h = 0.;
 
   // CVodeInit allocates and initializes memory for a problem
   // In Neuron RHSFn is cvodeobj.cpp :: f_lvardt
@@ -430,8 +426,6 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
   assert(flag == CV_SUCCESS);
 
   // specify user data to be used on functions as void* user_data_ptr;
-  branch_cvodes->jacob_d_ = new double[local->nt_->end];
-  branch_cvodes->data_bak_ = new double[local->nt_->_ndata];
   flag = CVodeSetUserData(cvodes_mem, local);
   assert(flag == CV_SUCCESS);
 
@@ -446,31 +440,38 @@ int CvodesAlgorithm::BranchCvodes::Init_handler() {
 // Note: direct solvers give the solution (LU-decomposition, etc)
 // Indirect solvers require iterations (eg Jacobi method)
 
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 0  // dense solver
+#if NEUROX_CVODES_JACOBIAN_SOLVER == 0  // approx diag Jac
+  //no Jacobian provided, uses an approx. diagonal Jacobian
+  flag = CVDiag(cvodes_mem);
+#elif NEUROX_CVODES_JACOBIAN_SOLVER ==1   // dense colver
   flag = CVDense(cvodes_mem, equations_count);
-  flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianFunction);
-#else  // sparse colver
+  //TODO
+  //flag = CVDlsSetDenseJacFn(cvodes_mem, CvodesAlgorithm::JacobianDense);
+#else  // sparse solver
   // Requires installation of Superlumt or KLU
   flag =
       CVSlsSetSparseJacFn(cvode_mem_, CvodesAlgorithm::JacobianSparseFunction);
   int nnz = equations_count * equations_count;
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 1
+#if NEUROX_CVODES_JACOBIAN_SOLVER == 2
   flag = CVKLU(cvode_mem, 1, equations_count, nnz);
-#else  //==2
+#else  //==3
   flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
 #endif
 #endif
 
   assert(flag == CV_SUCCESS);
 
-  // TODO
-  // CVodeSetInitStep(cvodes_mem, kMinStepSize);
-  // CVodeSetMinStep(cvodes_mem, kMinStepSize);
+  //CVodeSetInitStep(cvodes_mem, kMinStepSize);
+  CVodeSetMinStep(cvodes_mem, kMinStepSize);
   CVodeSetMaxStep(cvodes_mem,
                   CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvodes_mem, kBDFMaxOrder);
 
+  // call one RHS
+  RHSFunction(input_params_->tstart_,
+              branch_cvodes->y_,
+              NULL, local);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -520,32 +521,28 @@ int CvodesAlgorithm::BranchCvodes::Run_handler() {
         branch_cvodes->spikes_lco_ = local->soma_->SendSpikes(nt->_t);
       }
     }
-    /*
-    N_Vector estimated_local_errors =
-    N_VNewEmpty_Serial(branch_cvodes->equations_count_);
-    CVodeGetEstLocalErrors(cvodes_mem, estimated_local_errors);
-    */
   }
 
   // Final statistics output:
-  long num_steps = -1, num_jacob_evals = -1, num_rhs_evals = -1;
-  realtype last_step_size = -1;
-
+  long num_steps = -1, num_rhs_evals = -1;
   CVodeGetNumSteps(cvodes_mem, &num_steps);
-  CVodeGetLastStep(cvodes_mem, &last_step_size);
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 0
-  CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-  CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  //CVodeGetLastStep(cvodes_mem, &last_step_size);
+#if NEUROX_CVODES_JACOBIAN_SOLVER == 0 //CVdiag (no jacobian)
+  CVDiagGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  printf("- num_steps: %d, num_rhs_evals: %d\n",
+         num_steps, num_rhs_evals);
 #else
-  CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
-  CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  long num_jacob_evals = -1;
+  #if NEUROX_CVODES_JACOBIAN_SOLVER == 1
+    CVDlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVDlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  #else
+    CVSlsGetNumJacEvals(cvodes_mem, &num_jacob_evals);
+    CVSlsGetNumRhsEvals(cvodes_mem, &num_rhs_evals);
+  #endif
+  printf("- num_steps: %d,  num_jacob_evals: %d, num_rhs_evals: %d\n",
+         num_steps, num_jacob_evals, num_rhs_evals);
 #endif
-
-  printf("- num_steps: %d\n", num_steps);
-  printf("- num_jacob_evals: %d\n", num_jacob_evals);
-  printf("- num_rhs_evals: %d\n", num_rhs_evals);
-  printf("- last_step_size: %d\n", last_step_size);
-
   return neurox::wrappers::MemoryUnpin(target);
 }
 

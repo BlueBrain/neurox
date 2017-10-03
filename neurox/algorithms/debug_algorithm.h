@@ -1,14 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-/***
- * NEUROX_CVODES_JACOBIAN_SOLVER:
- * 0 for dense matrix
- * 1 for KLU sparse-matrix solver
- * 2 for SuperLMU sparse-matrix solver
- */
-#define NEUROX_CVODES_JACOBIAN_SOLVER 0
-
 using namespace neurox;
 
 namespace neurox {

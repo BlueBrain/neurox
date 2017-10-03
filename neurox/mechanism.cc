@@ -31,7 +31,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
       pnt_receive_init_(nullptr),
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
-      div_capacity_(nullptr)
+      div_capacity_(nullptr),
+      mul_capacity_(nullptr)
 {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
@@ -62,6 +63,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current_parallel = nrn_cur_parallel_capacitance;
     this->memb_func_.jacob = nrn_jacob_capacitance;
     this->div_capacity_ = nrn_div_capacity; //CVODE-specific
+    this->mul_capacity_ = nrn_mul_capacity; //CVODE-specific
   } else if (this->is_ion_)  // ion: eion.c
   {
     this->memb_func_.current = nrn_cur_ion;
@@ -204,12 +206,12 @@ void Mechanism::CallModFunction(const void *branch_ptr,
           memb_func_.alloc(memb_list->data, memb_list->pdata, type_);
         break;
       case Mechanism::ModFunctions::kCurrentCapacitance:
-        assert(type_ == CAP);
+        assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.current != NULL);
         memb_func_.current(nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kCurrent:
-        assert(type_ != CAP);
+        assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.current)  // has a current function
         {
           if (input_params_->mechs_parallelism_  // parallel execution
@@ -238,12 +240,12 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         if (memb_func_.state) memb_func_.state(nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kJacobCapacitance:
-        assert(type_ == CAP);
+        assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.jacob != NULL);
         nrn_jacob_capacitance(nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kJacob:
-        assert(type_ != CAP);
+        assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.jacob) {
           assert(0);  // No jacob function pointers yet
                       // (get_jacob_function(xxx))
@@ -286,11 +288,17 @@ void Mechanism::CallModFunction(const void *branch_ptr,
                       nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kDivCapacity: //CVODE-specific
-      if (this->ode_spec_)
-          assert(type_ == CAP);
+      if (this->div_capacity_)
+          assert(type_ == MechanismTypes::kCapacitance);
           assert(this->div_capacity_ != NULL);
           nrn_div_capacity(nrn_thread, memb_list, type_);
         break;
+    case Mechanism::ModFunctions::kMulCapacity: //CVODE-specific
+    if (this->mul_capacity_)
+        assert(type_ == MechanismTypes::kCapacitance);
+        assert(this->div_capacity_ != NULL);
+        nrn_mul_capacity(nrn_thread, memb_list, type_);
+      break;
       default:
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);

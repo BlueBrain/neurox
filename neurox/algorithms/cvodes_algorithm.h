@@ -1,9 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-// COPIED FROM cvsRoberts_dns.c (dense) and cvsRoberts_sps.c (sparse matrix)
-// NO SENSITIVITY ANALYSIS: FSA or ASA avaiable at cvsRoberts_ASA_idns.c
-
 #include <cvodes/cvodes.h>           /* prototypes for CVODE fcts., consts. */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
 #include <sundials/sundials_types.h> /* definition of type realtype */
@@ -15,6 +12,20 @@
 // For Dense Matrix resolutions
 #include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
+
+// For Approx Diagonal matrix
+#include <cvodes/cvodes_diag.h>
+
+/***
+ * NEUROX_CVODES_JACOBIAN_SOLVER:
+ * 0 for diagonal approxiamted matrix
+ * 1 for dense matrix
+ * 2 for KLU sparse-matrix solver
+ * 3 for SuperLMU sparse-matrix solver
+ */
+#define NEUROX_CVODES_JACOBIAN_SOLVER 1
+
+#include <list>
 
 using namespace neurox;
 
@@ -53,6 +64,9 @@ class CvodesAlgorithm : public Algorithm {
     /// CVODES structure
     void *cvodes_mem_;
 
+    /// number of capacitance equations in this branch
+    int capacitances_count_;
+
     /// number of equations/vars in the system of ODEs
     /// i.e. compartments * equations per compartment
     int equations_count_;
@@ -63,21 +77,20 @@ class CvodesAlgorithm : public Algorithm {
     /// HPX actions registration
     static void RegisterHpxActions();
 
-    /// VEC_D of last RHS call, before hines solver
-    double *jacob_d_;
-
     /// temporary placeholder for data
     double *data_bak_;
-
-    /// execution time of last RHS function call
-    realtype rhs_last_time_;
-    realtype rhs_second_last_time_;
 
     /// mapping of y in CVODES to NrnThread->data
     double **state_var_map_;
 
     /// mapping of y in CVODES to NrnThread->data
     double **state_dv_map_;
+
+    /// tree of no-capacitance nodes
+    int * no_cap_node;
+    int * no_cap_child;
+    int   no_cap_count;
+    int   no_cap_child_count;
 
     static hpx_action_t Init;
     static hpx_action_t Run;
@@ -93,8 +106,8 @@ class CvodesAlgorithm : public Algorithm {
   /// CVODES BDF max-order
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Mininum step size allowed
-  constexpr static double kMinStepSize = 1e-9;
+  /// CVODES Mininum step size allowed (dt=0.025)
+  constexpr static double kMinStepSize = 0; //13-6;
 
   /// CVODES Relative torelance
   constexpr static double kRelativeTolerance = 1e-3;
@@ -103,7 +116,7 @@ class CvodesAlgorithm : public Algorithm {
   constexpr static double kAbsToleranceVoltage = 1e-3;
 
   /// CVODES Absolute tolerance for mechanism states values
-  constexpr static double kAbsToleranceMechStates = 1e-2;
+  constexpr static double kAbsToleranceMechStates = 1e-3;
 
   /// Time-window size for grouping of events to be delivered
   /// simmultaneously (0 for no grouping)
@@ -111,25 +124,23 @@ class CvodesAlgorithm : public Algorithm {
 
   /// update NrnThread->data from with new y state
   static void ScatterY(Branch *branch, N_Vector y);
+  static void GatherY(Branch *branch, N_Vector y);
 
-  /// update CVODES from NrnThread->data
+  /// update ydot CVODES from NrnThread->data
   static void ScatterYdot(Branch *branch, N_Vector ydot);
-
-  /// update CVODES from NrnThread->data
   static void GatherYdot(Branch *branch, N_Vector ydot);
 
-  /// function defining the right-hand side function in y' = f(t,y).
-  static int RHSFunction_old(floble_t t, N_Vector y_, N_Vector ydot,
-                         void *user_data);
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
+
+  static void NoCapacitanceV(Branch * branch);
 
   /// g root function to compute g_i(t,y)
   static int RootFunction(realtype t, N_Vector y_, realtype *gout,
                           void *user_data);
 
-  /// jacobian: compute J(t,y)
-  static int JacobianFunction(long int N, floble_t t, N_Vector y_, N_Vector fy,
+  /// jacobian: compute J(t,y) on a dense matrix
+  static int JacobianDense(long int N, floble_t t, N_Vector y_, N_Vector fy,
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
 };

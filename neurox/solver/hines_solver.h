@@ -23,12 +23,13 @@ class HinesSolver {
                                     floble_t *threshold_v = NULL);
   static void ResetMatrixRHSandD(Branch *local);
   static void ResetMatrixV(Branch *local);
-  static void ResetMatrixRHS(Branch *local);
   static void SetupMatrixRHS(Branch *local);
   static void SetupMatrixDiagonal(Branch *local);
   static void BackwardTriangulation(Branch *local);
   static void ForwardSubstituion(Branch *local);
-  static void UpdateV(Branch *local);
+  static void UpdateVoltagesWithRHS(Branch *local);
+  static void ResetNoCapacitanceRHSandD(Branch *local, void*);
+  static void NoCapacitanceVoltage(Branch *local, void*);
 
  private:
 };
