@@ -252,3 +252,65 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
   for (int i = 0; i < branch->nt_->end; i++)
     v[i] += second_order_multiplier * rhs[i];
 }
+
+void HinesSolver::ResetNoCapacitanceRHSandD(
+        Branch *branch, void* branch_cvodes_ptr)
+{
+    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
+            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+
+    floble_t *rhs = branch->nt_->_actual_rhs;
+    floble_t *d = branch->nt_->_actual_d;
+    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    {
+        int nd = branch_cvodes->no_cap_node[i];
+        d[nd]=0;
+        rhs[nd]=0;
+    }
+}
+
+
+void HinesSolver::NoCapacitanceVoltage(
+        Branch * branch, void * branch_cvodes_ptr)
+{
+    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
+            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+
+    floble_t *rhs = branch->nt_->_actual_rhs;
+    floble_t *d = branch->nt_->_actual_d;
+    const floble_t *a = branch->nt_->_actual_a;
+    const floble_t *b = branch->nt_->_actual_b;
+    const int * p = branch->nt_->_v_parent_index;
+    floble_t *v = branch->nt_->_actual_v;
+    int nd=-1, pnd=-1;
+    int * no_cap_child = branch_cvodes->no_cap_child;
+    int * no_cap_node = branch_cvodes->no_cap_node;
+
+    //parent axial current
+    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    {
+        nd = no_cap_node[i];
+        rhs[nd] += d[nd] * v[nd];
+        if (nd>0) //has parent
+        {
+            rhs[nd] -= b[nd]*v[p[nd]];
+            d[nd] -= b[nd];
+        }
+    }
+
+    //child axial current (following from global v_parent)
+    for (int i=0; i<branch_cvodes->no_cap_child_count; i++)
+    {
+        nd = no_cap_child[i];
+        pnd = p[nd];
+        rhs[pnd] -= a[nd]*v[nd];
+        d[pnd] -= a[nd];
+    }
+
+    for (int i=0; branch_cvodes->no_cap_count; i++)
+    {
+        nd = no_cap_node[i];
+        v[nd] = rhs[nd] / d[nd];
+    }
+    // no_cap v's are now consistent with adjacent v's
+}

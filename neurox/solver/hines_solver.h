@@ -28,6 +28,8 @@ class HinesSolver {
   static void BackwardTriangulation(Branch *local);
   static void ForwardSubstituion(Branch *local);
   static void UpdateVoltagesWithRHS(Branch *local);
+  static void ResetNoCapacitanceRHSandD(Branch *local, void*);
+  static void NoCapacitanceVoltage(Branch *local, void*);
 
  private:
 };

@@ -23,7 +23,9 @@
  * 2 for KLU sparse-matrix solver
  * 3 for SuperLMU sparse-matrix solver
  */
-#define NEUROX_CVODES_JACOBIAN_SOLVER 0
+#define NEUROX_CVODES_JACOBIAN_SOLVER 1
+
+#include <list>
 
 using namespace neurox;
 
@@ -62,6 +64,9 @@ class CvodesAlgorithm : public Algorithm {
     /// CVODES structure
     void *cvodes_mem_;
 
+    /// number of capacitance equations in this branch
+    int capacitances_count_;
+
     /// number of equations/vars in the system of ODEs
     /// i.e. compartments * equations per compartment
     int equations_count_;
@@ -80,6 +85,12 @@ class CvodesAlgorithm : public Algorithm {
 
     /// mapping of y in CVODES to NrnThread->data
     double **state_dv_map_;
+
+    /// tree of no-capacitance nodes
+    int * no_cap_node;
+    int * no_cap_child;
+    int   no_cap_count;
+    int   no_cap_child_count;
 
     static hpx_action_t Init;
     static hpx_action_t Run;
@@ -113,15 +124,16 @@ class CvodesAlgorithm : public Algorithm {
 
   /// update NrnThread->data from with new y state
   static void ScatterY(Branch *branch, N_Vector y);
+  static void GatherY(Branch *branch, N_Vector y);
 
-  /// update CVODES from NrnThread->data
+  /// update ydot CVODES from NrnThread->data
   static void ScatterYdot(Branch *branch, N_Vector ydot);
-
-  /// update CVODES from NrnThread->data
   static void GatherYdot(Branch *branch, N_Vector ydot);
 
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
+
+  static void NoCapacitanceV(Branch * branch);
 
   /// g root function to compute g_i(t,y)
   static int RootFunction(realtype t, N_Vector y_, realtype *gout,
