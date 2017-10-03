@@ -7,17 +7,28 @@ namespace neurox {
 namespace algorithms {
 
 /**
- * @brief The AlgorithmIds enum
+ * @brief The Algorithms enum
  * Uniquely identifies the Id of each algorithm
  */
-enum class AlgorithmId : int {
-  kBackwardEulerDebug = 0,  // For debug only
-  kBackwardEulerAllReduce = 1,
-  kBackwardEulerSlidingTimeWindow = 2,
-  kBackwardEulerTimeDependencyLCO = 3,
-  kBackwardEulerCoreneuron = 4,
-  kCvodes = 5,
+enum class SyncAlgorithms : int {
+  kDebug = 0,  // For debug only
+  kAllReduce = 1,
+  kSlidingTimeWindow = 2,
+  kTimeDependencyLCO = 3,
+  kCoreneuronMPICollective = 4,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
+};
+
+/**
+ * @brief The CvodeJacobians enum
+ * Identifies the algorithm and jacobian used on
+ * variable step interpolations;
+ */
+enum class SteppingAlgorithms : int {
+  kNeuronSolver = 0,
+  kDenseMatrix = 1,
+  kDiagMatrix = 2,
+  kBackwardEuler = 9
 };
 
 /**
@@ -28,11 +39,11 @@ enum class AlgorithmId : int {
 class AlgorithmMetadata {
  public:
   /// Returns an instantiated metadata for the algorithm of given type
-  static AlgorithmMetadata* New(AlgorithmId);
+  static AlgorithmMetadata* New(SyncAlgorithms);
 };
 
 /**
- * @brief The Algorithm class
+ * @brief The SyncAlgorithm class
  * Virtual class describing all methods required to be implemented by all
  * different algorithms
  */
@@ -48,13 +59,13 @@ class Algorithm {
   static int GetTotalStepsCount();
 
   /// Returns an instantiated class of the given type
-  static Algorithm* New(AlgorithmId);
+  static Algorithm* New(SyncAlgorithms);
 
   /// Prints info on algorithm, data size, and steps count
   void PrintStartInfo();
 
   /// Returns class type
-  const virtual AlgorithmId GetId() = 0;
+  const virtual SyncAlgorithms GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;

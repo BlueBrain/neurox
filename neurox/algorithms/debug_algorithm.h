@@ -12,7 +12,7 @@ class DebugAlgorithm : public Algorithm {
   DebugAlgorithm();
   ~DebugAlgorithm();
 
-  const AlgorithmId GetId() override;
+  const SyncAlgorithms GetId() override;
   const char* GetString() override;
 
   void Init() override;

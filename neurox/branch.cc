@@ -518,8 +518,8 @@ hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == (input_params_->algorithm_ ==
-                           AlgorithmId::kBackwardEulerTimeDependencyLCO
+  assert(nargs == (input_params_->sync_algorithm_ ==
+                           SyncAlgorithms::kTimeDependencyLCO
                        ? 3
                        : 2));
 
@@ -658,9 +658,9 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
   assert(input_params_->allreduce_at_locality_);
-  assert(input_params_->algorithm_ ==
-             AlgorithmId::kBackwardEulerSlidingTimeWindow ||
-         input_params_->algorithm_ == AlgorithmId::kBackwardEulerAllReduce);
+  assert(input_params_->sync_algorithm_ ==
+             SyncAlgorithms::kSlidingTimeWindow ||
+         input_params_->sync_algorithm_ == SyncAlgorithms::kAllReduce);
 
   const int locality_neurons_count =
       AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_

@@ -38,7 +38,7 @@ class CvodesAlgorithm : public Algorithm {
   CvodesAlgorithm();
   ~CvodesAlgorithm();
 
-  const AlgorithmId GetId() override;
+  const SyncAlgorithms GetId() override;
   const char *GetString() override;
 
   void Init() override;
@@ -50,7 +50,7 @@ class CvodesAlgorithm : public Algorithm {
   void Run(Branch *, const void *) override;
   hpx_t SendSpikes(Neuron *, double, double) override;
 
-  class BranchCvodes : public AlgorithmMetadata {
+  class BranchCvodes {
    public:
     BranchCvodes();
     ~BranchCvodes();

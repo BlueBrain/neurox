@@ -143,6 +143,9 @@ class Branch {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
+  ///if able to do variable time-stepping
+  void * branch_cvodes_;
+
  private:
   static int Init_handler(const int, const void* [], const size_t[]);
   static int InitSoma_handler(const int, const void* [], const size_t[]);

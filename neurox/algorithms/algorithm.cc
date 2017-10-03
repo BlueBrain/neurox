@@ -3,40 +3,36 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-Algorithm* Algorithm::New(AlgorithmId type) {
+Algorithm* Algorithm::New(SyncAlgorithms type) {
   switch (type) {
-    case AlgorithmId::kBackwardEulerDebug:
+    case SyncAlgorithms::kDebug:
       return new DebugAlgorithm();
-    case AlgorithmId::kBackwardEulerCoreneuron:
+    case SyncAlgorithms::kCoreneuronMPICollective:
       return new CoreneuronAlgorithm();
-    case AlgorithmId::kBackwardEulerAllReduce:
+    case SyncAlgorithms::kAllReduce:
       return new AllreduceAlgorithm();
-    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
+    case SyncAlgorithms::kSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
-    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
+    case SyncAlgorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm();
-    case AlgorithmId::kCvodes:
-      return new CvodesAlgorithm();
     default:
       return nullptr;
   }
   return nullptr;
 };
 
-AlgorithmMetadata* AlgorithmMetadata::New(AlgorithmId type) {
+AlgorithmMetadata* AlgorithmMetadata::New(SyncAlgorithms type) {
   switch (type) {
-    case AlgorithmId::kBackwardEulerDebug:
+    case SyncAlgorithms::kDebug:
       return new DebugAlgorithm::CommunicationBarrier();
-    case AlgorithmId::kBackwardEulerCoreneuron:
+    case SyncAlgorithms::kCoreneuronMPICollective:
       return new CoreneuronAlgorithm::CommunicationBarrier();
-    case AlgorithmId::kBackwardEulerAllReduce:
+    case SyncAlgorithms::kAllReduce:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
+    case SyncAlgorithms::kSlidingTimeWindow:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
+    case SyncAlgorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm::TimeDependencies();
-    case AlgorithmId::kCvodes:
-      return new CvodesAlgorithm::BranchCvodes();
     default:
       return nullptr;
   }

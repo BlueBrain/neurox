@@ -12,7 +12,7 @@ class AllreduceAlgorithm : public Algorithm {
   AllreduceAlgorithm();
   ~AllreduceAlgorithm();
 
-  const AlgorithmId GetId() override;
+  const SyncAlgorithms GetId() override;
   const char* GetString() override;
 
   void Init() override;

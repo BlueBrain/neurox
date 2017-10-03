@@ -14,7 +14,7 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
   TimeDependencyLCOAlgorithm();
   ~TimeDependencyLCOAlgorithm();
 
-  const AlgorithmId GetId() override;
+  const SyncAlgorithms GetId() override;
   const char* GetString() override;
 
   void Init() override;

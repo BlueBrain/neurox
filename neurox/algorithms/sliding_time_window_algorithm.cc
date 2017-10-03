@@ -12,8 +12,8 @@ SlidingTimeWindowAlgorithm::SlidingTimeWindowAlgorithm() {
 
 SlidingTimeWindowAlgorithm::~SlidingTimeWindowAlgorithm() {}
 
-const AlgorithmId SlidingTimeWindowAlgorithm::GetId() {
-  return AlgorithmId::kBackwardEulerSlidingTimeWindow;
+const SyncAlgorithms SlidingTimeWindowAlgorithm::GetId() {
+  return SyncAlgorithms::kSlidingTimeWindow;
 }
 
 const char* SlidingTimeWindowAlgorithm::GetString() {

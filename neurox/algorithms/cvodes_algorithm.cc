@@ -13,7 +13,7 @@ CvodesAlgorithm::CvodesAlgorithm() {}
 
 CvodesAlgorithm::~CvodesAlgorithm() {}
 
-const AlgorithmId CvodesAlgorithm::GetId() { return AlgorithmId::kCvodes; }
+const SyncAlgorithms CvodesAlgorithm::GetId() { return SyncAlgorithms::kAllReduce; }
 
 const char *CvodesAlgorithm::GetString() { return "CVODES"; }
 
@@ -152,7 +152,7 @@ int CvodesAlgorithm::JacobianDense(long int N, realtype t, N_Vector y,
   realtype **jac = J->cols;
   Branch *branch = (Branch*) user_data;
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->soma_->algorithm_metadata_;
+      (BranchCvodes *)branch->branch_cvodes_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -285,9 +285,9 @@ CvodesAlgorithm::BranchCvodes::~BranchCvodes() {
 hpx_action_t CvodesAlgorithm::BranchCvodes::Init = 0;
 int CvodesAlgorithm::BranchCvodes::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->soma_->algorithm_metadata_);
+  assert(local->branch_cvodes_);
   BranchCvodes *branch_cvodes =
-      (BranchCvodes*) local->soma_->algorithm_metadata_;
+      (BranchCvodes*) local->branch_cvodes_;
   void *&cvodes_mem = branch_cvodes->cvodes_mem_;
   branch_cvodes->capacitances_count_ = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
@@ -480,7 +480,7 @@ int CvodesAlgorithm::BranchCvodes::Run_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)local->soma_->algorithm_metadata_;
+      (BranchCvodes *)local->branch_cvodes_;
   void *cvodes_mem = branch_cvodes->cvodes_mem_;
   NrnThread *nt = local->nt_;
 
@@ -551,7 +551,7 @@ int CvodesAlgorithm::BranchCvodes::Clear_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
   BranchCvodes *branch_cvodes =
-      (BranchCvodes *)local->soma_->algorithm_metadata_;
+      (BranchCvodes *)local->branch_cvodes_;
   branch_cvodes->~BranchCvodes();
   return neurox::wrappers::MemoryUnpin(target);
 }

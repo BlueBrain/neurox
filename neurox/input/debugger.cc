@@ -149,8 +149,8 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
   if (b->soma_ &&
-      input_params_->algorithm_ ==
-          neurox::algorithms::AlgorithmId::kBackwardEulerTimeDependencyLCO) {
+      input_params_->sync_algorithm_ ==
+          neurox::algorithms::SyncAlgorithms::kTimeDependencyLCO) {
     TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
         (TimeDependencyLCOAlgorithm::TimeDependencies *)
             b->soma_->algorithm_metadata_;
@@ -472,7 +472,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (neurox::ParallelExecution() &&
-      algorithm_->GetId() != algorithms::AlgorithmId::kBackwardEulerDebug)
+      algorithm_->GetId() != algorithms::SyncAlgorithms::kDebug)
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 
