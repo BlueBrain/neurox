@@ -101,10 +101,12 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
         fprintf(stderr, "y0[%d]=%.12f\n", i, yy_data[i]);
 
   //start of occvode.cpp :: nocap_v
-  solver::HinesSolver::ResetRHSandDNoCapacitance(branch, vardt);
-  branch->CallModFunction(Mechanism::ModFunctions::kCurrent); //rhs
-  branch->CallModFunction(Mechanism::ModFunctions::kJacob);   //lhs
-  solver::HinesSolver::SetupMatrixRHSNoCapacitance(branch, vardt);
+  solver::HinesSolver::ResetRHSandDNoCapacitors(branch, vardt);
+  branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
+                          vardt->no_cap_->memb_list_); //rhs
+  branch->CallModFunction(Mechanism::ModFunctions::kJacob,
+                          vardt->no_cap_->memb_list_); //lhs
+  solver::HinesSolver::SetupMatrixRHSNoCapacitors(branch, vardt);
 
   //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
 
@@ -246,10 +248,10 @@ VariableTimeStep::~VariableTimeStep() {
   CVodeFree(&cvodes_mem_); /* Free integrator memory */
 }
 
-VariableTimeStep::NoCapacitance* VariableTimeStep::GetNoCapacitanceInfo(const Branch * branch)
+VariableTimeStep::NoCapacitor* VariableTimeStep::GetNoCapacitorsInfo(const Branch * branch)
 {
     NrnThread * nt = branch->nt_;
-    NoCapacitance * no_cap_ = new NoCapacitance;
+    NoCapacitor * no_cap_ = new NoCapacitor;
 
     Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
 
@@ -326,7 +328,7 @@ int VariableTimeStep::Init_handler() {
       var_offset++;
   }
 
-  vardt->no_cap_ = GetNoCapacitanceInfo(local);
+  vardt->no_cap_ = GetNoCapacitorsInfo(local);
 
   //build remaining map of state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {

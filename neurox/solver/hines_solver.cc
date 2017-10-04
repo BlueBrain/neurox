@@ -253,7 +253,7 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
     v[i] += second_order_multiplier * rhs[i];
 }
 
-void HinesSolver::ResetRHSandDNoCapacitance(
+void HinesSolver::ResetRHSandDNoCapacitors(
         Branch *branch, void* vardt_ptr)
 {
     interpolators::VariableTimeStep * vardt =
@@ -269,7 +269,7 @@ void HinesSolver::ResetRHSandDNoCapacitance(
     }
 }
 
-void HinesSolver::SetupMatrixRHSNoCapacitance(
+void HinesSolver::SetupMatrixRHSNoCapacitors(
         Branch * branch, void * vardt_ptr)
 {
     const interpolators::VariableTimeStep * vardt =

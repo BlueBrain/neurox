@@ -50,7 +50,7 @@ namespace interpolators {
     double **state_dv_map_;
 
     ///> Information of no-capacitance nodes
-    struct NoCapacitance
+    struct NoCapacitor
     {
         int * node_ids_; ///> no-cap node ids
         int * child_ids_; ///> id of nodes with no-cap parents
@@ -107,7 +107,7 @@ namespace interpolators {
                               N_Vector tmp2, N_Vector tmp3);
 
   /// get information of no capacitance nodes in branch
-  static NoCapacitance* GetNoCapacitanceInfo(const Branch*);
+  static NoCapacitor* GetNoCapacitorsInfo(const Branch*);
 
   static int Init_handler();
   static int Run_handler();
