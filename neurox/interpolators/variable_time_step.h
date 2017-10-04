@@ -50,8 +50,9 @@ namespace interpolators {
     double **state_dv_map_;
 
     ///> Information of no-capacitance nodes
-    struct NoCapacitor
+    class NoCapacitor
     {
+      public:
         int * node_ids_; ///> no-cap node ids
         int * child_ids_; ///> id of nodes with no-cap parents
         int node_count_; ///> size of node_ids_

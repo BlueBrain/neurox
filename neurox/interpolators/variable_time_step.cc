@@ -101,17 +101,19 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
         fprintf(stderr, "y0[%d]=%.12f\n", i, yy_data[i]);
 
   //start of occvode.cpp :: nocap_v
-  solver::HinesSolver::ResetRHSandDNoCapacitors(branch, vardt);
+  solver::HinesSolver::ResetRHSandDNoCapacitors(
+              branch, vardt->no_cap_);
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
                           vardt->no_cap_->memb_list_); //rhs
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
                           vardt->no_cap_->memb_list_); //lhs
-  solver::HinesSolver::SetupMatrixRHSNoCapacitors(branch, vardt);
+  solver::HinesSolver::SetupMatrixRHSNoCapacitors(
+              branch, vardt->no_cap_);
 
   //////// ocvode2.cpp: fun_thread_transfer_part2 ///////
 
   //cvtrset.cpp :: CVode::rhs
-  solver::HinesSolver::ResetMatrixRHSandD(branch);
+  solver::HinesSolver::ResetMatrixRHS(branch);
 
   //cvtrset.cpp :: CVode::rhs() -> rhs_memb()
   //sum mech-instance contributions to D and RHS
@@ -261,6 +263,7 @@ VariableTimeStep::NoCapacitor* VariableTimeStep::GetNoCapacitorsInfo(const Branc
     no_cap_->child_count_=0;
     int no_cap_count=0;
 
+    //get list of all nodes that are capacitors
     std::set<int> capacitance_ids;
     for (int c=0; c<capac_instances->nodecount; c++)
     {

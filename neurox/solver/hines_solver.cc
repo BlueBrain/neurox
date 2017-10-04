@@ -6,6 +6,7 @@
 
 using namespace neurox;
 using namespace neurox::solver;
+using namespace neurox::interpolators;
 
 HinesSolver::~HinesSolver() {}
 
@@ -30,6 +31,15 @@ void HinesSolver::ResetMatrixRHSandD(Branch *branch) {
   for (int i = 0; i < n; i++) {
     rhs[i] = 0;
     d[i] = 0;
+  }
+}
+
+void HinesSolver::ResetMatrixRHS(Branch *branch) {
+  floble_t *rhs = branch->nt_->_actual_rhs;
+  const int n = branch->nt_->end;
+
+  for (int i = 0; i < n; i++) {
+    rhs[i] = 0;
   }
 }
 
@@ -254,26 +264,26 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
 }
 
 void HinesSolver::ResetRHSandDNoCapacitors(
-        Branch *branch, void* vardt_ptr)
+        Branch * branch, void * no_cap_ptr)
 {
-    interpolators::VariableTimeStep * vardt =
-            (interpolators::VariableTimeStep*) vardt_ptr;
+    VariableTimeStep::NoCapacitor * no_cap =
+            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
-    for (int i=0; i<vardt->no_cap_->node_count_; i++)
+    for (int i=0; i<no_cap->node_count_; i++)
     {
-        int nd = vardt->no_cap_->node_ids_[i];
+        int nd = no_cap->node_ids_[i];
         d[nd]=0;
         rhs[nd]=0;
     }
 }
 
 void HinesSolver::SetupMatrixRHSNoCapacitors(
-        Branch * branch, void * vardt_ptr)
+        Branch * branch, void * no_cap_ptr)
 {
-    const interpolators::VariableTimeStep * vardt =
-            (interpolators::VariableTimeStep*) vardt_ptr;
+    VariableTimeStep::NoCapacitor * no_cap =
+            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
@@ -282,11 +292,11 @@ void HinesSolver::SetupMatrixRHSNoCapacitors(
     const int * p = branch->nt_->_v_parent_index;
     floble_t *v = branch->nt_->_actual_v;
     int nd=-1, pnd=-1;
-    int * no_cap_child = vardt->no_cap_->child_ids_;
-    int * no_cap_node = vardt->no_cap_->node_ids_;
+    int * no_cap_child = no_cap->child_ids_;
+    int * no_cap_node = no_cap->node_ids_;
 
     //parent axial current
-    for (int i=0; i<vardt->no_cap_->node_count_; i++)
+    for (int i=0; i<no_cap->node_count_; i++)
     {
         nd = no_cap_node[i];
         rhs[nd] += d[nd]*v[nd];
@@ -298,7 +308,7 @@ void HinesSolver::SetupMatrixRHSNoCapacitors(
     }
 
     //child axial current (following from global v_parent)
-    for (int i=0; i<vardt->no_cap_->child_count_; i++)
+    for (int i=0; i<no_cap->child_count_; i++)
     {
         nd = no_cap_child[i];
         pnd = p[nd];
@@ -306,7 +316,7 @@ void HinesSolver::SetupMatrixRHSNoCapacitors(
         d[pnd] -= a[nd];
     }
 
-    for (int i=0; vardt->no_cap_->node_count_; i++)
+    for (int i=0; no_cap->node_count_; i++)
     {
         nd = no_cap_node[i];
         v[nd] = rhs[nd] / d[nd];
