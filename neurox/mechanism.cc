@@ -165,6 +165,7 @@ Mechanism::~Mechanism() {
 
 void Mechanism::CallModFunction(const void *branch_ptr,
                                 const Mechanism::ModFunctions function_id,
+                                Memb_list *other_ml, //other Memb_list (if any)
                                 const NetconX *netcon,  // for net_receive only
                                 const floble_t tt       // for net_receive only
                                 ) {
@@ -178,7 +179,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     assert(function_id != Mechanism::ModFunctions::kNetReceiveInit);  // N/A yet
     assert(this->pnt_receive_);
 
-    Memb_list *memb_list =
+    Memb_list *memb_list = other_ml ? other_ml :
         &branch->mechs_instances_[mechanisms_map_[netcon->mech_type_]];
     assert(memb_list);
     int iml = netcon->mech_instance_;
@@ -188,7 +189,7 @@ void Mechanism::CallModFunction(const void *branch_ptr,
     return;
   }
 
-  Memb_list *memb_list =
+    Memb_list *memb_list = other_ml ? other_ml :
       &branch->mechs_instances_[mechanisms_map_[this->type_]];
   assert(memb_list);
   if (memb_list->nodecount > 0) switch (function_id) {

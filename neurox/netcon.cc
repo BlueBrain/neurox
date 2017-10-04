@@ -21,6 +21,6 @@ NetconX::~NetconX() {}
 void NetconX::Deliver(floble_t tt, Branch* branch) {
   if (this->active_)
     GetMechanismFromType(mech_type_)
-        ->CallModFunction(branch, Mechanism::ModFunctions::kNetReceive, this,
-                          tt);
+        ->CallModFunction(branch, Mechanism::ModFunctions::kNetReceive,
+                          nullptr /*Memb_list (if any)*/, this, tt);
 }

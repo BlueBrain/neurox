@@ -129,9 +129,12 @@ class Branch {
   static hpx_action_t BackwardEulerOnLocality;
   static hpx_action_t ThreadTableCheck;
 
-  void CallModFunction(const Mechanism::ModFunctions functionId);
-  void
-  InitVecPlayContinous();  ///> start NetEvents and PlayVect on events queue
+  void CallModFunction(const Mechanism::ModFunctions functionId,
+                       Memb_list *other_ml = nullptr);
+
+  /// start NetEvents and PlayVect on events queue
+  void InitVecPlayContinous();
+
   void AddEventToQueue(floble_t t, Event* e);
   void DeliverEvents(floble_t t);
   void FixedPlayContinuous(double);
@@ -144,7 +147,7 @@ class Branch {
   static void RegisterHpxActions();  ///> Register all HPX actions
 
   ///if able to do variable time-stepping
-  void * branch_cvodes_;
+  void * vardt_;
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);

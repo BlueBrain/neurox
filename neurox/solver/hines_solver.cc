@@ -253,28 +253,27 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
     v[i] += second_order_multiplier * rhs[i];
 }
 
-void HinesSolver::ResetNoCapacitanceRHSandD(
-        Branch *branch, void* branch_cvodes_ptr)
+void HinesSolver::ResetRHSandDNoCapacitance(
+        Branch *branch, void* vardt_ptr)
 {
-    interpolators::VariableTimeStep * branch_cvodes =
-            (interpolators::VariableTimeStep*) branch_cvodes_ptr;
+    interpolators::VariableTimeStep * vardt =
+            (interpolators::VariableTimeStep*) vardt_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
-    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    for (int i=0; i<vardt->no_cap_->node_count_; i++)
     {
-        int nd = branch_cvodes->no_cap_node[i];
+        int nd = vardt->no_cap_->node_ids_[i];
         d[nd]=0;
         rhs[nd]=0;
     }
 }
 
-
-void HinesSolver::NoCapacitanceVoltage(
-        Branch * branch, void * branch_cvodes_ptr)
+void HinesSolver::SetupMatrixRHSNoCapacitance(
+        Branch * branch, void * vardt_ptr)
 {
-    interpolators::VariableTimeStep * branch_cvodes =
-            (interpolators::VariableTimeStep*) branch_cvodes_ptr;
+    const interpolators::VariableTimeStep * vardt =
+            (interpolators::VariableTimeStep*) vardt_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
@@ -283,14 +282,14 @@ void HinesSolver::NoCapacitanceVoltage(
     const int * p = branch->nt_->_v_parent_index;
     floble_t *v = branch->nt_->_actual_v;
     int nd=-1, pnd=-1;
-    int * no_cap_child = branch_cvodes->no_cap_child;
-    int * no_cap_node = branch_cvodes->no_cap_node;
+    int * no_cap_child = vardt->no_cap_->child_ids_;
+    int * no_cap_node = vardt->no_cap_->node_ids_;
 
     //parent axial current
-    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    for (int i=0; i<vardt->no_cap_->node_count_; i++)
     {
         nd = no_cap_node[i];
-        rhs[nd] += d[nd] * v[nd];
+        rhs[nd] += d[nd]*v[nd];
         if (nd>0) //has parent
         {
             rhs[nd] -= b[nd]*v[p[nd]];
@@ -299,7 +298,7 @@ void HinesSolver::NoCapacitanceVoltage(
     }
 
     //child axial current (following from global v_parent)
-    for (int i=0; i<branch_cvodes->no_cap_child_count; i++)
+    for (int i=0; i<vardt->no_cap_->child_count_; i++)
     {
         nd = no_cap_child[i];
         pnd = p[nd];
@@ -307,10 +306,10 @@ void HinesSolver::NoCapacitanceVoltage(
         d[pnd] -= a[nd];
     }
 
-    for (int i=0; branch_cvodes->no_cap_count; i++)
+    for (int i=0; vardt->no_cap_->node_count_; i++)
     {
         nd = no_cap_node[i];
         v[nd] = rhs[nd] / d[nd];
     }
-    // no_cap v's are now consistent with adjacent v's
+    // no_cap voltages are now consistent with adjacent voltages
 }

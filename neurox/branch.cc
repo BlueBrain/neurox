@@ -33,6 +33,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
+      vardt_(nullptr),
       events_queue_mutex_(HPX_NULL) {
   this->nt_ = (NrnThread *)malloc(sizeof(NrnThread));
   NrnThread *nt = this->nt_;
@@ -476,7 +477,9 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
 }
 
-void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
+void Branch::CallModFunction(
+        const Mechanism::ModFunctions function_id,
+        Memb_list * memb_list) {
   if (function_id < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
@@ -484,7 +487,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
       function_id == Mechanism::ModFunctions::kJacobCapacitance ||
       function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
-    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id);
+    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(
+                this, function_id, memb_list);
   }
   // for all others except capacitance (mechanisms graph)
   else {
@@ -507,7 +511,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
           continue;
-        mechanisms_[m]->CallModFunction(this, function_id);
+        mechanisms_[m]->CallModFunction(
+                    this, function_id, memb_list);
       }
     }
   }
