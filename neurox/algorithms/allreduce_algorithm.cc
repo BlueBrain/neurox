@@ -12,8 +12,8 @@ AllreduceAlgorithm::AllreduceAlgorithm() {
 
 AllreduceAlgorithm::~AllreduceAlgorithm() {}
 
-const SyncAlgorithms AllreduceAlgorithm::GetId() {
-  return SyncAlgorithms::kAllReduce;
+const Algorithms AllreduceAlgorithm::GetId() {
+  return Algorithms::kAllReduce;
 }
 
 const char* AllreduceAlgorithm::GetString() { return "BackwardEulerAllReduce"; }

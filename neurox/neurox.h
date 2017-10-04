@@ -33,6 +33,7 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Algorithms
 #include "neurox/algorithms/algorithm.h"
+#include "neurox/branch_cvodes.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"
@@ -63,7 +64,7 @@ extern int *mechanisms_map_;
 /// Parameters parsed from command line
 extern tools::CmdLineParser *input_params_;
 
-/// algorithm instance
+/// neurons synchronization algorithm instance
 extern algorithms::Algorithm *algorithm_;
 
 /// returns mechanism of type 'type'

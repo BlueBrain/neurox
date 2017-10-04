@@ -256,8 +256,8 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
 void HinesSolver::ResetNoCapacitanceRHSandD(
         Branch *branch, void* branch_cvodes_ptr)
 {
-    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
-            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+    BranchCvodes * branch_cvodes =
+            (BranchCvodes*) branch_cvodes_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
@@ -273,8 +273,8 @@ void HinesSolver::ResetNoCapacitanceRHSandD(
 void HinesSolver::NoCapacitanceVoltage(
         Branch * branch, void * branch_cvodes_ptr)
 {
-    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
-            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+    BranchCvodes * branch_cvodes =
+            (BranchCvodes*) branch_cvodes_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;

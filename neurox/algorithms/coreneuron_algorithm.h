@@ -12,7 +12,7 @@ class CoreneuronAlgorithm : public Algorithm {
   CoreneuronAlgorithm();
   ~CoreneuronAlgorithm();
 
-  const SyncAlgorithms GetId() override;
+  const Algorithms GetId() override;
   const char* GetString() override;
 
   void Init() override;

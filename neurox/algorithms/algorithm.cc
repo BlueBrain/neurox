@@ -3,17 +3,17 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-Algorithm* Algorithm::New(SyncAlgorithms type) {
+Algorithm* Algorithm::New(Algorithms type) {
   switch (type) {
-    case SyncAlgorithms::kDebug:
+    case Algorithms::kDebug:
       return new DebugAlgorithm();
-    case SyncAlgorithms::kCoreneuronMPICollective:
+    case Algorithms::kCoreneuron:
       return new CoreneuronAlgorithm();
-    case SyncAlgorithms::kAllReduce:
+    case Algorithms::kAllReduce:
       return new AllreduceAlgorithm();
-    case SyncAlgorithms::kSlidingTimeWindow:
+    case Algorithms::kSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
-    case SyncAlgorithms::kTimeDependencyLCO:
+    case Algorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm();
     default:
       return nullptr;
@@ -21,17 +21,17 @@ Algorithm* Algorithm::New(SyncAlgorithms type) {
   return nullptr;
 };
 
-AlgorithmMetadata* AlgorithmMetadata::New(SyncAlgorithms type) {
+AlgorithmMetadata* AlgorithmMetadata::New(Algorithms type) {
   switch (type) {
-    case SyncAlgorithms::kDebug:
+    case Algorithms::kDebug:
       return new DebugAlgorithm::CommunicationBarrier();
-    case SyncAlgorithms::kCoreneuronMPICollective:
+    case Algorithms::kCoreneuron:
       return new CoreneuronAlgorithm::CommunicationBarrier();
-    case SyncAlgorithms::kAllReduce:
+    case Algorithms::kAllReduce:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case SyncAlgorithms::kSlidingTimeWindow:
+    case Algorithms::kSlidingTimeWindow:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case SyncAlgorithms::kTimeDependencyLCO:
+    case Algorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm::TimeDependencies();
     default:
       return nullptr;

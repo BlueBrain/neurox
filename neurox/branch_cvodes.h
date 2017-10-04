@@ -31,25 +31,6 @@ using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
-
-class CvodesAlgorithm : public Algorithm {
- public:
-  CvodesAlgorithm();
-  ~CvodesAlgorithm();
-
-  const SyncAlgorithms GetId() override;
-  const char *GetString() override;
-
-  void Init() override;
-  void Clear() override;
-  double Launch() override;
-
-  void StepBegin(Branch *) override;
-  void StepEnd(Branch *, hpx_t) override;
-  void Run(Branch *, const void *) override;
-  hpx_t SendSpikes(Neuron *, double, double) override;
-
   class BranchCvodes {
    public:
     BranchCvodes();
@@ -100,9 +81,7 @@ class CvodesAlgorithm : public Algorithm {
     static int Init_handler();
     static int Run_handler();
     static int Clear_handler();
-  };
 
- private:
   /// CVODES BDF max-order
   const static int kBDFMaxOrder = 5;
 
@@ -144,7 +123,5 @@ class CvodesAlgorithm : public Algorithm {
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
 };
-
-};  // algorithm
 
 };  // neurox

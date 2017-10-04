@@ -16,8 +16,8 @@ DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const SyncAlgorithms DebugAlgorithm::GetId() {
-  return SyncAlgorithms::kDebug;
+const Algorithms DebugAlgorithm::GetId() {
+  return Algorithms::kDebug;
 }
 
 const char* DebugAlgorithm::GetString() {

@@ -10,24 +10,25 @@ namespace algorithms {
  * @brief The Algorithms enum
  * Uniquely identifies the Id of each algorithm
  */
-enum class SyncAlgorithms : int {
+enum class Algorithms : int {
   kDebug = 0,  // For debug only
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
   kTimeDependencyLCO = 3,
-  kCoreneuronMPICollective = 4,
+  kCoreneuron = 4,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 
 /**
- * @brief The CvodeJacobians enum
+ * @brief The Interpolators enum
  * Identifies the algorithm and jacobian used on
- * variable step interpolations;
+ * fixed or variable step interpolations;
  */
-enum class SteppingAlgorithms : int {
-  kNeuronSolver = 0,
-  kDenseMatrix = 1,
-  kDiagMatrix = 2,
+enum class Interpolators: int {
+  kCvodesNeuronSolver = 0,
+  kCvodesDenseMatrix = 1,
+  kCvodesDiagMatrix = 2,
+  kCvodesSparseMatrix = 3,
   kBackwardEuler = 9
 };
 
@@ -39,7 +40,7 @@ enum class SteppingAlgorithms : int {
 class AlgorithmMetadata {
  public:
   /// Returns an instantiated metadata for the algorithm of given type
-  static AlgorithmMetadata* New(SyncAlgorithms);
+  static AlgorithmMetadata* New(Algorithms);
 };
 
 /**
@@ -59,13 +60,13 @@ class Algorithm {
   static int GetTotalStepsCount();
 
   /// Returns an instantiated class of the given type
-  static Algorithm* New(SyncAlgorithms);
+  static Algorithm* New(Algorithms);
 
   /// Prints info on algorithm, data size, and steps count
   void PrintStartInfo();
 
   /// Returns class type
-  const virtual SyncAlgorithms GetId() = 0;
+  const virtual Algorithms GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;
@@ -103,7 +104,6 @@ class Algorithm {
 // TODO can we move this somewhere else?
 #include "neurox/algorithms/allreduce_algorithm.h"
 #include "neurox/algorithms/coreneuron_algorithm.h"
-#include "neurox/algorithms/cvodes_algorithm.h"
 #include "neurox/algorithms/debug_algorithm.h"
 #include "neurox/algorithms/sliding_time_window_algorithm.h"
 #include "neurox/algorithms/time_dependency_lco_algorithm.h"

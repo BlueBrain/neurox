@@ -41,6 +41,9 @@ static int Main_handler() {
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
+  if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
+      neurox::wrappers::CallAllNeurons(BranchCvodes::Init);
+
   if (neurox::input_params_->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
     tools::Statistics::OutputSimulationSize();
@@ -51,10 +54,10 @@ static int Main_handler() {
   neurox::input::Debugger::CompareAllBranches();
 
   double total_time_elapsed = 0;
-  if (input_params_->sync_algorithm_ == SyncAlgorithms::kBenchmarkAll) {
+  if (input_params_->algorithm_ == Algorithms::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
-      algorithm_ = Algorithm::New((SyncAlgorithms)type);
+      algorithm_ = Algorithm::New((Algorithms)type);
       algorithm_->Init();
       algorithm_->PrintStartInfo();
       double time_elapsed = algorithm_->Launch();
@@ -67,7 +70,7 @@ static int Main_handler() {
       printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n",
              neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
              neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-             input_params_->tstop_, algorithm_->GetType(),
+             input_params_->tstop_, sync_algorithm_->GetType(),
              input_params_->mechs_parallelism_ ? 1 : 0,
              input_params_->branch_parallelism_depth_,
              input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
@@ -75,7 +78,7 @@ static int Main_handler() {
 #endif
     }
   } else {
-    algorithm_ = Algorithm::New(input_params_->sync_algorithm_);
+    algorithm_ = Algorithm::New(input_params_->algorithm_);
     algorithm_->Init();
     algorithm_->PrintStartInfo();
     total_time_elapsed = algorithm_->Launch();
@@ -88,6 +91,9 @@ static int Main_handler() {
       "secs).\n",
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
       total_time_elapsed);
+
+  if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
+      neurox::wrappers::CallAllNeurons(BranchCvodes::Clear);
 
   neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);

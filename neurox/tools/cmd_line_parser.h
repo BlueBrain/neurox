@@ -5,8 +5,8 @@ namespace neurox {
 
 // Forward declarations
 namespace algorithms {
-enum class SyncAlgorithms : int;
-enum class SteppingAlgorithms : int;
+enum class Algorithms : int;
+enum class Interpolators : int;
 
 class Algorithm;
 }
@@ -57,10 +57,10 @@ class CmdLineParser {
   int branch_parallelism_depth_;
 
   /// neurons sychronization algorithm
-  algorithms::SyncAlgorithms sync_algorithm_;
+  algorithms::Algorithms algorithm_;
 
   /// interpolation agorithm
-  algorithms::SteppingAlgorithms step_algorithm_;
+  algorithms::Interpolators interpolator_;
 
  private:
   /// Parses command line arguments and populates structure
