@@ -42,9 +42,6 @@ static int Main_handler() {
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
-  if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
-
   if (neurox::input_params_->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
     tools::Statistics::OutputSimulationSize();
@@ -78,7 +75,15 @@ static int Main_handler() {
       fflush(stdout);
 #endif
     }
-  } else {
+  } else
+  if (input_params_->interpolator_ != Interpolators::kBackwardEuler)
+  {
+      //TODO temp hack, at some point interpolators will include Back-Euler and CVODE
+      neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
+      neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
+      neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
+  }
+  {
     algorithm_ = Algorithm::New(input_params_->algorithm_);
     algorithm_->Init();
     algorithm_->PrintStartInfo();
@@ -93,10 +98,6 @@ static int Main_handler() {
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
       total_time_elapsed);
 
-  if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
-
-  neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);
 }

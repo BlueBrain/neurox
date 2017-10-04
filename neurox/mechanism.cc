@@ -89,7 +89,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
   }
 
   //CVODES-specific
-  if (input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
+  if (input_params_->interpolator_ != interpolators::Interpolators::kBackwardEuler)
   {
     this->state_vars_ = new StateVars();
     if (!this->is_ion_ && this->type_!=MechanismTypes::kCapacitance)

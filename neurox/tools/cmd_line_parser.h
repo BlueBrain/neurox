@@ -5,10 +5,12 @@ namespace neurox {
 
 // Forward declarations
 namespace algorithms {
-enum class Algorithms : int;
-enum class Interpolators : int;
+  enum class Algorithms : int;
+  class Algorithm;
+}
 
-class Algorithm;
+namespace interpolators {
+  enum class Interpolators : int;
 }
 
 namespace tools {
@@ -60,7 +62,7 @@ class CmdLineParser {
   algorithms::Algorithms algorithm_;
 
   /// interpolation agorithm
-  algorithms::Interpolators interpolator_;
+  interpolators::Interpolators interpolator_;
 
  private:
   /// Parses command line arguments and populates structure

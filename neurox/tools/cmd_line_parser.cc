@@ -83,7 +83,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                     [2] CVODES with Diagonal Jacobian\
                                     [3] CVODES with Sparse Jacobian\
                                     [9] Backward Euler (default)",
-                                   false, (int) algorithms::Interpolators::kBackwardEuler, "int");
+                                   false, (int) interpolators::Interpolators::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
     cmd.add(algorithm);
@@ -164,8 +164,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->algorithm_ = (algorithms::Algorithms)algorithm.getValue();
-    this->interpolator_ = (algorithms::Interpolators) interpolator.getValue();
     neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
+    this->interpolator_ = (interpolators::Interpolators) interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
@@ -199,7 +199,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
           "tstop");
 
     if (this->branch_parallelism_depth_ > 0 &&
-        this->interpolator_ != algorithms::Interpolators::kBackwardEuler)
+        this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 

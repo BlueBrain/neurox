@@ -20,19 +20,6 @@ enum class Algorithms : int {
 };
 
 /**
- * @brief The Interpolators enum
- * Identifies the algorithm and jacobian used on
- * fixed or variable step interpolations;
- */
-enum class Interpolators: int {
-  kCvodesNeuronSolver = 0,
-  kCvodesDenseMatrix = 1,
-  kCvodesDiagMatrix = 2,
-  kCvodesSparseMatrix = 3,
-  kBackwardEuler = 9
-};
-
-/**
  * @brief The AlgorithmMetadata class
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
