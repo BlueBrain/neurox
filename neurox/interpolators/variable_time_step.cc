@@ -418,25 +418,33 @@ int VariableTimeStep::Init_handler() {
 // Note: direct solvers give the solution (LU-decomposition, etc)
 // Indirect solvers require iterations (eg Jacobi method)
 
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 0  // approx diag Jac
-  //no Jacobian provided, uses an approx. diagonal Jacobian
-  flag = CVDiag(cvodes_mem);
-#elif NEUROX_CVODES_JACOBIAN_SOLVER ==1   // dense colver
-  flag = CVDense(cvodes_mem, equations_count);
-  //TODO
-  //flag = CVDlsSetDenseJacFn(cvodes_mem, BranchCvodes::JacobianDense);
-#else  // sparse solver
-  // Requires installation of Superlumt or KLU
-  flag =
-      CVSlsSetSparseJacFn(cvode_mem_, BranchCvodes::JacobianSparseFunction);
-  int nnz = equations_count * equations_count;
-#if NEUROX_CVODES_JACOBIAN_SOLVER == 2
-  flag = CVKLU(cvode_mem, 1, equations_count, nnz);
-#else  //==3
-  flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
-#endif
-#endif
+switch (input_params_->interpolator_)
+{
+  case Interpolators::kCvodesDiagMatrix:
+    flag = CVDiag(cvodes_mem);
+    break;
+  case Interpolators::kCvodesDenseMatrix:
+    flag = CVDense(cvodes_mem, equations_count);
+    break;
+  case Interpolators::kCvodesNeuronSolver:
+    //TODO
+    assert(0);
+    break;
+  case Interpolators::kCvodesSparseMatrix:
+    //TODO
+    assert(0);
 
+    // Requires installation of Superlumt or KLU
+    //flag = CVSlsSetSparseJacFn(cvodes_mem, nullptr);
+    //int nnz = equations_count * equations_count;
+    //flag = CVKLU(cvode_mem, 1, equations_count, nnz);
+    //flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
+
+    // or a dense matrix with a sparse values
+    flag = CVDense(cvodes_mem, equations_count);
+    flag = CVDlsSetDenseJacFn(cvodes_mem, VariableTimeStep::JacobianDense);
+    break;
+}
   assert(flag == CV_SUCCESS);
 
   //CVodeSetInitStep(cvodes_mem, kMinStepSize);
