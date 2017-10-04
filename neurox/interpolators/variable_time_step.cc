@@ -1,4 +1,4 @@
-#include "neurox/branch_cvodes.h"
+#include "neurox/interpolators/variable_time_step.h"
 
 #include "cvodes/cvodes_impl.h"
 #include "cvodes/cvodes_diag.h"
@@ -6,43 +6,43 @@
 #include <set>
 
 using namespace neurox;
-using namespace neurox::algorithms;
+using namespace neurox::interpolators;
 using namespace neurox::tools;
 
-void BranchCvodes::ScatterY(Branch *branch, N_Vector y) {
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->branch_cvodes_;
+void VariableTimeStep::ScatterY(Branch *branch, N_Vector y) {
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)branch->branch_cvodes_;
   const double *y_data = NV_DATA_S(y);
   double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
     *(var_map[i]) = y_data[i];
 }
 
-void BranchCvodes::GatherY(Branch *branch, N_Vector y) {
-  BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->branch_cvodes_;
+void VariableTimeStep::GatherY(Branch *branch, N_Vector y) {
+  VariableTimeStep *branch_cvodes =
+        (VariableTimeStep *)branch->branch_cvodes_;
   double *y_data = NV_DATA_S(y);
   double ** var_map = branch_cvodes->state_var_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
       y_data[i] = *(var_map[i]);
 }
 
-void BranchCvodes::ScatterYdot(Branch *branch, N_Vector ydot) {
-  BranchCvodes *branch_cvodes =
-        (BranchCvodes *)branch->branch_cvodes_;
+void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
+  VariableTimeStep *branch_cvodes =
+        (VariableTimeStep *)branch->branch_cvodes_;
   const double *ydot_data = NV_DATA_S(ydot);
   double ** dv_map = branch_cvodes->state_dv_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
     *(dv_map[i]) = ydot_data[i];
 }
 
-void BranchCvodes::GatherYdot(Branch *branch, N_Vector ydot) {
+void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
 
   //on initialization we call RHS with ydot==NULL
   if (ydot==nullptr) return;
 
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->branch_cvodes_;
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)branch->branch_cvodes_;
   double *ydot_data = NV_DATA_S(ydot);
   double ** dv_map = branch_cvodes->state_dv_map_;
   for (int i = 0; i < branch_cvodes->equations_count_; i++)
@@ -50,7 +50,7 @@ void BranchCvodes::GatherYdot(Branch *branch, N_Vector ydot) {
 }
 
 /// g root function to compute g_i(t,y) .
-int BranchCvodes::RootFunction(realtype t, N_Vector y, realtype *gout,
+int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
                                   void *user_data) {
   Branch *branch = (Branch*)user_data;
 
@@ -66,11 +66,11 @@ int BranchCvodes::RootFunction(realtype t, N_Vector y, realtype *gout,
 
 /// f routine to compute ydot=f(t,y), i.e. compute new values of nt->data
 /// from neuron::occvode.cpp::fun_thread(...)
-int BranchCvodes::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
+int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                  void *user_data) {
   Branch *branch = (Branch*) user_data;
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->branch_cvodes_;
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)branch->branch_cvodes_;
   NrnThread *nt = branch->nt_;
   realtype *ydot_data = NV_DATA_S(ydot);
   realtype *y_data = NV_DATA_S(y);
@@ -78,7 +78,7 @@ int BranchCvodes::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //////// occvode.cpp: fun_thread_transfer_part1 /////////
 
   const double h = ((CVodeMem)branch_cvodes->cvodes_mem_)->cv_h;
-  nt->_dt = h==0 ? BranchCvodes::kMinStepSize : h;
+  nt->_dt = h==0 ? VariableTimeStep::kMinStepSize : h;
   nt->cj = 1/nt->_dt;
   nt->_t = t;
 
@@ -89,7 +89,7 @@ int BranchCvodes::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch->FixedPlayContinuous(nt->_t);
 
   //copies V and state-vars from CVODES to NrnThread
-  BranchCvodes::ScatterY(branch, y);
+  VariableTimeStep::ScatterY(branch, y);
 
   double * yy_data = NV_DATA_S(branch_cvodes->y_);
   for (int i=0; i<NV_LENGTH_S(branch_cvodes->y_); i++)
@@ -132,7 +132,7 @@ int BranchCvodes::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch->CallModFunction(Mechanism::ModFunctions::kDivCapacity);
 
   //copies dV/dt (RHS) and state-vars-derivative to CVODES
-  BranchCvodes::GatherYdot(branch, ydot);
+  VariableTimeStep::GatherYdot(branch, ydot);
 
   printf ("RHS neuron %d, t%.10f, V=%.10f\n",
           branch->soma_->gid_, t, *branch->thvar_ptr_);
@@ -141,14 +141,14 @@ int BranchCvodes::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 }
 
 // jacobian routine: compute J(t,y) = df/dy
-int BranchCvodes::JacobianDense(long int N, realtype t, N_Vector y,
+int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
                                       N_Vector fy, DlsMat J,
                                       void *user_data, N_Vector, N_Vector,
                                       N_Vector) {
   realtype **jac = J->cols;
   Branch *branch = (Branch*) user_data;
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)branch->branch_cvodes_;
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)branch->branch_cvodes_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -236,7 +236,7 @@ int BranchCvodes::JacobianDense(long int N, realtype t, N_Vector y,
 
 //////////////////////////// BranchCvodes /////////////////////////
 
-BranchCvodes::BranchCvodes()
+VariableTimeStep::VariableTimeStep()
     : cvodes_mem_(nullptr),
       capacitances_count_(-1),
       equations_count_(-1),
@@ -246,19 +246,19 @@ BranchCvodes::BranchCvodes()
       spikes_lco_(HPX_NULL)
 {}
 
-BranchCvodes::~BranchCvodes() {
+VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);   /* Free y vector */
   CVodeFree(&cvodes_mem_); /* Free integrator memory */
 }
 
 //Neuron :: occvode.cpp :: init_global()
-hpx_action_t BranchCvodes::Init = 0;
-int BranchCvodes::Init_handler() {
+hpx_action_t VariableTimeStep::Init = 0;
+int VariableTimeStep::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->branch_cvodes_==nullptr);
-  local->branch_cvodes_ = new BranchCvodes();
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes*) local->branch_cvodes_;
+  local->branch_cvodes_ = new VariableTimeStep();
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep*) local->branch_cvodes_;
   void *&cvodes_mem = branch_cvodes->cvodes_mem_;
   branch_cvodes->capacitances_count_ = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
@@ -373,7 +373,7 @@ int BranchCvodes::Init_handler() {
   }
   assert(var_offset == equations_count);
   branch_cvodes->y_ = N_VNew_Serial(equations_count);
-  BranchCvodes::GatherY(local, branch_cvodes->y_);
+  VariableTimeStep::GatherY(local, branch_cvodes->y_);
 
   // absolute tolerance array (low for voltages, high for mech states)
   branch_cvodes->absolute_tolerance_ = N_VNew_Serial(equations_count);
@@ -395,7 +395,7 @@ int BranchCvodes::Init_handler() {
   // CVodeInit allocates and initializes memory for a problem
   // In Neuron RHSFn is cvodeobj.cpp :: f_lvardt
   double t0 = input_params_->tstart_;
-  flag = CVodeInit(cvodes_mem, BranchCvodes::RHSFunction, t0, branch_cvodes->y_);
+  flag = CVodeInit(cvodes_mem, VariableTimeStep::RHSFunction, t0, branch_cvodes->y_);
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
@@ -409,7 +409,7 @@ int BranchCvodes::Init_handler() {
 
   // specify g as root function and roots
   int roots_direction[1] = {1};  // AP threshold reached for increasing voltage
-  flag = CVodeRootInit(cvodes_mem, 1, BranchCvodes::RootFunction);
+  flag = CVodeRootInit(cvodes_mem, 1, VariableTimeStep::RootFunction);
   CVodeSetRootDirection(cvodes_mem, roots_direction);
   assert(flag == CV_SUCCESS);
 
@@ -442,19 +442,19 @@ int BranchCvodes::Init_handler() {
   //CVodeSetInitStep(cvodes_mem, kMinStepSize);
   CVodeSetMinStep(cvodes_mem, kMinStepSize);
   CVodeSetMaxStep(cvodes_mem,
-                  CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
+                  algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
   CVodeSetStopTime(cvodes_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvodes_mem, kBDFMaxOrder);
 
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t BranchCvodes::Run = 0;
-int BranchCvodes::Run_handler() {
+hpx_action_t VariableTimeStep::Run = 0;
+int VariableTimeStep::Run_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)local->branch_cvodes_;
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)local->branch_cvodes_;
   void *cvodes_mem = branch_cvodes->cvodes_mem_;
   NrnThread *nt = local->nt_;
 
@@ -464,7 +464,7 @@ int BranchCvodes::Run_handler() {
 
   while (nt->_t < input_params_->tstop_) {
     // delivers all events whithin the next delivery-time-window
-    local->DeliverEvents(nt->_t + BranchCvodes::kEventsDeliveryTimeWindow);
+    local->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
 
     // get tout as time of next undelivered event (if any)
     hpx_lco_sema_p(local->events_queue_mutex_);
@@ -520,21 +520,21 @@ int BranchCvodes::Run_handler() {
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t BranchCvodes::Clear = 0;
-int BranchCvodes::Clear_handler() {
+hpx_action_t VariableTimeStep::Clear = 0;
+int VariableTimeStep::Clear_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
-  BranchCvodes *branch_cvodes =
-      (BranchCvodes *)local->branch_cvodes_;
-  branch_cvodes->~BranchCvodes();
+  VariableTimeStep *branch_cvodes =
+      (VariableTimeStep *)local->branch_cvodes_;
+  branch_cvodes->~VariableTimeStep();
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-void BranchCvodes::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(BranchCvodes::Init,
-                                  BranchCvodes::Init_handler);
-  wrappers::RegisterZeroVarAction(BranchCvodes::Run,
-                                  BranchCvodes::Run_handler);
-  wrappers::RegisterZeroVarAction(BranchCvodes::Clear,
-                                  BranchCvodes::Clear_handler);
+void VariableTimeStep::RegisterHpxActions() {
+  wrappers::RegisterZeroVarAction(VariableTimeStep::Init,
+                                  VariableTimeStep::Init_handler);
+  wrappers::RegisterZeroVarAction(VariableTimeStep::Run,
+                                  VariableTimeStep::Run_handler);
+  wrappers::RegisterZeroVarAction(VariableTimeStep::Clear,
+                                  VariableTimeStep::Clear_handler);
 }

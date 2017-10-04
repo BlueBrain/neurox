@@ -33,7 +33,9 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Algorithms
 #include "neurox/algorithms/algorithm.h"
-#include "neurox/branch_cvodes.h"
+
+// Interpolators
+#include "neurox/interpolators/interpolator.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"

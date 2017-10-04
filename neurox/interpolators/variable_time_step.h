@@ -31,10 +31,12 @@ using namespace neurox;
 
 namespace neurox {
 
-  class BranchCvodes {
+namespace interpolators {
+
+  class VariableTimeStep {
    public:
-    BranchCvodes();
-    ~BranchCvodes();
+    VariableTimeStep();
+    ~VariableTimeStep();
 
     /// absolute tolerance per equation
     N_Vector absolute_tolerance_;
@@ -123,5 +125,7 @@ namespace neurox {
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
 };
+
+};  // interpolators
 
 };  // neurox

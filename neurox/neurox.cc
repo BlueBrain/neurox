@@ -6,6 +6,7 @@
 #include <map>
 
 using namespace neurox::algorithms;
+using namespace neurox::interpolators;
 
 namespace neurox {
 
@@ -42,7 +43,7 @@ static int Main_handler() {
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
 
   if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
-      neurox::wrappers::CallAllNeurons(BranchCvodes::Init);
+      neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
 
   if (neurox::input_params_->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
@@ -93,7 +94,7 @@ static int Main_handler() {
       total_time_elapsed);
 
   if (neurox::input_params_->interpolator_ != algorithms::Interpolators::kBackwardEuler)
-      neurox::wrappers::CallAllNeurons(BranchCvodes::Clear);
+      neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
 
   neurox::wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);

@@ -33,7 +33,7 @@ enum class Interpolators: int {
 };
 
 /**
- * @brief The NeuronMetaData class
+ * @brief The AlgorithmMetadata class
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
