@@ -850,6 +850,13 @@ for (;;) { /* help clang-format properly indent */
  v = _v;
  _PRCELLSTATE_V
  initmodel(_threadargs_);
+
+ //populate offsets arrays //(if parallel processing)
+ if (_ml->_shadow_didv_offsets)
+ {
+   _ml->_shadow_i_offsets[_iml] = _ppvar[1*_STRIDE];
+   _ml->_shadow_didv_offsets[_iml] = _ppvar[2*_STRIDE];
+ }
 }
 }
 
@@ -887,9 +894,11 @@ _cntml_actual = _ml->_nodecount;
 _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
-double * _vec_d = _nt->_actual_d;
-double * _vec_shadow_rhs = _nt->_shadow_rhs;
-double * _vec_shadow_d = _nt->_shadow_d;
+double * _vec_d =   _nt->_actual_d;
+double * _vec_shadow_rhs = _ml->_shadow_rhs;
+double * _vec_shadow_d = _ml->_shadow_d;
+double * _vec_shadow_i = _ml->_shadow_i;
+double * _vec_shadow_didv = _ml->_shadow_didv;
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   _NrnThread* d_nt = acc_deviceptr(_nt);
