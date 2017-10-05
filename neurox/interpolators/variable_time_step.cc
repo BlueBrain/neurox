@@ -308,26 +308,21 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
         vector<double> data_new(data_size);
         vector<int> pdata_new(pdata_size);
         vector<int> nodeindices(instances->nodecount);
-        this->memb_list_->nodecount=0;
+        this->memb_list_[m].nodecount=0;
 
         //first non-capacitors' instances, then capacitors
-        for (char cap_test=FALSE; cap_test<=TRUE; cap_test++)
+        for (int cap_test=FALSE; cap_test<=TRUE; cap_test++)
         {
           for (int n=0; n<instances->nodecount; n++)
           {
             int node_id = instances->nodeindices[n];
+            bool is_capacitor = capacitor_ids.find(node_id)!=capacitor_ids.end();
 
-            if (cap_test==FALSE) //test for no capacitors first
-            {
-              if (capacitor_ids.find(node_id) != capacitor_ids.end())
-                continue; //if is a capacitor, ignore
-            }
-            else   //cap_test==TRUE, test for capacitors
-            {
-              if (capacitor_ids.find(node_id) == capacitor_ids.end())
-                continue; //if is not a capacitor, ignore
-            }
+            //if this element does not match the cap/no-cap test
+            if (cap_test != is_capacitor)
+                continue;
 
+            assert(n_new<instances->nodecount);
             for (int i=0; i<mech->data_size_; i++) //copy data
             {
 #if LAYOUT == 1
@@ -338,6 +333,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
                 int new_data_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n_new;
 #endif
 
+                assert(new_data_offset<data_size);
                 data_new[new_data_offset] = instances->data[old_data_offset];
 
                 if (mech->is_ion_)
@@ -360,9 +356,9 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
                     pdata_new[new_pdata_offset] = ions_data_map[ptype][old_pdata];
             }
 
-            //count only initial no-cap entries
-            if (cap_test=FALSE)
-                this->memb_list_->nodecount++;
+            //count only no-cap entries
+            if (cap_test==FALSE)
+                this->memb_list_[m].nodecount++;
 
             nodeindices[n_new] = node_id;
             n_new++;
@@ -371,9 +367,10 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
         assert(n_new == nodeindices.size());
 
         //overwite old values with current ones
-        memcpy(this->memb_list_->data, data_new.data(), sizeof(double)*data_new.size());
-        memcpy(this->memb_list_->pdata, pdata_new.data(), sizeof(int)*data_new.size());
-        memcpy(this->memb_list_->nodeindices, nodeindices.data(), sizeof(int)*n_new);
+        memcpy(this->memb_list_[m].data, data_new.data(), sizeof(double)*data_new.size());
+        memcpy(this->memb_list_[m].pdata, pdata_new.data(), sizeof(int)*pdata_new.size());
+        memcpy(this->memb_list_[m].nodeindices, nodeindices.data(), sizeof(int)*n_new);
+        this->memb_list_[m]._nodecount_padded = tools::Vectorizer::SizeOf(this->memb_list_->nodecount);
         total_data_offet += data_size;
     }
     assert(no_cap_count == this->node_count_);
@@ -425,6 +422,7 @@ int VariableTimeStep::Init_handler() {
       var_offset++;
   }
 
+  //collect information about non-capacitors nodes
   vardt->no_cap_ = new NoCapacitor(local);
 
   //build remaining map of state vars
