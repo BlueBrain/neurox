@@ -41,6 +41,8 @@ class Branch {
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
+  static void DeleteMembList(Memb_list *&);
+
   NrnThread* nt_;               ///> compartments metadata
   Memb_list* mechs_instances_;  ///> Arrays of mechanism instances
   Neuron* soma_;         ///> if top branch, it's populated, otherwise NULL

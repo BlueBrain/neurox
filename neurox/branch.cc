@@ -349,6 +349,28 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #endif
 }
 
+void Branch::DeleteMembList(Memb_list *& mechs_instances)
+{
+    for (int m = 0; m < mechanisms_count_; m++) {
+      Memb_list &instance = mechs_instances[m];
+      if (mechanisms_[m]->memb_func_.thread_cleanup_)
+        mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
+
+      Vectorizer::Delete(mechs_instances[m].nodeindices);
+      Vectorizer::Delete(mechs_instances[m].pdata);
+      delete[] mechs_instances[m]._thread;
+
+      Vectorizer::Delete(mechs_instances[m]._shadow_d);
+      Vectorizer::Delete(mechs_instances[m]._shadow_didv);
+      Vectorizer::Delete(mechs_instances[m]._shadow_didv_offsets);
+      Vectorizer::Delete(mechs_instances[m]._shadow_i);
+      Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
+      Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
+    }
+    delete[] mechs_instances;
+    mechs_instances=nullptr;
+}
+
 Branch::~Branch() {
   delete[] this->nt_->weights;
   Vectorizer::Delete(this->nt_->_data);
@@ -356,23 +378,7 @@ Branch::~Branch() {
   delete[] this->nt_->_ml_list;
 
   hpx_lco_delete_sync(this->events_queue_mutex_);
-  for (int m = 0; m < mechanisms_count_; m++) {
-    Memb_list &instance = this->mechs_instances_[m];
-    if (mechanisms_[m]->memb_func_.thread_cleanup_)
-      mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
-
-    Vectorizer::Delete(mechs_instances_[m].nodeindices);
-    Vectorizer::Delete(mechs_instances_[m].pdata);
-    delete[] mechs_instances_[m]._thread;
-
-    Vectorizer::Delete(mechs_instances_[m]._shadow_d);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_didv);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_didv_offsets);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_i);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_rhs);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_i_offsets);
-  }
-  delete[] mechs_instances_;
+  DeleteMembList(mechs_instances_);
 
   for (int i = 0; i < this->nt_->_nvdata; i++) delete nt_->_vdata[i];
   delete[] this->nt_->_vdata;  // TODO deleting void* in undefined!

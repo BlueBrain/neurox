@@ -53,12 +53,16 @@ namespace interpolators {
     class NoCapacitor
     {
       public:
+        NoCapacitor() = delete;
+        NoCapacitor(const Branch*);
+        ~NoCapacitor();
+
         int * node_ids_; ///> no-cap node ids
         int * child_ids_; ///> id of nodes with no-cap parents
         int node_count_; ///> size of node_ids_
         int child_count_; ///> size of child_ids_
         Memb_list * memb_list_; ///> Memb_list of no-cap nodes
-    } * no_cap_;
+    } * no_cap_; ///> info on non-capacitors nodes
 
     static hpx_action_t Init;
     static hpx_action_t Run;
@@ -106,9 +110,6 @@ namespace interpolators {
   static int JacobianDense(long int N, floble_t t, N_Vector y_, N_Vector fy,
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
-
-  /// get information of no capacitance nodes in branch
-  static NoCapacitor* GetNoCapacitorsInfo(const Branch*);
 
   static int Init_handler();
   static int Run_handler();

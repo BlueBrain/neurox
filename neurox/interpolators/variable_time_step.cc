@@ -250,17 +250,22 @@ VariableTimeStep::~VariableTimeStep() {
   CVodeFree(&cvodes_mem_); /* Free integrator memory */
 }
 
-VariableTimeStep::NoCapacitor* VariableTimeStep::GetNoCapacitorsInfo(const Branch * branch)
+VariableTimeStep::NoCapacitor::~NoCapacitor()
+{
+    delete child_ids_;
+    delete node_ids_;
+    Branch::DeleteMembList(memb_list_);
+}
+
+VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
 {
     NrnThread * nt = branch->nt_;
-    NoCapacitor * no_cap_ = new NoCapacitor;
-
     Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
 
-    no_cap_->node_count_ = nt->end - capac_instances->nodecount;
-    no_cap_->child_ids_ = new int[no_cap_->node_count_];
-    no_cap_->node_ids_  = new int[no_cap_->node_count_];
-    no_cap_->child_count_=0;
+    this->node_count_ = nt->end - capac_instances->nodecount;
+    this->child_ids_ = new int[this->node_count_];
+    this->node_ids_  = new int[this->node_count_];
+    this->child_count_=0;
     int no_cap_count=0;
 
     //get list of all nodes that are capacitors
@@ -275,15 +280,13 @@ VariableTimeStep::NoCapacitor* VariableTimeStep::GetNoCapacitorsInfo(const Branc
     {
         //if this node is not a capacitors node
         if (capacitor_ids.find(i)==capacitor_ids.end())
-            no_cap_->node_ids_[no_cap_count++] = i;
+            this->node_ids_[no_cap_count++] = i;
 
         //if parent node is not a capacitors node
         if (i > 0 && capacitor_ids.find(nt->_v_parent_index[i])==capacitor_ids.end())
-            no_cap_->child_ids_[no_cap_->child_count_++] = i;
+            this->child_ids_[this->child_count_++] = i;
     }
-    assert(no_cap_count ==no_cap_->node_count_);
-
-    return no_cap_;
+    assert(no_cap_count ==this->node_count_);
 }
 
 //Neuron :: occvode.cpp :: init_global()
@@ -331,7 +334,7 @@ int VariableTimeStep::Init_handler() {
       var_offset++;
   }
 
-  vardt->no_cap_ = GetNoCapacitorsInfo(local);
+  vardt->no_cap_ = new NoCapacitor(local);
 
   //build remaining map of state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {

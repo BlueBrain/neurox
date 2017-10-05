@@ -119,9 +119,9 @@ class Mechanism {
 
   void CallModFunction(const void *branch,
                        const Mechanism::ModFunctions function_id,
-                       Memb_list * other_ml = nullptr, //CVODE-specifc
-                       const NetconX *netcon = nullptr,  // for net_receive only
-                       const floble_t tt = 0);           // for net_receive only
+                       Memb_list *other_ml = nullptr,  //user-provided Memb_list (if any)
+                       const NetconX *netcon = nullptr,//net_receive only
+                       const floble_t tt = 0);         //net_receive only
  private:
   void RegisterBeforeAfterFunctions();  ///> register Before-After functions
 };
