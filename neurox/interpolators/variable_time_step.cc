@@ -234,8 +234,6 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
   return CV_SUCCESS;
 }
 
-//////////////////////////// BranchCvodes /////////////////////////
-
 VariableTimeStep::VariableTimeStep()
     : cvodes_mem_(nullptr),
       equations_count_(-1),
@@ -246,8 +244,9 @@ VariableTimeStep::VariableTimeStep()
 {}
 
 VariableTimeStep::~VariableTimeStep() {
-  N_VDestroy_Serial(y_);   /* Free y vector */
-  CVodeFree(&cvodes_mem_); /* Free integrator memory */
+  N_VDestroy_Serial(y_);
+  CVodeFree(&cvodes_mem_);
+  delete no_cap_;
 }
 
 VariableTimeStep::NoCapacitor::~NoCapacitor()
@@ -276,6 +275,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
         capacitor_ids.insert(compartment_id);
     }
 
+    //inspired by neuron data structures
     for (int i=0; i<nt->end; i++)
     {
         //if this node is not a capacitors node
@@ -286,7 +286,98 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
         if (i > 0 && capacitor_ids.find(nt->_v_parent_index[i])==capacitor_ids.end())
             this->child_ids_[this->child_count_++] = i;
     }
-    assert(no_cap_count ==this->node_count_);
+
+    //get Memb_list for non-capacitor nodes only:
+    //all pointers will point to the same place in nt->data, we
+    //will re-order Memb_list to have no-caps first, and then
+    //update nodecount for no-caps instance to cover no-caps only
+    this->memb_list_ = new Memb_list[neurox::mechanisms_count_];
+    memcpy(this->memb_list_, branch->mechs_instances_, neurox::mechanisms_count_*sizeof(Memb_list));
+
+    int total_data_offet=tools::Vectorizer::SizeOf(branch->nt_->end*6);
+    map<int,map<int,int>> ions_data_map;
+    for (int m=0; m<neurox::mechanisms_count_; m++)
+    {
+        Mechanism * mech = neurox::mechanisms_[m];
+        Memb_list * instances = &branch->mechs_instances_[m];
+
+        int n_new=0;
+        int data_size  =mech->data_size_ *tools::Vectorizer::SizeOf(instances->nodecount);
+        int pdata_size =mech->pdata_size_*tools::Vectorizer::SizeOf(instances->nodecount);
+
+        vector<double> data_new(data_size);
+        vector<int> pdata_new(pdata_size);
+        vector<int> nodeindices(instances->nodecount);
+        this->memb_list_->nodecount=0;
+
+        //first non-capacitors' instances, then capacitors
+        for (char cap_test=FALSE; cap_test<=TRUE; cap_test++)
+        {
+          for (int n=0; n<instances->nodecount; n++)
+          {
+            int node_id = instances->nodeindices[n];
+
+            if (cap_test==FALSE) //test for no capacitors first
+            {
+              if (capacitor_ids.find(node_id) != capacitor_ids.end())
+                continue; //if is a capacitor, ignore
+            }
+            else   //cap_test==TRUE, test for capacitors
+            {
+              if (capacitor_ids.find(node_id) == capacitor_ids.end())
+                continue; //if is not a capacitor, ignore
+            }
+
+            for (int i=0; i<mech->data_size_; i++) //copy data
+            {
+#if LAYOUT == 1
+                int old_data_offset = mech->data_size_ * n + i;
+                int new_data_offset = mech->data_size_ * n_new + i;
+#else
+                int old_data_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+                int new_data_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n_new;
+#endif
+
+                data_new[new_data_offset] = instances->data[old_data_offset];
+
+                if (mech->is_ion_)
+                  ions_data_map[mech->type_][total_data_offet+old_data_offset] = total_data_offet+new_data_offset;
+            }
+            for (int i=0; i<mech->pdata_size_; i++) //copy pdata
+            {
+#if LAYOUT == 1
+                int old_pdata_offset = mech->pdata_size_ * n + i;
+                int new_pdata_offset = mech->pdata_size_ * n_new + i;
+#else
+                int old_pdata_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+                int new_pdata_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n_new;
+#endif
+                int old_pdata = instances->pdata[old_pdata_offset];
+
+                //if it points to an ion, get new position
+                int ptype = memb_func[mech->type_].dparam_semantics[i];
+                if (ptype > 0 && ptype < 1000) //ptype is ion id
+                    pdata_new[new_pdata_offset] = ions_data_map[ptype][old_pdata];
+            }
+
+            //count only initial no-cap entries
+            if (cap_test=FALSE)
+                this->memb_list_->nodecount++;
+
+            nodeindices[n_new] = node_id;
+            n_new++;
+          }
+        }
+        assert(n_new == nodeindices.size());
+
+        //overwite old values with current ones
+        memcpy(this->memb_list_->data, data_new.data(), sizeof(double)*data_new.size());
+        memcpy(this->memb_list_->pdata, pdata_new.data(), sizeof(int)*data_new.size());
+        memcpy(this->memb_list_->nodeindices, nodeindices.data(), sizeof(int)*n_new);
+        total_data_offet += data_size;
+    }
+    assert(no_cap_count == this->node_count_);
+    assert(total_data_offet == branch->nt_->_ndata);
 }
 
 //Neuron :: occvode.cpp :: init_global()
