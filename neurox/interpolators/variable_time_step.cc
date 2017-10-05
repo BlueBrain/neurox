@@ -191,7 +191,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
   */
   /// end of neuron occvode.cpp::solvex_thread()
 
-  const int capacitances_count = nt->end;
+  const int capacitors_count = nt->end;
   const double *a = nt->_actual_a;
   const double *b = nt->_actual_b;
   const double *d = nt->_actual_d;
@@ -202,7 +202,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
   // d(dV/dt) / dV_p   = -A          //parent compartment
   // d(dV/dt) / dV_c_i = -B_c_i  //children_i compartment
 
-  for (int n = 0; n < capacitances_count; n++) {
+  for (int n = 0; n < capacitors_count; n++) {
     jac[n][n] = d[n];     // D = d (dV_n/dt) /dV_n
     if (n == 0) continue;
     jac[p[n]][n] = a[n];  // A = d (dV_p/dt) /dV_n
@@ -214,14 +214,14 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
   // branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
 
   //int compartment_id=-1;
-  int dv_offset = capacitances_count;
+  int dv_offset = capacitors_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &branch->mechs_instances_[m];
     for (int n = 0; n < mech_instances->nodecount; n++)
       for (int s = 0; s < mech->state_vars_->count_; s++) {
         //Reminder: state vars Dm represents d(dm_i/dt) / dm_j
-        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - capacitances_count]);
+        jac[dv_offset][dv_offset] = *(branch_cvodes->state_dv_map_[dv_offset - capacitors_count]);
         dv_offset++;
       }
   }
@@ -264,21 +264,21 @@ VariableTimeStep::NoCapacitor* VariableTimeStep::GetNoCapacitorsInfo(const Branc
     int no_cap_count=0;
 
     //get list of all nodes that are capacitors
-    std::set<int> capacitance_ids;
+    std::set<int> capacitor_ids;
     for (int c=0; c<capac_instances->nodecount; c++)
     {
         int compartment_id = capac_instances->nodeindices[c];
-        capacitance_ids.insert(compartment_id);
+        capacitor_ids.insert(compartment_id);
     }
 
     for (int i=0; i<nt->end; i++)
     {
-        //if this node is not a capacitance node
-        if (capacitance_ids.find(i)==capacitance_ids.end())
+        //if this node is not a capacitors node
+        if (capacitor_ids.find(i)==capacitor_ids.end())
             no_cap_->node_ids_[no_cap_count++] = i;
 
-        //if parent node is not a capacitance node
-        if (i > 0 && capacitance_ids.find(nt->_v_parent_index[i])==capacitance_ids.end())
+        //if parent node is not a capacitors node
+        if (i > 0 && capacitor_ids.find(nt->_v_parent_index[i])==capacitor_ids.end())
             no_cap_->child_ids_[no_cap_->child_count_++] = i;
     }
     assert(no_cap_count ==no_cap_->node_count_);
@@ -302,7 +302,7 @@ int VariableTimeStep::Init_handler() {
   // some methods from Branch::Finitialize
   local->Finitialize2();
 
-  // equations: capacitances + mechanisms * states
+  // equations: capacitors + mechanisms * states
   int & equations_count = vardt->equations_count_;
   equations_count =  cap_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++)
