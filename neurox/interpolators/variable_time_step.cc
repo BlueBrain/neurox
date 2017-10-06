@@ -479,8 +479,9 @@ int VariableTimeStep::Init_handler() {
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +n;
 #endif
-        //Note: no SoA memory placement on this map, because we'd
-        //need to add empty elements to the CVODE y and y' arrays.
+        // Note: SoA is OK but without padded memory on
+        // CVODES maps, because we'd need to add empty
+        //elements to CVODES y and y' arrays
         assert(state_var_offset < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         assert(state_dv_offset  < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         vardt->state_var_map_[var_offset] =
