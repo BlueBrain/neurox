@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <set>
 
 #define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS true
 #define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS true
@@ -35,6 +36,14 @@ class DataLoader {
 
   /// removes all data structures loaded for coreneuron
   static void CleanCoreneuronData(const bool clean_ion_global_map = true);
+
+  /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
+  static void GetMembListsOrderedByCapacitorsOrNot(
+          const Branch* branch, //in
+          const std::set<int> & capacitors_ids, //in
+          Memb_list *& ml_capacitors, //out
+          Memb_list *& ml_no_capacitors //out
+          );
 
   /// Registers all HPX actions
   static void RegisterHpxActions();

@@ -276,6 +276,7 @@ void HinesSolver::ResetRHSandDNoCapacitors(
         int nd = no_cap->node_ids_[i];
         d[nd]=0;
         rhs[nd]=0;
+        fprintf(stderr, "== t=%.5f\tRHS+D[%d]=%.12f (reset)\n", branch->nt_->_t, nd, 0);
     }
 }
 
@@ -305,6 +306,8 @@ void HinesSolver::SetupMatrixVoltageNoCapacitors(
         {
             rhs[nd] -= b[nd]*v[p[nd]];
             d[nd] -= b[nd];
+            fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D=%.12f (nocap_v2)\n",
+                    branch->nt_->_t, nd, rhs[nd], d[nd]);
         }
     }
 
@@ -315,12 +318,16 @@ void HinesSolver::SetupMatrixVoltageNoCapacitors(
         pnd = p[nd];
         rhs[pnd] -= a[nd]*v[nd];
         d[pnd] -= a[nd];
+        fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D[%d]=%.12f (nocap_v3)\n",
+                branch->nt_->_t, pnd,rhs[pnd], pnd, d[pnd]);
     }
 
-    for (int i=0; no_cap->node_count_; i++)
+    for (int i=0; i<no_cap->node_count_; i++)
     {
         nd = no_cap_node[i];
         v[nd] = rhs[nd] / d[nd];
+        fprintf(stderr, "== t=%.5f\tV[%d]=%.12f (nocap_v4)\n",
+                 branch->nt_->_t, nd, v[nd]);
     }
     // no_cap voltages are now consistent with adjacent voltages
 }

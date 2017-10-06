@@ -485,7 +485,7 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
 
 void Branch::CallModFunction(
         const Mechanism::ModFunctions function_id,
-        Memb_list * memb_list) {
+        Memb_list * other_ml) {
   if (function_id < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
@@ -494,7 +494,7 @@ void Branch::CallModFunction(
       function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
     mechanisms_[mechanisms_map_[CAP]]->CallModFunction(
-                this, function_id, memb_list);
+                this, function_id, other_ml);
   }
   // for all others except capacitance (mechanisms graph)
   else {
@@ -502,7 +502,8 @@ void Branch::CallModFunction(
     {
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count_; m++) {
-        if (mechanisms_[m]->type_ == CAP) continue;  // not capacitance
+        if (mechanisms_[m]->type_ == CAP)
+            continue;  // not capacitance
         if (mechanisms_[m]->dependencies_count_ > 0)
           continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
@@ -516,9 +517,9 @@ void Branch::CallModFunction(
         if (mechanisms_[m]->type_ == CAP &&
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
-          continue;
+          continue; //kCurrentCapacitance and kJacobCapacitance above
         mechanisms_[m]->CallModFunction(
-                    this, function_id, memb_list);
+                    this, function_id, other_ml);
       }
     }
   }

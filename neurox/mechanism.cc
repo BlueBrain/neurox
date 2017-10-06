@@ -194,7 +194,10 @@ void Mechanism::CallModFunction(const void *branch_ptr,
       &other_ml[mechanisms_map_[this->type_]] :
       &branch->mechs_instances_[mechanisms_map_[this->type_]];
   assert(memb_list);
-  if (memb_list->nodecount > 0) switch (function_id) {
+
+  if (memb_list->nodecount > 0)
+  {
+      switch (function_id) {
       case Mechanism::kBeforeInitialize:
       case Mechanism::kAfterInitialize:
       case Mechanism::kBeforeBreakpoint:
@@ -236,7 +239,19 @@ void Mechanism::CallModFunction(const void *branch_ptr,
                   NULL,  // no accummulation of i and di/dv
                   branch->mechs_graph_);
           } else  // regular version
+          {
+            if (other_ml)
+            for (int m=0; m<neurox::mechanisms_count_; m++)
+            {
+                for (int i=0; i<memb_list->nodecount; i++)
+                {
+                    int nd = memb_list->nodeindices[i];
+                    fprintf(stderr, "== current: mech %d, node %d\n",
+                           mechanisms_[m]->type_, nd);
+                }
+            }
             memb_func_.current(nrn_thread, memb_list, type_);
+          }
         }
         break;
       case Mechanism::ModFunctions::kState:
@@ -306,4 +321,5 @@ void Mechanism::CallModFunction(const void *branch_ptr,
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);
     }
+  }
 }

@@ -91,15 +91,14 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function
   //cvtrset.cpp :: CVode::fun_thread_transfer_part1()
+
   branch->FixedPlayContinuous(nt->_t);
 
   //copies V and state-vars from CVODES to NrnThread
   VariableTimeStep::ScatterY(branch, y);
 
-  double * yy_data = NV_DATA_S(vardt->y_);
   for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
-      if (yy_data[i]!=0)
-        fprintf(stderr, "y0[%d]=%.12f\n", i, yy_data[i]);
+      fprintf(stderr, "== t=%.5f\ty[%d]=%.12f (init1)\n", t, i, y_data[i]);
 
   //start of occvode.cpp :: nocap_v
   solver::HinesSolver::ResetRHSandDNoCapacitors(
@@ -108,12 +107,17 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //sum mech-instance contributions to D and RHS on no-caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
                           vardt->no_cap_->memb_list_); //rhs
+
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
                           vardt->no_cap_->memb_list_); //lhs
 
   solver::HinesSolver::SetupMatrixVoltageNoCapacitors(
               branch, vardt->no_cap_);
 
+  for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
+      fprintf(stderr, "== t=%.5f\ty[%d]=%.12f (nocap_v)\n", t, i, y_data[i]);
+
+  exit(0);
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
 
   //cvtrset.cpp :: CVode::rhs
@@ -270,10 +274,10 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
     Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
 
     this->node_count_ = nt->end - capac_instances->nodecount;
-    this->child_ids_ = new int[this->node_count_];
     this->node_ids_  = new int[this->node_count_];
-    this->child_count_=0;
     int no_cap_count=0;
+
+    std::vector<int> child_ids;
 
     //get list of all nodes that are capacitors
     std::set<int> capacitor_ids;
@@ -292,109 +296,17 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
 
         //if parent node is not a capacitors node
         if (i > 0 && capacitor_ids.find(nt->_v_parent_index[i])==capacitor_ids.end())
-            this->child_ids_[this->child_count_++] = i;
+            child_ids.push_back(i);
     }
 
-    //occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
-    //nodes only: pointers will point to same place in nt->data, we
-    //will re-order Memb_list to have no-caps first, and then
-    //update nodecount for no-caps instance to cover no-caps only
-    this->memb_list_ = new Memb_list[neurox::mechanisms_count_];
-    memcpy(this->memb_list_, branch->mechs_instances_, neurox::mechanisms_count_*sizeof(Memb_list));
+    //create childs ids and count of no-cap parents
+    this->child_count_ = child_ids.size();
+    this->child_ids_ = new int[this->child_count_];
+    memcpy(this->child_ids_, child_ids.data(), child_ids.size()*sizeof(int));
+    assert(this->node_count_ == no_cap_count);
 
-    int total_data_offset=tools::Vectorizer::SizeOf(branch->nt_->end)*6;
-    map<int,map<int,int>> ions_data_map;
-    for (int m=0; m<neurox::mechanisms_count_; m++)
-    {
-        Mechanism * mech = neurox::mechanisms_[m];
-        Memb_list * instances = &branch->mechs_instances_[m];
-
-        //"only point processes with currents are possibilities"
-        bool mech_is_valid = mech->pnt_map_ && mech->memb_func_.current;
-
-        int n_new=0;
-        int data_size  =mech->data_size_ *tools::Vectorizer::SizeOf(instances->nodecount);
-        int pdata_size =mech->pdata_size_*tools::Vectorizer::SizeOf(instances->nodecount);
-
-        vector<double> data_new(data_size,0);
-        vector<int> pdata_new(pdata_size);
-        vector<int> nodeindices(instances->nodecount);
-        this->memb_list_[m].nodecount=0;
-
-        //first non-capacitors' instances, then capacitors
-        for (int insert_phase=1; insert_phase<=2; insert_phase++)
-        {
-          for (int n=0; n<instances->nodecount; n++)
-          {
-            int node_id = instances->nodeindices[n];
-
-            //place first the no-caps of valid mechs; then all others
-            bool is_capacitor = capacitor_ids.find(node_id)!=capacitor_ids.end();
-            int instance_phase = !is_capacitor && mech_is_valid ? 1 : 2;
-
-            if (instance_phase != insert_phase) continue;
-
-            assert(n_new<instances->nodecount);
-            for (int i=0; i<mech->data_size_; i++) //copy data
-            {
-#if LAYOUT == 1
-                int old_data_offset = mech->data_size_ * n + i;
-                int new_data_offset = mech->data_size_ * n_new + i;
-#else
-                int old_data_offset = tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
-                int new_data_offset = tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
-#endif
-                assert(new_data_offset<data_size);
-                assert(total_data_offset+old_data_offset == (&instances->data[old_data_offset] - nt->_data));
-                data_new.at(new_data_offset) = instances->data[old_data_offset];
-
-                if (mech->is_ion_)
-                {
-                  ions_data_map[mech->type_][total_data_offset+old_data_offset] = total_data_offset+new_data_offset;
-                  if (mech->type_==28)
-                      printf("map=== ions_data_map[%d][%d]=%d (%.12f)\n",
-                             mech->type_, total_data_offset+old_data_offset, total_data_offset+new_data_offset,
-                             instances->data[old_data_offset]);
-                }
-            }
-            for (int i=0; i<mech->pdata_size_; i++) //copy pdata
-            {
-#if LAYOUT == 1
-                int old_pdata_offset = mech->pdata_size_ * n + i;
-                int new_pdata_offset = mech->pdata_size_ * n_new + i;
-#else
-                int old_pdata_offset = tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
-                int new_pdata_offset = tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
-#endif
-                assert(old_pdata_offset == (&instances->pdata[old_pdata_offset] - instances->pdata));
-                int old_pdata = instances->pdata[old_pdata_offset];
-
-                //if it points to an ion, get new pdata position
-                int ptype = memb_func[mech->type_].dparam_semantics[i];
-                if (ptype > 0 && ptype < 1000) //ptype is ion id
-                    pdata_new.at(new_pdata_offset) = ions_data_map.at(ptype).at(old_pdata);
-                else
-                    pdata_new.at(new_pdata_offset) = old_pdata;
-            }
-
-            //count only no-cap entries
-            if (insert_phase==FALSE)
-                this->memb_list_[m].nodecount++;
-
-            nodeindices[n_new++] = node_id;
-          }
-        }
-        assert(n_new == nodeindices.size());
-
-        //overwite old values with current ones
-        memcpy(this->memb_list_[m].data, data_new.data(), sizeof(double)*data_new.size());
-        memcpy(this->memb_list_[m].pdata, pdata_new.data(), sizeof(int)*pdata_new.size());
-        memcpy(this->memb_list_[m].nodeindices, nodeindices.data(), sizeof(int)*n_new);
-        this->memb_list_[m]._nodecount_padded = tools::Vectorizer::SizeOf(this->memb_list_->nodecount);
-        total_data_offset += data_size;
-    }
-    assert(no_cap_count == this->node_count_);
-    assert(total_data_offset == branch->nt_->_ndata);
+    //occvode.cpp::new_no_cap_memb()
+    this->memb_list_ = input::DataLoader::GetMembListsOrderedByCapacitorsOrNot(branch, capacitor_ids);
 }
 
 //Neuron :: occvode.cpp :: init_global()
@@ -411,7 +323,17 @@ int VariableTimeStep::Init_handler() {
   int flag = CV_ERR_FAILURE;
 
   // some methods from Branch::Finitialize
-  local->Finitialize2();
+  //local->Finitialize2();
+  local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+  local->InitVecPlayContinous();
+  local->DeliverEvents(t);
+  for (int n = 0; n < local->nt_->end; n++)
+      local->nt_->_actual_v[n] = input_params_->voltage_;
+  local->CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
+  local->CallModFunction(Mechanism::ModFunctions::kInitialize);
+  local->CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
+  local->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
+  local->DeliverEvents(t);
 
   // equations: capacitors + mechanisms * states
   int & equations_count = vardt->equations_count_;
