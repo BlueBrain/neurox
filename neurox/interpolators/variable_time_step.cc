@@ -106,10 +106,10 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //sum mech-instance contributions to D and RHS on no-caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
-                          vardt->no_cap_->memb_list_); //rhs
+                          vardt->no_cap_->no_caps_ml_); //rhs
 
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
-                          vardt->no_cap_->memb_list_); //lhs
+                          vardt->no_cap_->no_caps_ml_); //lhs
 
   solver::HinesSolver::SetupMatrixVoltageNoCapacitors(
               branch, vardt->no_cap_);
@@ -117,8 +117,9 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
       fprintf(stderr, "== t=%.5f\ty[%d]=%.12f (nocap_v)\n", t, i, y_data[i]);
 
-  exit(0);
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
+
+  fprintf(stderr, "PHASE2====\n");
 
   //cvtrset.cpp :: CVode::rhs
   solver::HinesSolver::ResetMatrixRHS(branch);
@@ -126,6 +127,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //cvtrset.cpp :: CVode::rhs() -> rhs_memb(z.cv_memb_list_)
   //sum mech-instance contributions to D and RHS on caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+                       //   vardt->no_cap_->caps_ml_);
 
   // add parent and children axial currents (A*dv and B*dv) to RHS
   // cvtrset.cpp :: CVode::rhs()
@@ -143,9 +145,10 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //copies dV/dt (RHS) and state-vars-derivative to CVODES
   VariableTimeStep::GatherYdot(branch, ydot);
 
-  printf ("RHS neuron %d, t%.10f, V=%.10f\n",
-          branch->soma_->gid_, t, *branch->thvar_ptr_);
+  for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
+      fprintf(stderr, "== t=%.5f\tydot[%d]=%.12f (end2)\n", t, i, ydot_data[i]);
 
+  exit(0);
   return CV_SUCCESS;
 }
 
@@ -264,7 +267,7 @@ VariableTimeStep::NoCapacitor::~NoCapacitor()
     delete node_ids_;
     //because these point to the same memory as
     //nt->data, we only delete main array
-    delete [] memb_list_;
+    delete [] no_caps_ml_;
     //Branch::DeleteMembList(memb_list_);
 }
 
@@ -306,7 +309,8 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
     assert(this->node_count_ == no_cap_count);
 
     //occvode.cpp::new_no_cap_memb()
-    this->memb_list_ = input::DataLoader::GetMembListsOrderedByCapacitorsOrNot(branch, capacitor_ids);
+    input::DataLoader::GetMembListsOrderedByCapacitorsOrNot(
+           branch, capacitor_ids, this->no_caps_ml_, this->caps_ml_);
 }
 
 //Neuron :: occvode.cpp :: init_global()

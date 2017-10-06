@@ -414,9 +414,9 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map) {
 
 void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
         const Branch* branch, //in
-        const std::set<int> & capacitors_ids, //in
-        Memb_list *& ml_capacitors, //out
-        Memb_list *& ml_no_capacitors //out
+        const std::set<int> & capacitor_ids, //in
+        Memb_list *& ml_no_capacitors, //out
+        Memb_list *& ml_capacitors //out
         )
 {
     //occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
@@ -459,6 +459,9 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
             int instance_phase = !is_capacitor && mech_is_valid ? 1 : 2;
 
             if (instance_phase != insert_phase) continue;
+
+            if (mech->type_==3 || mech->type_==147)
+                assert(insert_phase==2); //TODO delete
 
             assert(n_new<instances->nodecount);
             for (int i=0; i<mech->data_size_; i++) //copy data

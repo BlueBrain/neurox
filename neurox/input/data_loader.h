@@ -41,8 +41,8 @@ class DataLoader {
   static void GetMembListsOrderedByCapacitorsOrNot(
           const Branch* branch, //in
           const std::set<int> & capacitors_ids, //in
-          Memb_list *& ml_capacitors, //out
-          Memb_list *& ml_no_capacitors //out
+          Memb_list *& ml_no_capacitors, //out
+          Memb_list *& ml_capacitors //out
           );
 
   /// Registers all HPX actions

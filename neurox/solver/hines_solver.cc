@@ -40,6 +40,7 @@ void HinesSolver::ResetMatrixRHS(Branch *branch) {
 
   for (int i = 0; i < n; i++) {
     rhs[i] = 0;
+    fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f (rhs2)\n", branch->nt_->_t, i, 0);
   }
 }
 
@@ -86,12 +87,14 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
       dv = v[p[i]] - v[i];  // reads from parent
       rhs[i] -= b[i] * dv;
       rhs[p[i]] += a[i] * dv;  // writes to parent
+      fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f\tRHS[%d]=%.12f (setup_rhs_2)\n",
+              branch->nt_->_t, i, rhs[i], p[i], rhs[p[i]]);
     }
   else  // a leaf on the tree
     for (offset_t i = 1; i < n; i++) {
       dv = v[i - 1] - v[i];
       rhs[i] -= b[i] * dv;
-      rhs[i - 1] += a[i] * dv;
+      rhs[i-1] += a[i] * dv;
     }
 
   // bottom compartment (when there is branching)

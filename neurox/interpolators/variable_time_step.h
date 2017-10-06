@@ -61,7 +61,8 @@ namespace interpolators {
         int * child_ids_; ///> id of nodes with no-cap parents
         int node_count_; ///> size of node_ids_
         int child_count_; ///> size of child_ids_
-        Memb_list * memb_list_; ///> Memb_list of no-cap nodes
+        Memb_list * no_caps_ml_; ///> Memb_list of no-cap nodes
+        Memb_list * caps_ml_; ///> Memb_list of cap nodes
     } * no_cap_; ///> info on non-capacitors nodes
 
     static hpx_action_t Init;

@@ -240,16 +240,12 @@ void Mechanism::CallModFunction(const void *branch_ptr,
                   branch->mechs_graph_);
           } else  // regular version
           {
-            if (other_ml)
-            for (int m=0; m<neurox::mechanisms_count_; m++)
-            {
-                for (int i=0; i<memb_list->nodecount; i++)
-                {
-                    int nd = memb_list->nodeindices[i];
-                    fprintf(stderr, "== current: mech %d, node %d\n",
-                           mechanisms_[m]->type_, nd);
-                }
-            }
+              for (int i=0; i<memb_list->nodecount; i++)
+              {
+                  int nd = memb_list->nodeindices[i];
+                  fprintf(stderr, "== current: mech %d, node %d\n",
+                         this->type_, nd);
+              }
             memb_func_.current(nrn_thread, memb_list, type_);
           }
         }
@@ -294,16 +290,24 @@ void Mechanism::CallModFunction(const void *branch_ptr,
           memb_func_.thread_cleanup_(memb_list->_thread);
         break;
       case Mechanism::ModFunctions::kODEMatsol: //CVODE-specific
-        if (this->ode_matsol_)
+        if (this->ode_matsol_  && this->state_vars_->count_>0)
             tools::Vectorizer::CallVecFunction(
                         this->ode_matsol_,
                         nrn_thread, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kODESpec: //CVODE-specific
-      if (this->ode_spec_)
+      if (this->ode_spec_ && this->state_vars_->count_>0)
+      {
+          for (int i=0; i<memb_list->nodecount; i++)
+          {
+              int nd = memb_list->nodeindices[i];
+              fprintf(stderr, "== odespec: mech %d, node %d\n",
+                     this->type_, nd);
+          }
           tools::Vectorizer::CallVecFunction(
                       this->ode_spec_,
                       nrn_thread, memb_list, type_);
+      }
         break;
       case Mechanism::ModFunctions::kDivCapacity: //CVODE-specific
       if (this->div_capacity_)
