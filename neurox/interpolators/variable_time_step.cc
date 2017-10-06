@@ -457,8 +457,13 @@ int VariableTimeStep::Init_handler() {
              mech->type_,
              mech_instances->nodecount, mech->state_vars_->count_,
              var_offset);
+#if LAYOUT == 1
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
+#else
+    for (int s = 0; s < mech->state_vars_->count_; s++) {
+      for (int n = 0; n < mech_instances->nodecount; n++) {
+#endif
         int state_var_index = mech->state_vars_->var_offsets_[s];
         int state_dv_index = mech->state_vars_->dv_offsets_[s];
 #if LAYOUT == 1
@@ -474,7 +479,8 @@ int VariableTimeStep::Init_handler() {
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index +n;
 #endif
-        //TODO this should be stored in SoA as well for LAYOUT=1 ??
+        //Note: no SoA memory placement on this map, because we'd
+        //need to add empty elements to the CVODE y and y' arrays.
         assert(state_var_offset < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         assert(state_dv_offset  < Vectorizer::SizeOf(mech_instances->nodecount) * mech->data_size_);
         vardt->state_var_map_[var_offset] =
