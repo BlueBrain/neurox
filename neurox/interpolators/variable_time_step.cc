@@ -253,7 +253,10 @@ VariableTimeStep::NoCapacitor::~NoCapacitor()
 {
     delete child_ids_;
     delete node_ids_;
-    Branch::DeleteMembList(memb_list_);
+    //because these point to the same memory as
+    //nt->data, we only delete main array
+    delete [] memb_list_;
+    //Branch::DeleteMembList(memb_list_);
 }
 
 VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
@@ -305,7 +308,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
         int data_size  =mech->data_size_ *tools::Vectorizer::SizeOf(instances->nodecount);
         int pdata_size =mech->pdata_size_*tools::Vectorizer::SizeOf(instances->nodecount);
 
-        vector<double> data_new(data_size);
+        vector<double> data_new(data_size,0);
         vector<int> pdata_new(pdata_size);
         vector<int> nodeindices(instances->nodecount);
         this->memb_list_[m].nodecount=0;
@@ -318,7 +321,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
             int node_id = instances->nodeindices[n];
             bool is_capacitor = capacitor_ids.find(node_id)!=capacitor_ids.end();
 
-            //if this element does not match the cap/no-cap test
+            //if this node does not match the cap/no-cap test
             if (cap_test != is_capacitor)
                 continue;
 
@@ -334,7 +337,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
 #endif
 
                 assert(new_data_offset<data_size);
-                data_new[new_data_offset] = instances->data[old_data_offset];
+                data_new.at(new_data_offset) = instances->data[old_data_offset];
 
                 if (mech->is_ion_)
                   ions_data_map[mech->type_][total_data_offet+old_data_offset] = total_data_offet+new_data_offset;
@@ -350,18 +353,19 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch * branch)
 #endif
                 int old_pdata = instances->pdata[old_pdata_offset];
 
-                //if it points to an ion, get new position
+                //if it points to an ion, get new pdata position
                 int ptype = memb_func[mech->type_].dparam_semantics[i];
                 if (ptype > 0 && ptype < 1000) //ptype is ion id
-                    pdata_new[new_pdata_offset] = ions_data_map[ptype][old_pdata];
+                    pdata_new.at(new_pdata_offset) = ions_data_map.at(ptype).at(old_pdata);
+                else
+                    pdata_new.at(new_pdata_offset) = old_pdata;
             }
 
             //count only no-cap entries
             if (cap_test==FALSE)
                 this->memb_list_[m].nodecount++;
 
-            nodeindices[n_new] = node_id;
-            n_new++;
+            nodeindices[n_new++] = node_id;
           }
         }
         assert(n_new == nodeindices.size());
