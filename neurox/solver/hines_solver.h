@@ -34,7 +34,7 @@ class HinesSolver {
 
   // CVODE-specific methods
   static void ResetRHSandDNoCapacitors(Branch*, void*);
-  static void SetupMatrixRHSNoCapacitors(Branch*, void*);
+  static void SetupMatrixVoltageNoCapacitors(Branch*, void*);
 
  private:
 };

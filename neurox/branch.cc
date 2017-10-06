@@ -347,6 +347,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  VariableTimeStep::NoCapacitor * no_cap = new VariableTimeStep::NoCapacitor(this);
+  for (int m=0; m<neurox::mechanisms_count_; m++)
+  {
+      no_cap->memb_list_[m].nodecount = this->mechs_instances_[m].nodecount;
+      no_cap->memb_list_[m]._nodecount_padded = this->mechs_instances_[m]._nodecount_padded;
+  }
+  this->mechs_instances_ = no_cap->memb_list_;
 }
 
 void Branch::DeleteMembList(Memb_list *& mechs_instances)

@@ -263,6 +263,7 @@ void Debugger::CompareAllBranches() {
 }
 
 void Debugger::CompareBranch2(Branch *branch) {
+    return;
   assert(branch->soma_);  // only non-branched neurons
   int nrnThreadId = branch->nt_->id;
   assert(sizeof(floble_t) == sizeof(double));  // only works with doubles!
