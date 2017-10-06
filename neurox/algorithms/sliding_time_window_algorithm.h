@@ -12,7 +12,7 @@ class SlidingTimeWindowAlgorithm : public Algorithm {
   SlidingTimeWindowAlgorithm();
   ~SlidingTimeWindowAlgorithm();
 
-  const AlgorithmId GetId() override;
+  const Algorithms GetId() override;
   const char* GetString() override;
 
   void Init() override;

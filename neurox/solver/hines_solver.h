@@ -6,6 +6,8 @@
 #include <queue>
 #include <vector>
 
+using namespace interpolators;
+
 namespace neurox {
 
 namespace solver {
@@ -22,14 +24,17 @@ class HinesSolver {
   static void SynchronizeThresholdV(Branch *local,
                                     floble_t *threshold_v = NULL);
   static void ResetMatrixRHSandD(Branch *local);
+  static void ResetMatrixRHS(Branch *local);
   static void ResetMatrixV(Branch *local);
   static void SetupMatrixRHS(Branch *local);
   static void SetupMatrixDiagonal(Branch *local);
   static void BackwardTriangulation(Branch *local);
   static void ForwardSubstituion(Branch *local);
   static void UpdateVoltagesWithRHS(Branch *local);
-  static void ResetNoCapacitanceRHSandD(Branch *local, void*);
-  static void NoCapacitanceVoltage(Branch *local, void*);
+
+  // CVODE-specific methods
+  static void ResetRHSandDNoCapacitors(Branch*, void*);
+  static void SetupMatrixVoltageNoCapacitors(Branch*, void*);
 
  private:
 };

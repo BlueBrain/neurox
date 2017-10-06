@@ -22,9 +22,6 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/branch.h"
 #include "neurox/neuron.h"
 
-// Fixed-step Backward-Euler solver
-#include "neurox/solver/hines_solver.h"
-
 // Tools
 #include "neurox/tools/cmd_line_parser.h"
 #include "neurox/tools/load_balancing.h"
@@ -33,6 +30,12 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Algorithms
 #include "neurox/algorithms/algorithm.h"
+
+// Interpolators
+#include "neurox/interpolators/interpolator.h"
+
+// Fixed-step Backward-Euler solver
+#include "neurox/solver/hines_solver.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"
@@ -63,7 +66,7 @@ extern int *mechanisms_map_;
 /// Parameters parsed from command line
 extern tools::CmdLineParser *input_params_;
 
-/// algorithm instance
+/// neurons synchronization algorithm instance
 extern algorithms::Algorithm *algorithm_;
 
 /// returns mechanism of type 'type'

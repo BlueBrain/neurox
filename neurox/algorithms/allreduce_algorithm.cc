@@ -12,8 +12,8 @@ AllreduceAlgorithm::AllreduceAlgorithm() {
 
 AllreduceAlgorithm::~AllreduceAlgorithm() {}
 
-const AlgorithmId AllreduceAlgorithm::GetId() {
-  return AlgorithmId::kBackwardEulerAllReduce;
+const Algorithms AllreduceAlgorithm::GetId() {
+  return Algorithms::kAllReduce;
 }
 
 const char* AllreduceAlgorithm::GetString() { return "BackwardEulerAllReduce"; }

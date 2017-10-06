@@ -6,6 +6,7 @@
 
 using namespace neurox;
 using namespace neurox::solver;
+using namespace neurox::interpolators;
 
 HinesSolver::~HinesSolver() {}
 
@@ -30,6 +31,15 @@ void HinesSolver::ResetMatrixRHSandD(Branch *branch) {
   for (int i = 0; i < n; i++) {
     rhs[i] = 0;
     d[i] = 0;
+  }
+}
+
+void HinesSolver::ResetMatrixRHS(Branch *branch) {
+  floble_t *rhs = branch->nt_->_actual_rhs;
+  const int n = branch->nt_->end;
+
+  for (int i = 0; i < n; i++) {
+    rhs[i] = 0;
   }
 }
 
@@ -253,44 +263,44 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
     v[i] += second_order_multiplier * rhs[i];
 }
 
-void HinesSolver::ResetNoCapacitanceRHSandD(
-        Branch *branch, void* branch_cvodes_ptr)
+void HinesSolver::ResetRHSandDNoCapacitors(
+        Branch * branch, void * no_cap_ptr)
 {
-    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
-            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+    VariableTimeStep::NoCapacitor * no_cap =
+            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
 
     floble_t *rhs = branch->nt_->_actual_rhs;
     floble_t *d = branch->nt_->_actual_d;
-    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    for (int i=0; i<no_cap->node_count_; i++)
     {
-        int nd = branch_cvodes->no_cap_node[i];
+        int nd = no_cap->node_ids_[i];
         d[nd]=0;
         rhs[nd]=0;
     }
 }
 
-
-void HinesSolver::NoCapacitanceVoltage(
-        Branch * branch, void * branch_cvodes_ptr)
+void HinesSolver::SetupMatrixVoltageNoCapacitors(
+        Branch * branch, void * no_cap_ptr)
 {
-    algorithms::CvodesAlgorithm::BranchCvodes * branch_cvodes =
-            (algorithms::CvodesAlgorithm::BranchCvodes*) branch_cvodes_ptr;
+    VariableTimeStep::NoCapacitor * no_cap =
+            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
 
-    floble_t *rhs = branch->nt_->_actual_rhs;
-    floble_t *d = branch->nt_->_actual_d;
     const floble_t *a = branch->nt_->_actual_a;
     const floble_t *b = branch->nt_->_actual_b;
     const int * p = branch->nt_->_v_parent_index;
+    const int * no_cap_child = no_cap->child_ids_;
+    const int * no_cap_node = no_cap->node_ids_;
+
+    floble_t *rhs = branch->nt_->_actual_rhs;
+    floble_t *d = branch->nt_->_actual_d;
     floble_t *v = branch->nt_->_actual_v;
     int nd=-1, pnd=-1;
-    int * no_cap_child = branch_cvodes->no_cap_child;
-    int * no_cap_node = branch_cvodes->no_cap_node;
 
     //parent axial current
-    for (int i=0; i<branch_cvodes->no_cap_count; i++)
+    for (int i=0; i<no_cap->node_count_; i++)
     {
         nd = no_cap_node[i];
-        rhs[nd] += d[nd] * v[nd];
+        rhs[nd] += d[nd]*v[nd];
         if (nd>0) //has parent
         {
             rhs[nd] -= b[nd]*v[p[nd]];
@@ -299,7 +309,7 @@ void HinesSolver::NoCapacitanceVoltage(
     }
 
     //child axial current (following from global v_parent)
-    for (int i=0; i<branch_cvodes->no_cap_child_count; i++)
+    for (int i=0; i<no_cap->child_count_; i++)
     {
         nd = no_cap_child[i];
         pnd = p[nd];
@@ -307,10 +317,10 @@ void HinesSolver::NoCapacitanceVoltage(
         d[pnd] -= a[nd];
     }
 
-    for (int i=0; branch_cvodes->no_cap_count; i++)
+    for (int i=0; no_cap->node_count_; i++)
     {
         nd = no_cap_node[i];
         v[nd] = rhs[nd] / d[nd];
     }
-    // no_cap v's are now consistent with adjacent v's
+    // no_cap voltages are now consistent with adjacent voltages
 }

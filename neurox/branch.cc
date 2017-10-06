@@ -33,6 +33,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
+      vardt_(nullptr),
       events_queue_mutex_(HPX_NULL) {
   this->nt_ = (NrnThread *)malloc(sizeof(NrnThread));
   NrnThread *nt = this->nt_;
@@ -348,6 +349,28 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #endif
 }
 
+void Branch::DeleteMembList(Memb_list *& mechs_instances)
+{
+    for (int m = 0; m < mechanisms_count_; m++) {
+      Memb_list &instance = mechs_instances[m];
+      if (mechanisms_[m]->memb_func_.thread_cleanup_)
+        mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
+
+      Vectorizer::Delete(mechs_instances[m].nodeindices);
+      Vectorizer::Delete(mechs_instances[m].pdata);
+      delete[] mechs_instances[m]._thread;
+
+      Vectorizer::Delete(mechs_instances[m]._shadow_d);
+      Vectorizer::Delete(mechs_instances[m]._shadow_didv);
+      Vectorizer::Delete(mechs_instances[m]._shadow_didv_offsets);
+      Vectorizer::Delete(mechs_instances[m]._shadow_i);
+      Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
+      Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
+    }
+    delete[] mechs_instances;
+    mechs_instances=nullptr;
+}
+
 Branch::~Branch() {
   delete[] this->nt_->weights;
   Vectorizer::Delete(this->nt_->_data);
@@ -355,23 +378,7 @@ Branch::~Branch() {
   delete[] this->nt_->_ml_list;
 
   hpx_lco_delete_sync(this->events_queue_mutex_);
-  for (int m = 0; m < mechanisms_count_; m++) {
-    Memb_list &instance = this->mechs_instances_[m];
-    if (mechanisms_[m]->memb_func_.thread_cleanup_)
-      mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
-
-    Vectorizer::Delete(mechs_instances_[m].nodeindices);
-    Vectorizer::Delete(mechs_instances_[m].pdata);
-    delete[] mechs_instances_[m]._thread;
-
-    Vectorizer::Delete(mechs_instances_[m]._shadow_d);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_didv);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_didv_offsets);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_i);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_rhs);
-    Vectorizer::Delete(mechs_instances_[m]._shadow_i_offsets);
-  }
-  delete[] mechs_instances_;
+  DeleteMembList(mechs_instances_);
 
   for (int i = 0; i < this->nt_->_nvdata; i++) delete nt_->_vdata[i];
   delete[] this->nt_->_vdata;  // TODO deleting void* in undefined!
@@ -476,7 +483,9 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
 }
 
-void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
+void Branch::CallModFunction(
+        const Mechanism::ModFunctions function_id,
+        Memb_list * memb_list) {
   if (function_id < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
@@ -484,7 +493,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
       function_id == Mechanism::ModFunctions::kJacobCapacitance ||
       function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
-    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id);
+    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(
+                this, function_id, memb_list);
   }
   // for all others except capacitance (mechanisms graph)
   else {
@@ -507,7 +517,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id) {
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
           continue;
-        mechanisms_[m]->CallModFunction(this, function_id);
+        mechanisms_[m]->CallModFunction(
+                    this, function_id, memb_list);
       }
     }
   }
@@ -519,7 +530,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(nargs == (input_params_->algorithm_ ==
-                           AlgorithmId::kBackwardEulerTimeDependencyLCO
+                           Algorithms::kTimeDependencyLCO
                        ? 3
                        : 2));
 
@@ -659,8 +670,8 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
   NEUROX_MEM_PIN(uint64_t);
   assert(input_params_->allreduce_at_locality_);
   assert(input_params_->algorithm_ ==
-             AlgorithmId::kBackwardEulerSlidingTimeWindow ||
-         input_params_->algorithm_ == AlgorithmId::kBackwardEulerAllReduce);
+             Algorithms::kSlidingTimeWindow ||
+         input_params_->algorithm_ == Algorithms::kAllReduce);
 
   const int locality_neurons_count =
       AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_

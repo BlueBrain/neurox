@@ -3,40 +3,36 @@
 using namespace neurox;
 using namespace neurox::algorithms;
 
-Algorithm* Algorithm::New(AlgorithmId type) {
+Algorithm* Algorithm::New(Algorithms type) {
   switch (type) {
-    case AlgorithmId::kBackwardEulerDebug:
+    case Algorithms::kDebug:
       return new DebugAlgorithm();
-    case AlgorithmId::kBackwardEulerCoreneuron:
+    case Algorithms::kCoreneuron:
       return new CoreneuronAlgorithm();
-    case AlgorithmId::kBackwardEulerAllReduce:
+    case Algorithms::kAllReduce:
       return new AllreduceAlgorithm();
-    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
+    case Algorithms::kSlidingTimeWindow:
       return new SlidingTimeWindowAlgorithm();
-    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
+    case Algorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm();
-    case AlgorithmId::kCvodes:
-      return new CvodesAlgorithm();
     default:
       return nullptr;
   }
   return nullptr;
 };
 
-AlgorithmMetadata* AlgorithmMetadata::New(AlgorithmId type) {
+AlgorithmMetadata* AlgorithmMetadata::New(Algorithms type) {
   switch (type) {
-    case AlgorithmId::kBackwardEulerDebug:
+    case Algorithms::kDebug:
       return new DebugAlgorithm::CommunicationBarrier();
-    case AlgorithmId::kBackwardEulerCoreneuron:
+    case Algorithms::kCoreneuron:
       return new CoreneuronAlgorithm::CommunicationBarrier();
-    case AlgorithmId::kBackwardEulerAllReduce:
+    case Algorithms::kAllReduce:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case AlgorithmId::kBackwardEulerSlidingTimeWindow:
+    case Algorithms::kSlidingTimeWindow:
       return new AllreduceAlgorithm::AllReducesInfo();
-    case AlgorithmId::kBackwardEulerTimeDependencyLCO:
+    case Algorithms::kTimeDependencyLCO:
       return new TimeDependencyLCOAlgorithm::TimeDependencies();
-    case AlgorithmId::kCvodes:
-      return new CvodesAlgorithm::BranchCvodes();
     default:
       return nullptr;
   }

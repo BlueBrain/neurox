@@ -70,15 +70,24 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
     TCLAP::ValueArg<int> algorithm("A", "algorithm",
                                    "[0] BackwardEulerCoreneuronDebug \
-                                        [1] BackwardEulerWithAllReduceBarrier (default), \
+                                        [1] BackwardEulerWithAllReduceBarrier (default) \
                                         [2] BackwardEulerWithSlidingTimeWindow \
                                         [3] BackwardEulerWithTimeDependencyLCO \
                                         [4] BackwardEulerCoreneuron \
-                                        [5] CVODES \
                                         [9] All methods sequentially (NOTE: neurons data does not reset)",
-                                   false, 1, "int");
+                                   false, (int) algorithms::Algorithms::kAllReduce, "int");
+
+    TCLAP::ValueArg<int> interpolator("I", "interpolator",
+                                   "[0] CVODES with Diagonal Jacobian solver a la NEURON\
+                                    [1] CVODES with Dense Jacobian\
+                                    [2] CVODES with Diagonal Jacobian\
+                                    [3] CVODES with Sparse Jacobian\
+                                    [9] Backward Euler (default)",
+                                   false, (int) interpolators::Interpolators::kBackwardEuler, "int");
+
     cmd.add(branch_parallelism_depth);
     cmd.add(algorithm);
+    cmd.add(interpolator);
 
     // coreneuron command line parameters
     TCLAP::ValueArg<floble_t> tstart(
@@ -154,8 +163,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->allreduce_at_locality_ = allreduce_at_locality.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->algorithm_ = (algorithms::AlgorithmId)algorithm.getValue();
+    this->algorithm_ = (algorithms::Algorithms)algorithm.getValue();
     neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
+    this->interpolator_ = (interpolators::Interpolators) interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
@@ -189,7 +199,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
           "tstop");
 
     if (this->branch_parallelism_depth_ > 0 &&
-        this->algorithm_ == algorithms::AlgorithmId::kCvodes)
+        this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 

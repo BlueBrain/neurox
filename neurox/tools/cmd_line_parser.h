@@ -5,9 +5,12 @@ namespace neurox {
 
 // Forward declarations
 namespace algorithms {
-enum class AlgorithmId : int;
+  enum class Algorithms : int;
+  class Algorithm;
+}
 
-class Algorithm;
+namespace interpolators {
+  enum class Interpolators : int;
 }
 
 namespace tools {
@@ -48,11 +51,18 @@ class CmdLineParser {
   bool mechs_parallelism_;        ///> graph-based parallelism of mechanisms
   bool allreduce_at_locality_;    ///> whether to perform HPX all-reduce LCOs at
                                   /// neuron or node level
-  bool load_balancing_;  ///> Whether to perform dynamic load balancing of bodes
-                         /// and branches
-  int branch_parallelism_depth_;       ///> depth tree-based parallelism of
-                                       /// morphologies
-  algorithms::AlgorithmId algorithm_;  ///> neurons sychronization algorithm
+
+  ///Whether to perform dynamic load balancing of nodes and branches
+  bool load_balancing_;
+
+  /// depth tree-based parallelism of morphologies
+  int branch_parallelism_depth_;
+
+  /// neurons sychronization algorithm
+  algorithms::Algorithms algorithm_;
+
+  /// interpolation agorithm
+  interpolators::Interpolators interpolator_;
 
  private:
   /// Parses command line arguments and populates structure

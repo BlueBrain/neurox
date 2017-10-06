@@ -11,8 +11,8 @@ TimeDependencyLCOAlgorithm::TimeDependencyLCOAlgorithm() {}
 
 TimeDependencyLCOAlgorithm::~TimeDependencyLCOAlgorithm() {}
 
-const AlgorithmId TimeDependencyLCOAlgorithm::GetId() {
-  return AlgorithmId::kBackwardEulerTimeDependencyLCO;
+const Algorithms TimeDependencyLCOAlgorithm::GetId() {
+  return Algorithms::kTimeDependencyLCO;
 }
 
 const char* TimeDependencyLCOAlgorithm::GetString() {

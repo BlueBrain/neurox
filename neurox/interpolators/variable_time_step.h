@@ -16,44 +16,16 @@
 // For Approx Diagonal matrix
 #include <cvodes/cvodes_diag.h>
 
-/***
- * NEUROX_CVODES_JACOBIAN_SOLVER:
- * 0 for diagonal approxiamted matrix
- * 1 for dense matrix
- * 2 for KLU sparse-matrix solver
- * 3 for SuperLMU sparse-matrix solver
- */
-#define NEUROX_CVODES_JACOBIAN_SOLVER 1
-
-#include <list>
-
 using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
+namespace interpolators {
 
-class CvodesAlgorithm : public Algorithm {
- public:
-  CvodesAlgorithm();
-  ~CvodesAlgorithm();
-
-  const AlgorithmId GetId() override;
-  const char *GetString() override;
-
-  void Init() override;
-  void Clear() override;
-  double Launch() override;
-
-  void StepBegin(Branch *) override;
-  void StepEnd(Branch *, hpx_t) override;
-  void Run(Branch *, const void *) override;
-  hpx_t SendSpikes(Neuron *, double, double) override;
-
-  class BranchCvodes : public AlgorithmMetadata {
+  class VariableTimeStep {
    public:
-    BranchCvodes();
-    ~BranchCvodes();
+    VariableTimeStep();
+    ~VariableTimeStep();
 
     /// absolute tolerance per equation
     N_Vector absolute_tolerance_;
@@ -64,21 +36,12 @@ class CvodesAlgorithm : public Algorithm {
     /// CVODES structure
     void *cvodes_mem_;
 
-    /// number of capacitance equations in this branch
-    int capacitances_count_;
-
     /// number of equations/vars in the system of ODEs
     /// i.e. compartments * equations per compartment
     int equations_count_;
 
-    /// hpx for last sent spikes
-    hpx_t spikes_lco_;
-
     /// HPX actions registration
     static void RegisterHpxActions();
-
-    /// temporary placeholder for data
-    double *data_bak_;
 
     /// mapping of y in CVODES to NrnThread->data
     double **state_var_map_;
@@ -86,23 +49,27 @@ class CvodesAlgorithm : public Algorithm {
     /// mapping of y in CVODES to NrnThread->data
     double **state_dv_map_;
 
-    /// tree of no-capacitance nodes
-    int * no_cap_node;
-    int * no_cap_child;
-    int   no_cap_count;
-    int   no_cap_child_count;
+    ///> Information of no-capacitance nodes
+    class NoCapacitor
+    {
+      public:
+        NoCapacitor() = delete;
+        NoCapacitor(const Branch*);
+        ~NoCapacitor();
+
+        int * node_ids_; ///> no-cap node ids
+        int * child_ids_; ///> id of nodes with no-cap parents
+        int node_count_; ///> size of node_ids_
+        int child_count_; ///> size of child_ids_
+        Memb_list * memb_list_; ///> Memb_list of no-cap nodes
+    } * no_cap_; ///> info on non-capacitors nodes
 
     static hpx_action_t Init;
     static hpx_action_t Run;
     static hpx_action_t Clear;
 
    private:
-    static int Init_handler();
-    static int Run_handler();
-    static int Clear_handler();
-  };
 
- private:
   /// CVODES BDF max-order
   const static int kBDFMaxOrder = 5;
 
@@ -143,8 +110,12 @@ class CvodesAlgorithm : public Algorithm {
   static int JacobianDense(long int N, floble_t t, N_Vector y_, N_Vector fy,
                               DlsMat J, void *user_data, N_Vector tmp1,
                               N_Vector tmp2, N_Vector tmp3);
+
+  static int Init_handler();
+  static int Run_handler();
+  static int Clear_handler();
 };
 
-};  // algorithm
+};  // interpolators
 
 };  // neurox
