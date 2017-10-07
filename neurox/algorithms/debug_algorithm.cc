@@ -9,7 +9,7 @@ DebugAlgorithm::~DebugAlgorithm() {}
 
 DebugAlgorithm::CommunicationBarrier::CommunicationBarrier() {
   this->all_spikes_lco_ = HPX_NULL;
-  assert(CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize <= 4);
+  assert(neurox::min_delay_steps_ <= 4);
 }
 
 DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
@@ -32,7 +32,7 @@ void DebugAlgorithm::Init() {
 void DebugAlgorithm::Clear() {}
 
 double DebugAlgorithm::Launch() {
-  int comm_step_size = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+  int comm_step_size = neurox::min_delay_steps_;
   int total_steps = Algorithm::GetTotalStepsCount();
 
   hpx_time_t now = hpx_time_now();

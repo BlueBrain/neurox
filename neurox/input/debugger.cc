@@ -457,8 +457,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
                                     // compared on-the-fly)
   {
     int totalSteps = algorithms::Algorithm::GetTotalStepsCount();
-    int commStepSize =
-        algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+    int commStepSize = neurox::min_delay_steps_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");

@@ -48,6 +48,9 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 namespace neurox {
 
+/// Fixed communication step size in fixed-steps
+extern int min_delay_steps_;
+
 ///  hpx address of all neurons
 extern hpx_t *neurons_;
 

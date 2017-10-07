@@ -1588,6 +1588,7 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
+  //TODO the fastest synaptic delay variable should be set here!
   if (local->soma_ && input_params_->output_netcons_dot)
     fprintf(file_netcons_, "%d [style=filled, shape=ellipse];\n",
             local->soma_->gid_);

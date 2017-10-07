@@ -505,9 +505,7 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
 
   CVodeSetInitStep(cvode_mem, kMinStepSize);
   CVodeSetMinStep(cvode_mem, kMinStepSize);
-  CVodeSetMaxStep(
-      cvode_mem,
-      algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize);
+  CVodeSetMaxStep(cvode_mem,neurox::min_delay_steps_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
 
