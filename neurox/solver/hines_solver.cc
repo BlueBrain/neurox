@@ -40,15 +40,15 @@ void HinesSolver::ResetMatrixRHS(Branch *branch) {
 
   for (int i = 0; i < n; i++) {
     rhs[i] = 0;
-    fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f (rhs2)\n", branch->nt_->_t, i, 0);
+    // fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f (rhs2)\n", branch->nt_->_t, i,
+    // 0);
   }
 }
 
 void HinesSolver::ResetMatrixV(Branch *branch) {
   floble_t *v = branch->nt_->_actual_v;
   const int n = branch->nt_->end;
-  for (int i = 0; i < n; i++)
-    v[i] = 0;
+  for (int i = 0; i < n; i++) v[i] = 0;
 }
 
 void HinesSolver::SetupMatrixRHS(Branch *branch) {
@@ -87,14 +87,15 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
       dv = v[p[i]] - v[i];  // reads from parent
       rhs[i] -= b[i] * dv;
       rhs[p[i]] += a[i] * dv;  // writes to parent
-      fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f\tRHS[%d]=%.12f (setup_rhs_2)\n",
-              branch->nt_->_t, i, rhs[i], p[i], rhs[p[i]]);
+      // if (input_params_->interpolator_!=Interpolators::kBackwardEuler)
+      //  fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f\tRHS[%d]=%.12f
+      //  (setup_rhs_2)\n", branch->nt_->_t, i, rhs[i], p[i], rhs[p[i]]);
     }
   else  // a leaf on the tree
     for (offset_t i = 1; i < n; i++) {
       dv = v[i - 1] - v[i];
       rhs[i] -= b[i] * dv;
-      rhs[i-1] += a[i] * dv;
+      rhs[i - 1] += a[i] * dv;
     }
 
   // bottom compartment (when there is branching)
@@ -260,77 +261,71 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
   const floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *v = branch->nt_->_actual_v;
 
-  //Reminder: after Gaussian Elimination, RHS is dV/dt (?)
+  // Reminder: after Gaussian Elimination, RHS is dV/dt (?)
   const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
   for (int i = 0; i < branch->nt_->end; i++)
     v[i] += second_order_multiplier * rhs[i];
 }
 
-void HinesSolver::ResetRHSandDNoCapacitors(
-        Branch * branch, void * no_cap_ptr)
-{
-    VariableTimeStep::NoCapacitor * no_cap =
-            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
+void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch, void *no_cap_ptr) {
+  VariableTimeStep::NoCapacitor *no_cap =
+      (VariableTimeStep::NoCapacitor *)no_cap_ptr;
 
-    floble_t *rhs = branch->nt_->_actual_rhs;
-    floble_t *d = branch->nt_->_actual_d;
-    for (int i=0; i<no_cap->node_count_; i++)
-    {
-        int nd = no_cap->node_ids_[i];
-        d[nd]=0;
-        rhs[nd]=0;
-        fprintf(stderr, "== t=%.5f\tRHS+D[%d]=%.12f (reset)\n", branch->nt_->_t, nd, 0);
-    }
+  floble_t *rhs = branch->nt_->_actual_rhs;
+  floble_t *d = branch->nt_->_actual_d;
+  for (int i = 0; i < no_cap->node_count_; i++) {
+    int nd = no_cap->node_ids_[i];
+    d[nd] = 0;
+    rhs[nd] = 0;
+    // fprintf(stderr, "== t=%.5f\tRHS+D[%d]=%.12f (reset)\n", branch->nt_->_t,
+    // nd, 0);
+  }
 }
 
-void HinesSolver::SetupMatrixVoltageNoCapacitors(
-        Branch * branch, void * no_cap_ptr)
-{
-    VariableTimeStep::NoCapacitor * no_cap =
-            (VariableTimeStep::NoCapacitor*) no_cap_ptr;
+void HinesSolver::SetupMatrixVoltageNoCapacitors(Branch *branch,
+                                                 void *no_cap_ptr) {
+  VariableTimeStep::NoCapacitor *no_cap =
+      (VariableTimeStep::NoCapacitor *)no_cap_ptr;
 
-    const floble_t *a = branch->nt_->_actual_a;
-    const floble_t *b = branch->nt_->_actual_b;
-    const int * p = branch->nt_->_v_parent_index;
-    const int * no_cap_child = no_cap->child_ids_;
-    const int * no_cap_node = no_cap->node_ids_;
+  const floble_t *a = branch->nt_->_actual_a;
+  const floble_t *b = branch->nt_->_actual_b;
+  const int *p = branch->nt_->_v_parent_index;
+  const int *no_cap_child = no_cap->child_ids_;
+  const int *no_cap_node = no_cap->node_ids_;
 
-    floble_t *rhs = branch->nt_->_actual_rhs;
-    floble_t *d = branch->nt_->_actual_d;
-    floble_t *v = branch->nt_->_actual_v;
-    int nd=-1, pnd=-1;
+  floble_t *rhs = branch->nt_->_actual_rhs;
+  floble_t *d = branch->nt_->_actual_d;
+  floble_t *v = branch->nt_->_actual_v;
+  int nd = -1, pnd = -1;
 
-    //parent axial current
-    for (int i=0; i<no_cap->node_count_; i++)
+  // parent axial current
+  for (int i = 0; i < no_cap->node_count_; i++) {
+    nd = no_cap_node[i];
+    rhs[nd] += d[nd] * v[nd];
+    if (nd > 0)  // has parent
     {
-        nd = no_cap_node[i];
-        rhs[nd] += d[nd]*v[nd];
-        if (nd>0) //has parent
-        {
-            rhs[nd] -= b[nd]*v[p[nd]];
-            d[nd] -= b[nd];
-            fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D=%.12f (nocap_v2)\n",
-                    branch->nt_->_t, nd, rhs[nd], d[nd]);
-        }
+      rhs[nd] -= b[nd] * v[p[nd]];
+      d[nd] -= b[nd];
+      // fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D=%.12f (nocap_v2)\n",
+      // branch->nt_->_t, nd, rhs[nd], d[nd]);
     }
+  }
 
-    //child axial current (following from global v_parent)
-    for (int i=0; i<no_cap->child_count_; i++)
-    {
-        nd = no_cap_child[i];
-        pnd = p[nd];
-        rhs[pnd] -= a[nd]*v[nd];
-        d[pnd] -= a[nd];
-        fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D[%d]=%.12f (nocap_v3)\n",
-                branch->nt_->_t, pnd,rhs[pnd], pnd, d[pnd]);
-    }
+  // child axial current (following from global v_parent)
+  for (int i = 0; i < no_cap->child_count_; i++) {
+    nd = no_cap_child[i];
+    pnd = p[nd];
+    rhs[pnd] -= a[nd] * v[nd];
+    d[pnd] -= a[nd];
+    // fprintf(stderr, "== t=%.5f\tRHS[%d]=%.12f D[%d]=%.12f (nocap_v3)\n",
+    // branch->nt_->_t, pnd,rhs[pnd], pnd, d[pnd]);
+  }
 
-    for (int i=0; i<no_cap->node_count_; i++)
-    {
-        nd = no_cap_node[i];
-        v[nd] = rhs[nd] / d[nd];
-        fprintf(stderr, "== t=%.5f\tV[%d]=%.12f (nocap_v4)\n",
-                 branch->nt_->_t, nd, v[nd]);
-    }
-    // no_cap voltages are now consistent with adjacent voltages
+  for (int i = 0; i < no_cap->node_count_; i++) {
+    nd = no_cap_node[i];
+    v[nd] = rhs[nd] / d[nd];
+    // fprintf(stderr, "== t=%.5f\tV[%d]=%.12f (nocap_v4)\n", branch->nt_->_t,
+    // nd, v[nd]);
+  }
+  // no_cap voltages are now consistent with adjacent voltages
 }

@@ -33,8 +33,8 @@ class HinesSolver {
   static void UpdateVoltagesWithRHS(Branch *local);
 
   // CVODE-specific methods
-  static void ResetRHSandDNoCapacitors(Branch*, void*);
-  static void SetupMatrixVoltageNoCapacitors(Branch*, void*);
+  static void ResetRHSandDNoCapacitors(Branch *, void *);
+  static void SetupMatrixVoltageNoCapacitors(Branch *, void *);
 
  private:
 };

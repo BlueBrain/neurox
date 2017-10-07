@@ -11,11 +11,11 @@ namespace interpolators {
  * Identifies the algorithm and jacobian used on
  * fixed or variable step interpolations;
  */
-enum class Interpolators: int {
-  kCvodesNeuronSolver = 0,
-  kCvodesDenseMatrix = 1,
-  kCvodesDiagMatrix = 2,
-  kCvodesSparseMatrix = 3,
+enum class Interpolators : int {
+  kCvodeDiagNeuronSolver = 0,
+  kCvodeDenseMatrix = 1,
+  kCvodeDiagMatrix = 2,
+  kCvodeSparseMatrix = 3,
   kBackwardEuler = 9
 };
 

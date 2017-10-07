@@ -5,8 +5,8 @@
 #include <deque>
 #include <map>
 #include <memory>
-#include <vector>
 #include <set>
+#include <vector>
 
 #define NEUROX_INPUT_DATALOADER_OUTPUT_EXTERNAL_NETCONS true
 #define NEUROX_INPUT_DATALOADER_OUTPUT_CORENEURON_COMPARTMENTS true
@@ -39,11 +39,11 @@ class DataLoader {
 
   /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
   static void GetMembListsOrderedByCapacitorsOrNot(
-          const Branch* branch, //in
-          const std::set<int> & capacitors_ids, //in
-          Memb_list *& ml_no_capacitors, //out
-          Memb_list *& ml_capacitors //out
-          );
+      const Branch *branch,                    // in
+      const std::set<int> &capacitors_ids,     // in
+      Memb_list **ml_no_capacitors_ptr,        // out
+      Memb_list **ml_capacitors_ptr = nullptr  // out (optional)
+      );
 
   /// Registers all HPX actions
   static void RegisterHpxActions();

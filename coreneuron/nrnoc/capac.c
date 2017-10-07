@@ -207,8 +207,7 @@ void nrn_div_capacity(NrnThread* _nt, Memb_list* ml, int type)
 #endif
         i_cap = VEC_RHS(ni[_iml]);
         VEC_RHS(ni[_iml]) /= 1.e-3*cm;
-        fprintf(stderr, "== nrn_div_cap: RHS[%d]=%.12f\n",
-               ni[_iml], VEC_RHS(ni[_iml])) ;
+        //fprintf(stderr, "== nrn_div_cap: RHS[%d]=%.12f\n", ni[_iml], VEC_RHS(ni[_iml])) ;
     }
 }
 

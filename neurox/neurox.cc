@@ -75,15 +75,13 @@ static int Main_handler() {
       fflush(stdout);
 #endif
     }
-  } else
-  if (input_params_->interpolator_ != Interpolators::kBackwardEuler)
-  {
-      //TODO temp hack, at some point interpolators will include Back-Euler and CVODE
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
-  }
-  {
+  } else if (input_params_->interpolator_ != Interpolators::kBackwardEuler) {
+    // TODO temp hack, at some point interpolators will include Back-Euler and
+    // CVODE
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
+  } else {
     algorithm_ = Algorithm::New(input_params_->algorithm_);
     algorithm_->Init();
     algorithm_->PrintStartInfo();

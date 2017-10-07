@@ -252,7 +252,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   }
 
   // ttx excluded (no writes to ttx state)
-  assert(ionsCount==Mechanism::IonTypes::kSizeWriteableIons+1);
+  assert(ionsCount == Mechanism::IonTypes::kSizeWriteableIons + 1);
 
   // vecplay
   nt->n_vecplay = vecplay_ppi_count;
@@ -265,7 +265,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     size_t size = ppi.size;
     int m = mechanisms_map_[ppi.mech_type];
     floble_t *instances_data = this->mechs_instances_[m].data;
-    assert(mechanisms_[m]->pnt_map_>0);
+    assert(mechanisms_[m]->pnt_map_ > 0);
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);
@@ -349,26 +349,25 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #endif
 }
 
-void Branch::DeleteMembList(Memb_list *& mechs_instances)
-{
-    for (int m = 0; m < mechanisms_count_; m++) {
-      Memb_list &instance = mechs_instances[m];
-      if (mechanisms_[m]->memb_func_.thread_cleanup_)
-        mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
+void Branch::DeleteMembList(Memb_list *&mechs_instances) {
+  for (int m = 0; m < mechanisms_count_; m++) {
+    Memb_list &instance = mechs_instances[m];
+    if (mechanisms_[m]->memb_func_.thread_cleanup_)
+      mechanisms_[m]->memb_func_.thread_cleanup_(instance._thread);
 
-      Vectorizer::Delete(mechs_instances[m].nodeindices);
-      Vectorizer::Delete(mechs_instances[m].pdata);
-      delete[] mechs_instances[m]._thread;
+    Vectorizer::Delete(mechs_instances[m].nodeindices);
+    Vectorizer::Delete(mechs_instances[m].pdata);
+    delete[] mechs_instances[m]._thread;
 
-      Vectorizer::Delete(mechs_instances[m]._shadow_d);
-      Vectorizer::Delete(mechs_instances[m]._shadow_didv);
-      Vectorizer::Delete(mechs_instances[m]._shadow_didv_offsets);
-      Vectorizer::Delete(mechs_instances[m]._shadow_i);
-      Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
-      Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
-    }
-    delete[] mechs_instances;
-    mechs_instances=nullptr;
+    Vectorizer::Delete(mechs_instances[m]._shadow_d);
+    Vectorizer::Delete(mechs_instances[m]._shadow_didv);
+    Vectorizer::Delete(mechs_instances[m]._shadow_didv_offsets);
+    Vectorizer::Delete(mechs_instances[m]._shadow_i);
+    Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
+    Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
+  }
+  delete[] mechs_instances;
+  mechs_instances = nullptr;
 }
 
 Branch::~Branch() {
@@ -483,9 +482,8 @@ void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
 }
 
-void Branch::CallModFunction(
-        const Mechanism::ModFunctions function_id,
-        Memb_list * other_ml) {
+void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
+                             Memb_list *other_ml) {
   if (function_id < BEFORE_AFTER_SIZE) return;  // N/A
 
   // only for capacitance mechanism
@@ -493,8 +491,8 @@ void Branch::CallModFunction(
       function_id == Mechanism::ModFunctions::kJacobCapacitance ||
       function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
-    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(
-                this, function_id, other_ml);
+    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id,
+                                                       other_ml);
   }
   // for all others except capacitance (mechanisms graph)
   else {
@@ -502,8 +500,7 @@ void Branch::CallModFunction(
     {
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count_; m++) {
-        if (mechanisms_[m]->type_ == CAP)
-            continue;  // not capacitance
+        if (mechanisms_[m]->type_ == CAP) continue;  // not capacitance
         if (mechanisms_[m]->dependencies_count_ > 0)
           continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
@@ -517,9 +514,8 @@ void Branch::CallModFunction(
         if (mechanisms_[m]->type_ == CAP &&
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
-          continue; //kCurrentCapacitance and kJacobCapacitance above
-        mechanisms_[m]->CallModFunction(
-                    this, function_id, other_ml);
+          continue;  // kCurrentCapacitance and kJacobCapacitance above
+        mechanisms_[m]->CallModFunction(this, function_id, other_ml);
       }
     }
   }
@@ -530,10 +526,8 @@ hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == (input_params_->algorithm_ ==
-                           Algorithms::kTimeDependencyLCO
-                       ? 3
-                       : 2));
+  assert(nargs ==
+         (input_params_->algorithm_ == Algorithms::kTimeDependencyLCO ? 3 : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
@@ -586,8 +580,7 @@ void Branch::Finitialize2() {
   DeliverEvents(t);
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
-  for (int n = 0; n < this->nt_->end; n++)
-      v[n] = input_params_->voltage_;
+  for (int n = 0; n < this->nt_->end; n++) v[n] = input_params_->voltage_;
 
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read
@@ -628,20 +621,20 @@ void Branch::BackwardEulerStep() {
   SetupTreeMatrix();
   SolveTreeMatrix();
 
-  //update ions currents based on RHS and dI/dV
+  // update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
   solver::HinesSolver::UpdateVoltagesWithRHS(this);
-  //TODO this can be placed after the next operation
+  // TODO this can be placed after the next operation
 
-  //update capacitance currents based on RHS and dI/dV
+  // update capacitance currents based on RHS and dI/dV
   CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
 
   ////// fadvance_core.::nrn_fixed_step_lastpart()
   // callModFunction(Mechanism::ModFunction::jacob);
   t += .5 * this->nt_->_dt;
-  //TODO: commenting the call below changes nothing
+  // TODO: commenting the call below changes nothing
   //(it changes the variables used in the current function only)
   FixedPlayContinuous();
   CallModFunction(Mechanism::ModFunctions::kState);
@@ -670,8 +663,7 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
   assert(input_params_->allreduce_at_locality_);
-  assert(input_params_->algorithm_ ==
-             Algorithms::kSlidingTimeWindow ||
+  assert(input_params_->algorithm_ == Algorithms::kSlidingTimeWindow ||
          input_params_->algorithm_ == Algorithms::kAllReduce);
 
   const int locality_neurons_count =
@@ -770,7 +762,7 @@ void Branch::SolveTreeMatrix() {
   solver::HinesSolver::ForwardSubstituion(this);
 }
 
-void Branch::DeliverEvents(floble_t til) //Coreneuron: til=t+0.5*dt
+void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
   // delivers events in the preivous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
@@ -792,18 +784,15 @@ void Branch::DeliverEvents(floble_t til) //Coreneuron: til=t+0.5*dt
   this->nt_->_t = tsav;
 }
 
-void Branch::FixedPlayContinuous(double t)
-{
+void Branch::FixedPlayContinuous(double t) {
   for (int v = 0; v < this->nt_->n_vecplay; v++) {
     void *vecplay_void = this->nt_->_vecplay[v];
-      VecplayContinuousX *vecplay =
-         reinterpret_cast<VecplayContinuousX *>(vecplay_void);
+    VecplayContinuousX *vecplay =
+        reinterpret_cast<VecplayContinuousX *>(vecplay_void);
     vecplay->Continuous(t);
   }
 }
-void Branch::FixedPlayContinuous() {
-  FixedPlayContinuous(this->nt_->_t);
-}
+void Branch::FixedPlayContinuous() { FixedPlayContinuous(this->nt_->_t); }
 
 //////////////////// Branch::NeuronTree ///////////////////////
 

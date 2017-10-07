@@ -5,12 +5,12 @@ namespace neurox {
 
 // Forward declarations
 namespace algorithms {
-  enum class Algorithms : int;
-  class Algorithm;
+enum class Algorithms : int;
+class Algorithm;
 }
 
 namespace interpolators {
-  enum class Interpolators : int;
+enum class Interpolators : int;
 }
 
 namespace tools {
@@ -52,7 +52,7 @@ class CmdLineParser {
   bool allreduce_at_locality_;    ///> whether to perform HPX all-reduce LCOs at
                                   /// neuron or node level
 
-  ///Whether to perform dynamic load balancing of nodes and branches
+  /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;
 
   /// depth tree-based parallelism of morphologies

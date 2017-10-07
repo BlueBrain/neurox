@@ -135,33 +135,32 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
   b->nt_->_ndata = new_data_size;
 }
 
-void tools::Vectorizer::CallVecFunction(
-        cvode_f_t func, NrnThread* nt, Memb_list* ml, int type)
-{
-    double* p = nullptr;
-    Datum* ppvar = nullptr;
-    double v = 0.0;
-    int* ni = ml->nodeindices;
-    int cntml_actual = ml->nodecount;
-    int cntml_padded = ml->_nodecount_padded;
-    ThreadDatum* thread = ml->_thread;
-    double * vec_v =  nt->_actual_v;
-    int nd_idx=-1;
+void tools::Vectorizer::CallVecFunction(cvode_f_t func, NrnThread* nt,
+                                        Memb_list* ml, int type) {
+  double* p = nullptr;
+  Datum* ppvar = nullptr;
+  double v = 0.0;
+  int* ni = ml->nodeindices;
+  int cntml_actual = ml->nodecount;
+  int cntml_padded = ml->_nodecount_padded;
+  ThreadDatum* thread = ml->_thread;
+  double* vec_v = nt->_actual_v;
+  int nd_idx = -1;
 
-    const int psize=GetMechanismFromType(type)->data_size_;
-    const int ppsize=GetMechanismFromType(type)->pdata_size_;
+  const int psize = GetMechanismFromType(type)->data_size_;
+  const int ppsize = GetMechanismFromType(type)->pdata_size_;
 
-    #if LAYOUT == 1 /*AoS*/
-    for (int iml = 0; iml < cntml_actual; ++iml) {
-     p = ml->data + iml*psize;
-     ppvar = ml->pdata + iml*ppsize;
-    #elif LAYOUT == 0 /*SoA*/
-     p = ml->data;
-     ppvar = ml->pdata;
-    for (int iml = 0; iml < cntml_actual; ++iml) {
-    #endif
-        nd_idx = ni[iml];
-        v = vec_v[nd_idx];
-        (*func)(iml, cntml_padded, p, ppvar, thread, nt, v);
-    }
+#if LAYOUT == 1 /*AoS*/
+  for (int iml = 0; iml < cntml_actual; ++iml) {
+    p = ml->data + iml * psize;
+    ppvar = ml->pdata + iml * ppsize;
+#elif LAYOUT == 0 /*SoA*/
+  p = ml->data;
+  ppvar = ml->pdata;
+  for (int iml = 0; iml < cntml_actual; ++iml) {
+#endif
+    nd_idx = ni[iml];
+    v = vec_v[nd_idx];
+    (*func)(iml, cntml_padded, p, ppvar, thread, nt, v);
+  }
 }

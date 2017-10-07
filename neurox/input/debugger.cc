@@ -257,6 +257,9 @@ void Debugger::CompareAllBranches() {
   if (input_params_->branch_parallelism_depth_ > 0 ||
       input_params_->load_balancing_)
     return;
+
+  if (input_params_->interpolator_ != Interpolators::kBackwardEuler) return;
+
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
 #endif
@@ -264,6 +267,7 @@ void Debugger::CompareAllBranches() {
 
 void Debugger::CompareBranch2(Branch *branch) {
   assert(branch->soma_);  // only non-branched neurons
+
   int nrnThreadId = branch->nt_->id;
   assert(sizeof(floble_t) == sizeof(double));  // only works with doubles!
   NrnThread &nt = nrn_threads[nrnThreadId];
