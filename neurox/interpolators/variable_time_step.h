@@ -114,16 +114,9 @@ class VariableTimeStep {
                            DlsMat J, void *user_data, N_Vector tmp1,
                            N_Vector tmp2, N_Vector tmp3);
 
-  /// Class containing functions for Neuron-diagonal solver
-  class NeuronDiagSolver {
-   public:
-    static int Init(CVodeMem);
-    static int Setup(CVodeMem m, int convfail, N_Vector yp, N_Vector fp,
-                     booleantype *jcurPtr, N_Vector, N_Vector, N_Vector);
-    static int Solve(CVodeMem m, N_Vector b, N_Vector weight, N_Vector ycur,
-                     N_Vector fcur);
-    static int Free(CVodeMem);
-  };
+  /// Solve-function for Neuron-based diagonal solver
+  static int NeuronLinearSolverFunction(CVodeMem m, N_Vector b, N_Vector weight,
+                                        N_Vector ycur, N_Vector fcur);
 
   static int Init_handler();
   static int Run_handler();

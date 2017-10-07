@@ -619,7 +619,7 @@ void Branch::BackwardEulerStep() {
   DeliverEvents(t);  // delivers events in the first HALF of the step
   FixedPlayContinuous();
   SetupTreeMatrix();
-  SolveTreeMatrix();
+  solver::HinesSolver::SolveTreeMatrix(this);
 
   // update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
@@ -732,7 +732,8 @@ int Branch::Finitialize_handler() {
 void Branch::SetupTreeMatrix() {
   // treeset_core.c::nrn_rhs: Set up Right-Hand-Side
   // of Matrix-Vector multiplication
-  solver::HinesSolver::ResetMatrixRHSandD(this);
+  solver::HinesSolver::ResetArray(this, this->nt_->_actual_rhs);
+  solver::HinesSolver::ResetArray(this, this->nt_->_actual_d);
 
   this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   this->CallModFunction(Mechanism::ModFunctions::kCurrent);
@@ -755,11 +756,6 @@ void Branch::SetupTreeMatrix() {
   this->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
   solver::HinesSolver::SetupMatrixDiagonal(this);
-}
-
-void Branch::SolveTreeMatrix() {
-  solver::HinesSolver::BackwardTriangulation(this);
-  solver::HinesSolver::ForwardSubstituion(this);
 }
 
 void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt

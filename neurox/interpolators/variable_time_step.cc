@@ -10,24 +10,21 @@ void VariableTimeStep::ScatterY(Branch *branch, N_Vector y) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   const double *y_data = NV_DATA_S(y);
   double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++)
-    *(var_map[i]) = y_data[i];
+  for (int i = 0; i < vardt->equations_count_; i++) *(var_map[i]) = y_data[i];
 }
 
 void VariableTimeStep::GatherY(Branch *branch, N_Vector y) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   double *y_data = NV_DATA_S(y);
   double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++)
-    y_data[i] = *(var_map[i]);
+  for (int i = 0; i < vardt->equations_count_; i++) y_data[i] = *(var_map[i]);
 }
 
 void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   const double *ydot_data = NV_DATA_S(ydot);
   double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++)
-    *(dv_map[i]) = ydot_data[i];
+  for (int i = 0; i < vardt->equations_count_; i++) *(dv_map[i]) = ydot_data[i];
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
@@ -37,8 +34,7 @@ void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   double *ydot_data = NV_DATA_S(ydot);
   double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++)
-    ydot_data[i] = *(dv_map[i]);
+  for (int i = 0; i < vardt->equations_count_; i++) ydot_data[i] = *(dv_map[i]);
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
@@ -103,7 +99,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // fprintf(stderr, "PHASE2====\n");
 
   // cvtrset.cpp :: CVode::rhs
-  solver::HinesSolver::ResetMatrixRHS(branch);
+  solver::HinesSolver::ResetArray(branch, nt->_actual_rhs);
 
   // cvtrset.cpp :: CVode::rhs() -> rhs_memb(z.cv_memb_list_)
   // sum mech-instance contributions to D and RHS on caps
@@ -132,18 +128,39 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   return CV_SUCCESS;
 }
 
-int VariableTimeStep::NeuronDiagSolver::Init(CVodeMem) {}
+// The solve function must solve the linear system Mx=b, where M is an
+// approximation of the Newton matrix, I - gamma J, where J = df/dy,
+// and the rhs-vector b is an input. Called once per newton, thus
+// several times per time-step. (occvode.cpp: Cvode::solvex_thread)
+int VariableTimeStep::NeuronLinearSolverFunction(CVodeMem cv_mem, N_Vector b,
+                                                 N_Vector weight, N_Vector ycur,
+                                                 N_Vector fcur) {
+  // b is the right-hand-side vector, solution to be returned in b
+  // ycur contains vector approximations to y(t_n)
+  // ycur contains vector approximations to f(t_n, ycur)
 
-int VariableTimeStep::NeuronDiagSolver::Setup(CVodeMem m, int convfail,
-                                              N_Vector yp, N_Vector fp,
-                                              booleantype *jcurPtr, N_Vector,
-                                              N_Vector, N_Vector) {}
+  Branch *branch;
+  NrnThread *nt = branch->nt_;
+  nt->_dt = cv_mem->cv_gamma;
+  nt->cj = 1 / dt;
 
-int VariableTimeStep::NeuronDiagSolver::Solve(CVodeMem m, N_Vector b,
-                                              N_Vector weight, N_Vector ycur,
-                                              N_Vector fcur) {}
+  // Cvode::lhs()
+  solver::HinesSolver::ResetArray(branch, nt->_actual_d);
+  branch->CallModFunction(Mechanism::ModFunctions::kJacob);
+  branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
+  nt->_actual_d[0] -= nt->_actual_b[0];
+  solver::HinesSolver::SetupMatrixDiagonal(branch);
+  // end of Cvode::lhs()
 
-int VariableTimeStep::NeuronDiagSolver::Free(CVodeMem) {}
+  ScatterYdot(branch, b);
+  branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
+  solver::HinesSolver::ResetRHSNoCapacitors(branch, branch->vardt_);
+  solver::HinesSolver::BackwardTriangulation(branch);
+  solver::HinesSolver::ForwardSubstituion(branch);
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  GatherYdot(branch, b);
+  return CV_SUCCESS;
+}
 
 // jacobian routine: compute J(t,y) = df/dy
 int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
@@ -249,7 +266,7 @@ VariableTimeStep::VariableTimeStep()
 
 VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);
-  CVodeFree((void**)(&cvode_mem_));
+  CVodeFree((void **)(&cvode_mem_));
   delete no_cap_;
 }
 
@@ -309,7 +326,7 @@ int VariableTimeStep::Init_handler() {
   assert(local->vardt_ == nullptr);
   local->vardt_ = new VariableTimeStep();
   VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
-  CVodeMem & cvode_mem = vardt->cvode_mem_;
+  CVodeMem &cvode_mem = vardt->cvode_mem_;
   int cap_count = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
 
@@ -424,7 +441,7 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
   // CVodeCreate creates an internal memory block for a problem to
   // be solved by CVODES, with Backward Differentiation (or Adams)
   // and Newton solver (recommended for stiff problems, see header)
-  cvode_mem = (CVodeMem) CVodeCreate(CV_BDF, CV_NEWTON);
+  cvode_mem = (CVodeMem)CVodeCreate(CV_BDF, CV_NEWTON);
 
   // from cvodeobj.cpp :: cvode_init()
   vardt->cvode_mem_->cv_gamma = 0.;
@@ -456,15 +473,17 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
   // Indirect solvers require iterations (eg Jacobi method)
 
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodeDiagNeuronSolver:
-  {
-      cvode_mem->cv_linit = NeuronDiagSolver::Init;
-      cvode_mem->cv_lsetup = NeuronDiagSolver::Setup;
-      cvode_mem->cv_setupNonNull = TRUE;
-      cvode_mem->cv_lsolve = NeuronDiagSolver::Solve;
-      cvode_mem->cv_lfree = NeuronDiagSolver::Free;
+    case Interpolators::kCvodeDiagNeuronSolver: {
+      // CVODES guide chapter 8: Providing Alternate Linear Solver
+      // Modules: only lsolve function is mandatory
+      // (non-used functions need to be set to null)
+      cvode_mem->cv_linit = nullptr;
+      cvode_mem->cv_lsetup = nullptr;
+      cvode_mem->cv_setupNonNull = FALSE;
+      cvode_mem->cv_lsolve = NeuronLinearSolverFunction;
+      cvode_mem->cv_lfree = nullptr;
       break;
-  }
+    }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
       break;

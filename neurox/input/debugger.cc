@@ -184,7 +184,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   b->FixedPlayContinuous();
   b->SetupTreeMatrix();
-  b->SolveTreeMatrix();
+  solver::HinesSolver::SolveTreeMatrix(b);
 
   // coreneuron
   fixed_play_continuous(nth);

@@ -142,7 +142,6 @@ class Branch {
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();
-  void SolveTreeMatrix();
   void Finitialize2();
   void BackwardEulerStep();
 
