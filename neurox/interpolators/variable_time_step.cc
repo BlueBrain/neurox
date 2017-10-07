@@ -7,31 +7,28 @@ using namespace neurox::interpolators;
 using namespace neurox::tools;
 
 void VariableTimeStep::ScatterY(Branch *branch, N_Vector y) {
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   const double *y_data = NV_DATA_S(y);
   double **var_map = vardt->state_var_map_;
   for (int i = 0; i < vardt->equations_count_; i++) *(var_map[i]) = y_data[i];
 }
 
 void VariableTimeStep::GatherY(Branch *branch, N_Vector y) {
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   double *y_data = NV_DATA_S(y);
   double **var_map = vardt->state_var_map_;
   for (int i = 0; i < vardt->equations_count_; i++) y_data[i] = *(var_map[i]);
 }
 
 void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   const double *ydot_data = NV_DATA_S(ydot);
   double **dv_map = vardt->state_dv_map_;
   for (int i = 0; i < vardt->equations_count_; i++) *(dv_map[i]) = ydot_data[i];
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  // on initialization we call RHS with ydot==NULL
-  if (ydot == nullptr) return;
-
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   double *ydot_data = NV_DATA_S(ydot);
   double **dv_map = vardt->state_dv_map_;
   for (int i = 0; i < vardt->equations_count_; i++) ydot_data[i] = *(dv_map[i]);
@@ -473,17 +470,16 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
   // Indirect solvers require iterations (eg Jacobi method)
 
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodeDiagNeuronSolver: {
+    case Interpolators::kCvodePreCondNeuronSolver:
       // CVODES guide chapter 8: Providing Alternate Linear Solver
       // Modules: only lsolve function is mandatory
       // (non-used functions need to be set to null)
       cvode_mem->cv_linit = nullptr;
       cvode_mem->cv_lsetup = nullptr;
+      cvode_mem->cv_lfree = nullptr;
       cvode_mem->cv_setupNonNull = FALSE;
       cvode_mem->cv_lsolve = NeuronLinearSolverFunction;
-      cvode_mem->cv_lfree = nullptr;
       break;
-    }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
       break;
@@ -567,14 +563,23 @@ int VariableTimeStep::Run_handler() {
   CVodeGetNumSteps(cvode_mem, &num_steps);
 
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodeDiagNeuronSolver:
+    case Interpolators::kCvodePreCondNeuronSolver:
+      CVSpilsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
+      CVSpilsGetNumPrecSolves(cvode_mem, &num_jacob_evals);
+      printf(
+          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d\n",
+          local->soma_->gid_, num_steps, num_rhs_evals, num_jacob_evals);
       break;
     case Interpolators::kCvodeDenseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
       CVDlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
+      printf("-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d\n",
+             local->soma_->gid_, num_steps, num_rhs_evals, num_jacob_evals);
       break;
     case Interpolators::kCvodeDiagMatrix:
       CVDiagGetNumRhsEvals(cvode_mem, &num_rhs_evals);
+      printf("-- Neuron %d completed. steps: %d, rhs: %d\n", local->soma_->gid_,
+             num_steps, num_rhs_evals);
       break;
     case Interpolators::kCvodeSparseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
@@ -583,8 +588,6 @@ int VariableTimeStep::Run_handler() {
       // CVSlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
       break;
   }
-  printf("-- Neuron %d completed: steps: %d, rhs: %d, jacobians: %d\n",
-         local->soma_->gid_, num_steps, num_rhs_evals, num_jacob_evals);
 #endif
   return neurox::wrappers::MemoryUnpin(target);
 }

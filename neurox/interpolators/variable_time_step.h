@@ -17,6 +17,9 @@
 // For Approx Diagonal matrix
 #include <cvodes/cvodes_diag.h>
 
+// For Precondicioned matrix solvers
+#include <cvodes/cvodes_spils.h>
+
 using namespace neurox;
 
 namespace neurox {
