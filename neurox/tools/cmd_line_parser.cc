@@ -70,21 +70,23 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
     TCLAP::ValueArg<int> algorithm(
         "A", "algorithm",
-        "[0] BackwardEulerCoreneuronDebug \
-                                        [1] BackwardEulerWithAllReduceBarrier (default) \
-                                        [2] BackwardEulerWithSlidingTimeWindow \
-                                        [3] BackwardEulerWithTimeDependencyLCO \
-                                        [4] BackwardEulerCoreneuron \
-                                        [9] All methods sequentially (NOTE: neurons data does not reset)",
+        "\
+[0] BackwardEulerCoreneuronDebug\
+\n[1] BackwardEulerWithAllReduceBarrier (default)\
+\n[2] BackwardEulerWithSlidingTimeWindow\
+\n[3] BackwardEulerWithTimeDependencyLCO\
+\n[4] BackwardEulerCoreneuron\
+\n[9] All methods sequentially (NOTE: neurons data does not reset)",
         false, (int)algorithms::Algorithms::kAllReduce, "int");
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
-        "[0] CVODES with Diagonal Jacobian solver a la NEURON\
-                                    [1] CVODES with Dense Jacobian\
-                                    [2] CVODES with Diagonal Jacobian\
-                                    [3] CVODES with Sparse Jacobian\
-                                    [9] Backward Euler (default)",
+        "\
+[0] CVODES with Diagonal Jacobian solver a la NEURON\
+\n[1] CVODES with Dense Jacobian\
+\n[2] CVODES with Diagonal Jacobian\
+\n[3] CVODES with Sparse Jacobian\
+\n[9] Backward Euler (default)",
         false, (int)interpolators::Interpolators::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
@@ -128,15 +130,15 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Apply patternstim with the spike file. No default value", false, "",
         "string");
     cmd.add(pattern_stim);
-    TCLAP::ValueArg<std::string> input_path("d", "inputpath",
-                                            "Path to input files directory",
-                                            true, "./input", "string");
-    cmd.add(input_path);
     TCLAP::ValueArg<std::string> output_path(
         "o", "outputpath",
         "Path to output directory. The default value is ./output", false,
         "./output", "string");
     cmd.add(output_path);
+    TCLAP::ValueArg<std::string> input_path("d", "inputpath",
+                                            "Path to input files directory",
+                                            true, "./input", "string");
+    cmd.add(input_path);
 
     // parse command line arguments
     cmd.parse(argc, argv);
