@@ -12,9 +12,9 @@ namespace interpolators {
  * fixed or variable step interpolations;
  */
 enum class Interpolators : int {
-  kCvodePreCondNeuronSolver = 0,
+  kCvodePreConditionedDiagSolver = 0,
   kCvodeDenseMatrix = 1,
-  kCvodeDiagMatrix = 2,
+  kCvodeDiagonalMatrix = 2,
   kCvodeSparseMatrix = 3,
   kBackwardEuler = 9
 };

@@ -14,11 +14,8 @@
 #include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
-// For Approx Diagonal matrix
-#include <cvodes/cvodes_diag.h>
-
-// For Precondicioned matrix solvers
-#include <cvodes/cvodes_spils.h>
+//For Pre-conditioned matrix solvers
+#include <cvodes/cvodes_diag.h>       /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -73,23 +70,23 @@ class VariableTimeStep {
   static hpx_action_t Clear;
 
  private:
-  /// CVODES BDF max-order
+  /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Mininum step size allowed
+  /// CVODES Mininum step size allowed (NEURON=0)
   constexpr static double kMinStepSize = 1e-4;
 
-  /// CVODES Relative torelance
+  /// CVODES Relative torelance (NEURON=1e-3 or 1e-4)
   constexpr static double kRelativeTolerance = 1e-3;
 
-  /// CVODES Absolute tolerance for voltage values
+  /// CVODES Absolute tolerance for voltage values (NEURON=1e-8)
   constexpr static double kAbsToleranceVoltage = 1e-6;
 
-  /// CVODES Absolute tolerance for mechanism states values
+  /// CVODES Absolute tolerance for mechanism states (NEURON=1e-8)
   constexpr static double kAbsToleranceMechStates = 1e-3;
 
   /// Time-window size for grouping of events to be delivered
-  /// simmultaneously (0 for no grouping, Euler dt=0.025)
+  /// simmultaneously (0 for no grouping, Coreneuron=0.0125)
   constexpr static double kEventsDeliveryTimeWindow = 0.0125;
 
   /// copy CVODES y to NrnThread->data (V and m)
@@ -108,7 +105,7 @@ class VariableTimeStep {
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
                          void *user_data);
 
-  /// root function: computes g_i(t,y), for detection of reached AP-threshold
+  /// root function: computes g_i(t,y) for detection of AP-threshold
   static int RootFunction(realtype t, N_Vector y_, realtype *gout,
                           void *user_data);
 
@@ -118,7 +115,7 @@ class VariableTimeStep {
                            N_Vector tmp2, N_Vector tmp3);
 
   /// Solve-function for Neuron-based diagonal solver
-  static int NeuronLinearSolverFunction(CVodeMem m, N_Vector b, N_Vector weight,
+  static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b, N_Vector weight,
                                         N_Vector ycur, N_Vector fcur);
 
   static int Init_handler();

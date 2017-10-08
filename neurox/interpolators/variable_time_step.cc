@@ -1,5 +1,8 @@
 #include "neurox/interpolators/variable_time_step.h"
 
+#include "cvodes/cvodes_spgmr.h"
+#include "cvodes/cvodes_spils.h"
+
 #include <set>
 
 using namespace neurox;
@@ -74,9 +77,6 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // copies V and state-vars from CVODES to NrnThread
   VariableTimeStep::ScatterY(branch, y);
 
-  // for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
-  //    fprintf(stderr, "== t=%.5f\ty[%d]=%.12f (init1)\n", t, i, y_data[i]);
-
   // start of occvode.cpp :: nocap_v
   solver::HinesSolver::ResetRHSandDNoCapacitors(branch, vardt->no_cap_);
 
@@ -88,12 +88,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   solver::HinesSolver::SetupMatrixVoltageNoCapacitors(branch, vardt->no_cap_);
 
-  // for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
-  //    fprintf(stderr, "== t=%.5f\ty[%d]=%.12f (nocap_v)\n", t, i, y_data[i]);
-
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
-
-  // fprintf(stderr, "PHASE2====\n");
 
   // cvtrset.cpp :: CVode::rhs
   solver::HinesSolver::ResetArray(branch, nt->_actual_rhs);
@@ -110,7 +105,6 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> do_ode()
   branch->CallModFunction(Mechanism::ModFunctions::kODESpec);
 
-  // TODO missing logn term difus?
   // divide RHS by Cm and compute capacity current
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> nrn_div_capacity()
   branch->CallModFunction(Mechanism::ModFunctions::kDivCapacity);
@@ -118,33 +112,30 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // copies dV/dt (RHS) and state-vars-derivative to CVODES
   VariableTimeStep::GatherYdot(branch, ydot);
 
-  // for (int i=0; i<NV_LENGTH_S(vardt->y_); i++)
-  //    fprintf(stderr, "== t=%.5f\tydot[%d]=%.12f (end2)\n", t, i,
-  //    ydot_data[i]);
-
   return CV_SUCCESS;
 }
 
-// The solve function must solve the linear system Mx=b, where M is an
-// approximation of the Newton matrix, I - gamma J, where J = df/dy,
-// and the rhs-vector b is an input. Called once per newton, thus
-// several times per time-step. (occvode.cpp: Cvode::solvex_thread)
-int VariableTimeStep::NeuronLinearSolverFunction(CVodeMem cv_mem, N_Vector b,
-                                                 N_Vector weight, N_Vector ycur,
-                                                 N_Vector fcur) {
+/* The solve function must solve the linear system Mx=b, where M is an
+approximation of the Newton matrix, I - gamma J, where J = df/dy,
+and the rhs-vector b is an input. Called once per newton, thus
+several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
+int VariableTimeStep::PreConditionedDiagonalSolver
+(CVodeMem cv_mem, N_Vector b, N_Vector weight,
+ N_Vector ycur, N_Vector fcur)
+{
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
   Branch *branch = (Branch*) cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
   nt->_dt = cv_mem->cv_gamma;
-  nt->cj = 1 / dt;
+  nt->cj = 1.0/ nt->_dt;
 
   // Cvode::lhs()
   solver::HinesSolver::ResetArray(branch, nt->_actual_d);
   branch->CallModFunction(Mechanism::ModFunctions::kJacob);
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-  nt->_actual_d[0] -= nt->_actual_b[0];
+  assert(nt->_actual_b[0]==0);
   solver::HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
@@ -329,7 +320,6 @@ int VariableTimeStep::Init_handler() {
   int flag = CV_ERR_FAILURE;
 
   // some methods from Branch::Finitialize
-  // local->Finitialize2();
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   local->InitVecPlayContinous();
   local->DeliverEvents(t);
@@ -346,7 +336,6 @@ int VariableTimeStep::Init_handler() {
   equations_count = cap_count;
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
-    // if (mech->type_==137 || mech->type_==139) continue; //TODO delete
     Memb_list *mech_instances = &local->mechs_instances_[m];
     equations_count += mech_instances->nodecount * mech->state_vars_->count_;
   }
@@ -369,19 +358,11 @@ int VariableTimeStep::Init_handler() {
   // collect information about non-capacitors nodes
   vardt->no_cap_ = new NoCapacitor(local);
 
-  // build remaining map of state vars
+  // build remaining map with state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
     int ml_data_offset = 0;
-
-// if (mech->type_==137 || mech->type_==139) continue; //TODO delete
-
-/*
-fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
-       mech->type_, mech_instances->nodecount,
-       mech->state_vars_->count_, var_offset);
-*/
 
 #if LAYOUT == 1
     for (int n = 0; n < mech_instances->nodecount; n++) {
@@ -398,6 +379,8 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
         int state_dv_offset =
             ml_data_offset + mech->data_size_ * n + state_dv_index;
 #else
+        //Note: We add SoA format to the maps, without padding because
+        //it would require larger+padded y and y' arrays for CVODE
         int state_var_offset =
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index + n;
@@ -405,9 +388,6 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_dv_index + n;
 #endif
-        // Note: SoA is OK but without padded memory on
-        // CVODES maps, because we'd need to add empty
-        // elements to CVODES y and y' arrays
         assert(state_var_offset <
                Vectorizer::SizeOf(mech_instances->nodecount) *
                    mech->data_size_);
@@ -434,9 +414,7 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
     NV_Ith_S(vardt->absolute_tolerance_, i) = tol;
   }
 
-  // CVodeCreate creates an internal memory block for a problem to
-  // be solved by CVODES, with Backward Differentiation (or Adams)
-  // and Newton solver (recommended for stiff problems, see header)
+  // Allocate mem block for BDF or Adams, with Newton solver (for stiff sol.)
   cvode_mem = (CVodeMem)CVodeCreate(CV_BDF, CV_NEWTON);
 
   // from cvodeobj.cpp :: cvode_init()
@@ -463,13 +441,11 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
   CVodeSetRootDirection(cvode_mem, roots_direction);
   assert(flag == CV_SUCCESS);
 
-  // initializes the memory record and sets various function
-  // fields specific to the dense linear solver module.
-  // Note: direct solvers give the solution (LU-decomposition, etc)
+  // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
-
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreCondNeuronSolver:
+    case Interpolators::kCvodePreConditionedDiagSolver:
+  {
       // CVODES guide chapter 8: Providing Alternate Linear Solver
       // Modules: only lsolve function is mandatory
       // (non-used functions need to be set to null)
@@ -477,12 +453,13 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
       cvode_mem->cv_lsetup = nullptr;
       cvode_mem->cv_lfree = nullptr;
       cvode_mem->cv_setupNonNull = FALSE;
-      cvode_mem->cv_lsolve = NeuronLinearSolverFunction;
+      cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
+  }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
       break;
-    case Interpolators::kCvodeDiagMatrix:
+    case Interpolators::kCvodeDiagonalMatrix:
       flag = CVDiag(cvode_mem);
       break;
     case Interpolators::kCvodeSparseMatrix:
@@ -504,7 +481,7 @@ fprintf(stderr, "Mech %d , states %d*%d (neq=%d)\n",
 
   CVodeSetInitStep(cvode_mem, kMinStepSize);
   CVodeSetMinStep(cvode_mem, kMinStepSize);
-  CVodeSetMaxStep(cvode_mem,neurox::min_delay_steps_);
+  CVodeSetMaxStep(cvode_mem, neurox::min_delay_steps_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
 
@@ -535,20 +512,17 @@ int VariableTimeStep::Run_handler() {
     hpx_lco_sema_v_sync(local->events_queue_mutex_);
     tout = std::min(input_params_->tstop_, tout);
 
-    // call CVODE method: steps until reaching/passing tout;
+    // call CVODE method: steps until reaching/passing tout, or hitting root;
     flag = CVode(cvode_mem, tout, vardt->y_, &(nt->_t), CV_NORMAL);
-
-    printf("Neuron %d: t = %0.4f V=%f\n", nt->id, nt->_t, *(local->thvar_ptr_));
 
     if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
     {
       flag = CVodeGetRootInfo(cvode_mem, roots_found);
       assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0);  // only possible root: AP threshold reached
-      // if root found, integrator time is now at time of root
-      //(+1 value ascending, -1 valued descending)
-      if (roots_found[0] > 0)  // AP-threshold reached from below
+      assert(roots_found[0] != 0); // only root: AP threshold reached
+      if (roots_found[0] > 0)  // AP-threshold reached from below (>0)
       {
+        // if root found, integrator time is now at time of root
         hpx_t spikes_lco_ = local->soma_->SendSpikes(nt->_t);
       }
     }
@@ -556,31 +530,31 @@ int VariableTimeStep::Run_handler() {
 
 #ifndef NDEBUG
   // Final statistics output:
-  long num_steps = -1, num_rhs_evals = -1, num_jacob_evals = 0;
+  long num_steps=-1, num_rhs=-1, num_roots=-1, num_others = 0;
   CVodeGetNumSteps(cvode_mem, &num_steps);
-
+  CVodeGetNumGEvals(cvode_mem, &num_roots);
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreCondNeuronSolver:
-      CVSpilsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
-      CVSpilsGetNumPrecSolves(cvode_mem, &num_jacob_evals);
+    case Interpolators::kCvodePreConditionedDiagSolver:
+      CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
+      CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
       printf(
-          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d\n",
-          local->soma_->gid_, num_steps, num_rhs_evals, num_jacob_evals);
+          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, roots: %d\n",
+          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDenseMatrix:
-      CVDlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
-      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
-      printf("-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d\n",
-             local->soma_->gid_, num_steps, num_rhs_evals, num_jacob_evals);
+      CVDlsGetNumJacEvals(cvode_mem, &num_others);
+      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
+      printf("-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: %d\n",
+             local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
-    case Interpolators::kCvodeDiagMatrix:
-      CVDiagGetNumRhsEvals(cvode_mem, &num_rhs_evals);
-      printf("-- Neuron %d completed. steps: %d, rhs: %d\n", local->soma_->gid_,
-             num_steps, num_rhs_evals);
+    case Interpolators::kCvodeDiagonalMatrix:
+      CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
+      printf("-- Neuron %d completed. steps: %d, rhs: %d, roots: %d\n",
+             local->soma_->gid_, num_steps, num_rhs, num_roots);
       break;
     case Interpolators::kCvodeSparseMatrix:
-      CVDlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
-      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
+      CVDlsGetNumJacEvals(cvode_mem, &num_others);
+      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
       // CVSlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
       // CVSlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
       break;
