@@ -50,7 +50,7 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
 
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
-  Branch *branch = (Branch *)user_data;
+  Branch *branch = (Branch*) user_data;
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   NrnThread *nt = branch->nt_;
   realtype *ydot_data = NV_DATA_S(ydot);
@@ -135,8 +135,7 @@ int VariableTimeStep::NeuronLinearSolverFunction(CVodeMem cv_mem, N_Vector b,
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
-
-  Branch *branch;
+  Branch *branch = (Branch*) cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
   nt->_dt = cv_mem->cv_gamma;
   nt->cj = 1 / dt;
