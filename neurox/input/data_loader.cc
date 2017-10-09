@@ -75,7 +75,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
 #if LAYOUT == 1
         int data_offset = mech->data_size_ * n + i;
 #else
-        int data_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+        int data_offset = Vectorizer::SizeOf(ml->nodecount) * i + n;
 #endif
         if (&ml->data[data_offset] != pd) continue;  // if not this variable
 
@@ -101,9 +101,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
          nt->_permute == NULL);
 
   // map of padded to non-padded offsets of data
-  size_t data_size_padded = 6 * tools::Vectorizer::SizeOf(N);
+  size_t data_size_padded = 6 * Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
-    data_size_padded += tools::Vectorizer::SizeOf(tml->ml->nodecount) *
+    data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
 
   // map of post- to pre-padding values of pdata
@@ -116,7 +116,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   if (input_params_->branch_parallelism_depth_ > 0)
     for (int n = 0; n < N; n++)
       for (int i = 0; i < 6; i++) {
-        int offset_padded = tools::Vectorizer::SizeOf(N) * i + n;
+        int offset_padded = Vectorizer::SizeOf(N) * i + n;
         int offset_non_padded = N * i + n;
         data_offsets[offset_padded] = offset_non_padded;
       }
@@ -176,9 +176,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   //======= 2 - reconstructs mechanisms instances ========
   unsigned vdata_total_offset = 0;
-  unsigned data_total_offset = N * 6;  // no padding
-  unsigned data_total_padded_offset =
-      tools::Vectorizer::SizeOf(N) * 6;  // with padding
+  unsigned data_total_offset = N * 6; //no padding
+  unsigned data_total_padded_offset = Vectorizer::SizeOf(N)*6; //with padding
   unsigned point_proc_total_offset = 0;
 
   // information about offsets in data and node ifs of all instances of all ions
@@ -213,7 +212,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         assert(ml->data[offset_non_padded] ==
                nt->_data[data_total_offset + offset_non_padded]);
 #else
-        int offset_padded = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+        int offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
         data.push_back(ml->data[offset_padded]);
         assert(ml->data[offset_padded] ==
                nt->_data[data_total_padded_offset + offset_padded]);
@@ -231,7 +230,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         pdata.push_back(ml->pdata[pdata_offset_non_padded]);
 #else
         int pdata_offset_padded =
-            tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+            Vectorizer::SizeOf(ml->nodecount) * i + n;
         int pd = ml->pdata[pdata_offset_padded];
         int ptype = memb_func[mech->type_].dparam_semantics[i];
 
@@ -316,7 +315,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     }
     data_total_offset += mech->data_size_ * ml->nodecount;
     data_total_padded_offset +=
-        mech->data_size_ * tools::Vectorizer::SizeOf(ml->nodecount);
+        mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
@@ -434,12 +433,12 @@ void DataLoader::GetMembListsOrderedByCapacitors(
   std::set<int> & capacitor_ids = capacitor_ids_ptr ?
               *capacitor_ids_ptr : new_capacitor_ids;
 
-  // occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
-  // nodes only: pointers will point to same place in nt->data, we
-  // will re-order Memb_list to have no-caps first, and then
-  // update nodecount for no-caps instance to cover no-caps only
-  Memb_list *&ml_no_capacitors = *ml_no_capacitors_ptr;
-  ml_no_capacitors = new Memb_list[neurox::mechanisms_count_];
+  /* occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
+  nodes only: pointers will point to same place in nt->data, we
+  will re-order Memb_list to have no-caps first, and then
+  update nodecount for no-caps instance to cover no-caps only */
+  *ml_no_capacitors_ptr = new Memb_list[neurox::mechanisms_count_];
+  Memb_list * ml_no_capacitors = *ml_no_capacitors_ptr;
   memcpy(ml_no_capacitors, branch->mechs_instances_,
          neurox::mechanisms_count_ * sizeof(Memb_list));
 
@@ -451,8 +450,9 @@ void DataLoader::GetMembListsOrderedByCapacitors(
            neurox::mechanisms_count_ * sizeof(Memb_list));
   }
 
-  int total_data_offset = tools::Vectorizer::SizeOf(branch->nt_->end) * 6;
+  int total_data_offset = Vectorizer::SizeOf(branch->nt_->end)*6;
   map<int, map<int, int>> ions_data_map;
+
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = neurox::mechanisms_[m];
     Memb_list *instances = &branch->mechs_instances_[m];
@@ -462,9 +462,9 @@ void DataLoader::GetMembListsOrderedByCapacitors(
 
     int n_new = 0;
     int data_size =
-        mech->data_size_ * tools::Vectorizer::SizeOf(instances->nodecount);
+        mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
     int pdata_size =
-        mech->pdata_size_ * tools::Vectorizer::SizeOf(instances->nodecount);
+        mech->pdata_size_ * Vectorizer::SizeOf(instances->nodecount);
 
     vector<double> data_new(data_size, 0);
     vector<int> pdata_new(pdata_size, -1);
@@ -472,7 +472,7 @@ void DataLoader::GetMembListsOrderedByCapacitors(
     ml_no_capacitors[m].nodecount = 0;
 
     // first non-capacitors' instances, then capacitors
-    for (int insert_phase = 1; insert_phase <= 2; insert_phase++) {
+    for (int phase = 1; phase <= 2; phase++) {
       for (int n = 0; n < instances->nodecount; n++) {
         int node_id = instances->nodeindices[n];
 
@@ -480,7 +480,7 @@ void DataLoader::GetMembListsOrderedByCapacitors(
         bool is_capacitor = capacitor_ids.find(node_id) != capacitor_ids.end();
         int instance_phase = !is_capacitor && mech_valid_in_phase_1 ? 1 : 2;
 
-        if (instance_phase != insert_phase) continue;
+        if (instance_phase != phase) continue;
 
         assert(n_new < instances->nodecount);
         for (int i = 0; i < mech->data_size_; i++) //copy data
@@ -490,19 +490,22 @@ void DataLoader::GetMembListsOrderedByCapacitors(
           int new_data_offset = mech->data_size_ * n_new + i;
 #else
           int old_data_offset =
-              Vectorizer::SizeOf(instances->nodecount) * i + n;
+              Vectorizer::SizeOf(instances->nodecount)*i + n;
           int new_data_offset =
-              Vectorizer::SizeOf(instances->nodecount) * i + n_new;
+              Vectorizer::SizeOf(instances->nodecount)*i + n_new;
 #endif
           assert(new_data_offset < data_size);
           assert(total_data_offset + old_data_offset ==
                  (&instances->data[old_data_offset] - branch->nt_->_data));
+          assert(data_new.at(new_data_offset)==0);
+
           data_new.at(new_data_offset) = instances->data[old_data_offset];
 
           if (mech->is_ion_)
             ions_data_map[mech->type_][total_data_offset + old_data_offset] =
                 total_data_offset + new_data_offset;
         }
+
         for (int i = 0; i < mech->pdata_size_; i++)  // copy pdata
         {
 #if LAYOUT == 1
@@ -514,13 +517,12 @@ void DataLoader::GetMembListsOrderedByCapacitors(
           int new_pdata_offset =
               Vectorizer::SizeOf(instances->nodecount) * i + n_new;
 #endif
-          assert(old_pdata_offset ==
-                 (&instances->pdata[old_pdata_offset] - instances->pdata));
           int old_pdata = instances->pdata[old_pdata_offset];
           assert(old_pdata>=0);
 
           // if it points to an ion, get new pdata position
           int ptype = memb_func[mech->type_].dparam_semantics[i];
+          assert(pdata_new.at(new_pdata_offset)==-1);
           if (ptype > 0 && ptype < 1000)  // ptype is ion id
             pdata_new.at(new_pdata_offset) =
                 ions_data_map.at(ptype).at(old_pdata);
@@ -528,7 +530,7 @@ void DataLoader::GetMembListsOrderedByCapacitors(
             pdata_new.at(new_pdata_offset) = old_pdata;
         }
 
-        if (insert_phase == 1)  // count no-caps
+        if (phase == 1)  // count no-caps
           ml_no_capacitors[m].nodecount++;
 
         nodeindices_new[n_new++] = node_id;
@@ -542,16 +544,16 @@ void DataLoader::GetMembListsOrderedByCapacitors(
     memcpy(ml_no_capacitors[m].pdata, pdata_new.data(),
            sizeof(int) * pdata_new.size());
     memcpy(ml_no_capacitors[m].nodeindices, nodeindices_new.data(),
-           sizeof(int) * n_new);
-    ml_no_capacitors[m]._nodecount_padded =
-        Vectorizer::SizeOf(ml_no_capacitors[m].nodecount);
+           sizeof(int) *  nodeindices_new.size());
+    /* Important: do not change padded counts: they are used to properly
+     * compute mechanisms offsets (ppvar[x*STRIDE]), ie iterates from 0
+     * to count, with gap between mechs variables given by padded_count*/
     total_data_offset += data_size;
 
+    //create Memb_list for capacitors only mechanisms
     if (ml_capacitors_ptr != nullptr) {
       Memb_list *&ml_capacitors = *ml_capacitors_ptr;
 
-      // TODO FIX: this is broken for cap nodes!
-      // set cap nodecounts, and data, pdata
       ml_capacitors[m].nodecount =
           instances[m].nodecount - ml_no_capacitors[m].nodecount;
       ml_capacitors[m]._nodecount_padded =
@@ -1326,8 +1328,8 @@ int DataLoader::GetBranchData(
             case -7:  //"bbcorepointer"
               pdata_mechs.at(m).at(p) = (offset_t)vdata_pointer_offset++;
               break;
-            case -8:      //"bbcorepointer"
-              assert(0);  // watch condition, not supported
+            case -8:  // watch condition, not supported
+              assert(0);
               break;
             default:
               if (ptype > 0 && ptype < 1000)  // name preffixed by '#'
@@ -1474,7 +1476,7 @@ hpx_t DataLoader::CreateBranch(
     // (lighter)
     // branches to balance work load
     hpx_t temp_branch_addr = hpx_gas_alloc_local(
-        1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment);
+        1, sizeof(Branch), Vectorizer::kMemoryAlignment);
     bool run_benchmark_and_clear = true;
     int dumb_threshold_offset = 0;
     double time_elapsed = -1;
@@ -1534,7 +1536,7 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate and initialize branch on the respective owner
   hpx_t branch_addr = hpx_gas_alloc_local_at_sync(
-      1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment,
+      1, sizeof(Branch), Vectorizer::kMemoryAlignment,
       HPX_THERE(neuron_rank));
 
   // update hpx address of soma
