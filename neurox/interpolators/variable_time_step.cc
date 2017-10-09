@@ -298,8 +298,8 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
   assert(this->node_count_ == no_cap_count);
 
   // occvode.cpp::new_no_cap_memb()
-  input::DataLoader::GetMembListsOrderedByCapacitorsOrNot(
-      branch, capacitor_ids, &(this->no_caps_ml_), nullptr);
+  input::DataLoader::GetMembListsOrderedByCapacitors(
+      branch, &(this->no_caps_ml_), nullptr, &capacitor_ids);
 }
 
 // Neuron :: occvode.cpp :: init_global()
@@ -360,13 +360,13 @@ int VariableTimeStep::Init_handler() {
     Memb_list *mech_instances = &local->mechs_instances_[m];
     int ml_data_offset = 0;
 
-#if LAYOUT == 1
+//#if LAYOUT == 1
     for (int n = 0; n < mech_instances->nodecount; n++) {
       for (int s = 0; s < mech->state_vars_->count_; s++) {
-#else
-    for (int s = 0; s < mech->state_vars_->count_; s++) {
-      for (int n = 0; n < mech_instances->nodecount; n++) {
-#endif
+//#else
+//    for (int s = 0; s < mech->state_vars_->count_; s++) {
+//      for (int n = 0; n < mech_instances->nodecount; n++) {
+//#endif
         int state_var_index = mech->state_vars_->var_offsets_[s];
         int state_dv_index = mech->state_vars_->dv_offsets_[s];
 #if LAYOUT == 1

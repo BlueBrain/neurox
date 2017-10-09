@@ -347,6 +347,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  Memb_list * mll = nullptr;
+  input::DataLoader::GetMembListsOrderedByCapacitors(this, &mll);
+  for (int m=0; m<neurox::mechanisms_count_; m++)
+      mll[m].nodecount = this->mechs_instances_[m].nodecount;
+  this->mechs_instances_ = mll;
+
 }
 
 void Branch::DeleteMembList(Memb_list *&mechs_instances) {

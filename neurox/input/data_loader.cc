@@ -412,12 +412,28 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map) {
   nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
+void DataLoader::GetMembListsOrderedByCapacitors(
     const Branch *branch,                // in
-    const std::set<int> &capacitor_ids,  // in
     Memb_list **ml_no_capacitors_ptr,    // out
-    Memb_list **ml_capacitors_ptr        // out
+    Memb_list **ml_capacitors_ptr,       // out (optional)
+    std::set<int> * capacitor_ids_ptr    // in  (optional)
     ) {
+
+  //if not provided, build list of capacitor ids
+  std::set<int> new_capacitor_ids;
+  if (capacitor_ids_ptr==nullptr)
+  {
+    Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
+    // get list of all nodes that are capacitors
+    for (int c = 0; c < capac_instances->nodecount; c++) {
+      int compartment_id = capac_instances->nodeindices[c];
+      new_capacitor_ids.insert(compartment_id);
+    }
+  }
+
+  std::set<int> & capacitor_ids = capacitor_ids_ptr ?
+              *capacitor_ids_ptr : new_capacitor_ids;
+
   // occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
   // nodes only: pointers will point to same place in nt->data, we
   // will re-order Memb_list to have no-caps first, and then
@@ -441,8 +457,8 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
     Mechanism *mech = neurox::mechanisms_[m];
     Memb_list *instances = &branch->mechs_instances_[m];
 
-    //"only point processes with currents are possibilities"
-    bool mech_is_valid = mech->pnt_map_ && mech->memb_func_.current;
+    //neuron: "only point processes with currents are possibilities"
+    bool mech_valid_in_phase_1 = mech->pnt_map_ && mech->memb_func_.current;
 
     int n_new = 0;
     int data_size =
@@ -451,8 +467,8 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
         mech->pdata_size_ * tools::Vectorizer::SizeOf(instances->nodecount);
 
     vector<double> data_new(data_size, 0);
-    vector<int> pdata_new(pdata_size);
-    vector<int> nodeindices(instances->nodecount);
+    vector<int> pdata_new(pdata_size, -1);
+    vector<int> nodeindices_new(instances->nodecount);
     ml_no_capacitors[m].nodecount = 0;
 
     // first non-capacitors' instances, then capacitors
@@ -462,24 +478,21 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
 
         // place first the no-caps of valid mechs; then all others
         bool is_capacitor = capacitor_ids.find(node_id) != capacitor_ids.end();
-        int instance_phase = !is_capacitor && mech_is_valid ? 1 : 2;
+        int instance_phase = !is_capacitor && mech_valid_in_phase_1 ? 1 : 2;
 
         if (instance_phase != insert_phase) continue;
 
-        if (mech->type_ == 3 || mech->type_ == 147)
-          assert(insert_phase == 2);  // TODO delete
-
         assert(n_new < instances->nodecount);
-        for (int i = 0; i < mech->data_size_; i++)  // copy data
+        for (int i = 0; i < mech->data_size_; i++) //copy data
         {
 #if LAYOUT == 1
           int old_data_offset = mech->data_size_ * n + i;
           int new_data_offset = mech->data_size_ * n_new + i;
 #else
           int old_data_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
+              Vectorizer::SizeOf(instances->nodecount) * i + n;
           int new_data_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
+              Vectorizer::SizeOf(instances->nodecount) * i + n_new;
 #endif
           assert(new_data_offset < data_size);
           assert(total_data_offset + old_data_offset ==
@@ -497,13 +510,14 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
           int new_pdata_offset = mech->pdata_size_ * n_new + i;
 #else
           int old_pdata_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
+              Vectorizer::SizeOf(instances->nodecount) * i + n;
           int new_pdata_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
+              Vectorizer::SizeOf(instances->nodecount) * i + n_new;
 #endif
           assert(old_pdata_offset ==
                  (&instances->pdata[old_pdata_offset] - instances->pdata));
           int old_pdata = instances->pdata[old_pdata_offset];
+          assert(old_pdata>=0);
 
           // if it points to an ion, get new pdata position
           int ptype = memb_func[mech->type_].dparam_semantics[i];
@@ -517,17 +531,17 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
         if (insert_phase == 1)  // count no-caps
           ml_no_capacitors[m].nodecount++;
 
-        nodeindices[n_new++] = node_id;
+        nodeindices_new[n_new++] = node_id;
       }
     }
-    assert(n_new == nodeindices.size());
+    assert(n_new == nodeindices_new.size());
 
     // overwite old values in NrnThread->data
     memcpy(ml_no_capacitors[m].data, data_new.data(),
            sizeof(double) * data_new.size());
     memcpy(ml_no_capacitors[m].pdata, pdata_new.data(),
            sizeof(int) * pdata_new.size());
-    memcpy(ml_no_capacitors[m].nodeindices, nodeindices.data(),
+    memcpy(ml_no_capacitors[m].nodeindices, nodeindices_new.data(),
            sizeof(int) * n_new);
     ml_no_capacitors[m]._nodecount_padded =
         Vectorizer::SizeOf(ml_no_capacitors[m].nodecount);
@@ -536,7 +550,7 @@ void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
     if (ml_capacitors_ptr != nullptr) {
       Memb_list *&ml_capacitors = *ml_capacitors_ptr;
 
-      // TODO TIX: this is broken for cap nodes!
+      // TODO FIX: this is broken for cap nodes!
       // set cap nodecounts, and data, pdata
       ml_capacitors[m].nodecount =
           instances[m].nodecount - ml_no_capacitors[m].nodecount;

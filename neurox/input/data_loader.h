@@ -38,15 +38,14 @@ class DataLoader {
   static void CleanCoreneuronData(const bool clean_ion_global_map = true);
 
   /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
-  static void GetMembListsOrderedByCapacitorsOrNot(
-      const Branch *branch,                    // in
-      const std::set<int> &capacitors_ids,     // in
-      Memb_list **ml_no_capacitors_ptr,        // out
-      Memb_list **ml_capacitors_ptr = nullptr  // out (optional)
+  static void GetMembListsOrderedByCapacitors(
+      const Branch *branch,                         // in
+      Memb_list **ml_no_capacitors_ptr,             // out
+      Memb_list **ml_capacitors_ptr = nullptr,      // out (optional)
+      std::set<int> * capacitors_ids_ptr = nullptr  // in (optional)
       );
 
-  /// Registers all HPX actions
-  static void RegisterHpxActions();
+  static void RegisterHpxActions(); ///> Register HPX actions
 
   static hpx_action_t Init;
   static hpx_action_t InitMechanisms;

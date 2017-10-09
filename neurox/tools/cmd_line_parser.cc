@@ -192,9 +192,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
           "cant run branch-level parallelism with variable-step methods");
 
     //handling of dt for variable-step interpolations
-    if (this->interpolator_ == Interpolators::kBackwardEuler)
+    if (this->interpolator_ != Interpolators::kBackwardEuler)
     {
-        if (!dt.isSet())
+        if (!dt.isSet()) //if not user-provided
         {
             switch (this->interpolator_)
             {
