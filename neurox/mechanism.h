@@ -67,7 +67,7 @@ class Mechanism {
   pnt_receive2_t pnt_receive_init_;
   bbcore_read_t nrn_bbcore_read_;
 
-  //CVODES-specific
+  // CVODES-specific
   cvode_f_t ode_spec_;
   cvode_f_t ode_matsol_;
   mod_f_t div_capacity_;
@@ -79,9 +79,9 @@ class Mechanism {
     StateVars();
     StateVars(short count, short *offsets, short *dv_offsets);
     ~StateVars();
-    short count_;        ///> number of cvode state variables
-    short *var_offsets_;     ///>offset of state vars in ml->data
-    short *dv_offsets_;  ///> offset of dx/dV for state vars
+    short count_;         ///> number of cvode state variables
+    short *var_offsets_;  ///>offset of state vars in ml->data
+    short *dv_offsets_;   ///> offset of dx/dV for state vars
   } * state_vars_;
 
   enum ModFunctions {
@@ -117,11 +117,11 @@ class Mechanism {
 
   Mechanism::IonTypes GetIonIndex();
 
-  void CallModFunction(const void *branch,
-                       const Mechanism::ModFunctions function_id,
-                       Memb_list *other_ml = nullptr,  //user-provided Memb_list (if any)
-                       const NetconX *netcon = nullptr,//net_receive only
-                       const floble_t tt = 0);         //net_receive only
+  void CallModFunction(
+      const void *branch, const Mechanism::ModFunctions function_id,
+      Memb_list *other_ml = nullptr,    // user-provided Memb_list (if any)
+      const NetconX *netcon = nullptr,  // net_receive only
+      const floble_t tt = 0);           // net_receive only
  private:
   void RegisterBeforeAfterFunctions();  ///> register Before-After functions
 };

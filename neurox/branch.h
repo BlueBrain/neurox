@@ -41,7 +41,7 @@ class Branch {
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
-  static void DeleteMembList(Memb_list *&);
+  static void DeleteMembList(Memb_list*&);
 
   NrnThread* nt_;               ///> compartments metadata
   Memb_list* mechs_instances_;  ///> Arrays of mechanism instances
@@ -132,7 +132,7 @@ class Branch {
   static hpx_action_t ThreadTableCheck;
 
   void CallModFunction(const Mechanism::ModFunctions functionId,
-                       Memb_list *other_ml = nullptr);
+                       Memb_list* other_ml = nullptr);
 
   /// start NetEvents and PlayVect on events queue
   void InitVecPlayContinous();
@@ -142,14 +142,13 @@ class Branch {
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();
-  void SolveTreeMatrix();
   void Finitialize2();
   void BackwardEulerStep();
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-  ///if able to do variable time-stepping
-  void * vardt_;
+  /// if able to do variable time-stepping
+  void* vardt_;
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);

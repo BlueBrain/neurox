@@ -10,6 +10,7 @@ using namespace neurox::interpolators;
 
 namespace neurox {
 
+int min_delay_steps_ = 4; //TODO should be set at InitNetCons
 hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
@@ -75,15 +76,13 @@ static int Main_handler() {
       fflush(stdout);
 #endif
     }
-  } else
-  if (input_params_->interpolator_ != Interpolators::kBackwardEuler)
-  {
-      //TODO temp hack, at some point interpolators will include Back-Euler and CVODE
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
-      neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
-  }
-  {
+  } else if (input_params_->interpolator_ != Interpolators::kBackwardEuler) {
+    // TODO temp hack, at some point interpolators will include Back-Euler and
+    // CVODE
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
+    neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
+  } else {
     algorithm_ = Algorithm::New(input_params_->algorithm_);
     algorithm_->Init();
     algorithm_->PrintStartInfo();

@@ -29,7 +29,7 @@ void CoreneuronAlgorithm::Init() {
 void CoreneuronAlgorithm::Clear() {}
 
 double CoreneuronAlgorithm::Launch() {
-  int comm_step_size = CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize;
+  int comm_step_size = neurox::min_delay_steps_;
   int total_steps = Algorithm::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
   assert(0);

@@ -21,20 +21,20 @@ class HinesSolver {
   HinesSolver() = delete;
   ~HinesSolver();
 
-  static void SynchronizeThresholdV(Branch *local,
+  static void SynchronizeThresholdV(const Branch *branch,
                                     floble_t *threshold_v = NULL);
-  static void ResetMatrixRHSandD(Branch *local);
-  static void ResetMatrixRHS(Branch *local);
-  static void ResetMatrixV(Branch *local);
-  static void SetupMatrixRHS(Branch *local);
-  static void SetupMatrixDiagonal(Branch *local);
-  static void BackwardTriangulation(Branch *local);
-  static void ForwardSubstituion(Branch *local);
-  static void UpdateVoltagesWithRHS(Branch *local);
+  static void ResetArray(const Branch *branch, floble_t *arr);
+  static void SetupMatrixRHS(Branch *branch);
+  static void SetupMatrixDiagonal(Branch *branch);
+  static void BackwardTriangulation(Branch *branch);
+  static void ForwardSubstituion(Branch *branch);
+  static void SolveTreeMatrix(Branch *branch);
+  static void UpdateVoltagesWithRHS(Branch *branch);
 
   // CVODE-specific methods
-  static void ResetRHSandDNoCapacitors(Branch*, void*);
-  static void SetupMatrixVoltageNoCapacitors(Branch*, void*);
+  static void ResetRHSandDNoCapacitors(Branch *, void *);
+  static void ResetRHSNoCapacitors(Branch *, void *);
+  static void SetupMatrixVoltageNoCapacitors(Branch *, void *);
 
  private:
 };

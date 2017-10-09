@@ -68,22 +68,26 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<int> branch_parallelism_depth(
         "B", "branching-depth",
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
-    TCLAP::ValueArg<int> algorithm("A", "algorithm",
-                                   "[0] BackwardEulerCoreneuronDebug \
-                                        [1] BackwardEulerWithAllReduceBarrier (default) \
-                                        [2] BackwardEulerWithSlidingTimeWindow \
-                                        [3] BackwardEulerWithTimeDependencyLCO \
-                                        [4] BackwardEulerCoreneuron \
-                                        [9] All methods sequentially (NOTE: neurons data does not reset)",
-                                   false, (int) algorithms::Algorithms::kAllReduce, "int");
+    TCLAP::ValueArg<int> algorithm(
+        "A", "algorithm",
+        "\
+[0] BackwardEulerCoreneuronDebug\
+\n[1] BackwardEulerWithAllReduceBarrier (default)\
+\n[2] BackwardEulerWithSlidingTimeWindow\
+\n[3] BackwardEulerWithTimeDependencyLCO\
+\n[4] BackwardEulerCoreneuron\
+\n[9] All methods sequentially (NOTE: neurons data does not reset)",
+        false, (int)algorithms::Algorithms::kAllReduce, "int");
 
-    TCLAP::ValueArg<int> interpolator("I", "interpolator",
-                                   "[0] CVODES with Diagonal Jacobian solver a la NEURON\
-                                    [1] CVODES with Dense Jacobian\
-                                    [2] CVODES with Diagonal Jacobian\
-                                    [3] CVODES with Sparse Jacobian\
-                                    [9] Backward Euler (default)",
-                                   false, (int) interpolators::Interpolators::kBackwardEuler, "int");
+    TCLAP::ValueArg<int> interpolator(
+        "I", "interpolator",
+        "\
+[0] CVODES with Diagonal Jacobian solver\
+\n[1] CVODES with Dense Jacobian\
+\n[2] CVODES with Diagonal Jacobian\
+\n[3] CVODES with Sparse Jacobian\
+\n[9] Backward Euler (default)",
+        false, (int)interpolators::Interpolators::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
     cmd.add(algorithm);
@@ -99,7 +103,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 10, "floble_t");
     cmd.add(tstop);
     TCLAP::ValueArg<floble_t> dt(
-        "t", "dt", "Execution time step (msecs). The default value is 0.025",
+        "t", "dt", "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
+\n - CVODES with Diagonal Jacobian solver: default 0.0001 msecs\
+\n - CVODES with Dense Jacobian: default 0.001 msecs\
+\n - CVODES with Diagonal Jacobian solver: default 0.00001 msecs\
+\n - CVODES with Sparse Jacobian solver: default 0.0001 msecs\
+\n - Backward Euler: default 0.025",
         false, DEF_dt, "floble_t");
     cmd.add(dt);
     TCLAP::ValueArg<floble_t> dt_io(
@@ -126,15 +135,15 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Apply patternstim with the spike file. No default value", false, "",
         "string");
     cmd.add(pattern_stim);
-    TCLAP::ValueArg<std::string> input_path("d", "inputpath",
-                                            "Path to input files directory",
-                                            true, "./input", "string");
-    cmd.add(input_path);
     TCLAP::ValueArg<std::string> output_path(
         "o", "outputpath",
         "Path to output directory. The default value is ./output", false,
         "./output", "string");
     cmd.add(output_path);
+    TCLAP::ValueArg<std::string> input_path("d", "inputpath",
+                                            "Path to input files directory",
+                                            true, "./input", "string");
+    cmd.add(input_path);
 
     // parse command line arguments
     cmd.parse(argc, argv);
@@ -165,43 +174,57 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->algorithm_ = (algorithms::Algorithms)algorithm.getValue();
     neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
-    this->interpolator_ = (interpolators::Interpolators) interpolator.getValue();
+    this->interpolator_ = (interpolators::Interpolators)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
                                 "branch-parallelism-depth");
 
-    if (this->dt_ <= 0)
-      throw TCLAP::ArgException(
-          "time-step size (ms) should be a positive value", "dt");
-
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
     floble_t remainder_tstop_tcomm = fmod(
-        this->tstop_,
-        algorithms::CoreneuronAlgorithm::CommunicationBarrier::kCommStepSize *
-            this->dt_);
-
-    if (!(remainder_tstop_tcomm < 0.00001 ||
-          remainder_tstop_tcomm >
-              algorithms::CoreneuronAlgorithm::CommunicationBarrier::
-                          kCommStepSize *
-                      this->dt_ -
-                  0.00001))
-      throw TCLAP::ArgException(
-          "execution time " + to_string(this->tstop_) +
-              "ms should be a multiple of the communication delay " +
-              to_string(algorithms::CoreneuronAlgorithm::CommunicationBarrier::
-                            kCommStepSize *
-                        this->dt_) +
-              " ms",
-          "tstop");
+        this->tstop_, neurox::min_delay_steps_ * this->dt_);
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
+
+    //handling of dt for variable-step interpolations
+    if (this->interpolator_ == Interpolators::kBackwardEuler)
+    {
+        if (!dt.isSet())
+        {
+            switch (this->interpolator_)
+            {
+            case Interpolators::kCvodePreConditionedDiagSolver:
+                this->dt_ = 1e-4;
+                break;
+            case Interpolators::kCvodeDenseMatrix:
+                this->dt_ = 1e-3;
+                break;
+            case Interpolators::kCvodeDiagonalMatrix:
+                this->dt_ = 1e-5;
+                break;
+            default:
+                this->dt_ = 1e-4;
+            }
+        }
+    }
+    else // ... for fixed-step interpolation
+    {
+        if (this->dt_ <= 0)
+          throw TCLAP::ArgException(
+              "time-step size (ms) should be a positive value", "dt");
+
+        if (!(remainder_tstop_tcomm < 0.00001 ||
+              remainder_tstop_tcomm > neurox::min_delay_steps_*this->dt_-0.00001))
+          throw TCLAP::ArgException(
+              "execution time " + to_string(this->tstop_) +
+                  "ms should be a multiple of the communication delay " +
+                  to_string(neurox::min_delay_steps_*this->dt_) +" ms","tstop");
+    }
 
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
