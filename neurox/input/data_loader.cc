@@ -556,8 +556,6 @@ void DataLoader::GetMembListsOrderedByCapacitors(
 
       ml_capacitors[m].nodecount =
           instances[m].nodecount - ml_no_capacitors[m].nodecount;
-      ml_capacitors[m]._nodecount_padded =
-          Vectorizer::SizeOf(ml_capacitors[m].nodecount);
 #if LAYOUT == 1
       // address of end of no_cap data
       // AoS data as |abababab| becomes |ababab|+|abab|
