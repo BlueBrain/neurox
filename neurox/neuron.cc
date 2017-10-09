@@ -85,7 +85,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   const spike_time_t tt =
       (spike_time_t)t + 1e-10;  // Coreneuron logic, do not change!
 #if !defined(NDEBUG)
-  printf("== Neuron gid %d spiked at %.3f ms\n", this->gid_, tt);
+  printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
   if (synapses_.size() == 0) return HPX_NULL;

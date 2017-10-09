@@ -73,9 +73,6 @@ class VariableTimeStep {
   /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Mininum step size allowed (NEURON=0)
-  constexpr static double kMinStepSize = 1e-4;
-
   /// CVODES Relative torelance (NEURON=1e-3 or 1e-4)
   constexpr static double kRelativeTolerance = 1e-3;
 

@@ -758,7 +758,7 @@ void Branch::SetupTreeMatrix() {
 
 void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
-  // delivers events in the preivous half-step
+  // delivers events in the previous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
   while (!this->events_queue_.empty() &&

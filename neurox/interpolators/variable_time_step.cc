@@ -46,7 +46,7 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
   double v_ais = NV_Ith_S(y, ais_offset);
 
   // How it works: when gout[x] is zero, a root is found
-  assert(v_ais >= -100 && v_ais < 50);
+  //assert(v_ais >= -150 && v_ais < 50);
   gout[0] = v_ais - branch->soma_->threshold_;  // AP threshold reached
   return CV_SUCCESS;
 }
@@ -56,13 +56,10 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   Branch *branch = (Branch*) user_data;
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   NrnThread *nt = branch->nt_;
-  realtype *ydot_data = NV_DATA_S(ydot);
-  realtype *y_data = NV_DATA_S(y);
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
   const double h = vardt->cvode_mem_->cv_h;
-  // nt->_dt = h==0 ? VariableTimeStep::kMinStepSize : h;
   nt->_dt = h == 0 ? 1e-8 : h;
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
@@ -263,7 +260,6 @@ VariableTimeStep::NoCapacitor::~NoCapacitor() {
   // because these point to the same memory as
   // nt->data, we only delete main array
   delete[] no_caps_ml_;
-  // Branch::DeleteMembList(memb_list_);
 }
 
 VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
@@ -458,6 +454,13 @@ int VariableTimeStep::Init_handler() {
   }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
+      if (flag==CVDLS_MEM_FAIL)
+      {
+          fprintf(stderr, "ERROR: can't allocate memory for dense jacobian for gid %d and %d equations\n",
+                 local->soma_->gid_, equations_count);
+          hpx_gas_unpin(target);
+          return HPX_USER;
+      }
       break;
     case Interpolators::kCvodeDiagonalMatrix:
       flag = CVDiag(cvode_mem);
@@ -479,8 +482,7 @@ int VariableTimeStep::Init_handler() {
   }
   assert(flag == CV_SUCCESS);
 
-  CVodeSetInitStep(cvode_mem, kMinStepSize);
-  CVodeSetMinStep(cvode_mem, kMinStepSize);
+  CVodeSetMinStep(cvode_mem, input_params_->dt_);
   CVodeSetMaxStep(cvode_mem, neurox::min_delay_steps_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
