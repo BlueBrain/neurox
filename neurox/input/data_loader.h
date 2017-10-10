@@ -39,13 +39,13 @@ class DataLoader {
 
   /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
   static void GroupBranchInstancesByCapacitors(
-      const Branch *branch,                         // in
-      Memb_list **ml_no_capacitors_ptr = nullptr,   // out (optional)
-      Memb_list **ml_capacitors_ptr = nullptr,      // out (optional)
-      std::set<int> * capacitors_ids_ptr = nullptr  // in (optional)
+      const Branch *branch,                        // in
+      Memb_list **ml_no_capacitors_ptr = nullptr,  // out (optional)
+      Memb_list **ml_capacitors_ptr = nullptr,     // out (optional)
+      std::set<int> *capacitors_ids_ptr = nullptr  // in (optional)
       );
 
-  static void RegisterHpxActions(); ///> Register HPX actions
+  static void RegisterHpxActions();  ///> Register HPX actions
 
   static hpx_action_t Init;
   static hpx_action_t InitMechanisms;

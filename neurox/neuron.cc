@@ -18,8 +18,11 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   assert(
       TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio >
           0 &&
-      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio <= 1);
-  assert(neurox::min_delay_steps_ % AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ == 0);
+      TimeDependencyLCOAlgorithm::TimeDependencies::
+              kNotificationIntervalRatio <= 1);
+  assert(neurox::min_delay_steps_ %
+             AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ ==
+         0);
 }
 
 Neuron::~Neuron() {

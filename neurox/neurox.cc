@@ -10,7 +10,7 @@ using namespace neurox::interpolators;
 
 namespace neurox {
 
-int min_delay_steps_ = 4; //TODO should be set at InitNetCons
+int min_delay_steps_ = 4;  // TODO should be set at InitNetCons
 hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
@@ -97,8 +97,7 @@ static int Main_handler() {
   printf(
       "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
       "secs).\n",
-      neurox::neurons_count_, input_params_->tstop_ / 1000.0,
-      elapsed_time);
+      neurox::neurons_count_, input_params_->tstop_ / 1000.0, elapsed_time);
 
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);

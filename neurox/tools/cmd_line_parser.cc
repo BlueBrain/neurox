@@ -103,7 +103,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 10, "floble_t");
     cmd.add(tstop);
     TCLAP::ValueArg<floble_t> dt(
-        "t", "dt", "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
+        "t", "dt",
+        "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
 \n - CVODES with Diagonal Jacobian solver: default 0.0001 msecs\
 \n - CVODES with Dense Jacobian: default 0.001 msecs\
 \n - CVODES with Diagonal Jacobian solver: default 0.00001 msecs\
@@ -183,47 +184,46 @@ void CmdLineParser::Parse(int argc, char** argv) {
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
-    floble_t remainder_tstop_tcomm = fmod(
-        this->tstop_, neurox::min_delay_steps_ * this->dt_);
+    floble_t remainder_tstop_tcomm =
+        fmod(this->tstop_, neurox::min_delay_steps_ * this->dt_);
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 
-    //handling of dt for variable-step interpolations
-    if (this->interpolator_ != Interpolators::kBackwardEuler)
-    {
-        if (!dt.isSet()) //if not user-provided
-        {
-            switch (this->interpolator_)
-            {
-            case Interpolators::kCvodePreConditionedDiagSolver:
-                this->dt_ = 1e-4;
-                break;
-            case Interpolators::kCvodeDenseMatrix:
-                this->dt_ = 1e-3;
-                break;
-            case Interpolators::kCvodeDiagonalMatrix:
-                this->dt_ = 1e-5;
-                break;
-            default:
-                this->dt_ = 1e-4;
-            }
+    // handling of dt for variable-step interpolations
+    if (this->interpolator_ != Interpolators::kBackwardEuler) {
+      if (!dt.isSet())  // if not user-provided
+      {
+        switch (this->interpolator_) {
+          case Interpolators::kCvodePreConditionedDiagSolver:
+            this->dt_ = 1e-4;
+            break;
+          case Interpolators::kCvodeDenseMatrix:
+            this->dt_ = 1e-3;
+            break;
+          case Interpolators::kCvodeDiagonalMatrix:
+            this->dt_ = 1e-5;
+            break;
+          default:
+            this->dt_ = 1e-4;
         }
-    }
-    else // ... for fixed-step interpolation
+      }
+    } else  // ... for fixed-step interpolation
     {
-        if (this->dt_ <= 0)
-          throw TCLAP::ArgException(
-              "time-step size (ms) should be a positive value", "dt");
+      if (this->dt_ <= 0)
+        throw TCLAP::ArgException(
+            "time-step size (ms) should be a positive value", "dt");
 
-        if (!(remainder_tstop_tcomm < 0.00001 ||
-              remainder_tstop_tcomm > neurox::min_delay_steps_*this->dt_-0.00001))
-          throw TCLAP::ArgException(
-              "execution time " + to_string(this->tstop_) +
-                  "ms should be a multiple of the communication delay " +
-                  to_string(neurox::min_delay_steps_*this->dt_) +" ms","tstop");
+      if (!(remainder_tstop_tcomm < 0.00001 ||
+            remainder_tstop_tcomm >
+                neurox::min_delay_steps_ * this->dt_ - 0.00001))
+        throw TCLAP::ArgException(
+            "execution time " + to_string(this->tstop_) +
+                "ms should be a multiple of the communication delay " +
+                to_string(neurox::min_delay_steps_ * this->dt_) + " ms",
+            "tstop");
     }
 
   } catch (TCLAP::ArgException& e) {

@@ -347,7 +347,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
-
 }
 
 void Branch::DeleteMembList(Memb_list *&mechs_instances) {

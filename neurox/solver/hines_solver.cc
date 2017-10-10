@@ -253,7 +253,7 @@ void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch, void *no_cap_ptr) {
 
   floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *d = branch->nt_->_actual_d;
-  const int * node_ids = no_cap->node_ids_;
+  const int *node_ids = no_cap->node_ids_;
   int nd = -1;
   for (int i = 0; i < no_cap->node_count_; i++) {
     nd = node_ids[i];
@@ -267,7 +267,7 @@ void HinesSolver::ResetRHSNoCapacitors(Branch *branch, void *no_cap_ptr) {
       (VariableTimeStep::NoCapacitor *)no_cap_ptr;
 
   floble_t *rhs = branch->nt_->_actual_rhs;
-  const int * node_ids = no_cap->node_ids_;
+  const int *node_ids = no_cap->node_ids_;
   for (int i = 0; i < no_cap->node_count_; i++) {
     rhs[node_ids[i]] = 0;
   }

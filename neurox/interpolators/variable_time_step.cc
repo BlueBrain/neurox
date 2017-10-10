@@ -9,40 +9,38 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
+void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const bool is_scatter_op =
+      op == CopyOps::kScatterYdot || op == CopyOps::kScatterY;
+  const bool use_ydot =
+      op == CopyOps::kScatterYdot || op == CopyOps::kGatherYdot;
+  double *y_data = NV_DATA_S(y);  // y or ydot
+  double **var_map = use_ydot ? vardt->state_dv_map_ : vardt->state_var_map_;
 
-void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op)
-{
-    const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-    const bool is_scatter_op = op==CopyOps::kScatterYdot || op==CopyOps::kScatterY;
-    const bool use_ydot = op==CopyOps::kScatterYdot || op==CopyOps::kGatherYdot;
-    double *y_data = NV_DATA_S(y); //y or ydot
-    double ** var_map = use_ydot ?  vardt->state_dv_map_ : vardt->state_var_map_;
+  const int &cap_count =
+      branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
+  const int iters_limit = LAYOUT == 0 ? cap_count : vardt->equations_count_;
 
-    const int & cap_count = branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
-    const int iters_limit = LAYOUT==0 ? cap_count : vardt->equations_count_;
+  // AoS will map all variables, SoA only map no_cap voltages/RHS for now
+  int i = -1;
+  if (is_scatter_op)
+    for (i = 0; i < iters_limit; i++) *(var_map[i]) = y_data[i];
+  else
+    for (i = 0; i < iters_limit; i++) y_data[i] = *(var_map[i]);
 
-    //AoS will map all variables, SoA only map no_cap voltages/RHS for now
-    int i=-1;
+#if LAYOUT == 0
+  // SoA mapping takes advantage of state vars sequential mem-alignment
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    const int state_vars_count = neurox::mechanisms_[m]->state_vars_->count_;
+    const int nodecount = branch->mechs_instances_[m].nodecount;
     if (is_scatter_op)
-      for (i = 0; i < iters_limit ; i++)
-            *(var_map[i]) = y_data[i];
+      for (int s = 0; s < state_vars_count; s++, i += nodecount)
+        memcpy(var_map[i], &y_data[i], sizeof(double) * nodecount);
     else
-      for (i = 0; i < iters_limit ; i++)
-            y_data[i] = *(var_map[i]);
-
-#if LAYOUT==0
-    //SoA mapping takes advantage of state vars sequential mem-alignment
-    for (int m=0; m<neurox::mechanisms_count_; m++)
-    {
-        const int state_vars_count = neurox::mechanisms_[m]->state_vars_->count_;
-        const int nodecount = branch->mechs_instances_[m].nodecount;
-        if (is_scatter_op)
-          for (int s=0; s<state_vars_count; s++, i+=nodecount)
-            memcpy(var_map[i], &y_data[i], sizeof(double)*nodecount);
-        else
-          for (int s=0; s<state_vars_count; s++, i+=nodecount)
-            memcpy(&y_data[i], var_map[i], sizeof(double)*nodecount);
-    }
+      for (int s = 0; s < state_vars_count; s++, i += nodecount)
+        memcpy(&y_data[i], var_map[i], sizeof(double) * nodecount);
+  }
 #endif
 }
 
@@ -71,14 +69,14 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
   double v_ais = NV_Ith_S(y, ais_offset);
 
   // How it works: when gout[x] is zero, a root is found
-  //assert(v_ais >= -150 && v_ais < 50);
+  // assert(v_ais >= -150 && v_ais < 50);
   gout[0] = v_ais - branch->soma_->threshold_;  // AP threshold reached
   return CV_SUCCESS;
 }
 
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
-  Branch *branch = (Branch*) user_data;
+  Branch *branch = (Branch *)user_data;
   VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
   NrnThread *nt = branch->nt_;
 
@@ -141,23 +139,23 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 approximation of the Newton matrix, I - gamma J, where J = df/dy,
 and the rhs-vector b is an input. Called once per newton, thus
 several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
-int VariableTimeStep::PreConditionedDiagonalSolver
-(CVodeMem cv_mem, N_Vector b, N_Vector weight,
- N_Vector ycur, N_Vector fcur)
-{
+int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
+                                                   N_Vector weight,
+                                                   N_Vector ycur,
+                                                   N_Vector fcur) {
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
-  Branch *branch = (Branch*) cv_mem->cv_user_data;
+  Branch *branch = (Branch *)cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
   nt->_dt = cv_mem->cv_gamma;
-  nt->cj = 1.0/ nt->_dt;
+  nt->cj = 1.0 / nt->_dt;
 
   // Cvode::lhs()
   solver::HinesSolver::ResetArray(branch, nt->_actual_d);
   branch->CallModFunction(Mechanism::ModFunctions::kJacob);
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-  assert(nt->_actual_b[0]==0);
+  assert(nt->_actual_b[0] == 0);
   solver::HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
@@ -400,8 +398,8 @@ int VariableTimeStep::Init_handler() {
         int state_dv_offset =
             ml_data_offset + mech->data_size_ * n + state_dv_index;
 #else
-        //Note: We add SoA format to the maps, without padding because
-        //it would require larger+padded y and y' arrays for CVODE
+        // Note: We add SoA format to the maps, without padding because
+        // it would require larger+padded y and y' arrays for CVODE
         int state_var_offset =
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index + n;
@@ -465,8 +463,7 @@ int VariableTimeStep::Init_handler() {
   // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreConditionedDiagSolver:
-  {
+    case Interpolators::kCvodePreConditionedDiagSolver: {
       // CVODES guide chapter 8: Providing Alternate Linear Solver
       // Modules: only lsolve function is mandatory
       // (non-used functions need to be set to null)
@@ -476,15 +473,16 @@ int VariableTimeStep::Init_handler() {
       cvode_mem->cv_setupNonNull = FALSE;
       cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
-  }
+    }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
-      if (flag==CVDLS_MEM_FAIL)
-      {
-          fprintf(stderr, "ERROR: can't allocate memory for dense jacobian for gid %d and %d equations\n",
-                 local->soma_->gid_, equations_count);
-          hpx_gas_unpin(target);
-          return HPX_USER;
+      if (flag == CVDLS_MEM_FAIL) {
+        fprintf(stderr,
+                "ERROR: can't allocate memory for dense jacobian for gid %d "
+                "and %d equations\n",
+                local->soma_->gid_, equations_count);
+        hpx_gas_unpin(target);
+        return HPX_USER;
       }
       break;
     case Interpolators::kCvodeDiagonalMatrix:
@@ -546,8 +544,8 @@ int VariableTimeStep::Run_handler() {
     {
       flag = CVodeGetRootInfo(cvode_mem, roots_found);
       assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0); // only root: AP threshold reached
-      if (roots_found[0] > 0)  // AP-threshold reached from below (>0)
+      assert(roots_found[0] != 0);  // only root: AP threshold reached
+      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
       {
         // if root found, integrator time is now at time of root
         hpx_t spikes_lco_ = local->soma_->SendSpikes(nt->_t);
@@ -557,7 +555,7 @@ int VariableTimeStep::Run_handler() {
 
 #ifndef NDEBUG
   // Final statistics output:
-  long num_steps=-1, num_rhs=-1, num_roots=-1, num_others = 0;
+  long num_steps = -1, num_rhs = -1, num_roots = -1, num_others = 0;
   CVodeGetNumSteps(cvode_mem, &num_steps);
   CVodeGetNumGEvals(cvode_mem, &num_roots);
   switch (input_params_->interpolator_) {
@@ -565,14 +563,17 @@ int VariableTimeStep::Run_handler() {
       CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
       CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
       printf(
-          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, roots: %d\n",
+          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, "
+          "roots: %d\n",
           local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDenseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
       CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
-      printf("-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: %d\n",
-             local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+      printf(
+          "-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: "
+          "%d\n",
+          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDiagonalMatrix:
       CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);

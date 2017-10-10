@@ -14,8 +14,8 @@
 #include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
-//For Pre-conditioned matrix solvers
-#include <cvodes/cvodes_diag.h>       /*For Approx Diagonal matrix*/
+// For Pre-conditioned matrix solvers
+#include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -70,14 +70,12 @@ class VariableTimeStep {
   static hpx_action_t Clear;
 
  private:
-
   /// possible operations between NrnThread->data and CVodes states
-  typedef enum CopyOps
-  {
-      kScatterY,
-      kGatherY,
-      kScatterYdot,
-      kGatherYdot
+  typedef enum CopyOps {
+    kScatterY,
+    kGatherY,
+    kScatterYdot,
+    kGatherYdot
   } CopyOp;
 
   /// copy data to/from branch's NrnThread->data and CVODES y/ydot
@@ -125,8 +123,9 @@ class VariableTimeStep {
                            N_Vector tmp2, N_Vector tmp3);
 
   /// Solve-function for Neuron-based diagonal solver
-  static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b, N_Vector weight,
-                                        N_Vector ycur, N_Vector fcur);
+  static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b,
+                                          N_Vector weight, N_Vector ycur,
+                                          N_Vector fcur);
 
   static int Init_handler();
   static int Run_handler();

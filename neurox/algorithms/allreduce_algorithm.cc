@@ -103,7 +103,7 @@ void AllreduceAlgorithm::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
   if (b->soma_) {
     AllReducesInfo* stw = (AllReducesInfo*)b->soma_->algorithm_metadata_;
-    assert(stw->spikes_lco_queue_.size()==neurox::min_delay_steps_-1);
+    assert(stw->spikes_lco_queue_.size() == neurox::min_delay_steps_ - 1);
     stw->spikes_lco_queue_.push(spikes_lco);
     hpx_t queued_spikes_lco = stw->spikes_lco_queue_.front();
     stw->spikes_lco_queue_.pop();
