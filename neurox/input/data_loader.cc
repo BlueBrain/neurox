@@ -24,7 +24,7 @@
 
 using namespace std;
 using namespace neurox::input;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 using namespace neurox::tools;
 
 FILE *DataLoader::file_netcons_ = nullptr;
@@ -822,7 +822,7 @@ int DataLoader::InitNeurons_handler() {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_ =
         new std::vector<hpx_t>(my_neurons_addr_->begin(),
                                my_neurons_addr_->end());
   }
@@ -967,9 +967,9 @@ int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
   if (input_params_->allreduce_at_locality_)
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-  delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+  delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
       locality_neurons_;
 
   if (input_params_->output_netcons_dot) {
@@ -1640,11 +1640,11 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(src_addr, min_delay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params_->algorithm_ == Algorithms::kBenchmarkAll ||
-            input_params_->algorithm_ == Algorithms::kTimeDependencyLCO) {
+        if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll ||
+            input_params_->synchronizer_ == Synchronizers::kTimeDependencyLCO) {
           spike_time_t notificationTime =
               input_params_->tstart_ +
-              min_delay * TimeDependencyLCOAlgorithm::TimeDependencies::
+              min_delay * TimeDependencyLCOSynchronizer::TimeDependencies::
                               kNotificationIntervalRatio;
           dependencies.push_back(make_pair(src_gid, notificationTime));
         }

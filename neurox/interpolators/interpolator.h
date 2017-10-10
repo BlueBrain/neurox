@@ -8,7 +8,7 @@ namespace interpolators {
 
 /**
  * @brief The Interpolators enum
- * Identifies the algorithm and jacobian used on
+ * Identifies the synchronizer and jacobian used on
  * fixed or variable step interpolations;
  */
 enum class Interpolators : int {

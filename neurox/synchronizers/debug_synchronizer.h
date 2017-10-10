@@ -5,14 +5,14 @@ using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
+namespace synchronizers {
 
-class DebugAlgorithm : public Algorithm {
+class DebugSynchronizer : public Synchronizer {
  public:
-  DebugAlgorithm();
-  ~DebugAlgorithm();
+  DebugSynchronizer();
+  ~DebugSynchronizer();
 
-  const Algorithms GetId() override;
+  const Synchronizers GetId() override;
   const char* GetString() override;
 
   void Init() override;
@@ -24,7 +24,7 @@ class DebugAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public AlgorithmMetadata {
+  class CommunicationBarrier : public SynchronizerMetadata {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();
@@ -34,6 +34,6 @@ class DebugAlgorithm : public Algorithm {
   };
 };
 
-};  // algorithm
+};  // synchronizer
 
 };  // neurox

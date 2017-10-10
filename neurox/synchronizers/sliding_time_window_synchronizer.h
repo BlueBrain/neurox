@@ -5,14 +5,14 @@ using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
+namespace synchronizers {
 
-class CoreneuronAlgorithm : public Algorithm {
+class SlidingTimeWindowSynchronizer : public Synchronizer {
  public:
-  CoreneuronAlgorithm();
-  ~CoreneuronAlgorithm();
+  SlidingTimeWindowSynchronizer();
+  ~SlidingTimeWindowSynchronizer();
 
-  const Algorithms GetId() override;
+  const Synchronizers GetId() override;
   const char* GetString() override;
 
   void Init() override;
@@ -24,13 +24,12 @@ class CoreneuronAlgorithm : public Algorithm {
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public AlgorithmMetadata {
-   public:
-    CommunicationBarrier();
-    ~CommunicationBarrier();
-  };
+  const size_t kAllReducesCount = 2;
+  static hpx_t* allreduces_;
+
+ private:
 };
 
-};  // algorithm
+};  // synchronizer
 
 };  // neurox

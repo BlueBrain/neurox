@@ -5,7 +5,7 @@
 #include <iostream>
 #include <map>
 
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 namespace neurox {
@@ -17,7 +17,7 @@ int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
 neurox::Mechanism **mechanisms_ = nullptr;
 neurox::tools::CmdLineParser *input_params_ = nullptr;
-neurox::algorithms::Algorithm *algorithm_ = nullptr;
+neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -55,23 +55,23 @@ static int Main_handler() {
   hpx_time_t now = hpx_time_now();
 
   double total_time_elapsed = 0;
-  if (input_params_->algorithm_ == Algorithms::kBenchmarkAll) {
+  if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
     for (int type = 0; type < 4; type++) {
-      algorithm_ = Algorithm::New((Algorithms)type);
-      algorithm_->Init();
-      algorithm_->PrintStartInfo();
-      double time_elapsed = algorithm_->Launch();
+      synchronizer_ = Synchronizer::New((Synchronizers)type);
+      synchronizer_->Init();
+      synchronizer_->PrintStartInfo();
+      double time_elapsed = synchronizer_->Launch();
       total_time_elapsed += time_elapsed;
-      algorithm_->Clear();
-      delete algorithm_;
+      synchronizer_->Clear();
+      delete synchronizer_;
 
 #ifdef NDEBUG
       // output benchmark info
       printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n",
              neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
              neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-             input_params_->tstop_, sync_algorithm_->GetType(),
+             input_params_->tstop_, sync_synchronizer_->GetType(),
              input_params_->mechs_parallelism_ ? 1 : 0,
              input_params_->branch_parallelism_depth_,
              input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
@@ -85,12 +85,12 @@ static int Main_handler() {
     neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
     neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
   } else {
-    algorithm_ = Algorithm::New(input_params_->algorithm_);
-    algorithm_->Init();
-    algorithm_->PrintStartInfo();
-    total_time_elapsed = algorithm_->Launch();
-    algorithm_->Clear();
-    delete algorithm_;
+    synchronizer_ = Synchronizer::New(input_params_->synchronizer_);
+    synchronizer_->Init();
+    synchronizer_->PrintStartInfo();
+    total_time_elapsed = synchronizer_->Launch();
+    synchronizer_->Clear();
+    delete synchronizer_;
   }
 
   double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
@@ -111,11 +111,11 @@ int Clear_handler() {
   delete[] neurox::mechanisms_map_;
 
   if (input_params_->allreduce_at_locality_) {
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-    delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+    delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
         locality_neurons_;
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_ =
         nullptr;
   }
 

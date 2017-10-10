@@ -5,14 +5,14 @@ using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
+namespace synchronizers {
 
-class AllreduceAlgorithm : public Algorithm {
+class AllreduceSynchronizer : public Synchronizer {
  public:
-  AllreduceAlgorithm();
-  ~AllreduceAlgorithm();
+  AllreduceSynchronizer();
+  ~AllreduceSynchronizer();
 
-  const Algorithms GetId() override;
+  const Synchronizers GetId() override;
   const char* GetString() override;
 
   void Init() override;
@@ -33,7 +33,7 @@ class AllreduceAlgorithm : public Algorithm {
   const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;
 
-  class AllReducesInfo : public AlgorithmMetadata {
+  class AllReducesInfo : public SynchronizerMetadata {
    public:
     AllReducesInfo();
     ~AllReducesInfo();
@@ -81,6 +81,6 @@ class AllreduceAlgorithm : public Algorithm {
  private:
 };
 
-};  // algorithm
+};  // synchronizer
 
 };  // neurox

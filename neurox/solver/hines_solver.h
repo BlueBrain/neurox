@@ -14,7 +14,7 @@ namespace solver {
 
 /**
  * @brief The Hines Solver class
- * Handles the Gaussian Elimination algorithm according to Hines;
+ * Handles the Gaussian Elimination synchronizer according to Hines;
  */
 class HinesSolver {
  public:

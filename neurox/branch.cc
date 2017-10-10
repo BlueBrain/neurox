@@ -8,7 +8,7 @@
 using namespace neurox;
 using namespace neurox::solver;
 using namespace neurox::tools;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 
 void *Branch::operator new(size_t bytes, void *addr) { return addr; }
 
@@ -526,7 +526,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(nargs ==
-         (input_params_->algorithm_ == Algorithms::kTimeDependencyLCO ? 3 : 2));
+         (input_params_->synchronizer_ == Synchronizers::kTimeDependencyLCO ? 3 : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
@@ -541,7 +541,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   }
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
-  algorithm_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
+  synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
                                  max_time);
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -558,10 +558,10 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
 
   assert(local->soma_);
-  assert(local->soma_->algorithm_metadata_);
-  TimeDependencyLCOAlgorithm::TimeDependencies *time_dependencies =
-      (TimeDependencyLCOAlgorithm::TimeDependencies *)
-          local->soma_->algorithm_metadata_;
+  assert(local->soma_->synchronizer_metadata_);
+  TimeDependencyLCOSynchronizer::TimeDependencies *time_dependencies =
+      (TimeDependencyLCOSynchronizer::TimeDependencies *)
+          local->soma_->synchronizer_metadata_;
   time_dependencies->UpdateTimeDependency(
       pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
       init_phase);
@@ -599,7 +599,7 @@ void Branch::BackwardEulerStep() {
   double &t = this->nt_->_t;
   hpx_t spikes_lco = HPX_NULL;
 
-  algorithm_->StepBegin(this);
+  synchronizer_->StepBegin(this);
 
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
@@ -645,14 +645,14 @@ void Branch::BackwardEulerStep() {
   if (fmod(t, input_params_->dt_io_) == 0) {
   }
 
-  algorithm_->StepEnd(this, spikes_lco);
+  synchronizer_->StepEnd(this, spikes_lco);
 }
 
 hpx_action_t Branch::BackwardEuler = 0;
 int Branch::BackwardEuler_handler(const int *steps_ptr, const size_t size) {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::BackwardEuler, steps_ptr, size);
-  algorithm_->Run(local, steps_ptr);
+  synchronizer_->Run(local, steps_ptr);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -662,39 +662,39 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                             const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
   assert(input_params_->allreduce_at_locality_);
-  assert(input_params_->algorithm_ == Algorithms::kSlidingTimeWindow ||
-         input_params_->algorithm_ == Algorithms::kAllReduce);
+  assert(input_params_->synchronizer_ == Synchronizers::kSlidingTimeWindow ||
+         input_params_->synchronizer_ == Synchronizers::kAllReduce);
 
   const int locality_neurons_count =
-      AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
+      AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
           ->size();
   const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
   const int comm_step_size = neurox::min_delay_steps_;
   const int reductions_per_comm_step =
-      AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_;
+      AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
   const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
   const int steps = *steps_ptr;
 
   for (int s = 0; s < steps; s += comm_step_size) {
     for (int r = 0; r < reductions_per_comm_step; r++) {
       if (s >= comm_step_size)  // first comm-window does not wait
-        hpx_lco_wait_reset(AllreduceAlgorithm::AllReducesInfo::
+        hpx_lco_wait_reset(AllreduceSynchronizer::AllReducesInfo::
                                AllReduceLocality::allreduce_future_[r]);
       else
-        // fixes crash for Algorithm::ALL when running two hpx-reduce -based
-        // algorithms in a row
-        hpx_lco_reset_sync(AllreduceAlgorithm::AllReducesInfo::
+        // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
+        // synchronizers in a row
+        hpx_lco_reset_sync(AllreduceSynchronizer::AllReducesInfo::
                                AllReduceLocality::allreduce_future_[r]);
 
       hpx_process_collective_allreduce_join(
-          AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::allreduce_lco_
+          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_lco_
               [r],
-          AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::allreduce_id_
+          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_id_
               [r],
           NULL, 0);
 
       for (int i = 0; i < locality_neurons_count; i++)
-        hpx_call(AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+        hpx_call(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
                      locality_neurons_->at(i),
                  Branch::BackwardEuler, locality_neurons_lco,
                  &steps_per_reduction, sizeof(int));

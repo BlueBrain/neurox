@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
   neurox::tools::Statistics::RegisterHpxActions();
   neurox::tools::LoadBalancing::RegisterHpxActions();
   neurox::input::DataLoader::RegisterHpxActions();
-  neurox::algorithms::AllreduceAlgorithm::AllReducesInfo::RegisterHpxActions();
+  neurox::synchronizers::AllreduceSynchronizer::AllReducesInfo::RegisterHpxActions();
   neurox::interpolators::VariableTimeStep::RegisterHpxActions();
 #if !defined(NDEBUG)
   neurox::input::Debugger::RegisterHpxActions();

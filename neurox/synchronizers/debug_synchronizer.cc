@@ -1,39 +1,39 @@
-#include "neurox/algorithms/debug_algorithm.h"
+#include "neurox/synchronizers/debug_synchronizer.h"
 
 using namespace neurox;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 
-DebugAlgorithm::DebugAlgorithm() {}
+DebugSynchronizer::DebugSynchronizer() {}
 
-DebugAlgorithm::~DebugAlgorithm() {}
+DebugSynchronizer::~DebugSynchronizer() {}
 
-DebugAlgorithm::CommunicationBarrier::CommunicationBarrier() {
+DebugSynchronizer::CommunicationBarrier::CommunicationBarrier() {
   this->all_spikes_lco_ = HPX_NULL;
   assert(neurox::min_delay_steps_ <= 4);
 }
 
-DebugAlgorithm::CommunicationBarrier::~CommunicationBarrier() {
+DebugSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const Algorithms DebugAlgorithm::GetId() { return Algorithms::kDebug; }
+const Synchronizers DebugSynchronizer::GetId() { return Synchronizers::kDebug; }
 
-const char* DebugAlgorithm::GetString() {
+const char* DebugSynchronizer::GetString() {
   return "BackwardEulerCoreneuronDebug";
 }
 
-void DebugAlgorithm::Init() {
+void DebugSynchronizer::Init() {
   const int allReducesCount = 0;
-  Algorithm::FixedStepMethodsInit();
-  hpx_bcast_rsync(AllreduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
+  Synchronizer::FixedStepMethodsInit();
+  hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
                   &allReducesCount, sizeof(int));
 }
 
-void DebugAlgorithm::Clear() {}
+void DebugSynchronizer::Clear() {}
 
-double DebugAlgorithm::Launch() {
+double DebugSynchronizer::Launch() {
   int comm_step_size = neurox::min_delay_steps_;
-  int total_steps = Algorithm::GetTotalStepsCount();
+  int total_steps = Synchronizer::GetTotalStepsCount();
 
   hpx_time_t now = hpx_time_now();
   for (int s = 0; s < total_steps; s += comm_step_size) {
@@ -59,14 +59,14 @@ double DebugAlgorithm::Launch() {
   return elapsed_time;
 }
 
-void DebugAlgorithm::StepBegin(Branch*) {}
+void DebugSynchronizer::StepBegin(Branch*) {}
 
-void DebugAlgorithm::StepEnd(Branch* b, hpx_t) {
+void DebugSynchronizer::StepEnd(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 }
 
-void DebugAlgorithm::Run(Branch* b, const void* args) {
+void DebugSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
   for (int step = 0; step < steps; step++) b->BackwardEulerStep();
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
@@ -75,15 +75,15 @@ void DebugAlgorithm::Run(Branch* b, const void* args) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
-        (CommunicationBarrier*)b->soma_->algorithm_metadata_;
+        (CommunicationBarrier*)b->soma_->synchronizer_metadata_;
     if (comm_barrier->all_spikes_lco_ != HPX_NULL)  // was set/used once
       hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
 }
 
-hpx_t DebugAlgorithm::SendSpikes(Neuron* neuron, double tt, double) {
+hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
-      (CommunicationBarrier*)neuron->algorithm_metadata_;
+      (CommunicationBarrier*)neuron->synchronizer_metadata_;
   if (comm_barrier->all_spikes_lco_ == HPX_NULL)  // first use
     comm_barrier->all_spikes_lco_ = hpx_lco_and_new(neuron->synapses_.size());
   else

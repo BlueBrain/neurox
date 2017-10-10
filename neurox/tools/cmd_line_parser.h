@@ -4,9 +4,9 @@
 namespace neurox {
 
 // Forward declarations
-namespace algorithms {
-enum class Algorithms : int;
-class Algorithm;
+namespace synchronizers {
+enum class Synchronizers : int;
+class Synchronizer;
 }
 
 namespace interpolators {
@@ -58,8 +58,8 @@ class CmdLineParser {
   /// depth tree-based parallelism of morphologies
   int branch_parallelism_depth_;
 
-  /// neurons sychronization algorithm
-  algorithms::Algorithms algorithm_;
+  /// neurons sychronization synchronizer
+  synchronizers::Synchronizers synchronizer_;
 
   /// interpolation agorithm
   interpolators::Interpolators interpolator_;

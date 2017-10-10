@@ -28,8 +28,8 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/tools/statistics.h"
 #include "neurox/tools/vectorizer.h"
 
-// Algorithms
-#include "neurox/algorithms/algorithm.h"
+// Synchronizers
+#include "neurox/synchronizers/synchronizer.h"
 
 // Interpolators
 #include "neurox/interpolators/interpolator.h"
@@ -69,8 +69,8 @@ extern int *mechanisms_map_;
 /// Parameters parsed from command line
 extern tools::CmdLineParser *input_params_;
 
-/// neurons synchronization algorithm instance
-extern algorithms::Algorithm *algorithm_;
+/// neurons synchronization synchronizer instance
+extern synchronizers::Synchronizer *synchronizer_;
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);

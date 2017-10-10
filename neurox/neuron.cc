@@ -6,29 +6,29 @@
 
 using namespace neurox;
 using namespace neurox::solver;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
-    : gid_(neuron_id), threshold_(ap_threshold), algorithm_metadata_(nullptr) {
+    : gid_(neuron_id), threshold_(ap_threshold), synchronizer_metadata_(nullptr) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->algorithm_metadata_ = AlgorithmMetadata::New(input_params_->algorithm_);
-  assert(this->algorithm_metadata_ != nullptr);
+  this->synchronizer_metadata_ = SynchronizerMetadata::New(input_params_->synchronizer_);
+  assert(this->synchronizer_metadata_ != nullptr);
   assert(
-      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio >
+      TimeDependencyLCOSynchronizer::TimeDependencies::kNotificationIntervalRatio >
           0 &&
-      TimeDependencyLCOAlgorithm::TimeDependencies::
+      TimeDependencyLCOSynchronizer::TimeDependencies::
               kNotificationIntervalRatio <= 1);
   assert(neurox::min_delay_steps_ %
-             AllreduceAlgorithm::AllReducesInfo::reductions_per_comm_step_ ==
+             AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_ ==
          0);
 }
 
 Neuron::~Neuron() {
   if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
   for (Synapse*& s : synapses_) delete s;
-  delete algorithm_metadata_;
+  delete synchronizer_metadata_;
 }
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
@@ -36,9 +36,9 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
     : branch_addr_(branchAddr),
       min_delay_(minDelay),
       top_branch_addr_(topBranchAddr) {
-  const double& teps = TimeDependencyLCOAlgorithm::TimeDependencies::kTEps;
+  const double& teps = TimeDependencyLCOSynchronizer::TimeDependencies::kTEps;
   const double& notification_ratio =
-      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio;
+      TimeDependencyLCOSynchronizer::TimeDependencies::kNotificationIntervalRatio;
   this->next_notification_time_ =
       input_params_->tstart_ + teps + this->min_delay_ * notification_ratio;
   this->previous_spike_lco_ = hpx_lco_future_new(0);
@@ -92,7 +92,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
 #endif
 
   if (synapses_.size() == 0) return HPX_NULL;
-  return algorithm_->SendSpikes(this, tt, t);
+  return synchronizer_->SendSpikes(this, tt, t);
 }
 
 hpx_t Neuron::SendSpikesAsync(Neuron* neuron, double tt) {

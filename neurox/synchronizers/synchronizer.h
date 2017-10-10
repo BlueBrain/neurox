@@ -4,13 +4,13 @@
 
 namespace neurox {
 
-namespace algorithms {
+namespace synchronizers {
 
 /**
- * @brief The Algorithms enum
- * Uniquely identifies the Id of each algorithm
+ * @brief The Synchronizers enum
+ * Uniquely identifies the Id of each synchronizer
  */
-enum class Algorithms : int {
+enum class Synchronizers : int {
   kDebug = 0,  // For debug only
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
@@ -20,25 +20,25 @@ enum class Algorithms : int {
 };
 
 /**
- * @brief The AlgorithmMetadata class
+ * @brief The SynchronizerMetadata class
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
-class AlgorithmMetadata {
+class SynchronizerMetadata {
  public:
-  /// Returns an instantiated metadata for the algorithm of given type
-  static AlgorithmMetadata* New(Algorithms);
+  /// Returns an instantiated metadata for the synchronizer of given type
+  static SynchronizerMetadata* New(Synchronizers);
 };
 
 /**
- * @brief The SyncAlgorithm class
+ * @brief The SyncSynchronizer class
  * Virtual class describing all methods required to be implemented by all
- * different algorithms
+ * different synchronizers
  */
-class Algorithm {
+class Synchronizer {
  public:
-  Algorithm(){};
-  virtual ~Algorithm(){};
+  Synchronizer(){};
+  virtual ~Synchronizer(){};
 
   /// Init for Fixed Step methods
   static void FixedStepMethodsInit();
@@ -47,13 +47,13 @@ class Algorithm {
   static int GetTotalStepsCount();
 
   /// Returns an instantiated class of the given type
-  static Algorithm* New(Algorithms);
+  static Synchronizer* New(Synchronizers);
 
-  /// Prints info on algorithm, data size, and steps count
+  /// Prints info on synchronizer, data size, and steps count
   void PrintStartInfo();
 
   /// Returns class type
-  const virtual Algorithms GetId() = 0;
+  const virtual Synchronizers GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;
@@ -64,10 +64,10 @@ class Algorithm {
   /// Runs simulation for given branch
   virtual void Run(Branch*, const void*) = 0;
 
-  /// Initialize algorithm meta data
+  /// Initialize synchronizer meta data
   virtual void Init(){};
 
-  /// Clears/finalizes algorithm meta data
+  /// Clears/finalizes synchronizer meta data
   virtual void Clear(){};
 
   /// To be called at beginning of step
@@ -84,13 +84,13 @@ class Algorithm {
                                   spike_time_t){};
 };
 
-};  // algorithms
+};  // synchronizers
 
 };  // neurox
 
 // TODO can we move this somewhere else?
-#include "neurox/algorithms/allreduce_algorithm.h"
-#include "neurox/algorithms/coreneuron_algorithm.h"
-#include "neurox/algorithms/debug_algorithm.h"
-#include "neurox/algorithms/sliding_time_window_algorithm.h"
-#include "neurox/algorithms/time_dependency_lco_algorithm.h"
+#include "neurox/synchronizers/allreduce_synchronizer.h"
+#include "neurox/synchronizers/coreneuron_synchronizer.h"
+#include "neurox/synchronizers/debug_synchronizer.h"
+#include "neurox/synchronizers/sliding_time_window_synchronizer.h"
+#include "neurox/synchronizers/time_dependency_lco_synchronizer.h"

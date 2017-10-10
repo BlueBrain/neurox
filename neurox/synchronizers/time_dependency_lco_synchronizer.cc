@@ -1,39 +1,39 @@
-#include "neurox/algorithms/time_dependency_lco_algorithm.h"
+#include "neurox/synchronizers/time_dependency_lco_synchronizer.h"
 
 using namespace neurox;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 
 constexpr floble_t
-    TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio;
-constexpr double TimeDependencyLCOAlgorithm::TimeDependencies::kTEps;
+    TimeDependencyLCOSynchronizer::TimeDependencies::kNotificationIntervalRatio;
+constexpr double TimeDependencyLCOSynchronizer::TimeDependencies::kTEps;
 
-TimeDependencyLCOAlgorithm::TimeDependencyLCOAlgorithm() {}
+TimeDependencyLCOSynchronizer::TimeDependencyLCOSynchronizer() {}
 
-TimeDependencyLCOAlgorithm::~TimeDependencyLCOAlgorithm() {}
+TimeDependencyLCOSynchronizer::~TimeDependencyLCOSynchronizer() {}
 
-const Algorithms TimeDependencyLCOAlgorithm::GetId() {
-  return Algorithms::kTimeDependencyLCO;
+const Synchronizers TimeDependencyLCOSynchronizer::GetId() {
+  return Synchronizers::kTimeDependencyLCO;
 }
 
-const char* TimeDependencyLCOAlgorithm::GetString() {
+const char* TimeDependencyLCOSynchronizer::GetString() {
   return "BackwardEulerTimeDependencyLCO";
 }
 
-void TimeDependencyLCOAlgorithm::Init() {
-  Algorithm::FixedStepMethodsInit();
+void TimeDependencyLCOSynchronizer::Init() {
+  Synchronizer::FixedStepMethodsInit();
   if (input_params_->allreduce_at_locality_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependencyLCO with allReduceAtLocality\n");
 
   const int allReducesCount = 0;
-  hpx_bcast_rsync(AllreduceAlgorithm::AllReducesInfo::SetReductionsPerCommStep,
+  hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
                   &allReducesCount, sizeof(int));
 }
 
-void TimeDependencyLCOAlgorithm::Clear() {}
+void TimeDependencyLCOSynchronizer::Clear() {}
 
-double TimeDependencyLCOAlgorithm::Launch() {
-  int total_steps = Algorithm::GetTotalStepsCount();
+double TimeDependencyLCOSynchronizer::Launch() {
+  int total_steps = Synchronizer::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
   neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &total_steps,
                                    sizeof(int));
@@ -42,14 +42,14 @@ double TimeDependencyLCOAlgorithm::Launch() {
   return elapsed_time;
 }
 
-void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
+void TimeDependencyLCOSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
 
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->algorithm_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_metadata_;
 
-    // fixes crash for Algorithm::All when TimeDependency algorithm starts at
+    // fixes crash for Synchronizer::All when TimeDependency synchronizer starts at
     // t=inputParams->tend*2
     // increase notification and dependencies time
     for (Neuron::Synapse*& s : b->soma_->synapses_)
@@ -66,10 +66,10 @@ void TimeDependencyLCOAlgorithm::Run(Branch* b, const void* args) {
 #endif
 }
 
-void TimeDependencyLCOAlgorithm::StepBegin(Branch* b) {
+void TimeDependencyLCOSynchronizer::StepBegin(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->algorithm_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_metadata_;
     // inform time dependants that must be notified in this step
     time_dependencies->SendSteppingNotification(
         b->nt_->_t, b->nt_->_dt, b->soma_->gid_, b->soma_->synapses_);
@@ -79,12 +79,12 @@ void TimeDependencyLCOAlgorithm::StepBegin(Branch* b) {
   }
 }
 
-void TimeDependencyLCOAlgorithm::StepEnd(Branch* b, hpx_t) {
+void TimeDependencyLCOSynchronizer::StepEnd(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 }
 
-void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
+void TimeDependencyLCOSynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
                                                     neuron_id_t pre_neuron_id,
                                                     spike_time_t spike_time,
                                                     spike_time_t max_time) {
@@ -92,7 +92,7 @@ void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
   hpx_t top_branch_addr = b->soma_ ? target : b->branch_tree_->top_branch_addr_;
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->algorithm_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_metadata_;
     time_dependencies->UpdateTimeDependency(pre_neuron_id, max_time);
   } else
     hpx_call(top_branch_addr, Branch::UpdateTimeDependency, HPX_NULL,
@@ -100,11 +100,11 @@ void TimeDependencyLCOAlgorithm::AfterReceiveSpikes(Branch* b, hpx_t target,
              sizeof(spike_time_t));
 }
 
-hpx_t TimeDependencyLCOAlgorithm::SendSpikes(Neuron* neuron, double tt,
+hpx_t TimeDependencyLCOSynchronizer::SendSpikes(Neuron* neuron, double tt,
                                              double t) {
   const floble_t notification_ratio =
-      TimeDependencyLCOAlgorithm::TimeDependencies::kNotificationIntervalRatio;
-  const double teps = TimeDependencyLCOAlgorithm::TimeDependencies::kTEps;
+      TimeDependencyLCOSynchronizer::TimeDependencies::kNotificationIntervalRatio;
+  const double teps = TimeDependencyLCOSynchronizer::TimeDependencies::kTEps;
 
   for (Neuron::Synapse*& s : neuron->synapses_) {
     s->next_notification_time_ =
@@ -130,18 +130,18 @@ hpx_t TimeDependencyLCOAlgorithm::SendSpikes(Neuron* neuron, double tt,
   return HPX_NULL;
 }
 
-TimeDependencyLCOAlgorithm::TimeDependencies::TimeDependencies() {
+TimeDependencyLCOSynchronizer::TimeDependencies::TimeDependencies() {
   libhpx_cond_init(&this->dependencies_wait_condition_);
   libhpx_mutex_init(&this->dependencies_lock_);
   this->dependencies_time_neuron_waits_for_ = 0;  // 0 means not waiting
 }
 
-TimeDependencyLCOAlgorithm::TimeDependencies::~TimeDependencies() {
+TimeDependencyLCOSynchronizer::TimeDependencies::~TimeDependencies() {
   libhpx_cond_destroy(&this->dependencies_wait_condition_);
   libhpx_mutex_destroy(&this->dependencies_lock_);
 }
 
-size_t TimeDependencyLCOAlgorithm::TimeDependencies::GetDependenciesCount() {
+size_t TimeDependencyLCOSynchronizer::TimeDependencies::GetDependenciesCount() {
   size_t size = -1;
   libhpx_mutex_lock(&this->dependencies_lock_);
   size = dependencies_map_.size();
@@ -149,7 +149,7 @@ size_t TimeDependencyLCOAlgorithm::TimeDependencies::GetDependenciesCount() {
   return size;
 }
 
-void TimeDependencyLCOAlgorithm::TimeDependencies::IncreseDependenciesTime(
+void TimeDependencyLCOSynchronizer::TimeDependencies::IncreseDependenciesTime(
     floble_t t) {
   libhpx_mutex_lock(&this->dependencies_lock_);
   for (auto& dependency : dependencies_map_) dependency.second += t;
@@ -157,7 +157,7 @@ void TimeDependencyLCOAlgorithm::TimeDependencies::IncreseDependenciesTime(
 }
 
 floble_t
-TimeDependencyLCOAlgorithm::TimeDependencies::GetDependenciesMinTime() {
+TimeDependencyLCOSynchronizer::TimeDependencies::GetDependenciesMinTime() {
   assert(dependencies_map_.size() > 0);
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
                           [](pair<neuron_id_t, floble_t> const& lhs,
@@ -167,7 +167,7 @@ TimeDependencyLCOAlgorithm::TimeDependencies::GetDependenciesMinTime() {
       ->second;
 }
 
-void TimeDependencyLCOAlgorithm::TimeDependencies::UpdateTimeDependency(
+void TimeDependencyLCOSynchronizer::TimeDependencies::UpdateTimeDependency(
     neuron_id_t src_gid, floble_t dependency_notification_time,
     neuron_id_t my_gid, bool initialization_phase) {
   libhpx_mutex_lock(&this->dependencies_lock_);
@@ -227,7 +227,7 @@ void TimeDependencyLCOAlgorithm::TimeDependencies::UpdateTimeDependency(
   libhpx_mutex_unlock(&this->dependencies_lock_);
 }
 
-void TimeDependencyLCOAlgorithm::TimeDependencies::WaitForTimeDependencyNeurons(
+void TimeDependencyLCOSynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     floble_t t, floble_t dt, int gid) {
   // if I have no dependencies... I'm free to go!
   if (dependencies_map_.size() == 0) return;
@@ -267,7 +267,7 @@ void TimeDependencyLCOAlgorithm::TimeDependencies::WaitForTimeDependencyNeurons(
 #endif
 }
 
-void TimeDependencyLCOAlgorithm::TimeDependencies::SendSteppingNotification(
+void TimeDependencyLCOSynchronizer::TimeDependencies::SendSteppingNotification(
     floble_t t, floble_t dt, int gid, std::vector<Neuron::Synapse*>& synapses) {
   for (Neuron::Synapse*& s : synapses)
     if (s->next_notification_time_ - kTEps <= t + dt)  // if in this time step

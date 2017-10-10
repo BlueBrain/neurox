@@ -24,7 +24,7 @@
 
 using namespace std;
 using namespace neurox::input;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
   const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
@@ -149,11 +149,11 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
   if (b->soma_ &&
-      input_params_->algorithm_ ==
-          neurox::algorithms::Algorithms::kTimeDependencyLCO) {
-    TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
-        (TimeDependencyLCOAlgorithm::TimeDependencies *)
-            b->soma_->algorithm_metadata_;
+      input_params_->synchronizer_ ==
+          neurox::synchronizers::Synchronizers::kTimeDependencyLCO) {
+    TimeDependencyLCOSynchronizer::TimeDependencies *timeDependencies =
+        (TimeDependencyLCOSynchronizer::TimeDependencies *)
+            b->soma_->synchronizer_metadata_;
     timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid_,
                                                b->soma_->synapses_);
     timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, dt,
@@ -456,7 +456,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
-    int totalSteps = algorithms::Algorithm::GetTotalStepsCount();
+    int totalSteps = synchronizers::Synchronizer::GetTotalStepsCount();
     int commStepSize = neurox::min_delay_steps_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
@@ -475,7 +475,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (neurox::ParallelExecution() &&
-      algorithm_->GetId() != algorithms::Algorithms::kDebug)
+      synchronizer_->GetId() != synchronizers::Synchronizers::kDebug)
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 

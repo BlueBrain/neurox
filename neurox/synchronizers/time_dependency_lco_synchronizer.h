@@ -7,14 +7,14 @@ using namespace neurox;
 
 namespace neurox {
 
-namespace algorithms {
+namespace synchronizers {
 
-class TimeDependencyLCOAlgorithm : public Algorithm {
+class TimeDependencyLCOSynchronizer : public Synchronizer {
  public:
-  TimeDependencyLCOAlgorithm();
-  ~TimeDependencyLCOAlgorithm();
+  TimeDependencyLCOSynchronizer();
+  ~TimeDependencyLCOSynchronizer();
 
-  const Algorithms GetId() override;
+  const Synchronizers GetId() override;
   const char* GetString() override;
 
   void Init() override;
@@ -30,7 +30,7 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
                           spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public AlgorithmMetadata {
+  class TimeDependencies : public SynchronizerMetadata {
    public:
     TimeDependencies();
     ~TimeDependencies();
@@ -72,6 +72,6 @@ class TimeDependencyLCOAlgorithm : public Algorithm {
   };
 };
 
-};  // algorithm
+};  // synchronizer
 
 };  // neurox

@@ -68,8 +68,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<int> branch_parallelism_depth(
         "B", "branching-depth",
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
-    TCLAP::ValueArg<int> algorithm(
-        "A", "algorithm",
+    TCLAP::ValueArg<int> synchronizer(
+        "A", "synchronizer",
         "\
 [0] BackwardEulerCoreneuronDebug\
 \n[1] BackwardEulerWithAllReduceBarrier (default)\
@@ -77,7 +77,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[3] BackwardEulerWithTimeDependencyLCO\
 \n[4] BackwardEulerCoreneuron\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
-        false, (int)algorithms::Algorithms::kAllReduce, "int");
+        false, (int)synchronizers::Synchronizers::kAllReduce, "int");
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
@@ -90,7 +90,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, (int)interpolators::Interpolators::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
-    cmd.add(algorithm);
+    cmd.add(synchronizer);
     cmd.add(interpolator);
 
     // coreneuron command line parameters
@@ -173,8 +173,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->allreduce_at_locality_ = allreduce_at_locality.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->algorithm_ = (algorithms::Algorithms)algorithm.getValue();
-    neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
+    this->synchronizer_ = (synchronizers::Synchronizers)synchronizer.getValue();
+    neurox::synchronizer_ = synchronizers::Synchronizer::New(this->synchronizer_);
     this->interpolator_ = (interpolators::Interpolators)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
