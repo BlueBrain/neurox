@@ -10,8 +10,6 @@ using namespace interpolators;
 
 namespace neurox {
 
-namespace solver {
-
 /**
  * @brief The Hines Solver class
  * Handles the Gaussian Elimination synchronizer according to Hines;
@@ -39,5 +37,4 @@ class HinesSolver {
  private:
 };
 
-};  // namespace
 };  // namespace

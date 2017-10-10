@@ -6,7 +6,6 @@
 #include <set>
 
 using namespace neurox;
-using namespace neurox::solver;
 using namespace neurox::tools;
 using namespace neurox::synchronizers;
 
@@ -618,13 +617,13 @@ void Branch::BackwardEulerStep() {
   DeliverEvents(t);  // delivers events in the first HALF of the step
   FixedPlayContinuous();
   SetupTreeMatrix();
-  solver::HinesSolver::SolveTreeMatrix(this);
+  HinesSolver::SolveTreeMatrix(this);
 
   // update ions currents based on RHS and dI/dV
   second_order_cur(this->nt_, input_params_->second_order_);
 
   ////// fadvance_core.c : update()
-  solver::HinesSolver::UpdateVoltagesWithRHS(this);
+  HinesSolver::UpdateVoltagesWithRHS(this);
   // TODO this can be placed after the next operation
 
   // update capacitance currents based on RHS and dI/dV
@@ -730,12 +729,12 @@ int Branch::Finitialize_handler() {
 void Branch::SetupTreeMatrix() {
   // treeset_core.c::nrn_rhs: Set up Right-Hand-Side
   // of Matrix-Vector multiplication
-  solver::HinesSolver::ResetArray(this, this->nt_->_actual_rhs);
-  solver::HinesSolver::ResetArray(this, this->nt_->_actual_d);
+  HinesSolver::ResetArray(this, this->nt_->_actual_rhs);
+  HinesSolver::ResetArray(this, this->nt_->_actual_d);
 
   this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   this->CallModFunction(Mechanism::ModFunctions::kCurrent);
-  solver::HinesSolver::SetupMatrixRHS(this);
+  HinesSolver::SetupMatrixRHS(this);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
   // multiplication. calculate left hand side of
@@ -753,7 +752,7 @@ void Branch::SetupTreeMatrix() {
   // by another model has taken effect.
   this->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
-  solver::HinesSolver::SetupMatrixDiagonal(this);
+  HinesSolver::SetupMatrixDiagonal(this);
 }
 
 void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt

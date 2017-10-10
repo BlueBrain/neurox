@@ -162,13 +162,13 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   if (b->soma_) {
     // Soma waits for AIS to have threshold V value updated
     floble_t thresholdV;
-    solver::HinesSolver::SynchronizeThresholdV(b, &thresholdV);
+    HinesSolver::SynchronizeThresholdV(b, &thresholdV);
     if (b->soma_->CheckAPthresholdAndTransmissionFlag(thresholdV))
       b->soma_->SendSpikes(b->nt_->_t);
     // TODO sendSpikes LCO must be waited
   } else if (b->thvar_ptr_)
     // Axon Initial Segment send threshold  V to parent
-    solver::HinesSolver::SynchronizeThresholdV(b);
+    HinesSolver::SynchronizeThresholdV(b);
 
   b->nt_->_t += .5 * dt;
   b->DeliverEvents(b->nt_->_t);
@@ -184,7 +184,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
 
   b->FixedPlayContinuous();
   b->SetupTreeMatrix();
-  solver::HinesSolver::SolveTreeMatrix(b);
+  HinesSolver::SolveTreeMatrix(b);
 
   // coreneuron
   fixed_play_continuous(nth);

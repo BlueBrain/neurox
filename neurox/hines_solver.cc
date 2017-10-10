@@ -5,7 +5,6 @@
 #include <numeric>
 
 using namespace neurox;
-using namespace neurox::solver;
 using namespace neurox::interpolators;
 
 HinesSolver::~HinesSolver() {}
@@ -233,8 +232,8 @@ void HinesSolver::ForwardSubstituion(Branch *branch) {
 
 void HinesSolver::SolveTreeMatrix(Branch *branch) {
   // Gaussian Elimination
-  solver::HinesSolver::BackwardTriangulation(branch);
-  solver::HinesSolver::ForwardSubstituion(branch);
+  HinesSolver::BackwardTriangulation(branch);
+  HinesSolver::ForwardSubstituion(branch);
 }
 
 void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {

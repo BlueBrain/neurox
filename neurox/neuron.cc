@@ -5,7 +5,6 @@
 #include <utility>
 
 using namespace neurox;
-using namespace neurox::solver;
 using namespace neurox::synchronizers;
 
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)

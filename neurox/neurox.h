@@ -35,7 +35,7 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/interpolators/interpolator.h"
 
 // Fixed-step Backward-Euler solver
-#include "neurox/solver/hines_solver.h"
+#include "neurox/hines_solver.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"

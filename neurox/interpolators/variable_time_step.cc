@@ -98,7 +98,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::ScatterY(branch, y);
 
   // start of occvode.cpp :: nocap_v
-  solver::HinesSolver::ResetRHSandDNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::ResetRHSandDNoCapacitors(branch, vardt->no_cap_);
 
   // sum mech-instance contributions to D and RHS on no-caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
@@ -106,12 +106,12 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
                           vardt->no_cap_->no_caps_ml_);  // lhs
 
-  solver::HinesSolver::SetupMatrixVoltageNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::SetupMatrixVoltageNoCapacitors(branch, vardt->no_cap_);
 
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
 
   // cvtrset.cpp :: CVode::rhs
-  solver::HinesSolver::ResetArray(branch, nt->_actual_rhs);
+  HinesSolver::ResetArray(branch, nt->_actual_rhs);
 
   // cvtrset.cpp :: CVode::rhs() -> rhs_memb(z.cv_memb_list_)
   // sum mech-instance contributions to D and RHS on caps
@@ -119,7 +119,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   // add parent and children axial currents (A*dv and B*dv) to RHS
   // cvtrset.cpp :: CVode::rhs()
-  solver::HinesSolver::SetupMatrixRHS(branch);
+  HinesSolver::SetupMatrixRHS(branch);
 
   // update mechanisms state (eg opening vars and derivatives)
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> do_ode()
@@ -152,18 +152,18 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   nt->cj = 1.0 / nt->_dt;
 
   // Cvode::lhs()
-  solver::HinesSolver::ResetArray(branch, nt->_actual_d);
+  HinesSolver::ResetArray(branch, nt->_actual_d);
   branch->CallModFunction(Mechanism::ModFunctions::kJacob);
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
   assert(nt->_actual_b[0] == 0);
-  solver::HinesSolver::SetupMatrixDiagonal(branch);
+  HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
   ScatterYdot(branch, b);
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
-  solver::HinesSolver::ResetRHSNoCapacitors(branch, branch->vardt_);
-  solver::HinesSolver::BackwardTriangulation(branch);
-  solver::HinesSolver::ForwardSubstituion(branch);
+  HinesSolver::ResetRHSNoCapacitors(branch, branch->vardt_);
+  HinesSolver::BackwardTriangulation(branch);
+  HinesSolver::ForwardSubstituion(branch);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
   GatherYdot(branch, b);
   return CV_SUCCESS;
@@ -194,7 +194,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
 
   // if I reset V, then nrn_current is wrong!
   // cvtrset.cpp :: CVode:: lhs
-  // solver::HinesSolver::ResetMatrixV(branch);
+  // HinesSolver::ResetMatrixV(branch);
 
   // does nothing so far (called before as part of nrn_current)
   // cvtrset.cpp :: CVode:: lhs -> lhs_memb()
@@ -205,7 +205,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
 
   /*
   //add axial currents to D (d[i] -= b[i] and d[p[i]] -= a[i])
-  solver::HinesSolver::SetupMatrixDiagonal(branch);
+  HinesSolver::SetupMatrixDiagonal(branch);
 
   //RHS = RHS* (.001 * nt->cj;)*cm; //decay of dV/dt
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
