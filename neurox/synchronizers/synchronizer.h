@@ -14,7 +14,7 @@ enum class Synchronizers : int {
   kDebug = 0,  // For debug only
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
-  kTimeDependencyLCO = 3,
+  kTimeDependency = 3,
   kCoreneuron = 4,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
@@ -93,4 +93,4 @@ class Synchronizer {
 #include "neurox/synchronizers/coreneuron_synchronizer.h"
 #include "neurox/synchronizers/debug_synchronizer.h"
 #include "neurox/synchronizers/sliding_time_window_synchronizer.h"
-#include "neurox/synchronizers/time_dependency_lco_synchronizer.h"
+#include "neurox/synchronizers/time_dependency_synchronizer.h"

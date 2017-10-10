@@ -13,8 +13,8 @@ Synchronizer* Synchronizer::New(Synchronizers type) {
       return new AllreduceSynchronizer();
     case Synchronizers::kSlidingTimeWindow:
       return new SlidingTimeWindowSynchronizer();
-    case Synchronizers::kTimeDependencyLCO:
-      return new TimeDependencyLCOSynchronizer();
+    case Synchronizers::kTimeDependency:
+      return new TimeDependencySynchronizer();
     default:
       return nullptr;
   }
@@ -31,8 +31,8 @@ SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
       return new AllreduceSynchronizer::AllReducesInfo();
     case Synchronizers::kSlidingTimeWindow:
       return new AllreduceSynchronizer::AllReducesInfo();
-    case Synchronizers::kTimeDependencyLCO:
-      return new TimeDependencyLCOSynchronizer::TimeDependencies();
+    case Synchronizers::kTimeDependency:
+      return new TimeDependencySynchronizer::TimeDependencies();
     default:
       return nullptr;
   }

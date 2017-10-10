@@ -1640,10 +1640,10 @@ int DataLoader::InitNetcons_handler() {
 
         // add this pre-syn neuron as my time-dependency
         if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll ||
-            input_params_->synchronizer_ == Synchronizers::kTimeDependencyLCO) {
+            input_params_->synchronizer_ == Synchronizers::kTimeDependency) {
           spike_time_t notificationTime =
               input_params_->tstart_ +
-              min_delay * TimeDependencyLCOSynchronizer::TimeDependencies::
+              min_delay * TimeDependencySynchronizer::TimeDependencies::
                               kNotificationIntervalRatio;
           dependencies.push_back(make_pair(src_gid, notificationTime));
         }

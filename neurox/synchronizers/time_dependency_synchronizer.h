@@ -9,10 +9,10 @@ namespace neurox {
 
 namespace synchronizers {
 
-class TimeDependencyLCOSynchronizer : public Synchronizer {
+class TimeDependencySynchronizer : public Synchronizer {
  public:
-  TimeDependencyLCOSynchronizer();
-  ~TimeDependencyLCOSynchronizer();
+  TimeDependencySynchronizer();
+  ~TimeDependencySynchronizer();
 
   const Synchronizers GetId() override;
   const char* GetString() override;

@@ -74,7 +74,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 [0] BackwardEulerCoreneuronDebug\
 \n[1] BackwardEulerWithAllReduceBarrier (default)\
 \n[2] BackwardEulerWithSlidingTimeWindow\
-\n[3] BackwardEulerWithTimeDependencyLCO\
+\n[3] BackwardEulerWithTimeDependency\
 \n[4] BackwardEulerCoreneuron\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
         false, (int)synchronizers::Synchronizers::kAllReduce, "int");

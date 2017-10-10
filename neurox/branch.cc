@@ -525,7 +525,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(nargs ==
-         (input_params_->synchronizer_ == Synchronizers::kTimeDependencyLCO ? 3 : 2));
+         (input_params_->synchronizer_ == Synchronizers::kTimeDependency ? 3 : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
@@ -558,8 +558,8 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
 
   assert(local->soma_);
   assert(local->soma_->synchronizer_metadata_);
-  TimeDependencyLCOSynchronizer::TimeDependencies *time_dependencies =
-      (TimeDependencyLCOSynchronizer::TimeDependencies *)
+  TimeDependencySynchronizer::TimeDependencies *time_dependencies =
+      (TimeDependencySynchronizer::TimeDependencies *)
           local->soma_->synchronizer_metadata_;
   time_dependencies->UpdateTimeDependency(
       pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,

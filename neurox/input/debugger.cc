@@ -150,9 +150,9 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   double dt = b->nt_->_dt;
   if (b->soma_ &&
       input_params_->synchronizer_ ==
-          neurox::synchronizers::Synchronizers::kTimeDependencyLCO) {
-    TimeDependencyLCOSynchronizer::TimeDependencies *timeDependencies =
-        (TimeDependencyLCOSynchronizer::TimeDependencies *)
+          neurox::synchronizers::Synchronizers::kTimeDependency) {
+    TimeDependencySynchronizer::TimeDependencies *timeDependencies =
+        (TimeDependencySynchronizer::TimeDependencies *)
             b->soma_->synchronizer_metadata_;
     timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid_,
                                                b->soma_->synapses_);
