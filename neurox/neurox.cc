@@ -52,6 +52,8 @@ static int Main_handler() {
   neurox::input::Debugger::CompareMechanismsFunctions();
   neurox::input::Debugger::CompareAllBranches();
 
+  hpx_time_t now = hpx_time_now();
+
   double total_time_elapsed = 0;
   if (input_params_->algorithm_ == Algorithms::kBenchmarkAll) {
     // TODO for this to work, we have to re-set algorothm in all cpus?
@@ -91,11 +93,12 @@ static int Main_handler() {
     delete algorithm_;
   }
 
+  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   printf(
       "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
       "secs).\n",
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
-      total_time_elapsed);
+      elapsed_time);
 
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);

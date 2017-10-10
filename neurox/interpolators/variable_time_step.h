@@ -70,6 +70,19 @@ class VariableTimeStep {
   static hpx_action_t Clear;
 
  private:
+
+  /// possible operations between NrnThread->data and CVodes states
+  typedef enum CopyOps
+  {
+      kScatterY,
+      kGatherY,
+      kScatterYdot,
+      kGatherYdot
+  } CopyOp;
+
+  /// copy data to/from branch's NrnThread->data and CVODES y/ydot
+  static void CopyState(Branch *b, N_Vector y, const CopyOp op);
+
   /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
@@ -87,16 +100,16 @@ class VariableTimeStep {
   constexpr static double kEventsDeliveryTimeWindow = 0.0125;
 
   /// copy CVODES y to NrnThread->data (V and m)
-  static void ScatterY(Branch *branch, N_Vector y);
+  inline static void ScatterY(Branch *branch, N_Vector y);
 
   /// copy NrnThread->data (V and m) to CVODES y
-  static void GatherY(Branch *branch, N_Vector y);
+  inline static void GatherY(Branch *branch, N_Vector y);
 
   /// copy CVODES ydot to NrnThread->data (RHS and dm)
-  static void ScatterYdot(Branch *branch, N_Vector ydot);
+  inline static void ScatterYdot(Branch *branch, N_Vector ydot);
 
   /// copy NrnThread->data (RHS and dm) to CVODES ydot
-  static void GatherYdot(Branch *branch, N_Vector ydot);
+  inline static void GatherYdot(Branch *branch, N_Vector ydot);
 
   /// RHS function: given y (V and m) returns ydot (RHS and dm)
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,

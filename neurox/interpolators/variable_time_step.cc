@@ -9,32 +9,57 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
+
+void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op)
+{
+    const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+    const bool is_scatter_op = op==CopyOps::kScatterYdot || op==CopyOps::kScatterY;
+    const bool use_ydot = op==CopyOps::kScatterYdot || op==CopyOps::kGatherYdot;
+    double *y_data = NV_DATA_S(y); //y or ydot
+    double ** var_map = use_ydot ?  vardt->state_dv_map_ : vardt->state_var_map_;
+
+    const int & cap_count = branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
+    const int iters_limit = LAYOUT==0 ? cap_count : vardt->equations_count_;
+
+    //AoS will map all variables, SoA only map no_cap voltages/RHS for now
+    int i=-1;
+    if (is_scatter_op)
+      for (i = 0; i < iters_limit ; i++)
+            *(var_map[i]) = y_data[i];
+    else
+      for (i = 0; i < iters_limit ; i++)
+            y_data[i] = *(var_map[i]);
+
+#if LAYOUT==0
+    //SoA mapping takes advantage of state vars sequential mem-alignment
+    for (int m=0; m<neurox::mechanisms_count_; m++)
+    {
+        const int state_vars_count = neurox::mechanisms_[m]->state_vars_->count_;
+        const int nodecount = branch->mechs_instances_[m].nodecount;
+        if (is_scatter_op)
+          for (int s=0; s<state_vars_count; s++, i+=nodecount)
+            memcpy(var_map[i], &y_data[i], sizeof(double)*nodecount);
+        else
+          for (int s=0; s<state_vars_count; s++, i+=nodecount)
+            memcpy(&y_data[i], var_map[i], sizeof(double)*nodecount);
+    }
+#endif
+}
+
 void VariableTimeStep::ScatterY(Branch *branch, N_Vector y) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  const double *y_data = NV_DATA_S(y);
-  double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) *(var_map[i]) = y_data[i];
+  CopyState(branch, y, CopyOps::kScatterY);
 }
 
 void VariableTimeStep::GatherY(Branch *branch, N_Vector y) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  double *y_data = NV_DATA_S(y);
-  double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) y_data[i] = *(var_map[i]);
+  CopyState(branch, y, CopyOps::kGatherY);
 }
 
 void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  const double *ydot_data = NV_DATA_S(ydot);
-  double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) *(dv_map[i]) = ydot_data[i];
+  CopyState(branch, ydot, CopyOps::kScatterYdot);
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  double *ydot_data = NV_DATA_S(ydot);
-  double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) ydot_data[i] = *(dv_map[i]);
+  CopyState(branch, ydot, CopyOps::kGatherYdot);
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
