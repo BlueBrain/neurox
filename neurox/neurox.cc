@@ -115,8 +115,8 @@ int Clear_handler() {
         ->clear();
     delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
         locality_neurons_;
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        nullptr;
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+        locality_neurons_ = nullptr;
   }
 
 #ifndef NDEBUG

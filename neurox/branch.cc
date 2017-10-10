@@ -524,8 +524,9 @@ hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs ==
-         (input_params_->synchronizer_ == Synchronizers::kTimeDependency ? 3 : 2));
+  assert(
+      nargs ==
+      (input_params_->synchronizer_ == Synchronizers::kTimeDependency ? 3 : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
@@ -541,7 +542,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
   synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
-                                 max_time);
+                                    max_time);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -665,8 +666,8 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
          input_params_->synchronizer_ == Synchronizers::kAllReduce);
 
   const int locality_neurons_count =
-      AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
-          ->size();
+      AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+          locality_neurons_->size();
   const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
   const int comm_step_size = neurox::min_delay_steps_;
   const int reductions_per_comm_step =
@@ -686,10 +687,10 @@ int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
                                AllReduceLocality::allreduce_future_[r]);
 
       hpx_process_collective_allreduce_join(
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_lco_
-              [r],
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_id_
-              [r],
+          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+              allreduce_lco_[r],
+          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+              allreduce_id_[r],
           NULL, 0);
 
       for (int i = 0; i < locality_neurons_count; i++)

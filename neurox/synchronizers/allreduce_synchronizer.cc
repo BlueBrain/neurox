@@ -12,9 +12,13 @@ AllreduceSynchronizer::AllreduceSynchronizer() {
 
 AllreduceSynchronizer::~AllreduceSynchronizer() {}
 
-const Synchronizers AllreduceSynchronizer::GetId() { return Synchronizers::kAllReduce; }
+const Synchronizers AllreduceSynchronizer::GetId() {
+  return Synchronizers::kAllReduce;
+}
 
-const char* AllreduceSynchronizer::GetString() { return "BackwardEulerAllReduce"; }
+const char* AllreduceSynchronizer::GetString() {
+  return "BackwardEulerAllReduce";
+}
 
 void AllreduceSynchronizer::Init() {
   Synchronizer::FixedStepMethodsInit();
@@ -55,12 +59,13 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
 }
 
 void AllreduceSynchronizer::SubscribeAllReduces(hpx_t*& allreduces,
-                                             size_t allreduces_count) {
+                                                size_t allreduces_count) {
   assert(allreduces == nullptr);
   allreduces = new hpx_t[allreduces_count];
 
-  hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-                  &allreduces_count, sizeof(int));
+  hpx_bcast_rsync(
+      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
+      &allreduces_count, sizeof(int));
 
   for (int i = 0; i < allreduces_count; i++)
     allreduces[i] = hpx_process_collective_allreduce_new(
@@ -81,7 +86,7 @@ void AllreduceSynchronizer::SubscribeAllReduces(hpx_t*& allreduces,
 }
 
 void AllreduceSynchronizer::UnsubscribeAllReduces(hpx_t*& allreduces,
-                                               size_t allreduces_count) {
+                                                  size_t allreduces_count) {
   assert(allreduces != nullptr);
   if (input_params_->allreduce_at_locality_)
     hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
@@ -139,7 +144,8 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
         if (s >= comm_step_size)  // first comm-window does not wait
           hpx_lco_wait_reset(stw->allreduce_future_[r]);
         else
-          // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
+          // fixes crash for Synchronizer::ALL when running two hpx-reduce
+          // -based
           // synchronizers in a row
           hpx_lco_reset_sync(stw->allreduce_future_[r]);
 
@@ -206,18 +212,18 @@ int AllreduceSynchronizer::AllReducesInfo::UnsubscribeAllReduce_handler(
 }
 
 int AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_ = -1;
-std::vector<hpx_t>*
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        nullptr;
+std::vector<hpx_t>* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+    locality_neurons_ = nullptr;
+hpx_t* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+    allreduce_future_ = nullptr;
 hpx_t*
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_future_ =
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_lco_ =
         nullptr;
-hpx_t* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_lco_ =
-    nullptr;
 int* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::allreduce_id_ =
     nullptr;
 
-hpx_action_t AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep = 0;
+hpx_action_t AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep =
+    0;
 int AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep_handler(
     const int* val, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
@@ -225,9 +231,8 @@ int AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep_handler(
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::SubscribeAllReduce =
-        0;
+hpx_action_t AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+    SubscribeAllReduce = 0;
 int AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
     SubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
@@ -272,7 +277,7 @@ void AllreduceSynchronizer::AllReducesInfo::Init_handler(void*, const size_t) {}
 
 hpx_action_t AllreduceSynchronizer::AllReducesInfo::Reduce = 0;
 void AllreduceSynchronizer::AllReducesInfo::Reduce_handler(void*, const void*,
-                                                        const size_t) {}
+                                                           const size_t) {}
 
 void AllreduceSynchronizer::AllReducesInfo::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<hpx_t>(SubscribeAllReduce,

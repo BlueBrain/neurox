@@ -174,7 +174,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->synchronizer_ = (synchronizers::Synchronizers)synchronizer.getValue();
-    neurox::synchronizer_ = synchronizers::Synchronizer::New(this->synchronizer_);
+    neurox::synchronizer_ =
+        synchronizers::Synchronizer::New(this->synchronizer_);
     this->interpolator_ = (interpolators::Interpolators)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)

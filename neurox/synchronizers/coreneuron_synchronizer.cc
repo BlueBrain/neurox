@@ -7,7 +7,9 @@ CoreneuronSynchronizer::CoreneuronSynchronizer() {}
 
 CoreneuronSynchronizer::~CoreneuronSynchronizer() {}
 
-CoreneuronSynchronizer::CommunicationBarrier::CommunicationBarrier() { assert(0); }
+CoreneuronSynchronizer::CommunicationBarrier::CommunicationBarrier() {
+  assert(0);
+}
 
 CoreneuronSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   assert(0);

@@ -40,9 +40,10 @@ SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
 }
 
 void Synchronizer::PrintStartInfo() {
-  printf("neurox::Synchronizer::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
-         GetString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
-         input_params_->dt_);
+  printf(
+      "neurox::Synchronizer::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
+      GetString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
+      input_params_->dt_);
   fflush(stdout);
 }
 

@@ -8,11 +8,14 @@ using namespace neurox;
 using namespace neurox::synchronizers;
 
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
-    : gid_(neuron_id), threshold_(ap_threshold), synchronizer_metadata_(nullptr) {
+    : gid_(neuron_id),
+      threshold_(ap_threshold),
+      synchronizer_metadata_(nullptr) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->synchronizer_metadata_ = SynchronizerMetadata::New(input_params_->synchronizer_);
+  this->synchronizer_metadata_ =
+      SynchronizerMetadata::New(input_params_->synchronizer_);
   assert(this->synchronizer_metadata_ != nullptr);
   assert(
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >

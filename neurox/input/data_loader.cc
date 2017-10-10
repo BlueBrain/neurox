@@ -821,9 +821,9 @@ int DataLoader::InitNeurons_handler() {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        new std::vector<hpx_t>(my_neurons_addr_->begin(),
-                               my_neurons_addr_->end());
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+        locality_neurons_ = new std::vector<hpx_t>(my_neurons_addr_->begin(),
+                                                   my_neurons_addr_->end());
   }
 
   return neurox::wrappers::MemoryUnpin(target);

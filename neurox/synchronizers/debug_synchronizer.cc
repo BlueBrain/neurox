@@ -25,8 +25,9 @@ const char* DebugSynchronizer::GetString() {
 void DebugSynchronizer::Init() {
   const int allReducesCount = 0;
   Synchronizer::FixedStepMethodsInit();
-  hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-                  &allReducesCount, sizeof(int));
+  hpx_bcast_rsync(
+      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
+      &allReducesCount, sizeof(int));
 }
 
 void DebugSynchronizer::Clear() {}

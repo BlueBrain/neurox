@@ -26,8 +26,9 @@ void TimeDependencySynchronizer::Init() {
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
 
   const int allReducesCount = 0;
-  hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-                  &allReducesCount, sizeof(int));
+  hpx_bcast_rsync(
+      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
+      &allReducesCount, sizeof(int));
 }
 
 void TimeDependencySynchronizer::Clear() {}
@@ -49,7 +50,8 @@ void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_metadata_;
 
-    // fixes crash for Synchronizer::All when TimeDependency synchronizer starts at
+    // fixes crash for Synchronizer::All when TimeDependency synchronizer starts
+    // at
     // t=inputParams->tend*2
     // increase notification and dependencies time
     for (Neuron::Synapse*& s : b->soma_->synapses_)
