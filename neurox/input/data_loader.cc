@@ -411,9 +411,9 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map) {
   nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::GetMembListsOrderedByCapacitors(
+void DataLoader::GroupBranchInstancesByCapacitors(
     const Branch *branch,                // in
-    Memb_list **ml_no_capacitors_ptr,    // out
+    Memb_list **ml_no_capacitors_ptr,    // out (optional)
     Memb_list **ml_capacitors_ptr,       // out (optional)
     std::set<int> * capacitor_ids_ptr    // in  (optional)
     ) {
@@ -437,8 +437,7 @@ void DataLoader::GetMembListsOrderedByCapacitors(
   nodes only: pointers will point to same place in nt->data, we
   will re-order Memb_list to have no-caps first, and then
   update nodecount for no-caps instance to cover no-caps only */
-  *ml_no_capacitors_ptr = new Memb_list[neurox::mechanisms_count_];
-  Memb_list * ml_no_capacitors = *ml_no_capacitors_ptr;
+  Memb_list * ml_no_capacitors =  new Memb_list[neurox::mechanisms_count_];
   memcpy(ml_no_capacitors, branch->mechs_instances_,
          neurox::mechanisms_count_ * sizeof(Memb_list));
 
@@ -575,6 +574,12 @@ void DataLoader::GetMembListsOrderedByCapacitors(
     }
   }
   assert(total_data_offset == branch->nt_->_ndata);
+
+  //pass output value if required by used
+  if (ml_no_capacitors_ptr!=nullptr)
+      *ml_no_capacitors_ptr = ml_no_capacitors;
+  else
+      delete [] ml_no_capacitors;
 }
 
 void DataLoader::InitAndLoadCoreneuronData(int argc, char **argv,

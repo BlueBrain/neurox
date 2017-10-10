@@ -38,9 +38,9 @@ class DataLoader {
   static void CleanCoreneuronData(const bool clean_ion_global_map = true);
 
   /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
-  static void GetMembListsOrderedByCapacitors(
+  static void GroupBranchInstancesByCapacitors(
       const Branch *branch,                         // in
-      Memb_list **ml_no_capacitors_ptr,             // out
+      Memb_list **ml_no_capacitors_ptr = nullptr,   // out (optional)
       Memb_list **ml_capacitors_ptr = nullptr,      // out (optional)
       std::set<int> * capacitors_ids_ptr = nullptr  // in (optional)
       );
