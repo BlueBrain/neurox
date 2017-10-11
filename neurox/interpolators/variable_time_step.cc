@@ -321,7 +321,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
   assert(this->node_count_ == no_cap_count);
 
   // occvode.cpp::new_no_cap_memb()
-  input::DataLoader::GroupBranchInstancesByCapacitors(
+  VecplayContinuousX::GroupBranchInstancesByCapacitors(
       branch, &(this->no_caps_ml_), nullptr, &capacitor_ids);
 }
 
