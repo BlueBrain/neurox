@@ -2,6 +2,7 @@
 
 using namespace neurox;
 using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 hpx_t* AllreduceSynchronizer::allreduces_ = nullptr;
 
@@ -21,7 +22,6 @@ const char* AllreduceSynchronizer::GetString() {
 }
 
 void AllreduceSynchronizer::Init() {
-  Synchronizer::FixedStepMethodsInit();
   SubscribeAllReduces(AllreduceSynchronizer::allreduces_,
                       AllreduceSynchronizer::kAllReducesCount);
 }
@@ -32,13 +32,11 @@ void AllreduceSynchronizer::Clear() {
 }
 
 double AllreduceSynchronizer::Launch() {
-  int total_steps = Synchronizer::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
   if (input_params_->allreduce_at_locality_)
-    hpx_bcast_rsync(Branch::BackwardEulerOnLocality, &total_steps, sizeof(int));
+    hpx_bcast_rsync(BackwardEuler::RunOnLocality);
   else
-    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &total_steps,
-                                     sizeof(int));
+    neurox::wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron);
   double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   return elapsed_time;
@@ -153,7 +151,9 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
                                               stw->allreduce_id_[r], NULL, 0);
       }
 
-      for (int n = 0; n < steps_per_reduction; n++) b->BackwardEulerStep();
+      for (int n = 0; n < steps_per_reduction; n++)
+          BackwardEuler::Step(b);
+
       // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
       // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
     }

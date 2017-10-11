@@ -30,7 +30,7 @@ class DataLoader {
   static void loadData(int argc, char **argv);
 
   /// Calls coreneuron nrn_init_and_load_data
-  static void InitAndLoadCoreneuronData(int argc, char **argv,
+  static void LoadCoreneuronData(int argc, char **argv,
                                         bool nrnmpi_under_nrncontrol = false,
                                         bool run_setup_cleanup = false);
 

@@ -2,6 +2,7 @@
 
 using namespace neurox;
 using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 DebugSynchronizer::DebugSynchronizer() {}
 
@@ -24,7 +25,6 @@ const char* DebugSynchronizer::GetString() {
 
 void DebugSynchronizer::Init() {
   const int allReducesCount = 0;
-  Synchronizer::FixedStepMethodsInit();
   hpx_bcast_rsync(
       AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
       &allReducesCount, sizeof(int));
@@ -34,7 +34,7 @@ void DebugSynchronizer::Clear() {}
 
 double DebugSynchronizer::Launch() {
   int comm_step_size = neurox::min_delay_steps_;
-  int total_steps = Synchronizer::GetTotalStepsCount();
+  int total_steps = 0;
 
   hpx_time_t now = hpx_time_now();
   for (int s = 0; s < total_steps; s += comm_step_size) {
@@ -45,9 +45,8 @@ double DebugSynchronizer::Launch() {
               .c_str());
 #endif
 
-    // Reduction at locality not implemented (this is for debugging
-    // only)
-    neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &comm_step_size,
+    // Reduction at locality not implemented (debugging only)
+    wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron, &comm_step_size,
                                      sizeof(int));
 
 #ifndef NDEBUG
@@ -69,7 +68,9 @@ void DebugSynchronizer::StepEnd(Branch* b, hpx_t) {
 
 void DebugSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
-  for (int step = 0; step < steps; step++) b->BackwardEulerStep();
+  for (int step = 0; step < steps; step++)
+      BackwardEuler::Step(b);
+
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
   // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 

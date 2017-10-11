@@ -15,7 +15,7 @@
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
 // For Pre-conditioned matrix solvers
-#include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
+#include <cvodes/cvodes_diag.h>      /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -23,10 +23,31 @@ namespace neurox {
 
 namespace interpolators {
 
-class VariableTimeStep {
+class VariableTimeStep : public Interpolator {
  public:
-  VariableTimeStep();
-  ~VariableTimeStep();
+
+  VariableTimeStep(){}
+
+  const char* GetString() override;
+  const hpx_action_t GetInitAction() override;
+  const hpx_action_t GetRunAction() override;
+  const hpx_action_t GetClearAction() override;
+
+  /// HPX actions registration
+  static void RegisterHpxActions();
+
+  static hpx_action_t Init;
+  static hpx_action_t Run;
+  static hpx_action_t Clear;
+
+
+  class CvodesBranchInfo
+  {
+
+  public:
+
+  CvodesBranchInfo();
+  ~CvodesBranchInfo();
 
   /// absolute tolerance per equation
   N_Vector absolute_tolerance_;
@@ -41,35 +62,22 @@ class VariableTimeStep {
   /// i.e. compartments * equations per compartment
   int equations_count_;
 
-  /// HPX actions registration
-  static void RegisterHpxActions();
-
   /// mapping of y in CVODES to NrnThread->data
   double **state_var_map_;
 
   /// mapping of y in CVODES to NrnThread->data
   double **state_dv_map_;
 
-  ///> Information of no-capacitance nodes
-  class NoCapacitor {
-   public:
-    NoCapacitor() = delete;
-    NoCapacitor(const Branch *);
-    ~NoCapacitor();
+  // Information of no-capacitance nodes
+  int* no_cap_node_ids_;        ///> no-cap node ids
+  int  no_cap_node_ids_count_;  ///> size of node_ids_
+  int* no_cap_child_ids_;       ///> id of nodes with no-cap parents
+  int  no_cap_child_ids_count_; ///> size of child_ids_
+  Memb_list *no_cap_ml_;  ///> Memb_list of no-cap nodes
+  };
 
-    int *node_ids_;          ///> no-cap node ids
-    int *child_ids_;         ///> id of nodes with no-cap parents
-    int node_count_;         ///> size of node_ids_
-    int child_count_;        ///> size of child_ids_
-    Memb_list *no_caps_ml_;  ///> Memb_list of no-cap nodes
-    // Memb_list * caps_ml_; ///> Memb_list of cap nodes
-  } * no_cap_;  ///> info on non-capacitors nodes
+  private:
 
-  static hpx_action_t Init;
-  static hpx_action_t Run;
-  static hpx_action_t Clear;
-
- private:
   /// possible operations between NrnThread->data and CVodes states
   typedef enum CopyOps {
     kScatterY,

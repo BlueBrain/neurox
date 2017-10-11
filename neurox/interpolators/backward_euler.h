@@ -21,23 +21,36 @@ namespace interpolators {
  * Also represents mechanisms as a list of mechanisms and their applications
  * to several nodes of this branch.
  */
-class BackwardEuler {
+class BackwardEuler : public Interpolator {
+
  public:
 
-  static void SetupTreeMatrix(Branch*);
-  static void Finitialize2(Branch*);
-  static void BackwardEulerStep(Branch *);
+  BackwardEuler() {}
 
-  static hpx_action_t Finitialize;  ///> finitialize.c::finitialize()
-  static hpx_action_t Run;
+  const char* GetString() override;
+  const hpx_action_t GetInitAction() override;
+  const hpx_action_t GetRunAction() override;
+  const hpx_action_t GetRunActionLocality() override;
+
+  static hpx_action_t Finitialize;
+  static hpx_action_t RunOnNeuron;
   static hpx_action_t RunOnLocality;
 
-  static void RegisterHpxActions();  ///> Register all HPX actions
+  /// HPX actions registration
+  static void RegisterHpxActions();
+
+  static void Finitialize2(Branch*); ///> finitialize.c::finitialize()
+  static void Step(Branch *);
+
+  static void SetupTreeMatrix(Branch*);
+  static int GetTotalStepsCount();
 
  private:
+
   static int Finitialize_handler();
-  static int Run_handler(const int*, const size_t);
-  static int RunOnLocality_handler(const int*, const size_t);
+  static int RunOnNeuron_handler();
+  static int RunOnLocality_handler();
+
 };
 
 };  // namespace

@@ -25,6 +25,7 @@
 using namespace std;
 using namespace neurox::input;
 using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
   const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
@@ -130,7 +131,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->SetupTreeMatrix();
+  BackwardEuler::SetupTreeMatrix(b);
 
   setup_tree_matrix_minimal(nth);
 
@@ -183,7 +184,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   /****************/ CompareBranch2(b); /*****************/
 
   b->FixedPlayContinuous();
-  b->SetupTreeMatrix();
+  BackwardEuler::SetupTreeMatrix(b);
   HinesSolver::SolveTreeMatrix(b);
 
   // coreneuron
@@ -456,13 +457,13 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
-    int totalSteps = synchronizers::Synchronizer::GetTotalStepsCount();
-    int commStepSize = neurox::min_delay_steps_;
+    int total_steps = 0;
+    int comm_step_size = neurox::min_delay_steps_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");
-    for (int s = 0; s < totalSteps; s += commStepSize) {
-      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &commStepSize,
+    for (int s = 0; s < total_steps; s += comm_step_size) {
+      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &comm_step_size,
                       sizeof(int));
       hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
     }

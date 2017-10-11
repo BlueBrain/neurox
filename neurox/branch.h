@@ -124,11 +124,9 @@ class Branch {
   static hpx_action_t InitSoma;  ///> Initializes soma information
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;  ///>add incoming synapse to queue
+
   /// update maximum time allowed based on received dependency info
   static hpx_action_t UpdateTimeDependency;
-  static hpx_action_t Finitialize;  ///> finitialize.c::finitialize()
-  static hpx_action_t BackwardEuler;
-  static hpx_action_t BackwardEulerOnLocality;
   static hpx_action_t ThreadTableCheck;
 
   void CallModFunction(const Mechanism::ModFunctions functionId,
@@ -142,8 +140,6 @@ class Branch {
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();
-  void Finitialize2();
-  void BackwardEulerStep();
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
@@ -157,9 +153,6 @@ class Branch {
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
   static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
-  static int Finitialize_handler();
-  static int BackwardEuler_handler(const int*, const size_t);
-  static int BackwardEulerOnLocality_handler(const int*, const size_t);
   static int ThreadTableCheck_handler();
 };
 

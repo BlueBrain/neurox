@@ -4,6 +4,7 @@
 #include "tclap/CmdLine.h"
 
 using namespace neurox::tools;
+using namespace neurox::interpolators;
 
 CmdLineParser::CmdLineParser()
     :  // from nrnoptarg.cpp::cn_parameters():

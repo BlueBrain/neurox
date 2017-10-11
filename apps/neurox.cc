@@ -8,13 +8,14 @@ int main(int argc, char** argv) {
   neurox::tools::LoadBalancing::RegisterHpxActions();
   neurox::input::DataLoader::RegisterHpxActions();
   neurox::synchronizers::AllreduceSynchronizer::AllReducesInfo::RegisterHpxActions();
+  neurox::interpolators::BackwardEuler::RegisterHpxActions();
   neurox::interpolators::VariableTimeStep::RegisterHpxActions();
 #if !defined(NDEBUG)
   neurox::input::Debugger::RegisterHpxActions();
 #endif
 
   if (hpx_init(&argc, &argv) != 0) {
-    printf("HPX failed to initialize!\n");
+    printf("ERROR: HPX failed to initialize!\n");
     return 1;
   }
 
@@ -22,8 +23,7 @@ int main(int argc, char** argv) {
   neurox::input_params_ = new tools::CmdLineParser(argc, argv);
 
   /// all compute nodes load the data (mechs info is accessible to all)
-  neurox::input::DataLoader::InitAndLoadCoreneuronData(argc, argv, false,
-                                                       false);
+  neurox::input::DataLoader::LoadCoreneuronData(argc, argv, false, false);
 
   int e = hpx_run(&neurox::Main, NULL);
   hpx_finalize();

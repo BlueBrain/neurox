@@ -6,8 +6,6 @@
 #include <queue>
 #include <vector>
 
-using namespace interpolators;
-
 namespace neurox {
 
 /**
@@ -30,9 +28,9 @@ class HinesSolver {
   static void UpdateVoltagesWithRHS(Branch *branch);
 
   // CVODE-specific methods
-  static void ResetRHSandDNoCapacitors(Branch *, void *);
-  static void ResetRHSNoCapacitors(Branch *, void *);
-  static void SetupMatrixVoltageNoCapacitors(Branch *, void *);
+  static void ResetRHSandDNoCapacitors(Branch *);
+  static void ResetRHSNoCapacitors(Branch *);
+  static void SetupMatrixVoltageNoCapacitors(Branch *);
 
  private:
 };

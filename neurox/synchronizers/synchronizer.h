@@ -43,9 +43,6 @@ class Synchronizer {
   /// Init for Fixed Step methods
   static void FixedStepMethodsInit();
 
-  /// Returns total count of steps of fixed size defined by user
-  static int GetTotalStepsCount();
-
   /// Returns an instantiated class of the given type
   static Synchronizer* New(Synchronizers);
 
@@ -87,10 +84,3 @@ class Synchronizer {
 };  // synchronizers
 
 };  // neurox
-
-// TODO can we move this somewhere else?
-#include "neurox/synchronizers/allreduce_synchronizer.h"
-#include "neurox/synchronizers/coreneuron_synchronizer.h"
-#include "neurox/synchronizers/debug_synchronizer.h"
-#include "neurox/synchronizers/sliding_time_window_synchronizer.h"
-#include "neurox/synchronizers/time_dependency_synchronizer.h"

@@ -25,14 +25,12 @@ const char* CoreneuronSynchronizer::GetString() {
 
 void CoreneuronSynchronizer::Init() {
   assert(0);
-  Synchronizer::FixedStepMethodsInit();
 }
 
 void CoreneuronSynchronizer::Clear() {}
 
 double CoreneuronSynchronizer::Launch() {
   int comm_step_size = neurox::min_delay_steps_;
-  int total_steps = Synchronizer::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
   assert(0);
   double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;

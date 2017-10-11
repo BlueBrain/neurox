@@ -431,15 +431,16 @@ int Branch::Init_handler(const int nargs, const void *args[],
 
   bool run_benchmark_and_clear = nargs == 18 ? *(bool *)args[17] : false;
   if (run_benchmark_and_clear) {
-    local->soma_ = new Neuron(
-        -1, 999);           // soma (dumb gid, APthreshold high - never spikes)
-    local->Finitialize2();  // initialize datatypes and graph-parallelism shadow
-                            // vecs offsets
+    // initialize datatypes and graph-parallelism shadow vecs offsets
+    local->soma_ = new Neuron(-1, 999);
+
+    // initialize datatypes and graph-parallelism shadow vecs offsets
+    interpolators::BackwardEuler::Finitialize2(local);
 
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
     for (int i = 0; i < neurox::min_delay_steps_; i++)
-      local->BackwardEulerStep();
+      interpolators::BackwardEuler::Step(local);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     return neurox::wrappers::MemoryUnpin(target, time_elapsed);
@@ -568,142 +569,6 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-void Branch::Finitialize2() {
-  floble_t *v = this->nt_->_actual_v;
-  double t = this->nt_->_t;
-
-  // set up by finitialize.c:nrn_finitialize(): if (setv)
-  assert(input_params_->second_order_ < sizeof(char));
-  CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
-  InitVecPlayContinous();
-  DeliverEvents(t);
-
-  // set up by finitialize.c:nrn_finitialize(): if (setv)
-  for (int n = 0; n < this->nt_->end; n++) v[n] = input_params_->voltage_;
-
-  // the INITIAL blocks are ordered so that mechanisms that write
-  // concentrations are after ions and before mechanisms that read
-  // concentrations.
-  CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
-  CallModFunction(Mechanism::ModFunctions::kInitialize);
-  CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
-
-  DeliverEvents(t);
-  SetupTreeMatrix();
-  CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  DeliverEvents(t);
-}
-
-// fadvance_core.c::nrn_fixed_step_thread
-void Branch::BackwardEulerStep() {
-  double &t = this->nt_->_t;
-  hpx_t spikes_lco = HPX_NULL;
-
-  synchronizer_->StepBegin(this);
-
-  // cvodestb.cpp::deliver_net_events()
-  // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
-  if (this->soma_) {
-    // Soma waits for AIS to have threshold V value updated
-    floble_t threshold_v;
-    HinesSolver::SynchronizeThresholdV(this, &threshold_v);
-    if (soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
-      spikes_lco = soma_->SendSpikes(nt_->_t);
-  } else if (this->thvar_ptr_)
-    // Axon Initial Segment send threshold  V to parent
-    HinesSolver::SynchronizeThresholdV(this);
-
-  // netcvode.cpp::NetCvode::deliver_net_events()
-  t += .5 * this->nt_->_dt;
-  DeliverEvents(t);  // delivers events in the first HALF of the step
-  FixedPlayContinuous();
-  SetupTreeMatrix();
-  HinesSolver::SolveTreeMatrix(this);
-
-  // update ions currents based on RHS and dI/dV
-  second_order_cur(this->nt_, input_params_->second_order_);
-
-  ////// fadvance_core.c : update()
-  HinesSolver::UpdateVoltagesWithRHS(this);
-  // TODO this can be placed after the next operation
-
-  // update capacitance currents based on RHS and dI/dV
-  CallModFunction(Mechanism::ModFunctions::kCurrentCapacitance);
-
-  ////// fadvance_core.::nrn_fixed_step_lastpart()
-  // callModFunction(Mechanism::ModFunction::jacob);
-  t += .5 * this->nt_->_dt;
-  // TODO: commenting the call below changes nothing
-  //(it changes the variables used in the current function only)
-  FixedPlayContinuous();
-  CallModFunction(Mechanism::ModFunctions::kState);
-  CallModFunction(Mechanism::ModFunctions::kAfterSolve);
-  CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  DeliverEvents(t);  // delivers events in the second HALF of the step
-
-  // if we are at the output time instant output to file
-  if (fmod(t, input_params_->dt_io_) == 0) {
-  }
-
-  synchronizer_->StepEnd(this, spikes_lco);
-}
-
-hpx_action_t Branch::BackwardEuler = 0;
-int Branch::BackwardEuler_handler(const int *steps_ptr, const size_t size) {
-  NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::BackwardEuler, steps_ptr, size);
-  synchronizer_->Run(local, steps_ptr);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
-}
-
-hpx_action_t Branch::BackwardEulerOnLocality = 0;
-int Branch::BackwardEulerOnLocality_handler(const int *steps_ptr,
-                                            const size_t size) {
-  NEUROX_MEM_PIN(uint64_t);
-  assert(input_params_->allreduce_at_locality_);
-  assert(input_params_->synchronizer_ == Synchronizers::kSlidingTimeWindow ||
-         input_params_->synchronizer_ == Synchronizers::kAllReduce);
-
-  const int locality_neurons_count =
-      AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-          locality_neurons_->size();
-  const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
-  const int comm_step_size = neurox::min_delay_steps_;
-  const int reductions_per_comm_step =
-      AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
-  const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
-  const int steps = *steps_ptr;
-
-  for (int s = 0; s < steps; s += comm_step_size) {
-    for (int r = 0; r < reductions_per_comm_step; r++) {
-      if (s >= comm_step_size)  // first comm-window does not wait
-        hpx_lco_wait_reset(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-      else
-        // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
-        // synchronizers in a row
-        hpx_lco_reset_sync(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-
-      hpx_process_collective_allreduce_join(
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_lco_[r],
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_id_[r],
-          NULL, 0);
-
-      for (int i = 0; i < locality_neurons_count; i++)
-        hpx_call(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-                     locality_neurons_->at(i),
-                 Branch::BackwardEuler, locality_neurons_lco,
-                 &steps_per_reduction, sizeof(int));
-      hpx_lco_wait_reset(locality_neurons_lco);
-    }
-  }
-  hpx_lco_delete_sync(locality_neurons_lco);
-  return neurox::wrappers::MemoryUnpin(target);
-}
 
 hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
@@ -712,48 +577,6 @@ int Branch::ThreadTableCheck_handler() {
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   return neurox::wrappers::MemoryUnpin(target);
-}
-
-hpx_action_t Branch::Finitialize = 0;
-int Branch::Finitialize_handler() {
-  NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Finitialize);
-  local->Finitialize2();
-#if !defined(NDEBUG)
-// Input::Debugger::StepAfterStepFinitialize(local,
-// &nrn_threads[local->nt->id]);
-#endif
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
-}
-
-void Branch::SetupTreeMatrix() {
-  // treeset_core.c::nrn_rhs: Set up Right-Hand-Side
-  // of Matrix-Vector multiplication
-  HinesSolver::ResetArray(this, this->nt_->_actual_rhs);
-  HinesSolver::ResetArray(this, this->nt_->_actual_d);
-
-  this->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
-  this->CallModFunction(Mechanism::ModFunctions::kCurrent);
-  HinesSolver::SetupMatrixRHS(this);
-
-  // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
-  // multiplication. calculate left hand side of
-  // cm*dvm/dt = -i(vm) + is(vi) + ai_j*(vi_j - vi)
-  // cx*dvx/dt - cm*dvm/dt = -gx*(vx - ex) + i(vm) + ax_j*(vx_j - vx)
-  // with a matrix so that the solution is of the form [dvm+dvx,dvx] on the
-  // right hand side after solving.
-  // This is a common operation for fixed step, cvode, and daspk methods
-  // (TODO: Not for BackwardEuler)
-  this->CallModFunction(Mechanism::ModFunctions::kJacob);
-
-  // finitialize.c:nrn_finitialize()->set_tree_matrix_minimal->nrn_rhs
-  // (treeset_core.c)
-  // now the cap current can be computed because any change to cm
-  // by another model has taken effect.
-  this->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-
-  HinesSolver::SetupMatrixDiagonal(this);
 }
 
 void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
@@ -968,17 +791,10 @@ void Branch::MechanismsGraph::Reduce_handler(Mechanism::ModFunctions *lhs,
 
 void Branch::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(Branch::Clear, Branch::Clear_handler);
-  wrappers::RegisterZeroVarAction(Branch::Finitialize,
-                                  Branch::Finitialize_handler);
   wrappers::RegisterZeroVarAction(Branch::ThreadTableCheck,
                                   Branch::ThreadTableCheck_handler);
   wrappers::RegisterZeroVarAction(BranchTree::InitLCOs,
                                   BranchTree::InitLCOs_handler);
-
-  wrappers::RegisterSingleVarAction<int>(Branch::BackwardEuler,
-                                         Branch::BackwardEuler_handler);
-  wrappers::RegisterSingleVarAction<int>(
-      Branch::BackwardEulerOnLocality, Branch::BackwardEulerOnLocality_handler);
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
                                          MechanismsGraph::MechFunction_handler);
 

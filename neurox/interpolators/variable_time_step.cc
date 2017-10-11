@@ -9,8 +9,27 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
+const char* VariableTimeStep::GetString() {
+  return "VariableTimeStep";
+}
+
+const hpx_action_t VariableTimeStep::GetInitAction()
+{
+    return Init;
+}
+
+const hpx_action_t VariableTimeStep::GetRunAction()
+{
+    return Run;
+}
+
+const hpx_action_t VariableTimeStep::GetClearAction()
+{
+    return Clear;
+}
+
 void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  const CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
   const bool is_scatter_op =
       op == CopyOps::kScatterYdot || op == CopyOps::kScatterY;
   const bool use_ydot =
@@ -77,7 +96,7 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
   Branch *branch = (Branch *)user_data;
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
   NrnThread *nt = branch->nt_;
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
@@ -98,15 +117,15 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::ScatterY(branch, y);
 
   // start of occvode.cpp :: nocap_v
-  HinesSolver::ResetRHSandDNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::ResetRHSandDNoCapacitors(branch);
 
   // sum mech-instance contributions to D and RHS on no-caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
-                          vardt->no_cap_->no_caps_ml_);  // rhs
+                          vardt->no_cap_ml_);  // rhs
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
-                          vardt->no_cap_->no_caps_ml_);  // lhs
+                          vardt->no_cap_ml_);  // lhs
 
-  HinesSolver::SetupMatrixVoltageNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::SetupMatrixVoltageNoCapacitors(branch);
 
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
 
@@ -161,7 +180,7 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
 
   ScatterYdot(branch, b);
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
-  HinesSolver::ResetRHSNoCapacitors(branch, branch->vardt_);
+  HinesSolver::ResetRHSNoCapacitors(branch);
   HinesSolver::BackwardTriangulation(branch);
   HinesSolver::ForwardSubstituion(branch);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
@@ -175,7 +194,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
                                     N_Vector, N_Vector, N_Vector) {
   realtype **jac = J->cols;
   Branch *branch = (Branch *)user_data;
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -263,66 +282,26 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
   return CV_SUCCESS;
 }
 
-VariableTimeStep::VariableTimeStep()
+VariableTimeStep::CvodesBranchInfo::CvodesBranchInfo()
     : cvode_mem_(nullptr),
       equations_count_(-1),
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
-      no_cap_(nullptr) {}
+      no_cap_child_ids_(nullptr),
+      no_cap_node_ids_(nullptr),
+      no_cap_ml_(nullptr)
+{}
 
-VariableTimeStep::~VariableTimeStep() {
+VariableTimeStep::CvodesBranchInfo::~CvodesBranchInfo() {
   N_VDestroy_Serial(y_);
   CVodeFree((void **)(&cvode_mem_));
-  delete no_cap_;
-}
 
-VariableTimeStep::NoCapacitor::~NoCapacitor() {
-  delete child_ids_;
-  delete node_ids_;
+  delete no_cap_child_ids_;
+  delete no_cap_node_ids_;
   // because these point to the same memory as
   // nt->data, we only delete main array
-  delete[] no_caps_ml_;
-}
-
-VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
-  NrnThread *nt = branch->nt_;
-  Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
-
-  this->node_count_ = nt->end - capac_instances->nodecount;
-  this->node_ids_ = new int[this->node_count_];
-  int no_cap_count = 0;
-
-  std::vector<int> child_ids;
-
-  // get list of all nodes that are capacitors
-  std::set<int> capacitor_ids;
-  for (int c = 0; c < capac_instances->nodecount; c++) {
-    int compartment_id = capac_instances->nodeindices[c];
-    capacitor_ids.insert(compartment_id);
-  }
-
-  // inspired by neuron data structures
-  for (int i = 0; i < nt->end; i++) {
-    // if this node is not a capacitors node
-    if (capacitor_ids.find(i) == capacitor_ids.end())
-      this->node_ids_[no_cap_count++] = i;
-
-    // if parent node is not a capacitors node
-    if (i > 0 &&
-        capacitor_ids.find(nt->_v_parent_index[i]) == capacitor_ids.end())
-      child_ids.push_back(i);
-  }
-
-  // create childs ids and count of no-cap parents
-  this->child_count_ = child_ids.size();
-  this->child_ids_ = new int[this->child_count_];
-  memcpy(this->child_ids_, child_ids.data(), child_ids.size() * sizeof(int));
-  assert(this->node_count_ == no_cap_count);
-
-  // occvode.cpp::new_no_cap_memb()
-  VecplayContinuousX::GroupBranchInstancesByCapacitors(
-      branch, &(this->no_caps_ml_), nullptr, &capacitor_ids);
+  delete[] no_cap_ml_;
 }
 
 // Neuron :: occvode.cpp :: init_global()
@@ -330,8 +309,8 @@ hpx_action_t VariableTimeStep::Init = 0;
 int VariableTimeStep::Init_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->vardt_ == nullptr);
-  local->vardt_ = new VariableTimeStep();
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
+  local->vardt_ = new CvodesBranchInfo();
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
   CVodeMem &cvode_mem = vardt->cvode_mem_;
   int cap_count = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
@@ -374,10 +353,44 @@ int VariableTimeStep::Init_handler() {
     var_offset++;
   }
 
-  // collect information about non-capacitors nodes
-  vardt->no_cap_ = new NoCapacitor(local);
+  ////////// collect information about non-capacitors nodes
 
-  // build remaining map with state vars
+  vardt->no_cap_node_ids_count_ = nt->end - capac_instances->nodecount;
+  vardt->no_cap_node_ids_ = new int[vardt->no_cap_node_ids_count_];
+  int no_cap_count = 0;
+
+  std::vector<int> child_ids;
+
+  // get list of all nodes that are capacitors
+  std::set<int> capacitor_ids;
+  for (int c = 0; c < capac_instances->nodecount; c++) {
+    int compartment_id = capac_instances->nodeindices[c];
+    capacitor_ids.insert(compartment_id);
+  }
+
+  // inspired by neuron data structures
+  for (int i = 0; i < nt->end; i++) {
+    // if this node is not a capacitors node
+    if (capacitor_ids.find(i) == capacitor_ids.end())
+      vardt->no_cap_node_ids_[no_cap_count++] = i;
+
+    // if parent node is not a capacitors node
+    if (i > 0 &&
+        capacitor_ids.find(nt->_v_parent_index[i]) == capacitor_ids.end())
+      child_ids.push_back(i);
+  }
+
+  // create childs ids and count of no-cap parents
+  vardt->no_cap_child_ids_count_ = child_ids.size();
+  vardt->no_cap_child_ids_ = new int[vardt->no_cap_child_ids_count_];
+  memcpy(vardt->no_cap_child_ids_, child_ids.data(), child_ids.size() * sizeof(int));
+  assert(vardt->no_cap_node_ids_count_ == no_cap_count);
+
+  // occvode.cpp::new_no_cap_memb()
+  Vectorizer::GroupBranchInstancesByCapacitors(
+      local, &(vardt->no_cap_ml_), nullptr, &capacitor_ids);
+
+  ////////////  build remaining map with state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
     Memb_list *mech_instances = &local->mechs_instances_[m];
@@ -517,7 +530,7 @@ hpx_action_t VariableTimeStep::Run = 0;
 int VariableTimeStep::Run_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
   NrnThread *nt = local->nt_;
 
@@ -595,8 +608,8 @@ hpx_action_t VariableTimeStep::Clear = 0;
 int VariableTimeStep::Clear_handler() {
   NEUROX_MEM_PIN(neurox::Branch);
   assert(local->soma_);
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
-  vardt->~VariableTimeStep();
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
+  vardt->~CvodesBranchInfo();
   return neurox::wrappers::MemoryUnpin(target);
 }
 

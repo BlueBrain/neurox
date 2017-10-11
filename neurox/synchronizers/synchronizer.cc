@@ -38,31 +38,3 @@ SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
   }
   return nullptr;
 }
-
-void Synchronizer::PrintStartInfo() {
-  printf(
-      "neurox::Synchronizer::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
-      GetString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
-      input_params_->dt_);
-  fflush(stdout);
-}
-
-int Synchronizer::GetTotalStepsCount() {
-  return (input_params_->tstop_ - input_params_->tstart_) / input_params_->dt_;
-}
-
-void Synchronizer::FixedStepMethodsInit() {
-  DebugMessage("neurox::Branch::Finitialize...\n");
-  neurox::wrappers::CallAllNeurons(Branch::Finitialize);
-#ifndef NDEBUG
-  hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
-  neurox::input::Debugger::CompareAllBranches();
-#endif
-
-  DebugMessage("neurox::Branch::threadTableCheck...\n");
-  neurox::wrappers::CallAllNeurons(Branch::ThreadTableCheck);
-#ifndef NDEBUG
-  hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
-  neurox::input::Debugger::CompareAllBranches();
-#endif
-}

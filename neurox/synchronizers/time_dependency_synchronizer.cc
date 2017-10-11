@@ -20,7 +20,6 @@ const char* TimeDependencySynchronizer::GetString() {
 }
 
 void TimeDependencySynchronizer::Init() {
-  Synchronizer::FixedStepMethodsInit();
   if (input_params_->allreduce_at_locality_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
@@ -34,9 +33,9 @@ void TimeDependencySynchronizer::Init() {
 void TimeDependencySynchronizer::Clear() {}
 
 double TimeDependencySynchronizer::Launch() {
-  int total_steps = Synchronizer::GetTotalStepsCount();
   hpx_time_t now = hpx_time_now();
-  neurox::wrappers::CallAllNeurons(Branch::BackwardEuler, &total_steps,
+  int total_steps=0;
+  neurox::wrappers::CallAllNeurons(interpolators::BackwardEuler::RunOnNeuron, &total_steps,
                                    sizeof(int));
   double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
@@ -59,7 +58,8 @@ void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
     time_dependencies->IncreseDependenciesTime(b->nt_->_t);
   }
 
-  for (int step = 0; step < steps; step++) b->BackwardEulerStep();
+  for (int step = 0; step < steps; step++)
+      interpolators::BackwardEuler::Step(b);
 // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
 // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 

@@ -18,9 +18,10 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/netcon.h"
 #include "neurox/vecplay_continuous.h"
 
-// morphology classes (branches and soma)
+// morphology classes (branches, neuron) and Hines solver
 #include "neurox/branch.h"
 #include "neurox/neuron.h"
+#include "neurox/hines_solver.h"
 
 // Tools
 #include "neurox/tools/cmd_line_parser.h"
@@ -30,12 +31,16 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // Synchronizers
 #include "neurox/synchronizers/synchronizer.h"
+#include "neurox/synchronizers/allreduce_synchronizer.h"
+#include "neurox/synchronizers/coreneuron_synchronizer.h"
+#include "neurox/synchronizers/debug_synchronizer.h"
+#include "neurox/synchronizers/sliding_time_window_synchronizer.h"
+#include "neurox/synchronizers/time_dependency_synchronizer.h"
 
 // Interpolators
 #include "neurox/interpolators/interpolator.h"
-
-// Fixed-step Backward-Euler solver
-#include "neurox/hines_solver.h"
+#include "neurox/interpolators/variable_time_step.h"
+#include "neurox/interpolators/backward_euler.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"
