@@ -648,7 +648,7 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr_;
   my_neurons_addr_ = nullptr;
 
-  if (input_params_->allreduce_at_locality_) {
+  if (input_params_->locality_comm_reduce_) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
@@ -796,7 +796,7 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (input_params_->allreduce_at_locality_)
+  if (input_params_->locality_comm_reduce_)
     AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
   delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::

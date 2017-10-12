@@ -14,19 +14,10 @@ const char* BackwardEuler::GetString() {
   return "BackwardEuler";
 }
 
-const hpx_action_t BackwardEuler::GetInitAction()
+const void Init(Branch *b)
 {
-    return Finitialize;
-}
-
-const hpx_action_t BackwardEuler::GetRunAction()
-{
-    return RunOnNeuron;
-}
-
-const hpx_action_t BackwardEuler::GetRunActionLocality()
-{
-    return RunOnLocality;
+    BackwardEuler::Finitialize2(b);
+    b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
 }
 
 int BackwardEuler::GetTotalStepsCount()
@@ -47,67 +38,9 @@ int BackwardEuler::Finitialize_handler() {
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t BackwardEuler::RunOnNeuron = 0;
-int BackwardEuler::RunOnNeuron_handler() {
-  NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(BackwardEuler::RunOnNeuron);
-  void * steps_ptr;
-  synchronizer_->Run(local, steps_ptr);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
-}
-
-
-hpx_action_t BackwardEuler::RunOnLocality = 0;
-int BackwardEuler::RunOnLocality_handler() {
-  NEUROX_MEM_PIN(uint64_t);
-  assert(input_params_->allreduce_at_locality_);
-  assert(input_params_->synchronizer_ == Synchronizers::kSlidingTimeWindow ||
-         input_params_->synchronizer_ == Synchronizers::kAllReduce);
-
-  const int locality_neurons_count =
-      AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-          locality_neurons_->size();
-  const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
-  const int comm_step_size = neurox::min_delay_steps_;
-  const int reductions_per_comm_step =
-      AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
-  const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
-  int *steps_ptr;
-  const int steps = *steps_ptr;
-
-  for (int s = 0; s < steps; s += comm_step_size) {
-    for (int r = 0; r < reductions_per_comm_step; r++) {
-      if (s >= comm_step_size)  // first comm-window does not wait
-        hpx_lco_wait_reset(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-      else
-        // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
-        // synchronizers in a row
-        hpx_lco_reset_sync(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-
-      hpx_process_collective_allreduce_join(
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_lco_[r],
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_id_[r],
-          NULL, 0);
-
-      for (int i = 0; i < locality_neurons_count; i++)
-        hpx_call(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-                     locality_neurons_->at(i),
-                 BackwardEuler::RunOnNeuron, locality_neurons_lco,
-                 &steps_per_reduction, sizeof(int));
-      hpx_lco_wait_reset(locality_neurons_lco);
-    }
-  }
-  hpx_lco_delete_sync(locality_neurons_lco);
-  return neurox::wrappers::MemoryUnpin(target);
-}
 
 // fadvance_core.c::nrn_fixed_step_thread
-void BackwardEuler::Step(Branch * branch) {
+void BackwardEuler::StepTo(Branch * branch, const double tend) {
   NrnThread * nt = branch->nt_;
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;
@@ -220,8 +153,4 @@ void BackwardEuler::SetupTreeMatrix(Branch * branch) {
 void BackwardEuler::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(BackwardEuler::Finitialize,
                                   BackwardEuler::Finitialize_handler);
-  wrappers::RegisterZeroVarAction(BackwardEuler::RunOnNeuron,
-                                  BackwardEuler::RunOnNeuron_handler);
-  wrappers::RegisterZeroVarAction(BackwardEuler::RunOnLocality,
-                                  BackwardEuler::RunOnLocality_handler);
 }

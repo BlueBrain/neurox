@@ -16,6 +16,7 @@ enum class Synchronizers : int {
   kSlidingTimeWindow = 2,
   kTimeDependency = 3,
   kCoreneuron = 4,
+  kSynchronizersCount = 5,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 
@@ -56,7 +57,7 @@ class Synchronizer {
   const virtual char* GetString() = 0;
 
   /// Launch simulation on all neurons or localities
-  virtual double Launch() = 0;
+  virtual void Launch() = 0;
 
   /// Runs simulation for given branch
   virtual void Run(Branch*, const void*) = 0;
@@ -79,6 +80,21 @@ class Synchronizer {
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t){};
+
+  static hpx_action_t Init;
+  static hpx_action_t Clear;
+  static hpx_action_t RunNeuron;
+  static hpx_action_t RunLocality;
+
+  static void RegisterHpxActions();  ///> Register all HPX actions
+
+private:
+
+  static int Init_handler(const int*, const size_t);
+  static int Clear_handler();
+  static int RunNeuron_handler(const double*, const size_t);
+  static int RunLocality_handler(const double*, const size_t);
+
 };
 
 };  // synchronizers

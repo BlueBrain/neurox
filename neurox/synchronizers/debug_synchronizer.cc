@@ -32,11 +32,10 @@ void DebugSynchronizer::Init() {
 
 void DebugSynchronizer::Clear() {}
 
-double DebugSynchronizer::Launch() {
+void DebugSynchronizer::Launch() {
   int comm_step_size = neurox::min_delay_steps_;
   int total_steps = 0;
 
-  hpx_time_t now = hpx_time_now();
   for (int s = 0; s < total_steps; s += comm_step_size) {
 #ifdef NEUROX_TIME_STEPPING_VERBOSE
     if (hpx_get_my_rank() == 0)
@@ -54,9 +53,7 @@ double DebugSynchronizer::Launch() {
       hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
 #endif
   }
-  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::CompareAllBranches();
-  return elapsed_time;
 }
 
 void DebugSynchronizer::StepBegin(Branch*) {}

@@ -32,14 +32,11 @@ void TimeDependencySynchronizer::Init() {
 
 void TimeDependencySynchronizer::Clear() {}
 
-double TimeDependencySynchronizer::Launch() {
-  hpx_time_t now = hpx_time_now();
+void TimeDependencySynchronizer::Launch() {
   int total_steps=0;
   neurox::wrappers::CallAllNeurons(interpolators::BackwardEuler::RunOnNeuron, &total_steps,
                                    sizeof(int));
-  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
-  return elapsed_time;
 }
 
 void TimeDependencySynchronizer::Run(Branch* b, const void* args) {

@@ -42,8 +42,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg allreduce_at_locality(
-        "R", "reduce-by-locality",
+    TCLAP::SwitchArg locality_comm_reduce(
+        "R", "locality_comm_reduce",
         "perform HPX all-reduce operation at "
         "locality level instead of neuron "
         "level (better for small cluster).",
@@ -171,7 +171,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot_ = output_compartments_dot.getValue();
     this->mechs_parallelism_ = mechs_parallelism.getValue();
-    this->allreduce_at_locality_ = allreduce_at_locality.getValue();
+    this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
     this->synchronizer_ = (synchronizers::Synchronizers)synchronizer.getValue();

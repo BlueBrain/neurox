@@ -28,13 +28,11 @@ class BackwardEuler : public Interpolator {
   BackwardEuler() {}
 
   const char* GetString() override;
-  const hpx_action_t GetInitAction() override;
-  const hpx_action_t GetRunAction() override;
-  const hpx_action_t GetRunActionLocality() override;
+
+  virtual void Init(Branch*) override;
+  virtual void StepTo(Branch*, const double tend) override;
 
   static hpx_action_t Finitialize;
-  static hpx_action_t RunOnNeuron;
-  static hpx_action_t RunOnLocality;
 
   /// HPX actions registration
   static void RegisterHpxActions();
@@ -48,8 +46,6 @@ class BackwardEuler : public Interpolator {
  private:
 
   static int Finitialize_handler();
-  static int RunOnNeuron_handler();
-  static int RunOnLocality_handler();
 
 };
 

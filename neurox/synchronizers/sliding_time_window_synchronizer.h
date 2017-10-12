@@ -17,7 +17,7 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
 
   void Init() override;
   void Clear() override;
-  double Launch() override;
+  void Launch() override;
 
   void StepBegin(Branch*) override;
   void StepEnd(Branch*, hpx_t) override;

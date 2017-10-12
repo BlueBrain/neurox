@@ -122,6 +122,7 @@ class Branch {
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
   static hpx_action_t InitSoma;  ///> Initializes soma information
+  static hpx_action_t Initialize; ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;  ///>add incoming synapse to queue
 
@@ -143,12 +144,12 @@ class Branch {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-  /// if able to do variable time-stepping
-  void* vardt_;
+  interpolators::Interpolator* interpolator_; ///> This branchs interpolator
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);
   static int InitSoma_handler(const int, const void* [], const size_t[]);
+  static int Initialize_handler();
   static int Clear_handler();
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
   static int UpdateTimeDependency_handler(const int, const void* [],

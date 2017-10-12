@@ -29,13 +29,10 @@ void CoreneuronSynchronizer::Init() {
 
 void CoreneuronSynchronizer::Clear() {}
 
-double CoreneuronSynchronizer::Launch() {
+void CoreneuronSynchronizer::Launch() {
   int comm_step_size = neurox::min_delay_steps_;
-  hpx_time_t now = hpx_time_now();
   assert(0);
-  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::CompareAllBranches();
-  return elapsed_time;
 }
 
 void CoreneuronSynchronizer::StepBegin(Branch*) { assert(0); }

@@ -13,23 +13,8 @@ const char* VariableTimeStep::GetString() {
   return "VariableTimeStep";
 }
 
-const hpx_action_t VariableTimeStep::GetInitAction()
-{
-    return Init;
-}
-
-const hpx_action_t VariableTimeStep::GetRunAction()
-{
-    return Run;
-}
-
-const hpx_action_t VariableTimeStep::GetClearAction()
-{
-    return Clear;
-}
-
 void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
-  const CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
+  const CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->interpolator_;
   const bool is_scatter_op =
       op == CopyOps::kScatterYdot || op == CopyOps::kScatterY;
   const bool use_ydot =
@@ -96,7 +81,7 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
   Branch *branch = (Branch *)user_data;
-  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
@@ -194,7 +179,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
                                     N_Vector, N_Vector, N_Vector) {
   realtype **jac = J->cols;
   Branch *branch = (Branch *)user_data;
-  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -305,12 +290,10 @@ VariableTimeStep::CvodesBranchInfo::~CvodesBranchInfo() {
 }
 
 // Neuron :: occvode.cpp :: init_global()
-hpx_action_t VariableTimeStep::Init = 0;
-int VariableTimeStep::Init_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->vardt_ == nullptr);
-  local->vardt_ = new CvodesBranchInfo();
-  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
+void VariableTimeStep::Init(Branch * local) {
+  assert(local->interpolator_ == nullptr);
+  local->interpolator_ = new CvodesBranchInfo();
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->interpolator_;
   CVodeMem &cvode_mem = vardt->cvode_mem_;
   int cap_count = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = local->nt_;
@@ -522,15 +505,11 @@ int VariableTimeStep::Init_handler() {
   CVodeSetMaxStep(cvode_mem, neurox::min_delay_steps_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
-
-  return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t VariableTimeStep::Run = 0;
-int VariableTimeStep::Run_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
+void VariableTimeStep::Run(Branch * local) {
   assert(local->soma_);
-  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->interpolator_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
   NrnThread *nt = local->nt_;
 
@@ -601,23 +580,13 @@ int VariableTimeStep::Run_handler() {
       break;
   }
 #endif
-  return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t VariableTimeStep::Clear = 0;
-int VariableTimeStep::Clear_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->soma_);
-  CvodesBranchInfo *vardt = (CvodesBranchInfo *)local->vardt_;
+void VariableTimeStep::Clear(Branch * branch) {
+  assert(branch->soma_);
+  CvodesBranchInfo *vardt = (CvodesBranchInfo *)branch->interpolator_;
   vardt->~CvodesBranchInfo();
-  return neurox::wrappers::MemoryUnpin(target);
 }
 
-void VariableTimeStep::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Init,
-                                  VariableTimeStep::Init_handler);
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Run,
-                                  VariableTimeStep::Run_handler);
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Clear,
-                                  VariableTimeStep::Clear_handler);
+void VariableTimeStep::StepTo(Branch * branch, const double tend) {
 }

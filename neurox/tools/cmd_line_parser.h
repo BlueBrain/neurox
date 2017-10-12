@@ -45,13 +45,12 @@ class CmdLineParser {
 
   //TODO make const?
   // neurox specific options
-  bool output_statistics_;        ///> outputs statistics file
-  bool output_mechanisms_dot_;    ///> outputs mechanisms.dot file
-  bool output_netcons_dot;        ///> outputs netcons.dot file
-  bool output_compartments_dot_;  ///> outputs compartments*.dot files
-  bool mechs_parallelism_;        ///> graph-based parallelism of mechanisms
-  bool allreduce_at_locality_;    ///> whether to perform HPX all-reduce LCOs at
-                                  /// neuron or node level
+  bool output_statistics_;       ///> outputs statistics file
+  bool output_mechanisms_dot_;   ///> outputs mechanisms.dot file
+  bool output_netcons_dot;       ///> outputs netcons.dot file
+  bool output_compartments_dot_; ///> outputs compartments*.dot files
+  bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
+  bool locality_comm_reduce_;    ///> locality-based communication reduction
 
   /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;

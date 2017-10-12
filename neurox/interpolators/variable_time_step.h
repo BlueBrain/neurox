@@ -29,17 +29,9 @@ class VariableTimeStep : public Interpolator {
   VariableTimeStep(){}
 
   const char* GetString() override;
-  const hpx_action_t GetInitAction() override;
-  const hpx_action_t GetRunAction() override;
-  const hpx_action_t GetClearAction() override;
-
-  /// HPX actions registration
-  static void RegisterHpxActions();
-
-  static hpx_action_t Init;
-  static hpx_action_t Run;
-  static hpx_action_t Clear;
-
+  const void Init(Branch*)  override;
+  const void StepTo(Branch*, const double)  override;
+  const void Clear(Branch*) override;
 
   class CvodesBranchInfo
   {
@@ -134,10 +126,6 @@ class VariableTimeStep : public Interpolator {
   static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b,
                                           N_Vector weight, N_Vector ycur,
                                           N_Vector fcur);
-
-  static int Init_handler();
-  static int Run_handler();
-  static int Clear_handler();
 };
 
 };  // interpolators

@@ -8,6 +8,7 @@
 using namespace neurox;
 using namespace neurox::tools;
 using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 void *Branch::operator new(size_t bytes, void *addr) { return addr; }
 
@@ -32,8 +33,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
-      vardt_(nullptr),
-      events_queue_mutex_(HPX_NULL) {
+      interpolator_(nullptr),
+      events_queue_mutex_(HPX_NULL),
+      interpolator_(nullptr)
+{
   this->nt_ = (NrnThread *)malloc(sizeof(NrnThread));
   NrnThread *nt = this->nt_;
 
@@ -346,6 +349,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
 
 void Branch::DeleteMembList(Memb_list *&mechs_instances) {
@@ -393,6 +398,7 @@ Branch::~Branch() {
   delete soma_;
   delete branch_tree_;
   delete mechs_graph_;
+  delete interpolator_;
 }
 
 hpx_action_t Branch::Init = 0;
@@ -630,6 +636,16 @@ Branch::BranchTree::~BranchTree() {
   delete[] with_children_lcos_;
 }
 
+
+hpx_action_t Branch::Initialize = 0;
+int Branch::Initialize_handler() {
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
+  interpolator_->Init(local); //Finitialize, Cvodes init, etc
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  return neurox::wrappers::MemoryUnpin(target);
+}
+
 hpx_action_t Branch::BranchTree::InitLCOs = 0;
 int Branch::BranchTree::InitLCOs_handler() {
   NEUROX_MEM_PIN(Branch);
@@ -797,6 +813,8 @@ void Branch::RegisterHpxActions() {
                                   BranchTree::InitLCOs_handler);
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
                                          MechanismsGraph::MechFunction_handler);
+  wrappers::RegisterZeroVarAction(Branch::Initialize,
+                                  Branch::Initialize_handler);
 
   wrappers::RegisterMultipleVarAction(Branch::Init, Branch::Init_handler);
   wrappers::RegisterMultipleVarAction(Branch::InitSoma,

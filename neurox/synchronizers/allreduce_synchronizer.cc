@@ -31,15 +31,12 @@ void AllreduceSynchronizer::Clear() {
                         AllreduceSynchronizer::kAllReducesCount);
 }
 
-double AllreduceSynchronizer::Launch() {
-  hpx_time_t now = hpx_time_now();
+void AllreduceSynchronizer::Launch() {
   if (input_params_->allreduce_at_locality_)
     hpx_bcast_rsync(BackwardEuler::RunOnLocality);
   else
     neurox::wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron);
-  double elapsed_time = hpx_time_elapsed_ms(now) / 1e3;
   input::Debugger::RunCoreneuronAndCompareAllBranches();
-  return elapsed_time;
 }
 
 void AllreduceSynchronizer::StepBegin(Branch*) {}

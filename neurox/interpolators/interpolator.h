@@ -26,10 +26,9 @@ class Interpolator {
     /// Returns class type as string
     const virtual char* GetString() = 0;
 
-    const virtual hpx_action_t GetInitAction() {return HPX_NULL;}
-    const virtual hpx_action_t GetRunAction() = 0;
-    const virtual hpx_action_t GetRunActionLocality() {return HPX_NULL;}
-    const virtual hpx_action_t GetClearAction() {return HPX_NULL;}
+    const virtual void Init(Branch*) {}
+    const virtual void StepTo(Branch*, const double tend) = 0;
+    const virtual void Clear(Branch*) = {};
 
     /// Returns an instantiated class of the given type
     static Interpolator* New(Interpolators);
