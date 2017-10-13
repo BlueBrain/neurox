@@ -29,9 +29,9 @@ class VariableTimeStep : public Interpolator {
   VariableTimeStep(){}
 
   const char* GetString() override;
-  const void Init(Branch*)  override;
-  const void StepTo(Branch*, const double)  override;
-  const void Clear(Branch*) override;
+  void Init(Branch*)  override;
+  void StepTo(Branch*, const double)  override;
+  void Clear(Branch*) override;
 
   class CvodesBranchInfo
   {

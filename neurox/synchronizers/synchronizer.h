@@ -81,8 +81,8 @@ class Synchronizer {
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t){};
 
-  static hpx_action_t Init;
-  static hpx_action_t Clear;
+  static hpx_action_t InitLocality;
+  static hpx_action_t ClearLocality;
   static hpx_action_t RunNeuron;
   static hpx_action_t RunLocality;
 
@@ -90,8 +90,8 @@ class Synchronizer {
 
 private:
 
-  static int Init_handler(const int*, const size_t);
-  static int Clear_handler();
+  static int InitLocality_handler(const int*, const size_t);
+  static int ClearLocality_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
 

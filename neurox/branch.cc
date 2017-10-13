@@ -33,7 +33,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
-      interpolator_(nullptr),
       events_queue_mutex_(HPX_NULL),
       interpolator_(nullptr)
 {
@@ -641,9 +640,9 @@ hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
-  interpolator_->Init(local); //Finitialize, Cvodes init, etc
+  local->interpolator_->Init(local); //Finitialize, Cvodes init, etc
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Branch::BranchTree::InitLCOs = 0;

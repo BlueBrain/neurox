@@ -40,8 +40,8 @@ SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
 }
 
 
-hpx_action_t Init = 0;
-int Init_handler(const int *synchronizer_type_ptr) {
+hpx_action_t InitLocality = 0;
+int InitLocality_handler(const int *synchronizer_type_ptr) {
   NEUROX_MEM_PIN(uint64_t);
   delete neurox::synchronizer_;
   neurox::synchronizer_ = new Synchronizer(*synchronizer_type_ptr);
@@ -50,7 +50,7 @@ int Init_handler(const int *synchronizer_type_ptr) {
 }
 
 hpx_action_t Synchronizer::RunLocality = 0;
-int Synchronizer::RunLocality_handler(const double * tend_ptr, const size_t) {
+int Synchronizer::RunLocality_handler(const double * tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
   const int locality_neurons_count =
@@ -90,22 +90,21 @@ int Synchronizer::RunLocality_handler(const double * tend_ptr, const size_t) {
     }
   }
   hpx_lco_delete_sync(locality_neurons_lco);
-
   NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t Synchronizer::RunNeuron = 0;
-int Synchronizer::RunNeuron_handler(const double * tend_ptr, const size_t) {
+int Synchronizer::RunNeuron_handler(const double * tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::RunNeuron);
-  const double tend= *tend_ptr;
+  const double tend= *tstop_ptr;
   local->interpolator_->StepTo(this, tend);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t Synchronizer::Clear = 0;
-int Synchronizer::Clear_handler() {
+hpx_action_t Synchronizer::ClearLocality = 0;
+int Synchronizer::ClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
   neurox::synchronizer_->Clear();
   delete neurox::synchronizer_;

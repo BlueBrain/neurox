@@ -28,9 +28,8 @@ class BackwardEuler : public Interpolator {
   BackwardEuler() {}
 
   const char* GetString() override;
-
-  virtual void Init(Branch*) override;
-  virtual void StepTo(Branch*, const double tend) override;
+  void Init(Branch*) override;
+  void StepTo(Branch*, const double tend) override;
 
   static hpx_action_t Finitialize;
 

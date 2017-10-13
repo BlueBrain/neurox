@@ -26,9 +26,9 @@ class Interpolator {
     /// Returns class type as string
     const virtual char* GetString() = 0;
 
-    const virtual void Init(Branch*) {}
-    const virtual void StepTo(Branch*, const double tend) = 0;
-    const virtual void Clear(Branch*) = {};
+    virtual void Init(Branch*) {}
+    virtual void StepTo(Branch*, const double tend) = 0;
+    virtual void Clear(Branch*) {}
 
     /// Returns an instantiated class of the given type
     static Interpolator* New(Interpolators);

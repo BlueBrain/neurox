@@ -12,6 +12,12 @@ using namespace neurox;
 
 namespace neurox {
 
+//Fwd declarations
+namespace interpolators
+{
+class Interpolator;
+}
+
 class Neuron;
 
 /**
@@ -144,7 +150,8 @@ class Branch {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-  interpolators::Interpolator* interpolator_; ///> This branchs interpolator
+  /// Interpolator for fixed- or variable- stepping
+  interpolators::Interpolator* interpolator_;
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);

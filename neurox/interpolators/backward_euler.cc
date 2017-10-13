@@ -18,26 +18,16 @@ const void Init(Branch *b)
 {
     BackwardEuler::Finitialize2(b);
     b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+    #if !defined(NDEBUG)
+    // Input::Debugger::StepAfterStepFinitialize(local,
+    // &nrn_threads[local->nt->id]);
+    #endif
 }
 
 int BackwardEuler::GetTotalStepsCount()
 {
     return input_params_->tstop_/input_params_->dt_;
 }
-
-hpx_action_t BackwardEuler::Finitialize = 0;
-int BackwardEuler::Finitialize_handler() {
-  NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(BackwardEuler::Finitialize);
-  Finitialize2(local);
-#if !defined(NDEBUG)
-// Input::Debugger::StepAfterStepFinitialize(local,
-// &nrn_threads[local->nt->id]);
-#endif
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
-}
-
 
 // fadvance_core.c::nrn_fixed_step_thread
 void BackwardEuler::StepTo(Branch * branch, const double tend) {
@@ -147,10 +137,4 @@ void BackwardEuler::SetupTreeMatrix(Branch * branch) {
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
 
   HinesSolver::SetupMatrixDiagonal(branch);
-}
-
-
-void BackwardEuler::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(BackwardEuler::Finitialize,
-                                  BackwardEuler::Finitialize_handler);
 }
