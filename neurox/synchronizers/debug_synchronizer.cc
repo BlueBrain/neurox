@@ -10,7 +10,6 @@ DebugSynchronizer::~DebugSynchronizer() {}
 
 DebugSynchronizer::CommunicationBarrier::CommunicationBarrier() {
   this->all_spikes_lco_ = HPX_NULL;
-  assert(neurox::min_delay_steps_ <= 4);
 }
 
 DebugSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
@@ -33,6 +32,7 @@ void DebugSynchronizer::Init() {
 void DebugSynchronizer::Clear() {}
 
 void DebugSynchronizer::Launch() {
+    /*
   int comm_step_size = neurox::min_delay_steps_;
   int total_steps = 0;
 
@@ -54,6 +54,7 @@ void DebugSynchronizer::Launch() {
 #endif
   }
   input::Debugger::CompareAllBranches();
+  */
 }
 
 void DebugSynchronizer::StepBegin(Branch*) {}

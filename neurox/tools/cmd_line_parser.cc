@@ -187,7 +187,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
     floble_t remainder_tstop_tcomm =
-        fmod(this->tstop_, neurox::min_delay_steps_ * this->dt_);
+        fmod(this->tstop_, neurox::min_synaptic_delay_);
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
@@ -220,11 +220,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
       if (!(remainder_tstop_tcomm < 0.00001 ||
             remainder_tstop_tcomm >
-                neurox::min_delay_steps_ * this->dt_ - 0.00001))
+                neurox::min_synaptic_delay_ - 0.00001))
         throw TCLAP::ArgException(
             "execution time " + to_string(this->tstop_) +
                 "ms should be a multiple of the communication delay " +
-                to_string(neurox::min_delay_steps_ * this->dt_) + " ms",
+                to_string(neurox::min_synaptic_delay_) + " ms",
             "tstop");
     }
 

@@ -30,7 +30,6 @@ void CoreneuronSynchronizer::Init() {
 void CoreneuronSynchronizer::Clear() {}
 
 void CoreneuronSynchronizer::Launch() {
-  int comm_step_size = neurox::min_delay_steps_;
   assert(0);
   input::Debugger::CompareAllBranches();
 }

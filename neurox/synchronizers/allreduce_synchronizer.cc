@@ -32,11 +32,13 @@ void AllreduceSynchronizer::Clear() {
 }
 
 void AllreduceSynchronizer::Launch() {
-  if (input_params_->allreduce_at_locality_)
+    /*
+  if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(BackwardEuler::RunOnLocality);
   else
     neurox::wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron);
   input::Debugger::RunCoreneuronAndCompareAllBranches();
+  */
 }
 
 void AllreduceSynchronizer::StepBegin(Branch*) {}
@@ -67,7 +69,7 @@ void AllreduceSynchronizer::SubscribeAllReduces(hpx_t*& allreduces,
         0, AllreduceSynchronizer::AllReducesInfo::Init,
         AllreduceSynchronizer::AllReducesInfo::Reduce);
 
-  if (input_params_->allreduce_at_locality_)
+  if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
                         SubscribeAllReduce,
                     allreduces, sizeof(hpx_t) * allreduces_count);
@@ -83,7 +85,7 @@ void AllreduceSynchronizer::SubscribeAllReduces(hpx_t*& allreduces,
 void AllreduceSynchronizer::UnsubscribeAllReduces(hpx_t*& allreduces,
                                                   size_t allreduces_count) {
   assert(allreduces != nullptr);
-  if (input_params_->allreduce_at_locality_)
+  if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
                         UnsubscribeAllReduce,
                     allreduces, sizeof(hpx_t) * allreduces_count);
@@ -103,7 +105,7 @@ void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
   if (b->soma_) {
     AllReducesInfo* stw = (AllReducesInfo*)b->soma_->synchronizer_metadata_;
-    assert(stw->spikes_lco_queue_.size() == neurox::min_delay_steps_ - 1);
+    assert(stw->spikes_lco_queue_.size() == BackwardEuler::GetMinSynapticDelaySteps() - 1);
     stw->spikes_lco_queue_.push(spikes_lco);
     hpx_t queued_spikes_lco = stw->spikes_lco_queue_.front();
     stw->spikes_lco_queue_.pop();
@@ -118,7 +120,7 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
   int steps = *(int*)args;
   const int reductions_per_comm_step =
       AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
-  const int comm_step_size = neurox::min_delay_steps_;
+  const int comm_step_size = BackwardEuler::GetMinSynapticDelaySteps();
   const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
   const AllReducesInfo* stw =
       b->soma_ ? (AllReducesInfo*)b->soma_->synchronizer_metadata_ : nullptr;
@@ -158,7 +160,7 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
 }
 
 AllreduceSynchronizer::AllReducesInfo::AllReducesInfo() {
-  for (int s = 0; s < neurox::min_delay_steps_ - 1; s++)
+  for (int s = 0; s < BackwardEuler::GetMinSynapticDelaySteps() - 1; s++)
     this->spikes_lco_queue_.push(HPX_NULL);
 }
 
@@ -233,7 +235,7 @@ hpx_action_t AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
 int AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
     SubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params_->allreduce_at_locality_);
+  assert(input_params_->locality_comm_reduce_);
   AllReduceLocality::allreduce_lco_ =
       new hpx_t[AllReducesInfo::reductions_per_comm_step_];
   AllReduceLocality::allreduce_future_ =
@@ -254,7 +256,7 @@ hpx_action_t AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
 int AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
     UnsubscribeAllReduce_handler(const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(input_params_->allreduce_at_locality_);
+  assert(input_params_->locality_comm_reduce_);
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i],
                                                  allreduce_id_[i]);

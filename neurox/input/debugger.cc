@@ -463,13 +463,13 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
-    int total_steps = 0;
-    int comm_step_size = neurox::min_delay_steps_;
+    const int total_steps = neurox::min_synaptic_delay_ / input_params_->tstop_;
+    const int comm_steps = neurox::min_synaptic_delay_ / input_params_->dt_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");
-    for (int s = 0; s < total_steps; s += comm_step_size) {
-      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &comm_step_size,
+    for (int s = 0; s < total_steps; s += comm_steps) {
+      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &comm_steps,
                       sizeof(int));
       hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
     }

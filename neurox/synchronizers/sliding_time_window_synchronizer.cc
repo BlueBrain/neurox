@@ -33,13 +33,15 @@ void SlidingTimeWindowSynchronizer::Clear() {
 }
 
 void SlidingTimeWindowSynchronizer::Launch() {
+    /*
   int total_steps = interpolators::BackwardEuler::GetTotalStepsCount();
-  if (input_params_->allreduce_at_locality_)
+  if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(interpolators::BackwardEuler::RunOnLocality, &total_steps, sizeof(int));
   else
     neurox::wrappers::CallAllNeurons(interpolators::BackwardEuler::RunOnNeuron, &total_steps,
                                      sizeof(int));
   input::Debugger::RunCoreneuronAndCompareAllBranches();
+  */
 }
 
 void SlidingTimeWindowSynchronizer::StepBegin(Branch*) {}

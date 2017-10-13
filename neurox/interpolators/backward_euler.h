@@ -30,17 +30,14 @@ class BackwardEuler : public Interpolator {
   const char* GetString() override;
   void Init(Branch*) override;
   void StepTo(Branch*, const double tend) override;
+  inline static void Step(Branch*);
 
   static hpx_action_t Finitialize;
 
-  /// HPX actions registration
-  static void RegisterHpxActions();
-
   static void Finitialize2(Branch*); ///> finitialize.c::finitialize()
-  static void Step(Branch *);
-
   static void SetupTreeMatrix(Branch*);
-  static int GetTotalStepsCount();
+  static int GetTotalSteps();
+  static int GetMinSynapticDelaySteps();
 
  private:
 

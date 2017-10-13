@@ -26,20 +26,24 @@ namespace interpolators {
 class VariableTimeStep : public Interpolator {
  public:
 
-  VariableTimeStep(){}
+  VariableTimeStep();
+  ~VariableTimeStep();
 
   const char* GetString() override;
   void Init(Branch*)  override;
   void StepTo(Branch*, const double)  override;
   void Clear(Branch*) override;
 
-  class CvodesBranchInfo
-  {
+  void Run(Branch * local); //TODO delete
 
-  public:
+  // Information of no-capacitance nodes
+  int* no_cap_node_ids_;        ///> no-cap node ids
+  int  no_cap_node_ids_count_;  ///> size of node_ids_
+  int* no_cap_child_ids_;       ///> id of nodes with no-cap parents
+  int  no_cap_child_ids_count_; ///> size of child_ids_
+  Memb_list *no_cap_ml_;  ///> Memb_list of no-cap nodes
 
-  CvodesBranchInfo();
-  ~CvodesBranchInfo();
+private:
 
   /// absolute tolerance per equation
   N_Vector absolute_tolerance_;
@@ -59,16 +63,6 @@ class VariableTimeStep : public Interpolator {
 
   /// mapping of y in CVODES to NrnThread->data
   double **state_dv_map_;
-
-  // Information of no-capacitance nodes
-  int* no_cap_node_ids_;        ///> no-cap node ids
-  int  no_cap_node_ids_count_;  ///> size of node_ids_
-  int* no_cap_child_ids_;       ///> id of nodes with no-cap parents
-  int  no_cap_child_ids_count_; ///> size of child_ids_
-  Memb_list *no_cap_ml_;  ///> Memb_list of no-cap nodes
-  };
-
-  private:
 
   /// possible operations between NrnThread->data and CVodes states
   typedef enum CopyOps {

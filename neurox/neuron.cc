@@ -6,6 +6,7 @@
 
 using namespace neurox;
 using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
@@ -16,13 +17,14 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->refractory_period_ = 0;
   this->synchronizer_metadata_ =
       SynchronizerMetadata::New(input_params_->synchronizer_);
+
   assert(this->synchronizer_metadata_ != nullptr);
   assert(
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
           0 &&
       TimeDependencySynchronizer::TimeDependencies::
               kNotificationIntervalRatio <= 1);
-  assert(neurox::min_delay_steps_ %
+  assert(BackwardEuler::GetMinSynapticDelaySteps() %
              AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_ ==
          0);
 }

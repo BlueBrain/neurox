@@ -10,7 +10,8 @@ using namespace neurox::interpolators;
 
 namespace neurox {
 
-int min_delay_steps_ = 4;  // TODO should be set at InitNetCons
+//TODO compute at runtime
+double min_synaptic_delay_ = 0.1 + 0.00000001;
 hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;

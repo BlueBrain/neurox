@@ -14,7 +14,7 @@ const char* BackwardEuler::GetString() {
   return "BackwardEuler";
 }
 
-const void Init(Branch *b)
+void BackwardEuler::Init(Branch *b)
 {
     BackwardEuler::Finitialize2(b);
     b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
@@ -24,13 +24,26 @@ const void Init(Branch *b)
     #endif
 }
 
-int BackwardEuler::GetTotalStepsCount()
+int BackwardEuler::GetTotalSteps()
 {
     return input_params_->tstop_/input_params_->dt_;
 }
 
+int BackwardEuler::GetMinSynapticDelaySteps()
+{
+    return neurox::min_synaptic_delay_/input_params_->dt_;
+}
+
+void BackwardEuler::StepTo(Branch * branch, const double tstop)
+{
+    for (double t = branch->nt_->_t; t<tstop; t++)
+        BackwardEuler::Step(branch);
+}
+
+
 // fadvance_core.c::nrn_fixed_step_thread
-void BackwardEuler::StepTo(Branch * branch, const double tend) {
+void BackwardEuler::Step(Branch* branch)
+{
   NrnThread * nt = branch->nt_;
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;

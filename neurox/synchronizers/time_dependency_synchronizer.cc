@@ -20,7 +20,7 @@ const char* TimeDependencySynchronizer::GetString() {
 }
 
 void TimeDependencySynchronizer::Init() {
-  if (input_params_->allreduce_at_locality_)
+  if (input_params_->locality_comm_reduce_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
 
@@ -33,10 +33,12 @@ void TimeDependencySynchronizer::Init() {
 void TimeDependencySynchronizer::Clear() {}
 
 void TimeDependencySynchronizer::Launch() {
+    /*
   int total_steps=0;
   neurox::wrappers::CallAllNeurons(interpolators::BackwardEuler::RunOnNeuron, &total_steps,
                                    sizeof(int));
   input::Debugger::RunCoreneuronAndCompareAllBranches();
+  */
 }
 
 void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
