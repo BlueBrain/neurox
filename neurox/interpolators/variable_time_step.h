@@ -31,8 +31,10 @@ class VariableTimeStep : public Interpolator {
 
   const char* GetString() override;
   void Init(Branch*)  override;
-  void StepTo(Branch*, const double)  override;
+  hpx_t Step(Branch*)  override;
   void Clear(Branch*) override;
+
+  static void Run(Branch*) ; //TODO delete
 
   static void PrintStatistics(const Branch*);
 

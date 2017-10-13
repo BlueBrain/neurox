@@ -18,8 +18,8 @@ class AllreduceSynchronizer : public Synchronizer {
   void Init() override;
   void Clear() override;
 
-  void StepBegin(Branch*) override;
-  void StepEnd(Branch*, hpx_t) override;
+  void BeforeStep(Branch*) override;
+  void AfterStep(Branch*, hpx_t) override;
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
@@ -47,7 +47,6 @@ class AllreduceSynchronizer : public Synchronizer {
     // for node level reduction only (initialized by initNodeLevelInformaion)
     class AllReduceLocality {
      public:
-      static std::vector<hpx_t>* locality_neurons_;
       static hpx_t* allreduce_future_;
       static hpx_t* allreduce_lco_;
       static int* allreduce_id_;

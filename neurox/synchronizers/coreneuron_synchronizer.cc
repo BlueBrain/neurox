@@ -34,9 +34,9 @@ void CoreneuronSynchronizer::Launch() {
   input::Debugger::CompareAllBranches();
 }
 
-void CoreneuronSynchronizer::StepBegin(Branch*) { assert(0); }
+void CoreneuronSynchronizer::BeforeStep(Branch*) { assert(0); }
 
-void CoreneuronSynchronizer::StepEnd(Branch* b, hpx_t) { assert(0); }
+void CoreneuronSynchronizer::AfterStep(Branch* b, hpx_t) { assert(0); }
 
 void CoreneuronSynchronizer::Run(Branch* b, const void* args) { assert(0); }
 

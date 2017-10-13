@@ -44,9 +44,9 @@ void SlidingTimeWindowSynchronizer::Launch() {
   */
 }
 
-void SlidingTimeWindowSynchronizer::StepBegin(Branch*) {}
+void SlidingTimeWindowSynchronizer::BeforeStep(Branch*) {}
 
-void SlidingTimeWindowSynchronizer::StepEnd(Branch* b, hpx_t spikesLco) {
+void SlidingTimeWindowSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
   AllreduceSynchronizer::WaitForSpikesDelivery(b, spikesLco);
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);

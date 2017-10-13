@@ -549,46 +549,45 @@ void VariableTimeStep::PrintStatistics(const Branch* branch)
     }
 }
 
-void VariableTimeStep::StepTo(Branch * branch, const double tstop) {
+hpx_t VariableTimeStep::Step(Branch * branch) {
     VariableTimeStep* vardt = (VariableTimeStep*) branch->interpolator_;
-    CVodeMem cvode_mem = vardt->cvode_mem_;
     NrnThread *nt = branch->nt_;
+    CVodeMem cvode_mem = vardt->cvode_mem_;
     hpx_t spikes_lco = HPX_NULL;
-
     int roots_found[1];  // AP-threshold
     int flag = CV_ERR_FAILURE;
-    double cvode_tstop=-1;
 
-    while (nt->_t < tstop) {
+    double tstop = input_params_->tstop_;
 
-      synchronizer_->StepBegin(branch);
+    // delivers all events whithin the next delivery-time-window
+    branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
 
-      // delivers all events whithin the next delivery-time-window
-      branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
-
-      // get tout as time of next undelivered event (if any)
-      hpx_lco_sema_p(branch->events_queue_mutex_);
-      if (!branch->events_queue_.empty()) {
-        cvode_tstop = branch->events_queue_.top().first;
-      }
-      hpx_lco_sema_v_sync(branch->events_queue_mutex_);
-      cvode_tstop = std::min(tstop, cvode_tstop);
-
-      // call CVODE method: steps until reaching/passing tout, or hitting root;
-      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
-
-      if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
-      {
-        flag = CVodeGetRootInfo(cvode_mem, roots_found);
-        assert(flag == CV_SUCCESS);
-        assert(roots_found[0] != 0);  // only root: AP threshold reached
-        if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
-        {
-          // if root found, integrator time is now at time of root
-          spikes_lco = branch->soma_->SendSpikes(nt->_t);
-        }
-      }
-
-      synchronizer_->StepEnd(branch, spikes_lco);
+    // get tout as time of next undelivered event (if any)
+    hpx_lco_sema_p(branch->events_queue_mutex_);
+    if (!branch->events_queue_.empty()) {
+      tstop =  std::min(tstop, branch->events_queue_.top().first);
     }
+    hpx_lco_sema_v_sync(branch->events_queue_mutex_);
+
+    // call CVODE method: steps until reaching/passing tout, or hitting root;
+    flag = CVode(cvode_mem, tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+
+    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
+    {
+      flag = CVodeGetRootInfo(cvode_mem, roots_found);
+      assert(flag == CV_SUCCESS);
+      assert(roots_found[0] != 0);  // only root: AP threshold reached
+      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+      {
+        // if root found, integrator time is now at time of root
+        spikes_lco = branch->soma_->SendSpikes(nt->_t);
+      }
+    }
+    return spikes_lco;
+}
+
+void VariableTimeStep::Run(Branch * branch) {
+    NrnThread *nt = branch->nt_;
+    while (nt->_t < input_params_->tstop_)
+        branch->interpolator_->Step(branch);
 }

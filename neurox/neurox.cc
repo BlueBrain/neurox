@@ -12,7 +12,7 @@ namespace neurox {
 
 //TODO compute at runtime
 double min_synaptic_delay_ = 0.1;
-hpx_t *neurons_ = nullptr;
+hpx_t *neurons_ = nullptr; //TODO can we get rid of this? replace by hpx_t array
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
@@ -115,15 +115,7 @@ int Clear_handler() {
   delete[] neurox::mechanisms_;
   delete[] neurox::neurons_;
   delete[] neurox::mechanisms_map_;
-
-  if (input_params_->locality_comm_reduce_) {
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
-        ->clear();
-    delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-        locality_neurons_;
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-        locality_neurons_ = nullptr;
-  }
+  delete synchronizer_;
 
 #ifndef NDEBUG
   input::DataLoader::CleanCoreneuronData(true);

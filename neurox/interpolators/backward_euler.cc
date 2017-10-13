@@ -34,26 +34,19 @@ int BackwardEuler::GetMinSynapticDelaySteps()
     return (neurox::min_synaptic_delay_+0.00001)/input_params_->dt_;
 }
 
-void BackwardEuler::StepTo(Branch * branch, const double tstop)
+void BackwardEuler::FullStep(Branch *branch)
 {
-    int steps_count = (tstop-branch->nt_->_t+0.00001)/branch->nt_->_dt;
-    BackwardEuler::Steps(branch, steps_count);
-}
-
-void BackwardEuler::Steps(Branch* branch, const int steps_count)
-{
-    for (int i=0; i<steps_count; i++)
-        BackwardEuler::Step(branch);
+    synchronizer_->BeforeStep(branch);
+    hpx_t spikes_lco = branch->interpolator_->Step(branch);
+    synchronizer_->AfterStep(branch, spikes_lco);
 }
 
 // fadvance_core.c::nrn_fixed_step_thread
-void BackwardEuler::Step(Branch* branch)
+hpx_t BackwardEuler::Step(Branch* branch)
 {
   NrnThread * nt = branch->nt_;
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;
-
-  synchronizer_->StepBegin(branch);
 
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
@@ -95,11 +88,7 @@ void BackwardEuler::Step(Branch* branch)
   branch->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
   branch->DeliverEvents(t); //delivers events in second HALF-step
 
-  // if we are at the output time instant output to file
-  if (fmod(t, input_params_->dt_io_) == 0) {
-  }
-
-  synchronizer_->StepEnd(branch, spikes_lco);
+  return spikes_lco;
 }
 
 void BackwardEuler::Finitialize2(Branch * branch) {

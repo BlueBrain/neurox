@@ -41,9 +41,6 @@ class Synchronizer {
   Synchronizer(){};
   virtual ~Synchronizer(){};
 
-  /// Init for Fixed Step methods
-  static void FixedStepMethodsInit();
-
   /// Returns an instantiated class of the given type
   static Synchronizer* New(Synchronizers);
 
@@ -63,10 +60,10 @@ class Synchronizer {
   virtual void Clear(){};
 
   /// To be called at beginning of step
-  virtual void StepBegin(Branch*){};
+  virtual void BeforeStep(Branch*){};
 
   /// To be called at end of step
-  virtual void StepEnd(Branch*, hpx_t spikesLco){};
+  virtual void AfterStep(Branch*, hpx_t spikesLco){};
 
   /// To handle sending of spikes
   virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
@@ -83,6 +80,12 @@ class Synchronizer {
   static void RegisterHpxActions();  ///> Register all HPX actions
 
 private:
+
+  ///  hpx address of all neurons in this locality
+  static hpx_t* locality_neurons_;
+
+  /// length of locality_neuronx_
+  static int locality_neurons_count_;
 
   static int InitLocality_handler(const int*, const size_t);
   static int ClearLocality_handler();

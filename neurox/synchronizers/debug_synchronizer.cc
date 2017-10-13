@@ -57,9 +57,9 @@ void DebugSynchronizer::Launch() {
   */
 }
 
-void DebugSynchronizer::StepBegin(Branch*) {}
+void DebugSynchronizer::BeforeStep(Branch*) {}
 
-void DebugSynchronizer::StepEnd(Branch* b, hpx_t) {
+void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 }
@@ -67,7 +67,7 @@ void DebugSynchronizer::StepEnd(Branch* b, hpx_t) {
 void DebugSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
   for (int step = 0; step < steps; step++)
-      BackwardEuler::Step(b);
+      BackwardEuler::FullStep(b);
 
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
   // &nrn_threads[this->nt->id], secondorder); //SMP ONLY

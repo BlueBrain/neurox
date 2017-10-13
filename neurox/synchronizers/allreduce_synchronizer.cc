@@ -41,9 +41,9 @@ void AllreduceSynchronizer::Launch() {
   */
 }
 
-void AllreduceSynchronizer::StepBegin(Branch*) {}
+void AllreduceSynchronizer::BeforeStep(Branch*) {}
 
-void AllreduceSynchronizer::StepEnd(Branch* b, hpx_t spikesLco) {
+void AllreduceSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
@@ -125,8 +125,7 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
   const AllReducesInfo* stw =
       b->soma_ ? (AllReducesInfo*)b->soma_->synchronizer_metadata_ : nullptr;
 
-  for (int s = 0; s < steps;
-       s += comm_step_size)  // for every communication step
+  for (int s = 0; s < steps; s += comm_step_size)  // for every comm step
   {
 #ifndef NDEBUG
     if (hpx_get_my_rank() == 0 && b->nt_->id == 0 && b->soma_) {
@@ -134,8 +133,8 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
       fflush(stdout);
     }
 #endif
-    for (int r = 0; r < reductions_per_comm_step;
-         r++)  // for every reduction step
+    // for every reduction step
+    for (int r = 0; r < reductions_per_comm_step; r++)  
     {
       if (b->soma_) {
         if (s >= comm_step_size)  // first comm-window does not wait
@@ -151,7 +150,7 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
       }
 
       for (int n = 0; n < steps_per_reduction; n++)
-          BackwardEuler::Step(b);
+          BackwardEuler::FullStep(b);
 
       // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
       // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
@@ -211,8 +210,6 @@ int AllreduceSynchronizer::AllReducesInfo::UnsubscribeAllReduce_handler(
 }
 
 int AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_ = -1;
-std::vector<hpx_t>* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-    locality_neurons_ = nullptr;
 hpx_t* AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
     allreduce_future_ = nullptr;
 hpx_t*

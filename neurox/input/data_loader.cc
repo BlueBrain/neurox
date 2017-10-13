@@ -648,15 +648,6 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr_;
   my_neurons_addr_ = nullptr;
 
-  if (input_params_->locality_comm_reduce_) {
-    assert(
-        0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
-    // but can be allocated anywhere
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-        locality_neurons_ = new std::vector<hpx_t>(my_neurons_addr_->begin(),
-                                                   my_neurons_addr_->end());
-  }
-
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -795,12 +786,6 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
-
-  if (input_params_->locality_comm_reduce_)
-    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
-        ->clear();
-  delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-      locality_neurons_;
 
   if (input_params_->output_netcons_dot) {
     fprintf(file_netcons_, "}\n");
