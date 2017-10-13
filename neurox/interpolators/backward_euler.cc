@@ -26,20 +26,25 @@ void BackwardEuler::Init(Branch *b)
 
 int BackwardEuler::GetTotalSteps()
 {
-    return input_params_->tstop_/input_params_->dt_;
+    return (input_params_->tstop_+0.00001)/input_params_->dt_;
 }
 
 int BackwardEuler::GetMinSynapticDelaySteps()
 {
-    return neurox::min_synaptic_delay_/input_params_->dt_;
+    return (neurox::min_synaptic_delay_+0.00001)/input_params_->dt_;
 }
 
 void BackwardEuler::StepTo(Branch * branch, const double tstop)
 {
-    for (double t = branch->nt_->_t; t<tstop; t++)
-        BackwardEuler::Step(branch);
+    int steps_count = (tstop-branch->nt_->_t+0.00001)/branch->nt_->_dt;
+    BackwardEuler::Steps(branch, steps_count);
 }
 
+void BackwardEuler::Steps(Branch* branch, const int steps_count)
+{
+    for (int i=0; i<steps_count; i++)
+        BackwardEuler::Step(branch);
+}
 
 // fadvance_core.c::nrn_fixed_step_thread
 void BackwardEuler::Step(Branch* branch)

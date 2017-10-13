@@ -70,7 +70,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // assignemnts start here
   nt->_dt = input_params_->dt_;
   nt->_t = input_params_->tstart_;
-  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / input_params_->dt_;
+  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt ;
   nt->end = n;
 
   nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count);
@@ -444,9 +444,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
 
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
-    const int comm_steps = neurox::min_synaptic_delay_/input_params_->dt_;
-    for (int i = 0; i < comm_steps; i++)
-        BackwardEuler::Step(local);
+    const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
+    BackwardEuler::Steps(local, comm_steps);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     return neurox::wrappers::MemoryUnpin(target, time_elapsed);

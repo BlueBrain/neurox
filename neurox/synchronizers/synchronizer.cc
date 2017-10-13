@@ -58,7 +58,7 @@ int Synchronizer::RunLocality_handler(const double * tstop_ptr, const size_t) {
       AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
           locality_neurons_->size();
   const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count);
-  const int comm_steps = neurox::min_synaptic_delay_/input_params_->dt_;
+  const int comm_steps = interpolators::BackwardEuler::GetMinSynapticDelaySteps();
   const int reductions_per_comm_step =
       AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
   const int steps_per_reduction = comm_steps / reductions_per_comm_step;
