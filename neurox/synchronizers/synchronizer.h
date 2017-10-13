@@ -47,17 +47,11 @@ class Synchronizer {
   /// Returns an instantiated class of the given type
   static Synchronizer* New(Synchronizers);
 
-  /// Prints info on synchronizer, data size, and steps count
-  void PrintStartInfo();
-
   /// Returns class type
   const virtual Synchronizers GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;
-
-  /// Launch simulation on all neurons or localities
-  virtual void Launch() = 0;
 
   /// Runs simulation for given branch
   virtual void Run(Branch*, const void*) = 0;

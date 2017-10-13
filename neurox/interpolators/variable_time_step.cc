@@ -497,86 +497,10 @@ void VariableTimeStep::Init(Branch * branch) {
   }
   assert(flag == CV_SUCCESS);
 
-
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
   CVodeSetMaxStep(cvode_mem, neurox::min_synaptic_delay_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
-}
-
-void VariableTimeStep::Run(Branch * local) {
-  assert(local->soma_);
-  VariableTimeStep* vardt = (VariableTimeStep*) local->interpolator_;
-  CVodeMem cvode_mem = vardt->cvode_mem_;
-  NrnThread *nt = local->nt_;
-
-  int roots_found[1];  // AP-threshold
-  int flag = CV_ERR_FAILURE;
-  realtype tout = input_params_->tstop_;
-
-  while (nt->_t < input_params_->tstop_) {
-    // delivers all events whithin the next delivery-time-window
-    local->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
-
-    // get tout as time of next undelivered event (if any)
-    hpx_lco_sema_p(local->events_queue_mutex_);
-    if (!local->events_queue_.empty()) {
-      tout = local->events_queue_.top().first;
-    }
-    hpx_lco_sema_v_sync(local->events_queue_mutex_);
-    tout = std::min(input_params_->tstop_, tout);
-
-    // call CVODE method: steps until reaching/passing tout, or hitting root;
-    flag = CVode(cvode_mem, tout, vardt->y_, &(nt->_t), CV_NORMAL);
-
-    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
-    {
-      flag = CVodeGetRootInfo(cvode_mem, roots_found);
-      assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0);  // only root: AP threshold reached
-      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
-      {
-        // if root found, integrator time is now at time of root
-        hpx_t spikes_lco_ = local->soma_->SendSpikes(nt->_t);
-      }
-    }
-  }
-
-#ifndef NDEBUG
-  // Final statistics output:
-  long num_steps = -1, num_rhs = -1, num_roots = -1, num_others = 0;
-  CVodeGetNumSteps(cvode_mem, &num_steps);
-  CVodeGetNumGEvals(cvode_mem, &num_roots);
-  switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreConditionedDiagSolver:
-      CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
-      CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
-      printf(
-          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, "
-          "roots: %d\n",
-          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
-      break;
-    case Interpolators::kCvodeDenseMatrix:
-      CVDlsGetNumJacEvals(cvode_mem, &num_others);
-      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
-      printf(
-          "-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: "
-          "%d\n",
-          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
-      break;
-    case Interpolators::kCvodeDiagonalMatrix:
-      CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
-      printf("-- Neuron %d completed. steps: %d, rhs: %d, roots: %d\n",
-             local->soma_->gid_, num_steps, num_rhs, num_roots);
-      break;
-    case Interpolators::kCvodeSparseMatrix:
-      CVDlsGetNumJacEvals(cvode_mem, &num_others);
-      CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
-      // CVSlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
-      // CVSlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
-      break;
-  }
-#endif
 }
 
 void VariableTimeStep::Clear(Branch * branch) {
@@ -586,5 +510,85 @@ void VariableTimeStep::Clear(Branch * branch) {
   branch->interpolator_ = nullptr;
 }
 
-void VariableTimeStep::StepTo(Branch * branch, const double tend) {
+void VariableTimeStep::PrintStatistics(const Branch* branch)
+{
+    VariableTimeStep* vardt = (VariableTimeStep*) branch->interpolator_;
+    CVodeMem cvode_mem = vardt->cvode_mem_;
+
+    long num_steps = -1, num_rhs = -1, num_roots = -1, num_others = 0;
+    CVodeGetNumSteps(cvode_mem, &num_steps);
+    CVodeGetNumGEvals(cvode_mem, &num_roots);
+    switch (input_params_->interpolator_) {
+      case Interpolators::kCvodePreConditionedDiagSolver:
+        CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
+        CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
+        printf(
+            "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, "
+            "roots: %d\n",
+            branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+        break;
+      case Interpolators::kCvodeDenseMatrix:
+        CVDlsGetNumJacEvals(cvode_mem, &num_others);
+        CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
+        printf(
+            "-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: "
+            "%d\n",
+            branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+        break;
+      case Interpolators::kCvodeDiagonalMatrix:
+        CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
+        printf("-- Neuron %d completed. steps: %d, rhs: %d, roots: %d\n",
+               branch->soma_->gid_, num_steps, num_rhs, num_roots);
+        break;
+      case Interpolators::kCvodeSparseMatrix:
+        CVDlsGetNumJacEvals(cvode_mem, &num_others);
+        CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
+        // CVSlsGetNumJacEvals(cvode_mem, &num_jacob_evals);
+        // CVSlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
+        break;
+    }
+}
+
+void VariableTimeStep::StepTo(Branch * branch, const double tstop) {
+    VariableTimeStep* vardt = (VariableTimeStep*) branch->interpolator_;
+    CVodeMem cvode_mem = vardt->cvode_mem_;
+    NrnThread *nt = branch->nt_;
+    hpx_t spikes_lco = HPX_NULL;
+
+    int roots_found[1];  // AP-threshold
+    int flag = CV_ERR_FAILURE;
+    double cvode_tstop=-1;
+
+    while (nt->_t < tstop) {
+
+      synchronizer_->StepBegin(branch);
+
+      // delivers all events whithin the next delivery-time-window
+      branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
+
+      // get tout as time of next undelivered event (if any)
+      hpx_lco_sema_p(branch->events_queue_mutex_);
+      if (!branch->events_queue_.empty()) {
+        cvode_tstop = branch->events_queue_.top().first;
+      }
+      hpx_lco_sema_v_sync(branch->events_queue_mutex_);
+      cvode_tstop = std::min(tstop, cvode_tstop);
+
+      // call CVODE method: steps until reaching/passing tout, or hitting root;
+      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+
+      if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
+      {
+        flag = CVodeGetRootInfo(cvode_mem, roots_found);
+        assert(flag == CV_SUCCESS);
+        assert(roots_found[0] != 0);  // only root: AP threshold reached
+        if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+        {
+          // if root found, integrator time is now at time of root
+          spikes_lco = branch->soma_->SendSpikes(nt->_t);
+        }
+      }
+
+      synchronizer_->StepEnd(branch, spikes_lco);
+    }
 }

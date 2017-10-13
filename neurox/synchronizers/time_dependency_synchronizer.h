@@ -19,12 +19,14 @@ class TimeDependencySynchronizer : public Synchronizer {
 
   void Init() override;
   void Clear() override;
-  void Launch() override;
 
   void StepBegin(Branch*) override;
   void StepEnd(Branch*, hpx_t) override;
   void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
+
+  void Launch();
+
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
                           spike_time_t max_time) override;

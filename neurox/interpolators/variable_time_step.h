@@ -34,7 +34,7 @@ class VariableTimeStep : public Interpolator {
   void StepTo(Branch*, const double)  override;
   void Clear(Branch*) override;
 
-  void Run(Branch * local); //TODO delete
+  static void PrintStatistics(const Branch*);
 
   // Information of no-capacitance nodes
   int* no_cap_node_ids_;        ///> no-cap node ids
