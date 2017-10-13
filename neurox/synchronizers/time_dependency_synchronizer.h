@@ -22,10 +22,9 @@ class TimeDependencySynchronizer : public Synchronizer {
 
   void BeforeStep(Branch*) override;
   void AfterStep(Branch*, hpx_t) override;
-  void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
 
-  void Launch();
+  void Run(Branch*, const void*);
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,

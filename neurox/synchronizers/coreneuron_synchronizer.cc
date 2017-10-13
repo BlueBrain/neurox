@@ -29,16 +29,9 @@ void CoreneuronSynchronizer::Init() {
 
 void CoreneuronSynchronizer::Clear() {}
 
-void CoreneuronSynchronizer::Launch() {
-  assert(0);
-  input::Debugger::CompareAllBranches();
-}
-
 void CoreneuronSynchronizer::BeforeStep(Branch*) { assert(0); }
 
 void CoreneuronSynchronizer::AfterStep(Branch* b, hpx_t) { assert(0); }
-
-void CoreneuronSynchronizer::Run(Branch* b, const void* args) { assert(0); }
 
 hpx_t CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   assert(0);

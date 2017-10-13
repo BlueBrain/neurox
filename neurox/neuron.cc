@@ -24,9 +24,6 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
           0 &&
       TimeDependencySynchronizer::TimeDependencies::
               kNotificationIntervalRatio <= 1);
-  assert(BackwardEuler::GetMinSynapticDelaySteps() %
-             AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_ ==
-         0);
 }
 
 Neuron::~Neuron() {

@@ -20,10 +20,10 @@ class DebugSynchronizer : public Synchronizer {
 
   void BeforeStep(Branch*) override;
   void AfterStep(Branch*, hpx_t) override;
-  void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   void Launch();
+  void Run(Branch*, const void*);
 
   class CommunicationBarrier : public SynchronizerMetadata {
    public:

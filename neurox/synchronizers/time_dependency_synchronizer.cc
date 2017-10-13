@@ -23,23 +23,9 @@ void TimeDependencySynchronizer::Init() {
   if (input_params_->locality_comm_reduce_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
-
-  const int allReducesCount = 0;
-  hpx_bcast_rsync(
-      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-      &allReducesCount, sizeof(int));
 }
 
 void TimeDependencySynchronizer::Clear() {}
-
-void TimeDependencySynchronizer::Launch() {
-    /*
-  int total_steps=0;
-  neurox::wrappers::CallAllNeurons(interpolators::BackwardEuler::RunOnNeuron, &total_steps,
-                                   sizeof(int));
-  input::Debugger::RunCoreneuronAndCompareAllBranches();
-  */
-}
 
 void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;

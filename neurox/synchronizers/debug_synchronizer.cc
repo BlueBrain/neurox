@@ -22,12 +22,7 @@ const char* DebugSynchronizer::GetString() {
   return "BackwardEulerCoreneuronDebug";
 }
 
-void DebugSynchronizer::Init() {
-  const int allReducesCount = 0;
-  hpx_bcast_rsync(
-      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-      &allReducesCount, sizeof(int));
-}
+void DebugSynchronizer::Init() {}
 
 void DebugSynchronizer::Clear() {}
 

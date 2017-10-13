@@ -50,27 +50,30 @@ class Synchronizer {
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-  /// Runs simulation for given branch
-  virtual void Run(Branch*, const void*) = 0;
-
   /// Initialize synchronizer meta data
-  virtual void Init(){};
+  virtual void Init(){}
 
   /// Clears/finalizes synchronizer meta data
-  virtual void Clear(){};
+  virtual void Clear(){}
 
   /// To be called at beginning of step
-  virtual void BeforeStep(Branch*){};
+  virtual void BeforeStep(Branch*){}
 
   /// To be called at end of step
-  virtual void AfterStep(Branch*, hpx_t spikesLco){};
+  virtual void AfterStep(Branch*, hpx_t spikesLco){}
 
   /// To handle sending of spikes
   virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
-                                  spike_time_t){};
+                                  spike_time_t){}
+
+  /// Time-step between locality-based comm. reductions
+  virtual double GetLocalityReductionInterval();
+
+  /// Locatility-based reduction
+  virtual void LocalityReduce() {}
 
   static hpx_action_t InitLocality;
   static hpx_action_t ClearLocality;

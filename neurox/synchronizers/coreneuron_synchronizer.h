@@ -20,10 +20,7 @@ class CoreneuronSynchronizer : public Synchronizer {
 
   void BeforeStep(Branch*) override;
   void AfterStep(Branch*, hpx_t) override;
-  void Run(Branch*, const void*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-
-  void Launch();
 
   class CommunicationBarrier : public SynchronizerMetadata {
    public:

@@ -70,79 +70,21 @@ int Synchronizer::InitLocality_handler(const int *synchronizer_id_ptr, const siz
 hpx_action_t Synchronizer::RunLocality = 0;
 int Synchronizer::RunLocality_handler(const double * tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
-
   assert(locality_neurons_);
-
-  const double tstop = *tstop_ptr - 0.00001;
-  const double reduction_interval = 2*input_params_->dt_;
-
-  // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
-  // synchronizers in a row
-  //locality-reduction-init locality (reset all)
-  int r=0;
-  hpx_lco_reset_sync(AllreduceSynchronizer::AllReducesInfo::
-                         AllReduceLocality::allreduce_future_[r]);
-
   const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count_);
-
+  const double reduction_interval = synchronizer_->GetLocalityReductionInterval();
+  const double tstop = *tstop_ptr;
   double step_to_time = -1;
   for (double t=0; t<=tstop; t+= reduction_interval)
   {
-      //localit-reduction-begin
-      hpx_lco_wait_reset(AllreduceSynchronizer::AllReducesInfo::
-                             AllReduceLocality::allreduce_future_[r]);
-
-      hpx_process_collective_allreduce_join(
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_lco_[r],
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_id_[r],
-          NULL, 0);
-
-
-      step_to_time = t+reduction_interval;
-      for (int i = 0; i < locality_neurons_count_; i++)
-        hpx_call(Synchronizer::locality_neurons_[i],
-                 Synchronizer::RunNeuron, locality_neurons_lco,
-                 &step_to_time, sizeof(double));
-
-      //locality-reduction- end
-      hpx_lco_wait_reset(locality_neurons_lco);
+    synchronizer_->LocalityReduce();
+    step_to_time = t+reduction_interval;
+    for (int i = 0; i < locality_neurons_count_; i++)
+      hpx_call(Synchronizer::locality_neurons_[i],
+             Synchronizer::RunNeuron, locality_neurons_lco,
+             &step_to_time, sizeof(double));
+    hpx_lco_wait_reset(locality_neurons_lco);
   }
-
-
-  const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
-  const int reductions_per_comm_step =
-      AllreduceSynchronizer::AllReducesInfo::reductions_per_comm_step_;
-  const int steps_per_reduction = comm_steps / reductions_per_comm_step;
-
-  const int total_steps = BackwardEuler::GetTotalSteps();
-  for (int s = 0; s < total_steps; s += comm_steps) {
-    for (int r = 0; r < reductions_per_comm_step; r++) {
-      if (s >= comm_steps)  // first comm-window does not wait
-        hpx_lco_wait_reset(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-      else
-        // fixes crash for Synchronizer::ALL when running two hpx-reduce -based
-        // synchronizers in a row
-        hpx_lco_reset_sync(AllreduceSynchronizer::AllReducesInfo::
-                               AllReduceLocality::allreduce_future_[r]);
-
-      hpx_process_collective_allreduce_join(
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_lco_[r],
-          AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
-              allreduce_id_[r],
-          NULL, 0);
-
-      for (int i = 0; i < locality_neurons_count_; i++)
-        hpx_call(Synchronizer::locality_neurons_[i],
-                 Synchronizer::RunNeuron, locality_neurons_lco,
-                 &steps_per_reduction, sizeof(int));
-      hpx_lco_wait_reset(locality_neurons_lco);
-    }
-  }
-  hpx_lco_delete_sync(locality_neurons_lco);
   NEUROX_MEM_UNPIN;
 }
 
@@ -174,6 +116,11 @@ int Synchronizer::ClearLocality_handler() {
   neurox::synchronizer_->Clear();
   delete neurox::synchronizer_;
   NEUROX_MEM_UNPIN;
+}
+
+double Synchronizer::GetLocalityReductionInterval() //virtual
+{
+    return input_params_->tstop_; //i.e. no reduction
 }
 
 void Synchronizer::RegisterHpxActions() {
