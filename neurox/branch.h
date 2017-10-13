@@ -12,6 +12,12 @@ using namespace neurox;
 
 namespace neurox {
 
+//Fwd declarations
+namespace interpolators
+{
+class Interpolator;
+}
+
 class Neuron;
 
 /**
@@ -122,13 +128,12 @@ class Branch {
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
   static hpx_action_t InitSoma;  ///> Initializes soma information
+  static hpx_action_t Initialize; ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;  ///>add incoming synapse to queue
+
   /// update maximum time allowed based on received dependency info
   static hpx_action_t UpdateTimeDependency;
-  static hpx_action_t Finitialize;  ///> finitialize.c::finitialize()
-  static hpx_action_t BackwardEuler;
-  static hpx_action_t BackwardEulerOnLocality;
   static hpx_action_t ThreadTableCheck;
 
   void CallModFunction(const Mechanism::ModFunctions functionId,
@@ -142,24 +147,20 @@ class Branch {
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();
-  void Finitialize2();
-  void BackwardEulerStep();
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-  /// if able to do variable time-stepping
-  void* vardt_;
+  /// Interpolator for fixed- or variable- stepping
+  interpolators::Interpolator* interpolator_;
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);
   static int InitSoma_handler(const int, const void* [], const size_t[]);
+  static int Initialize_handler();
   static int Clear_handler();
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
   static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
-  static int Finitialize_handler();
-  static int BackwardEuler_handler(const int*, const size_t);
-  static int BackwardEulerOnLocality_handler(const int*, const size_t);
   static int ThreadTableCheck_handler();
 };
 

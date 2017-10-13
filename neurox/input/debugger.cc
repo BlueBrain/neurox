@@ -24,7 +24,8 @@
 
 using namespace std;
 using namespace neurox::input;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
+using namespace neurox::interpolators;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
   const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
@@ -130,7 +131,7 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 
   /****************/ CompareBranch2(b); /*****************/
 
-  b->SetupTreeMatrix();
+  BackwardEuler::SetupTreeMatrix(b);
 
   setup_tree_matrix_minimal(nth);
 
@@ -149,11 +150,11 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
   if (b->soma_ &&
-      input_params_->algorithm_ ==
-          neurox::algorithms::Algorithms::kTimeDependencyLCO) {
-    TimeDependencyLCOAlgorithm::TimeDependencies *timeDependencies =
-        (TimeDependencyLCOAlgorithm::TimeDependencies *)
-            b->soma_->algorithm_metadata_;
+      input_params_->synchronizer_ ==
+          neurox::synchronizers::Synchronizers::kTimeDependency) {
+    TimeDependencySynchronizer::TimeDependencies *timeDependencies =
+        (TimeDependencySynchronizer::TimeDependencies *)
+            b->soma_->synchronizer_metadata_;
     timeDependencies->SendSteppingNotification(b->nt_->_t, dt, b->soma_->gid_,
                                                b->soma_->synapses_);
     timeDependencies->WaitForTimeDependencyNeurons(b->nt_->_t, dt,
@@ -162,13 +163,13 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   if (b->soma_) {
     // Soma waits for AIS to have threshold V value updated
     floble_t thresholdV;
-    solver::HinesSolver::SynchronizeThresholdV(b, &thresholdV);
+    HinesSolver::SynchronizeThresholdV(b, &thresholdV);
     if (b->soma_->CheckAPthresholdAndTransmissionFlag(thresholdV))
       b->soma_->SendSpikes(b->nt_->_t);
     // TODO sendSpikes LCO must be waited
   } else if (b->thvar_ptr_)
     // Axon Initial Segment send threshold  V to parent
-    solver::HinesSolver::SynchronizeThresholdV(b);
+    HinesSolver::SynchronizeThresholdV(b);
 
   b->nt_->_t += .5 * dt;
   b->DeliverEvents(b->nt_->_t);
@@ -183,8 +184,8 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   /****************/ CompareBranch2(b); /*****************/
 
   b->FixedPlayContinuous();
-  b->SetupTreeMatrix();
-  solver::HinesSolver::SolveTreeMatrix(b);
+  BackwardEuler::SetupTreeMatrix(b);
+  HinesSolver::SolveTreeMatrix(b);
 
   // coreneuron
   fixed_play_continuous(nth);
@@ -255,10 +256,9 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_)
-    return;
-
-  if (input_params_->interpolator_ != Interpolators::kBackwardEuler) return;
+      input_params_->load_balancing_ ||
+      input_params_->interpolator_ != Interpolators::kBackwardEuler)
+      return;
 
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
@@ -418,7 +418,8 @@ int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  nrn_finitialize(input_params_->voltage_ != 1000., input_params_->voltage_);
+  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
+    nrn_finitialize(input_params_->voltage_ != 1000., input_params_->voltage_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -426,15 +427,19 @@ hpx_action_t Debugger::ThreadTableCheck = 0;
 int Debugger::ThreadTableCheck_handler() {
   // beginning of fadvance_core.c::nrn_fixed_step_group_minimal
   NEUROX_MEM_PIN(uint64_t);
-  dt2thread(dt);  // does nothing
-  nrn_thread_table_check();
+  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
+  {
+    dt2thread(dt);  // does nothing
+    nrn_thread_table_check();
+  }
   return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  nrn_spike_exchange(nrn_threads);
+  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
+    nrn_spike_exchange(nrn_threads);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -442,7 +447,8 @@ hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
   if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_)
+      input_params_->load_balancing_ ||
+      input_params_->interpolator_!= Interpolators::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
@@ -451,18 +457,19 @@ int Debugger::CompareBranch_handler() {
 void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_)
+      input_params_->load_balancing_ ||
+      input_params_->interpolator_!= Interpolators::kBackwardEuler)
     return;
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)
   {
-    int totalSteps = algorithms::Algorithm::GetTotalStepsCount();
-    int commStepSize = neurox::min_delay_steps_;
+    const int total_steps = neurox::min_synaptic_delay_ / input_params_->tstop_;
+    const int comm_steps = neurox::min_synaptic_delay_ / input_params_->dt_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");
-    for (int s = 0; s < totalSteps; s += commStepSize) {
-      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &commStepSize,
+    for (int s = 0; s < total_steps; s += comm_steps) {
+      hpx_bcast_rsync(neurox::input::Debugger::FixedStepMinimal, &comm_steps,
                       sizeof(int));
       hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
     }
@@ -475,7 +482,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (neurox::ParallelExecution() &&
-      algorithm_->GetId() != algorithms::Algorithms::kDebug)
+      synchronizer_->GetId() != synchronizers::Synchronizers::kDebug)
     return;  // non-debug mode in parallel are compared at the end of execution
              // instead
 

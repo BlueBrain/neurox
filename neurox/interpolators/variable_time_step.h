@@ -14,8 +14,8 @@
 #include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
-//For Pre-conditioned matrix solvers
-#include <cvodes/cvodes_diag.h>       /*For Approx Diagonal matrix*/
+// For Pre-conditioned matrix solvers
+#include <cvodes/cvodes_diag.h>      /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -23,10 +23,27 @@ namespace neurox {
 
 namespace interpolators {
 
-class VariableTimeStep {
+class VariableTimeStep : public Interpolator {
  public:
+
   VariableTimeStep();
   ~VariableTimeStep();
+
+  const char* GetString() override;
+  void Init(Branch*)  override;
+  void StepTo(Branch*, const double)  override;
+  void Clear(Branch*) override;
+
+  void Run(Branch * local); //TODO delete
+
+  // Information of no-capacitance nodes
+  int* no_cap_node_ids_;        ///> no-cap node ids
+  int  no_cap_node_ids_count_;  ///> size of node_ids_
+  int* no_cap_child_ids_;       ///> id of nodes with no-cap parents
+  int  no_cap_child_ids_count_; ///> size of child_ids_
+  Memb_list *no_cap_ml_;  ///> Memb_list of no-cap nodes
+
+private:
 
   /// absolute tolerance per equation
   N_Vector absolute_tolerance_;
@@ -41,35 +58,23 @@ class VariableTimeStep {
   /// i.e. compartments * equations per compartment
   int equations_count_;
 
-  /// HPX actions registration
-  static void RegisterHpxActions();
-
   /// mapping of y in CVODES to NrnThread->data
   double **state_var_map_;
 
   /// mapping of y in CVODES to NrnThread->data
   double **state_dv_map_;
 
-  ///> Information of no-capacitance nodes
-  class NoCapacitor {
-   public:
-    NoCapacitor() = delete;
-    NoCapacitor(const Branch *);
-    ~NoCapacitor();
+  /// possible operations between NrnThread->data and CVodes states
+  typedef enum CopyOps {
+    kScatterY,
+    kGatherY,
+    kScatterYdot,
+    kGatherYdot
+  } CopyOp;
 
-    int *node_ids_;          ///> no-cap node ids
-    int *child_ids_;         ///> id of nodes with no-cap parents
-    int node_count_;         ///> size of node_ids_
-    int child_count_;        ///> size of child_ids_
-    Memb_list *no_caps_ml_;  ///> Memb_list of no-cap nodes
-    // Memb_list * caps_ml_; ///> Memb_list of cap nodes
-  } * no_cap_;  ///> info on non-capacitors nodes
+  /// copy data to/from branch's NrnThread->data and CVODES y/ydot
+  static void CopyState(Branch *b, N_Vector y, const CopyOp op);
 
-  static hpx_action_t Init;
-  static hpx_action_t Run;
-  static hpx_action_t Clear;
-
- private:
   /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
@@ -87,16 +92,16 @@ class VariableTimeStep {
   constexpr static double kEventsDeliveryTimeWindow = 0.0125;
 
   /// copy CVODES y to NrnThread->data (V and m)
-  static void ScatterY(Branch *branch, N_Vector y);
+  inline static void ScatterY(Branch *branch, N_Vector y);
 
   /// copy NrnThread->data (V and m) to CVODES y
-  static void GatherY(Branch *branch, N_Vector y);
+  inline static void GatherY(Branch *branch, N_Vector y);
 
   /// copy CVODES ydot to NrnThread->data (RHS and dm)
-  static void ScatterYdot(Branch *branch, N_Vector ydot);
+  inline static void ScatterYdot(Branch *branch, N_Vector ydot);
 
   /// copy NrnThread->data (RHS and dm) to CVODES ydot
-  static void GatherYdot(Branch *branch, N_Vector ydot);
+  inline static void GatherYdot(Branch *branch, N_Vector ydot);
 
   /// RHS function: given y (V and m) returns ydot (RHS and dm)
   static int RHSFunction(floble_t t, N_Vector y_, N_Vector ydot,
@@ -112,12 +117,9 @@ class VariableTimeStep {
                            N_Vector tmp2, N_Vector tmp3);
 
   /// Solve-function for Neuron-based diagonal solver
-  static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b, N_Vector weight,
-                                        N_Vector ycur, N_Vector fcur);
-
-  static int Init_handler();
-  static int Run_handler();
-  static int Clear_handler();
+  static int PreConditionedDiagonalSolver(CVodeMem m, N_Vector b,
+                                          N_Vector weight, N_Vector ycur,
+                                          N_Vector fcur);
 };
 
 };  // interpolators

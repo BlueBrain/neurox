@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <set>
 
 using namespace std;
 
@@ -37,6 +38,15 @@ class Vectorizer {
 
   /// Call function 'f' on a vectorized way
   static void CallVecFunction(cvode_f_t, NrnThread*, Memb_list*, int);
+
+
+  /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
+  static void GroupBranchInstancesByCapacitors(
+      const Branch *branch,                        // in
+      Memb_list **ml_no_capacitors_ptr = nullptr,  // out (optional)
+      Memb_list **ml_capacitors_ptr = nullptr,     // out (optional)
+      std::set<int> *capacitors_ids_ptr = nullptr  // in (optional)
+      );
 
   // C++11 does not support memory-aligned new[]/delete, this is a work around
 

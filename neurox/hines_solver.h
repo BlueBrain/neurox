@@ -6,15 +6,11 @@
 #include <queue>
 #include <vector>
 
-using namespace interpolators;
-
 namespace neurox {
-
-namespace solver {
 
 /**
  * @brief The Hines Solver class
- * Handles the Gaussian Elimination algorithm according to Hines;
+ * Handles the Gaussian Elimination synchronizer according to Hines;
  */
 class HinesSolver {
  public:
@@ -32,12 +28,11 @@ class HinesSolver {
   static void UpdateVoltagesWithRHS(Branch *branch);
 
   // CVODE-specific methods
-  static void ResetRHSandDNoCapacitors(Branch *, void *);
-  static void ResetRHSNoCapacitors(Branch *, void *);
-  static void SetupMatrixVoltageNoCapacitors(Branch *, void *);
+  static void ResetRHSandDNoCapacitors(Branch *);
+  static void ResetRHSNoCapacitors(Branch *);
+  static void SetupMatrixVoltageNoCapacitors(Branch *);
 
  private:
 };
 
-};  // namespace
 };  // namespace

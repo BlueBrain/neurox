@@ -9,32 +9,59 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
+const char* VariableTimeStep::GetString() {
+  return "VariableTimeStep";
+}
+
+void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
+  const VariableTimeStep *vardt = (VariableTimeStep*)branch->interpolator_;
+  const bool is_scatter_op =
+      op == CopyOps::kScatterYdot || op == CopyOps::kScatterY;
+  const bool use_ydot =
+      op == CopyOps::kScatterYdot || op == CopyOps::kGatherYdot;
+  double *y_data = NV_DATA_S(y);  // y or ydot
+  double **var_map = use_ydot ? vardt->state_dv_map_ : vardt->state_var_map_;
+
+  const int &cap_count =
+      branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
+  const int iters_limit = LAYOUT == 0 ? cap_count : vardt->equations_count_;
+
+  // AoS will map all variables, SoA only map no_cap voltages/RHS for now
+  int i = -1;
+  if (is_scatter_op)
+    for (i = 0; i < iters_limit; i++) *(var_map[i]) = y_data[i];
+  else
+    for (i = 0; i < iters_limit; i++) y_data[i] = *(var_map[i]);
+
+#if LAYOUT == 0
+  // SoA mapping takes advantage of state vars sequential mem-alignment
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    const int state_vars_count = neurox::mechanisms_[m]->state_vars_->count_;
+    const int nodecount = branch->mechs_instances_[m].nodecount;
+    if (is_scatter_op)
+      for (int s = 0; s < state_vars_count; s++, i += nodecount)
+        memcpy(var_map[i], &y_data[i], sizeof(double) * nodecount);
+    else
+      for (int s = 0; s < state_vars_count; s++, i += nodecount)
+        memcpy(&y_data[i], var_map[i], sizeof(double) * nodecount);
+  }
+#endif
+}
+
 void VariableTimeStep::ScatterY(Branch *branch, N_Vector y) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  const double *y_data = NV_DATA_S(y);
-  double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) *(var_map[i]) = y_data[i];
+  CopyState(branch, y, CopyOps::kScatterY);
 }
 
 void VariableTimeStep::GatherY(Branch *branch, N_Vector y) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  double *y_data = NV_DATA_S(y);
-  double **var_map = vardt->state_var_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) y_data[i] = *(var_map[i]);
+  CopyState(branch, y, CopyOps::kGatherY);
 }
 
 void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  const double *ydot_data = NV_DATA_S(ydot);
-  double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) *(dv_map[i]) = ydot_data[i];
+  CopyState(branch, ydot, CopyOps::kScatterYdot);
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  const VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
-  double *ydot_data = NV_DATA_S(ydot);
-  double **dv_map = vardt->state_dv_map_;
-  for (int i = 0; i < vardt->equations_count_; i++) ydot_data[i] = *(dv_map[i]);
+  CopyState(branch, ydot, CopyOps::kGatherYdot);
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
@@ -46,15 +73,15 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
   double v_ais = NV_Ith_S(y, ais_offset);
 
   // How it works: when gout[x] is zero, a root is found
-  //assert(v_ais >= -150 && v_ais < 50);
+  // assert(v_ais >= -150 && v_ais < 50);
   gout[0] = v_ais - branch->soma_->threshold_;  // AP threshold reached
   return CV_SUCCESS;
 }
 
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
-  Branch *branch = (Branch*) user_data;
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  Branch *branch = (Branch *)user_data;
+  VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
   NrnThread *nt = branch->nt_;
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
@@ -75,20 +102,20 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::ScatterY(branch, y);
 
   // start of occvode.cpp :: nocap_v
-  solver::HinesSolver::ResetRHSandDNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::ResetRHSandDNoCapacitors(branch);
 
   // sum mech-instance contributions to D and RHS on no-caps
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent,
-                          vardt->no_cap_->no_caps_ml_);  // rhs
+                          vardt->no_cap_ml_);  // rhs
   branch->CallModFunction(Mechanism::ModFunctions::kJacob,
-                          vardt->no_cap_->no_caps_ml_);  // lhs
+                          vardt->no_cap_ml_);  // lhs
 
-  solver::HinesSolver::SetupMatrixVoltageNoCapacitors(branch, vardt->no_cap_);
+  HinesSolver::SetupMatrixVoltageNoCapacitors(branch);
 
   //////// ocvode2.cpp: Cvode::fun_thread_transfer_part2
 
   // cvtrset.cpp :: CVode::rhs
-  solver::HinesSolver::ResetArray(branch, nt->_actual_rhs);
+  HinesSolver::ResetArray(branch, nt->_actual_rhs);
 
   // cvtrset.cpp :: CVode::rhs() -> rhs_memb(z.cv_memb_list_)
   // sum mech-instance contributions to D and RHS on caps
@@ -96,7 +123,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   // add parent and children axial currents (A*dv and B*dv) to RHS
   // cvtrset.cpp :: CVode::rhs()
-  solver::HinesSolver::SetupMatrixRHS(branch);
+  HinesSolver::SetupMatrixRHS(branch);
 
   // update mechanisms state (eg opening vars and derivatives)
   // cvtrset.cpp :: CVode::fun_thread_transfer_part2() -> do_ode()
@@ -116,31 +143,31 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 approximation of the Newton matrix, I - gamma J, where J = df/dy,
 and the rhs-vector b is an input. Called once per newton, thus
 several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
-int VariableTimeStep::PreConditionedDiagonalSolver
-(CVodeMem cv_mem, N_Vector b, N_Vector weight,
- N_Vector ycur, N_Vector fcur)
-{
+int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
+                                                   N_Vector weight,
+                                                   N_Vector ycur,
+                                                   N_Vector fcur) {
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
-  Branch *branch = (Branch*) cv_mem->cv_user_data;
+  Branch *branch = (Branch *)cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
   nt->_dt = cv_mem->cv_gamma;
-  nt->cj = 1.0/ nt->_dt;
+  nt->cj = 1.0 / nt->_dt;
 
   // Cvode::lhs()
-  solver::HinesSolver::ResetArray(branch, nt->_actual_d);
+  HinesSolver::ResetArray(branch, nt->_actual_d);
   branch->CallModFunction(Mechanism::ModFunctions::kJacob);
   branch->CallModFunction(Mechanism::ModFunctions::kJacobCapacitance);
-  assert(nt->_actual_b[0]==0);
-  solver::HinesSolver::SetupMatrixDiagonal(branch);
+  assert(nt->_actual_b[0] == 0);
+  HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
   ScatterYdot(branch, b);
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
-  solver::HinesSolver::ResetRHSNoCapacitors(branch, branch->vardt_);
-  solver::HinesSolver::BackwardTriangulation(branch);
-  solver::HinesSolver::ForwardSubstituion(branch);
+  HinesSolver::ResetRHSNoCapacitors(branch);
+  HinesSolver::BackwardTriangulation(branch);
+  HinesSolver::ForwardSubstituion(branch);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
   GatherYdot(branch, b);
   return CV_SUCCESS;
@@ -152,7 +179,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
                                     N_Vector, N_Vector, N_Vector) {
   realtype **jac = J->cols;
   Branch *branch = (Branch *)user_data;
-  VariableTimeStep *vardt = (VariableTimeStep *)branch->vardt_;
+  VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -171,7 +198,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
 
   // if I reset V, then nrn_current is wrong!
   // cvtrset.cpp :: CVode:: lhs
-  // solver::HinesSolver::ResetMatrixV(branch);
+  // HinesSolver::ResetMatrixV(branch);
 
   // does nothing so far (called before as part of nrn_current)
   // cvtrset.cpp :: CVode:: lhs -> lhs_memb()
@@ -182,7 +209,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
 
   /*
   //add axial currents to D (d[i] -= b[i] and d[p[i]] -= a[i])
-  solver::HinesSolver::SetupMatrixDiagonal(branch);
+  HinesSolver::SetupMatrixDiagonal(branch);
 
   //RHS = RHS* (.001 * nt->cj;)*cm; //decay of dV/dt
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
@@ -246,28 +273,72 @@ VariableTimeStep::VariableTimeStep()
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
-      no_cap_(nullptr) {}
+      no_cap_child_ids_(nullptr),
+      no_cap_node_ids_(nullptr),
+      no_cap_ml_(nullptr)
+{}
 
-VariableTimeStep::~VariableTimeStep() {
+VariableTimeStep::~VariableTimeStep(){
   N_VDestroy_Serial(y_);
   CVodeFree((void **)(&cvode_mem_));
-  delete no_cap_;
-}
 
-VariableTimeStep::NoCapacitor::~NoCapacitor() {
-  delete child_ids_;
-  delete node_ids_;
+  delete no_cap_child_ids_;
+  delete no_cap_node_ids_;
   // because these point to the same memory as
   // nt->data, we only delete main array
-  delete[] no_caps_ml_;
+  delete[] no_cap_ml_;
 }
 
-VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
-  NrnThread *nt = branch->nt_;
-  Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
+// Neuron :: occvode.cpp :: init_global()
+void VariableTimeStep::Init(Branch * branch) {
+  assert(branch->interpolator_ != nullptr);
+  VariableTimeStep* vardt = (VariableTimeStep*) branch->interpolator_;
+  CVodeMem &cvode_mem = vardt->cvode_mem_;
+  int cap_count = branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
+  NrnThread *&nt = branch->nt_;
 
-  this->node_count_ = nt->end - capac_instances->nodecount;
-  this->node_ids_ = new int[this->node_count_];
+  int flag = CV_ERR_FAILURE;
+
+  // some methods from Branch::Finitialize
+  branch->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+  branch->InitVecPlayContinous();
+  branch->DeliverEvents(t);
+  for (int n = 0; n < branch->nt_->end; n++)
+    branch->nt_->_actual_v[n] = input_params_->voltage_;
+  branch->CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
+  branch->CallModFunction(Mechanism::ModFunctions::kInitialize);
+  branch->CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
+  branch->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
+  branch->DeliverEvents(t);
+
+  // equations: capacitors + mechanisms * states
+  int &equations_count = vardt->equations_count_;
+  equations_count = cap_count;
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    Mechanism *mech = mechanisms_[m];
+    Memb_list *mech_instances = &branch->mechs_instances_[m];
+    equations_count += mech_instances->nodecount * mech->state_vars_->count_;
+  }
+
+  ///// create initial state y_0 for state array y
+
+  // create map from y and dy to NrnThread->data
+  vardt->state_var_map_ = new double *[equations_count]();
+  vardt->state_dv_map_ = new double *[equations_count]();
+
+  int var_offset = 0;
+  Memb_list *capac_instances = &branch->mechs_instances_[mechanisms_map_[CAP]];
+  for (int c = 0; c < capac_instances->nodecount; c++) {
+    int compartment_id = capac_instances->nodeindices[c];
+    vardt->state_var_map_[var_offset] = &(nt->_actual_v[compartment_id]);
+    vardt->state_dv_map_[var_offset] = &(nt->_actual_rhs[compartment_id]);
+    var_offset++;
+  }
+
+  ////////// collect information about non-capacitors nodes
+
+  vardt->no_cap_node_ids_count_ = nt->end - capac_instances->nodecount;
+  vardt->no_cap_node_ids_ = new int[vardt->no_cap_node_ids_count_];
   int no_cap_count = 0;
 
   std::vector<int> child_ids;
@@ -283,7 +354,7 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
   for (int i = 0; i < nt->end; i++) {
     // if this node is not a capacitors node
     if (capacitor_ids.find(i) == capacitor_ids.end())
-      this->node_ids_[no_cap_count++] = i;
+      vardt->no_cap_node_ids_[no_cap_count++] = i;
 
     // if parent node is not a capacitors node
     if (i > 0 &&
@@ -292,72 +363,19 @@ VariableTimeStep::NoCapacitor::NoCapacitor(const Branch *branch) {
   }
 
   // create childs ids and count of no-cap parents
-  this->child_count_ = child_ids.size();
-  this->child_ids_ = new int[this->child_count_];
-  memcpy(this->child_ids_, child_ids.data(), child_ids.size() * sizeof(int));
-  assert(this->node_count_ == no_cap_count);
+  vardt->no_cap_child_ids_count_ = child_ids.size();
+  vardt->no_cap_child_ids_ = new int[vardt->no_cap_child_ids_count_];
+  memcpy(vardt->no_cap_child_ids_, child_ids.data(), child_ids.size() * sizeof(int));
+  assert(vardt->no_cap_node_ids_count_ == no_cap_count);
 
   // occvode.cpp::new_no_cap_memb()
-  input::DataLoader::GetMembListsOrderedByCapacitorsOrNot(
-      branch, capacitor_ids, &(this->no_caps_ml_), nullptr);
-}
+  Vectorizer::GroupBranchInstancesByCapacitors(
+      branch, &(vardt->no_cap_ml_), nullptr, &capacitor_ids);
 
-// Neuron :: occvode.cpp :: init_global()
-hpx_action_t VariableTimeStep::Init = 0;
-int VariableTimeStep::Init_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->vardt_ == nullptr);
-  local->vardt_ = new VariableTimeStep();
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
-  CVodeMem &cvode_mem = vardt->cvode_mem_;
-  int cap_count = local->mechs_instances_[mechanisms_map_[CAP]].nodecount;
-  NrnThread *&nt = local->nt_;
-
-  int flag = CV_ERR_FAILURE;
-
-  // some methods from Branch::Finitialize
-  local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
-  local->InitVecPlayContinous();
-  local->DeliverEvents(t);
-  for (int n = 0; n < local->nt_->end; n++)
-    local->nt_->_actual_v[n] = input_params_->voltage_;
-  local->CallModFunction(Mechanism::ModFunctions::kBeforeInitialize);
-  local->CallModFunction(Mechanism::ModFunctions::kInitialize);
-  local->CallModFunction(Mechanism::ModFunctions::kAfterInitialize);
-  local->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  local->DeliverEvents(t);
-
-  // equations: capacitors + mechanisms * states
-  int &equations_count = vardt->equations_count_;
-  equations_count = cap_count;
+  ////////////  build remaining map with state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism *mech = mechanisms_[m];
-    Memb_list *mech_instances = &local->mechs_instances_[m];
-    equations_count += mech_instances->nodecount * mech->state_vars_->count_;
-  }
-
-  ///// create initial state y_0 for state array y
-
-  // create map from y and dy to NrnThread->data
-  vardt->state_var_map_ = new double *[equations_count]();
-  vardt->state_dv_map_ = new double *[equations_count]();
-
-  int var_offset = 0;
-  Memb_list *capac_instances = &local->mechs_instances_[mechanisms_map_[CAP]];
-  for (int c = 0; c < capac_instances->nodecount; c++) {
-    int compartment_id = capac_instances->nodeindices[c];
-    vardt->state_var_map_[var_offset] = &(nt->_actual_v[compartment_id]);
-    vardt->state_dv_map_[var_offset] = &(nt->_actual_rhs[compartment_id]);
-    var_offset++;
-  }
-
-  // collect information about non-capacitors nodes
-  vardt->no_cap_ = new NoCapacitor(local);
-
-  // build remaining map with state vars
-  for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    Mechanism *mech = mechanisms_[m];
-    Memb_list *mech_instances = &local->mechs_instances_[m];
+    Memb_list *mech_instances = &branch->mechs_instances_[m];
     int ml_data_offset = 0;
 
 #if LAYOUT == 1
@@ -375,8 +393,8 @@ int VariableTimeStep::Init_handler() {
         int state_dv_offset =
             ml_data_offset + mech->data_size_ * n + state_dv_index;
 #else
-        //Note: We add SoA format to the maps, without padding because
-        //it would require larger+padded y and y' arrays for CVODE
+        // Note: We add SoA format to the maps, without padding because
+        // it would require larger+padded y and y' arrays for CVODE
         int state_var_offset =
             ml_data_offset +
             Vectorizer::SizeOf(mech_instances->nodecount) * state_var_index + n;
@@ -401,7 +419,7 @@ int VariableTimeStep::Init_handler() {
   }
   assert(var_offset == equations_count);
   vardt->y_ = N_VNew_Serial(equations_count);
-  VariableTimeStep::GatherY(local, vardt->y_);
+  VariableTimeStep::GatherY(branch, vardt->y_);
 
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
@@ -428,7 +446,7 @@ int VariableTimeStep::Init_handler() {
   assert(flag == CV_SUCCESS);
 
   // specify user data to be used on functions as void* user_data_ptr;
-  flag = CVodeSetUserData(cvode_mem, local);
+  flag = CVodeSetUserData(cvode_mem, branch);
   assert(flag == CV_SUCCESS);
 
   // specify root func. and roots (AP-threshold reached from below)
@@ -440,8 +458,7 @@ int VariableTimeStep::Init_handler() {
   // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreConditionedDiagSolver:
-  {
+    case Interpolators::kCvodePreConditionedDiagSolver: {
       // CVODES guide chapter 8: Providing Alternate Linear Solver
       // Modules: only lsolve function is mandatory
       // (non-used functions need to be set to null)
@@ -451,15 +468,13 @@ int VariableTimeStep::Init_handler() {
       cvode_mem->cv_setupNonNull = FALSE;
       cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
-  }
+    }
     case Interpolators::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
-      if (flag==CVDLS_MEM_FAIL)
-      {
-          fprintf(stderr, "ERROR: can't allocate memory for dense jacobian for gid %d and %d equations\n",
-                 local->soma_->gid_, equations_count);
-          hpx_gas_unpin(target);
-          return HPX_USER;
+      if (flag == CVDLS_MEM_FAIL) {
+        throw std::runtime_error(
+                      "ERROR: can't allocate memory for dense jacobian for gid "
+                      + to_string(branch->soma_->gid_) + " and " + to_string(equations_count) + " equations.\n");
       }
       break;
     case Interpolators::kCvodeDiagonalMatrix:
@@ -482,19 +497,16 @@ int VariableTimeStep::Init_handler() {
   }
   assert(flag == CV_SUCCESS);
 
+
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
-  CVodeSetMaxStep(cvode_mem, neurox::min_delay_steps_);
+  CVodeSetMaxStep(cvode_mem, neurox::min_synaptic_delay_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
-
-  return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t VariableTimeStep::Run = 0;
-int VariableTimeStep::Run_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
+void VariableTimeStep::Run(Branch * local) {
   assert(local->soma_);
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
+  VariableTimeStep* vardt = (VariableTimeStep*) local->interpolator_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
   NrnThread *nt = local->nt_;
 
@@ -521,8 +533,8 @@ int VariableTimeStep::Run_handler() {
     {
       flag = CVodeGetRootInfo(cvode_mem, roots_found);
       assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0); // only root: AP threshold reached
-      if (roots_found[0] > 0)  // AP-threshold reached from below (>0)
+      assert(roots_found[0] != 0);  // only root: AP threshold reached
+      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
       {
         // if root found, integrator time is now at time of root
         hpx_t spikes_lco_ = local->soma_->SendSpikes(nt->_t);
@@ -532,7 +544,7 @@ int VariableTimeStep::Run_handler() {
 
 #ifndef NDEBUG
   // Final statistics output:
-  long num_steps=-1, num_rhs=-1, num_roots=-1, num_others = 0;
+  long num_steps = -1, num_rhs = -1, num_roots = -1, num_others = 0;
   CVodeGetNumSteps(cvode_mem, &num_steps);
   CVodeGetNumGEvals(cvode_mem, &num_roots);
   switch (input_params_->interpolator_) {
@@ -540,14 +552,17 @@ int VariableTimeStep::Run_handler() {
       CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
       CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
       printf(
-          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, roots: %d\n",
+          "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, "
+          "roots: %d\n",
           local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDenseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
       CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
-      printf("-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: %d\n",
-             local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+      printf(
+          "-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: "
+          "%d\n",
+          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDiagonalMatrix:
       CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
@@ -562,23 +577,14 @@ int VariableTimeStep::Run_handler() {
       break;
   }
 #endif
-  return neurox::wrappers::MemoryUnpin(target);
 }
 
-hpx_action_t VariableTimeStep::Clear = 0;
-int VariableTimeStep::Clear_handler() {
-  NEUROX_MEM_PIN(neurox::Branch);
-  assert(local->soma_);
-  VariableTimeStep *vardt = (VariableTimeStep *)local->vardt_;
+void VariableTimeStep::Clear(Branch * branch) {
+  assert(branch->soma_);
+  VariableTimeStep * vardt = (VariableTimeStep*) branch->interpolator_;
   vardt->~VariableTimeStep();
-  return neurox::wrappers::MemoryUnpin(target);
+  branch->interpolator_ = nullptr;
 }
 
-void VariableTimeStep::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Init,
-                                  VariableTimeStep::Init_handler);
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Run,
-                                  VariableTimeStep::Run_handler);
-  wrappers::RegisterZeroVarAction(VariableTimeStep::Clear,
-                                  VariableTimeStep::Clear_handler);
+void VariableTimeStep::StepTo(Branch * branch, const double tend) {
 }

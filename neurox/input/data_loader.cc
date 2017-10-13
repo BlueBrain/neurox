@@ -17,14 +17,13 @@
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/vrecitem.h"
 #include "coreneuron/nrnoc/multicore.h"
-#include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"  //nrn_is_ion()
 #include "coreneuron/utils/memory_utils.h"
 #include "coreneuron/utils/randoms/nrnran123.h"  //RNG data structures
 
 using namespace std;
 using namespace neurox::input;
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 using namespace neurox::tools;
 
 FILE *DataLoader::file_netcons_ = nullptr;
@@ -75,7 +74,7 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
 #if LAYOUT == 1
         int data_offset = mech->data_size_ * n + i;
 #else
-        int data_offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+        int data_offset = Vectorizer::SizeOf(ml->nodecount) * i + n;
 #endif
         if (&ml->data[data_offset] != pd) continue;  // if not this variable
 
@@ -101,9 +100,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
          nt->_permute == NULL);
 
   // map of padded to non-padded offsets of data
-  size_t data_size_padded = 6 * tools::Vectorizer::SizeOf(N);
+  size_t data_size_padded = 6 * Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
-    data_size_padded += tools::Vectorizer::SizeOf(tml->ml->nodecount) *
+    data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
 
   // map of post- to pre-padding values of pdata
@@ -116,7 +115,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   if (input_params_->branch_parallelism_depth_ > 0)
     for (int n = 0; n < N; n++)
       for (int i = 0; i < 6; i++) {
-        int offset_padded = tools::Vectorizer::SizeOf(N) * i + n;
+        int offset_padded = Vectorizer::SizeOf(N) * i + n;
         int offset_non_padded = N * i + n;
         data_offsets[offset_padded] = offset_non_padded;
       }
@@ -176,9 +175,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   //======= 2 - reconstructs mechanisms instances ========
   unsigned vdata_total_offset = 0;
-  unsigned data_total_offset = N * 6;  // no padding
-  unsigned data_total_padded_offset =
-      tools::Vectorizer::SizeOf(N) * 6;  // with padding
+  unsigned data_total_offset = N * 6;                             // no padding
+  unsigned data_total_padded_offset = Vectorizer::SizeOf(N) * 6;  // with
+                                                                  // padding
   unsigned point_proc_total_offset = 0;
 
   // information about offsets in data and node ifs of all instances of all ions
@@ -213,7 +212,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         assert(ml->data[offset_non_padded] ==
                nt->_data[data_total_offset + offset_non_padded]);
 #else
-        int offset_padded = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+        int offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
         data.push_back(ml->data[offset_padded]);
         assert(ml->data[offset_padded] ==
                nt->_data[data_total_padded_offset + offset_padded]);
@@ -230,8 +229,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         int pdata_offset_non_padded = mech->pdata_size_ * n + i;
         pdata.push_back(ml->pdata[pdata_offset_non_padded]);
 #else
-        int pdata_offset_padded =
-            tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+        int pdata_offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
         int pd = ml->pdata[pdata_offset_padded];
         int ptype = memb_func[mech->type_].dparam_semantics[i];
 
@@ -316,7 +314,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     }
     data_total_offset += mech->data_size_ * ml->nodecount;
     data_total_padded_offset +=
-        mech->data_size_ * tools::Vectorizer::SizeOf(ml->nodecount);
+        mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
@@ -412,158 +410,7 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map) {
   nrn_cleanup(clean_ion_global_map);
 }
 
-void DataLoader::GetMembListsOrderedByCapacitorsOrNot(
-    const Branch *branch,                // in
-    const std::set<int> &capacitor_ids,  // in
-    Memb_list **ml_no_capacitors_ptr,    // out
-    Memb_list **ml_capacitors_ptr        // out
-    ) {
-  // occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
-  // nodes only: pointers will point to same place in nt->data, we
-  // will re-order Memb_list to have no-caps first, and then
-  // update nodecount for no-caps instance to cover no-caps only
-  Memb_list *&ml_no_capacitors = *ml_no_capacitors_ptr;
-  ml_no_capacitors = new Memb_list[neurox::mechanisms_count_];
-  memcpy(ml_no_capacitors, branch->mechs_instances_,
-         neurox::mechanisms_count_ * sizeof(Memb_list));
-
-  // ml_capacitors is optional
-  if (ml_capacitors_ptr != nullptr) {
-    Memb_list *&ml_capacitors = *ml_capacitors_ptr;
-    ml_capacitors = new Memb_list[neurox::mechanisms_count_];
-    memcpy(ml_capacitors, branch->mechs_instances_,
-           neurox::mechanisms_count_ * sizeof(Memb_list));
-  }
-
-  int total_data_offset = tools::Vectorizer::SizeOf(branch->nt_->end) * 6;
-  map<int, map<int, int>> ions_data_map;
-  for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    Mechanism *mech = neurox::mechanisms_[m];
-    Memb_list *instances = &branch->mechs_instances_[m];
-
-    //"only point processes with currents are possibilities"
-    bool mech_is_valid = mech->pnt_map_ && mech->memb_func_.current;
-
-    int n_new = 0;
-    int data_size =
-        mech->data_size_ * tools::Vectorizer::SizeOf(instances->nodecount);
-    int pdata_size =
-        mech->pdata_size_ * tools::Vectorizer::SizeOf(instances->nodecount);
-
-    vector<double> data_new(data_size, 0);
-    vector<int> pdata_new(pdata_size);
-    vector<int> nodeindices(instances->nodecount);
-    ml_no_capacitors[m].nodecount = 0;
-
-    // first non-capacitors' instances, then capacitors
-    for (int insert_phase = 1; insert_phase <= 2; insert_phase++) {
-      for (int n = 0; n < instances->nodecount; n++) {
-        int node_id = instances->nodeindices[n];
-
-        // place first the no-caps of valid mechs; then all others
-        bool is_capacitor = capacitor_ids.find(node_id) != capacitor_ids.end();
-        int instance_phase = !is_capacitor && mech_is_valid ? 1 : 2;
-
-        if (instance_phase != insert_phase) continue;
-
-        if (mech->type_ == 3 || mech->type_ == 147)
-          assert(insert_phase == 2);  // TODO delete
-
-        assert(n_new < instances->nodecount);
-        for (int i = 0; i < mech->data_size_; i++)  // copy data
-        {
-#if LAYOUT == 1
-          int old_data_offset = mech->data_size_ * n + i;
-          int new_data_offset = mech->data_size_ * n_new + i;
-#else
-          int old_data_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
-          int new_data_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
-#endif
-          assert(new_data_offset < data_size);
-          assert(total_data_offset + old_data_offset ==
-                 (&instances->data[old_data_offset] - branch->nt_->_data));
-          data_new.at(new_data_offset) = instances->data[old_data_offset];
-
-          if (mech->is_ion_)
-            ions_data_map[mech->type_][total_data_offset + old_data_offset] =
-                total_data_offset + new_data_offset;
-        }
-        for (int i = 0; i < mech->pdata_size_; i++)  // copy pdata
-        {
-#if LAYOUT == 1
-          int old_pdata_offset = mech->pdata_size_ * n + i;
-          int new_pdata_offset = mech->pdata_size_ * n_new + i;
-#else
-          int old_pdata_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n;
-          int new_pdata_offset =
-              tools::Vectorizer::SizeOf(instances->nodecount) * i + n_new;
-#endif
-          assert(old_pdata_offset ==
-                 (&instances->pdata[old_pdata_offset] - instances->pdata));
-          int old_pdata = instances->pdata[old_pdata_offset];
-
-          // if it points to an ion, get new pdata position
-          int ptype = memb_func[mech->type_].dparam_semantics[i];
-          if (ptype > 0 && ptype < 1000)  // ptype is ion id
-            pdata_new.at(new_pdata_offset) =
-                ions_data_map.at(ptype).at(old_pdata);
-          else
-            pdata_new.at(new_pdata_offset) = old_pdata;
-        }
-
-        if (insert_phase == 1)  // count no-caps
-          ml_no_capacitors[m].nodecount++;
-
-        nodeindices[n_new++] = node_id;
-      }
-    }
-    assert(n_new == nodeindices.size());
-
-    // overwite old values in NrnThread->data
-    memcpy(ml_no_capacitors[m].data, data_new.data(),
-           sizeof(double) * data_new.size());
-    memcpy(ml_no_capacitors[m].pdata, pdata_new.data(),
-           sizeof(int) * pdata_new.size());
-    memcpy(ml_no_capacitors[m].nodeindices, nodeindices.data(),
-           sizeof(int) * n_new);
-    ml_no_capacitors[m]._nodecount_padded =
-        Vectorizer::SizeOf(ml_no_capacitors[m].nodecount);
-    total_data_offset += data_size;
-
-    if (ml_capacitors_ptr != nullptr) {
-      Memb_list *&ml_capacitors = *ml_capacitors_ptr;
-
-      // TODO TIX: this is broken for cap nodes!
-      // set cap nodecounts, and data, pdata
-      ml_capacitors[m].nodecount =
-          instances[m].nodecount - ml_no_capacitors[m].nodecount;
-      ml_capacitors[m]._nodecount_padded =
-          Vectorizer::SizeOf(ml_capacitors[m].nodecount);
-#if LAYOUT == 1
-      // address of end of no_cap data
-      // AoS data as |abababab| becomes |ababab|+|abab|
-      int capacitors_gap_pdata =
-          ml_no_capacitors[m].nodecount * mech->pdata_size_;
-      int capacitors_gap_data =
-          ml_no_capacitors[m].nodecount * mech->data_size_;
-#else
-      // offset initial address by few positions
-      // SoA data as |aaaaabbbbb| becomes |aaa__bbb__|+|__aa__bb|
-      int capacitors_gap_data = ml_no_capacitors[m].nodecount;
-      int capacitors_gap_pdata = ml_no_capacitors[m].nodecount;
-#endif
-      ml_capacitors[m].data = &(ml_no_capacitors[m].data[capacitors_gap_data]);
-      ml_capacitors[m].pdata =
-          &(ml_no_capacitors[m].pdata[capacitors_gap_pdata]);
-    }
-  }
-  assert(total_data_offset == branch->nt_->_ndata);
-}
-
-void DataLoader::InitAndLoadCoreneuronData(int argc, char **argv,
+void DataLoader::LoadCoreneuronData(int argc, char **argv,
                                            bool nrnmpi_under_nrncontrol,
                                            bool run_setup_cleanup) {
   // nrnmpi_under_nrncontrol=true allows parallel data loading without "-m"
@@ -801,13 +648,13 @@ int DataLoader::InitNeurons_handler() {
   delete my_neurons_addr_;
   my_neurons_addr_ = nullptr;
 
-  if (input_params_->allreduce_at_locality_) {
+  if (input_params_->locality_comm_reduce_) {
     assert(
         0);  // TODO Broken, my_neurons_addrs point to all neurons loaded by me,
     // but can be allocated anywhere
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        new std::vector<hpx_t>(my_neurons_addr_->begin(),
-                               my_neurons_addr_->end());
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+        locality_neurons_ = new std::vector<hpx_t>(my_neurons_addr_->begin(),
+                                                   my_neurons_addr_->end());
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -949,10 +796,10 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (input_params_->allreduce_at_locality_)
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
+  if (input_params_->locality_comm_reduce_)
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-  delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+  delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
       locality_neurons_;
 
   if (input_params_->output_netcons_dot) {
@@ -1312,8 +1159,8 @@ int DataLoader::GetBranchData(
             case -7:  //"bbcorepointer"
               pdata_mechs.at(m).at(p) = (offset_t)vdata_pointer_offset++;
               break;
-            case -8:      //"bbcorepointer"
-              assert(0);  // watch condition, not supported
+            case -8:  // watch condition, not supported
+              assert(0);
               break;
             default:
               if (ptype > 0 && ptype < 1000)  // name preffixed by '#'
@@ -1459,8 +1306,8 @@ hpx_t DataLoader::CreateBranch(
     // and AIS). Note: we do this after children creation so that we use top
     // (lighter)
     // branches to balance work load
-    hpx_t temp_branch_addr = hpx_gas_alloc_local(
-        1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment);
+    hpx_t temp_branch_addr =
+        hpx_gas_alloc_local(1, sizeof(Branch), Vectorizer::kMemoryAlignment);
     bool run_benchmark_and_clear = true;
     int dumb_threshold_offset = 0;
     double time_elapsed = -1;
@@ -1520,8 +1367,7 @@ hpx_t DataLoader::CreateBranch(
 
   // allocate and initialize branch on the respective owner
   hpx_t branch_addr = hpx_gas_alloc_local_at_sync(
-      1, sizeof(Branch), tools::Vectorizer::kMemoryAlignment,
-      HPX_THERE(neuron_rank));
+      1, sizeof(Branch), Vectorizer::kMemoryAlignment, HPX_THERE(neuron_rank));
 
   // update hpx address of soma
   soma_branch_addr = is_soma ? branch_addr : soma_branch_addr;
@@ -1588,7 +1434,7 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
-  //TODO the fastest synaptic delay variable should be set here!
+  // TODO the fastest synaptic delay variable should be set here!
   if (local->soma_ && input_params_->output_netcons_dot)
     fprintf(file_netcons_, "%d [style=filled, shape=ellipse];\n",
             local->soma_->gid_);
@@ -1624,11 +1470,11 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(src_addr, min_delay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params_->algorithm_ == Algorithms::kBenchmarkAll ||
-            input_params_->algorithm_ == Algorithms::kTimeDependencyLCO) {
+        if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll ||
+            input_params_->synchronizer_ == Synchronizers::kTimeDependency) {
           spike_time_t notificationTime =
               input_params_->tstart_ +
-              min_delay * TimeDependencyLCOAlgorithm::TimeDependencies::
+              min_delay * TimeDependencySynchronizer::TimeDependencies::
                               kNotificationIntervalRatio;
           dependencies.push_back(make_pair(src_gid, notificationTime));
         }

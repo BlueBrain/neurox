@@ -4,9 +4,9 @@
 namespace neurox {
 
 // Forward declarations
-namespace algorithms {
-enum class Algorithms : int;
-class Algorithm;
+namespace synchronizers {
+enum class Synchronizers : int;
+class Synchronizer;
 }
 
 namespace interpolators {
@@ -43,14 +43,14 @@ class CmdLineParser {
   char pattern_stim_[512];  ///> patternStim file path (the filename of an
                             /// output_spikes.h format raster file.)
 
+  //TODO make const?
   // neurox specific options
-  bool output_statistics_;        ///> outputs statistics file
-  bool output_mechanisms_dot_;    ///> outputs mechanisms.dot file
-  bool output_netcons_dot;        ///> outputs netcons.dot file
-  bool output_compartments_dot_;  ///> outputs compartments*.dot files
-  bool mechs_parallelism_;        ///> graph-based parallelism of mechanisms
-  bool allreduce_at_locality_;    ///> whether to perform HPX all-reduce LCOs at
-                                  /// neuron or node level
+  bool output_statistics_;       ///> outputs statistics file
+  bool output_mechanisms_dot_;   ///> outputs mechanisms.dot file
+  bool output_netcons_dot;       ///> outputs netcons.dot file
+  bool output_compartments_dot_; ///> outputs compartments*.dot files
+  bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
+  bool locality_comm_reduce_;    ///> locality-based communication reduction
 
   /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;
@@ -58,8 +58,8 @@ class CmdLineParser {
   /// depth tree-based parallelism of morphologies
   int branch_parallelism_depth_;
 
-  /// neurons sychronization algorithm
-  algorithms::Algorithms algorithm_;
+  /// neurons sychronization synchronizer
+  synchronizers::Synchronizers synchronizer_;
 
   /// interpolation agorithm
   interpolators::Interpolators interpolator_;

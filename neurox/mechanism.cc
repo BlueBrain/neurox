@@ -6,6 +6,7 @@
 
 using namespace std;
 using namespace neurox;
+using namespace neurox::interpolators;
 
 Mechanism::Mechanism(const int type, const short int data_size,
                      const short int pdata_size, const char is_artificial,

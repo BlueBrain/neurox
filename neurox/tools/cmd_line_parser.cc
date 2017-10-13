@@ -4,6 +4,7 @@
 #include "tclap/CmdLine.h"
 
 using namespace neurox::tools;
+using namespace neurox::interpolators;
 
 CmdLineParser::CmdLineParser()
     :  // from nrnoptarg.cpp::cn_parameters():
@@ -41,8 +42,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg allreduce_at_locality(
-        "R", "reduce-by-locality",
+    TCLAP::SwitchArg locality_comm_reduce(
+        "R", "locality_comm_reduce",
         "perform HPX all-reduce operation at "
         "locality level instead of neuron "
         "level (better for small cluster).",
@@ -68,16 +69,16 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<int> branch_parallelism_depth(
         "B", "branching-depth",
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
-    TCLAP::ValueArg<int> algorithm(
-        "A", "algorithm",
+    TCLAP::ValueArg<int> synchronizer(
+        "A", "synchronizer",
         "\
 [0] BackwardEulerCoreneuronDebug\
 \n[1] BackwardEulerWithAllReduceBarrier (default)\
 \n[2] BackwardEulerWithSlidingTimeWindow\
-\n[3] BackwardEulerWithTimeDependencyLCO\
+\n[3] BackwardEulerWithTimeDependency\
 \n[4] BackwardEulerCoreneuron\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
-        false, (int)algorithms::Algorithms::kAllReduce, "int");
+        false, (int)synchronizers::Synchronizers::kAllReduce, "int");
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
@@ -90,7 +91,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, (int)interpolators::Interpolators::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
-    cmd.add(algorithm);
+    cmd.add(synchronizer);
     cmd.add(interpolator);
 
     // coreneuron command line parameters
@@ -103,7 +104,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 10, "floble_t");
     cmd.add(tstop);
     TCLAP::ValueArg<floble_t> dt(
-        "t", "dt", "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
+        "t", "dt",
+        "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
 \n - CVODES with Diagonal Jacobian solver: default 0.0001 msecs\
 \n - CVODES with Dense Jacobian: default 0.001 msecs\
 \n - CVODES with Diagonal Jacobian solver: default 0.00001 msecs\
@@ -169,11 +171,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot_ = output_compartments_dot.getValue();
     this->mechs_parallelism_ = mechs_parallelism.getValue();
-    this->allreduce_at_locality_ = allreduce_at_locality.getValue();
+    this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->algorithm_ = (algorithms::Algorithms)algorithm.getValue();
-    neurox::algorithm_ = algorithms::Algorithm::New(this->algorithm_);
+    this->synchronizer_ = (synchronizers::Synchronizers)synchronizer.getValue();
+    neurox::synchronizer_ =
+        synchronizers::Synchronizer::New(this->synchronizer_);
     this->interpolator_ = (interpolators::Interpolators)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
@@ -183,47 +186,46 @@ void CmdLineParser::Parse(int argc, char** argv) {
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
-    floble_t remainder_tstop_tcomm = fmod(
-        this->tstop_, neurox::min_delay_steps_ * this->dt_);
+    floble_t remainder_tstop_tcomm =
+        fmod(this->tstop_, neurox::min_synaptic_delay_);
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 
-    //handling of dt for variable-step interpolations
-    if (this->interpolator_ == Interpolators::kBackwardEuler)
-    {
-        if (!dt.isSet())
-        {
-            switch (this->interpolator_)
-            {
-            case Interpolators::kCvodePreConditionedDiagSolver:
-                this->dt_ = 1e-4;
-                break;
-            case Interpolators::kCvodeDenseMatrix:
-                this->dt_ = 1e-3;
-                break;
-            case Interpolators::kCvodeDiagonalMatrix:
-                this->dt_ = 1e-5;
-                break;
-            default:
-                this->dt_ = 1e-4;
-            }
+    // handling of dt for variable-step interpolations
+    if (this->interpolator_ != Interpolators::kBackwardEuler) {
+      if (!dt.isSet())  // if not user-provided
+      {
+        switch (this->interpolator_) {
+          case Interpolators::kCvodePreConditionedDiagSolver:
+            this->dt_ = 1e-4;
+            break;
+          case Interpolators::kCvodeDenseMatrix:
+            this->dt_ = 1e-3;
+            break;
+          case Interpolators::kCvodeDiagonalMatrix:
+            this->dt_ = 1e-5;
+            break;
+          default:
+            this->dt_ = 1e-4;
         }
-    }
-    else // ... for fixed-step interpolation
+      }
+    } else  // ... for fixed-step interpolation
     {
-        if (this->dt_ <= 0)
-          throw TCLAP::ArgException(
-              "time-step size (ms) should be a positive value", "dt");
+      if (this->dt_ <= 0)
+        throw TCLAP::ArgException(
+            "time-step size (ms) should be a positive value", "dt");
 
-        if (!(remainder_tstop_tcomm < 0.00001 ||
-              remainder_tstop_tcomm > neurox::min_delay_steps_*this->dt_-0.00001))
-          throw TCLAP::ArgException(
-              "execution time " + to_string(this->tstop_) +
-                  "ms should be a multiple of the communication delay " +
-                  to_string(neurox::min_delay_steps_*this->dt_) +" ms","tstop");
+      if (!(remainder_tstop_tcomm < 0.00001 ||
+            remainder_tstop_tcomm >
+                neurox::min_synaptic_delay_ - 0.00001))
+        throw TCLAP::ArgException(
+            "execution time " + to_string(this->tstop_) +
+                "ms should be a multiple of the communication delay " +
+                to_string(neurox::min_synaptic_delay_) + " ms",
+            "tstop");
     }
 
   } catch (TCLAP::ArgException& e) {

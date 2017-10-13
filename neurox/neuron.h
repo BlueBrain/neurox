@@ -7,8 +7,8 @@
 namespace neurox {
 
 /// forward declarations
-namespace algorithms {
-class AlgorithmMetadata;
+namespace synchronizers {
+class SynchronizerMetadata;
 };
 
 /**
@@ -56,7 +56,7 @@ class Neuron {
   /// fires AP, returns LCO for sent synapses
   hpx_t SendSpikes(floble_t t);
 
-  /// fires AP, and returns HPX address (to be called by some Algorithms)
+  /// fires AP, and returns HPX address (to be called by some Synchronizers)
   static hpx_t SendSpikesAsync(Neuron*, double);
 
   /// add hpx address of post-synaptic branch
@@ -65,8 +65,8 @@ class Neuron {
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
-  /// Algorithm-dependent metadata
-  algorithms::AlgorithmMetadata* algorithm_metadata_;
+  /// Synchronizer-dependent metadata
+  synchronizers::SynchronizerMetadata* synchronizer_metadata_;
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;

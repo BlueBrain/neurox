@@ -18,9 +18,10 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/netcon.h"
 #include "neurox/vecplay_continuous.h"
 
-// morphology classes (branches and soma)
+// morphology classes (branches, neuron) and Hines solver
 #include "neurox/branch.h"
 #include "neurox/neuron.h"
+#include "neurox/hines_solver.h"
 
 // Tools
 #include "neurox/tools/cmd_line_parser.h"
@@ -28,14 +29,18 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/tools/statistics.h"
 #include "neurox/tools/vectorizer.h"
 
-// Algorithms
-#include "neurox/algorithms/algorithm.h"
+// Synchronizers
+#include "neurox/synchronizers/synchronizer.h"
+#include "neurox/synchronizers/allreduce_synchronizer.h"
+#include "neurox/synchronizers/coreneuron_synchronizer.h"
+#include "neurox/synchronizers/debug_synchronizer.h"
+#include "neurox/synchronizers/sliding_time_window_synchronizer.h"
+#include "neurox/synchronizers/time_dependency_synchronizer.h"
 
 // Interpolators
 #include "neurox/interpolators/interpolator.h"
-
-// Fixed-step Backward-Euler solver
-#include "neurox/solver/hines_solver.h"
+#include "neurox/interpolators/variable_time_step.h"
+#include "neurox/interpolators/backward_euler.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"
@@ -48,8 +53,8 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 namespace neurox {
 
-/// Fixed communication step size in fixed-steps
-extern int min_delay_steps_;
+/// Global minimum synaptic delay
+extern double min_synaptic_delay_;
 
 ///  hpx address of all neurons
 extern hpx_t *neurons_;
@@ -69,8 +74,8 @@ extern int *mechanisms_map_;
 /// Parameters parsed from command line
 extern tools::CmdLineParser *input_params_;
 
-/// neurons synchronization algorithm instance
-extern algorithms::Algorithm *algorithm_;
+/// neurons synchronization synchronizer instance
+extern synchronizers::Synchronizer *synchronizer_;
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);

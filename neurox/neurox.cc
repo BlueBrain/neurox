@@ -5,19 +5,20 @@
 #include <iostream>
 #include <map>
 
-using namespace neurox::algorithms;
+using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 namespace neurox {
 
-int min_delay_steps_ = 4; //TODO should be set at InitNetCons
+//TODO compute at runtime
+double min_synaptic_delay_ = 0.1 + 0.00000001;
 hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
 neurox::Mechanism **mechanisms_ = nullptr;
 neurox::tools::CmdLineParser *input_params_ = nullptr;
-neurox::algorithms::Algorithm *algorithm_ = nullptr;
+neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -42,6 +43,8 @@ static int Main_handler() {
   neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
   neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
+  neurox::input::Debugger::CompareMechanismsFunctions();
+  neurox::input::Debugger::CompareAllBranches();
 
   if (neurox::input_params_->output_statistics_) {
     tools::Statistics::OutputMechanismsDistribution();
@@ -49,55 +52,60 @@ static int Main_handler() {
     // hpx_exit(0,NULL);
   }
 
-  neurox::input::Debugger::CompareMechanismsFunctions();
+  //call init action on each neuron (e.g. Finitialize, Cvodes init)
+  DebugMessage("neurox::Branch::Initialize...\n");
+  neurox::wrappers::CallAllNeurons(Branch::Initialize);
+#ifndef NDEBUG
+  hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
+  hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
   neurox::input::Debugger::CompareAllBranches();
+#endif
 
-  double total_time_elapsed = 0;
-  if (input_params_->algorithm_ == Algorithms::kBenchmarkAll) {
-    // TODO for this to work, we have to re-set algorothm in all cpus?
-    for (int type = 0; type < 4; type++) {
-      algorithm_ = Algorithm::New((Algorithms)type);
-      algorithm_->Init();
-      algorithm_->PrintStartInfo();
-      double time_elapsed = algorithm_->Launch();
-      total_time_elapsed += time_elapsed;
-      algorithm_->Clear();
-      delete algorithm_;
+  //iterator through all synchronizers (if many) and run
+  hpx_time_t total_time_now = hpx_time_now();
+  const int synchronizer = (int) input_params_->synchronizer_;
+  const bool run_all = synchronizer == (int) Synchronizers::kBenchmarkAll;
+  const int init_type = run_all ? 0 : synchronizer;
+  const int end_type = run_all ? (int) Synchronizers::kSynchronizersCount : synchronizer;
+  const double tstop = input_params_->tstop_;
+  for (int type = init_type; type < end_type; type++)
+  {
+      wrappers::CallAllLocalities(Synchronizer::InitLocality, &type, sizeof(type));
+
+      hpx_time_t time_now = hpx_time_now();
+      if (input_params_->locality_comm_reduce_)
+        neurox::wrappers::CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
+      else
+        neurox::wrappers::CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
+      double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
+
+      printf("neurox::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
+            synchronizer_->GetString(), neurox::neurons_count_, input_params_->tstop_ / 1000,
+            input_params_->dt_);
 
 #ifdef NDEBUG
       // output benchmark info
       printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n",
              neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
              neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-             input_params_->tstop_, sync_algorithm_->GetType(),
+             input_params_->tstop_, sync_synchronizer_->GetType(),
              input_params_->mechs_parallelism_ ? 1 : 0,
              input_params_->branch_parallelism_depth_,
              input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
       fflush(stdout);
 #endif
-    }
-  } else if (input_params_->interpolator_ != Interpolators::kBackwardEuler) {
-    // TODO temp hack, at some point interpolators will include Back-Euler and
-    // CVODE
-    neurox::wrappers::CallAllNeurons(VariableTimeStep::Init);
-    neurox::wrappers::CallAllNeurons(VariableTimeStep::Run);
-    neurox::wrappers::CallAllNeurons(VariableTimeStep::Clear);
-  } else {
-    algorithm_ = Algorithm::New(input_params_->algorithm_);
-    algorithm_->Init();
-    algorithm_->PrintStartInfo();
-    total_time_elapsed = algorithm_->Launch();
-    algorithm_->Clear();
-    delete algorithm_;
+      neurox::wrappers::CallAllLocalities(Synchronizer::ClearLocality);
+      delete synchronizer_;
   }
 
-  printf(
-      "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
-      "secs).\n",
-      neurox::neurons_count_, input_params_->tstop_ / 1000.0,
-      total_time_elapsed);
-
+  DebugMessage("neurox::Interpolator::ClearNeuron...\n");
+  wrappers::CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
+
+  double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
+  printf("neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
+      "secs).\n",
+      neurox::neurons_count_, input_params_->tstop_ / 1000.0, total_elapsed_time);
   hpx_exit(0, NULL);
 }
 
@@ -108,19 +116,19 @@ int Clear_handler() {
   delete[] neurox::neurons_;
   delete[] neurox::mechanisms_map_;
 
-  if (input_params_->allreduce_at_locality_) {
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_
+  if (input_params_->locality_comm_reduce_) {
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::locality_neurons_
         ->clear();
-    delete AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::
+    delete AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
         locality_neurons_;
-    AllreduceAlgorithm::AllReducesInfo::AllReduceLocality::locality_neurons_ =
-        nullptr;
+    AllreduceSynchronizer::AllReducesInfo::AllReduceLocality::
+        locality_neurons_ = nullptr;
   }
 
 #ifndef NDEBUG
-  neurox::input::DataLoader::CleanCoreneuronData(true);
+  input::DataLoader::CleanCoreneuronData(true);
 #endif
-  return neurox::wrappers::MemoryUnpin(target);
+  return wrappers::MemoryUnpin(target);
 }
 
 void DebugMessage(const char *str) {

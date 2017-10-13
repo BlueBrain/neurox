@@ -30,23 +30,14 @@ class DataLoader {
   static void loadData(int argc, char **argv);
 
   /// Calls coreneuron nrn_init_and_load_data
-  static void InitAndLoadCoreneuronData(int argc, char **argv,
+  static void LoadCoreneuronData(int argc, char **argv,
                                         bool nrnmpi_under_nrncontrol = false,
                                         bool run_setup_cleanup = false);
 
   /// removes all data structures loaded for coreneuron
   static void CleanCoreneuronData(const bool clean_ion_global_map = true);
 
-  /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
-  static void GetMembListsOrderedByCapacitorsOrNot(
-      const Branch *branch,                    // in
-      const std::set<int> &capacitors_ids,     // in
-      Memb_list **ml_no_capacitors_ptr,        // out
-      Memb_list **ml_capacitors_ptr = nullptr  // out (optional)
-      );
-
-  /// Registers all HPX actions
-  static void RegisterHpxActions();
+  static void RegisterHpxActions();  ///> Register HPX actions
 
   static hpx_action_t Init;
   static hpx_action_t InitMechanisms;
