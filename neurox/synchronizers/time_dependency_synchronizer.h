@@ -14,7 +14,7 @@ class TimeDependencySynchronizer : public Synchronizer {
   TimeDependencySynchronizer();
   ~TimeDependencySynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
   void InitLocality() override;
@@ -31,7 +31,7 @@ class TimeDependencySynchronizer : public Synchronizer {
                           spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public SynchronizerMetadata {
+  class TimeDependencies : public SynchronizerNeuronInfo {
    public:
     TimeDependencies();
     ~TimeDependencies();

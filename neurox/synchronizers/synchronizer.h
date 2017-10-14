@@ -10,7 +10,7 @@ namespace synchronizers {
  * @brief The Synchronizers enum
  * Uniquely identifies the Id of each synchronizer
  */
-enum class Synchronizers : int {
+enum class SynchronizerIds : int {
   kDebug = 0,  // For debug only
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
@@ -25,10 +25,10 @@ enum class Synchronizers : int {
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
-class SynchronizerMetadata {
+class SynchronizerNeuronInfo {
  public:
   /// Returns an instantiated metadata for the synchronizer of given type
-  static SynchronizerMetadata* New(Synchronizers);
+  static SynchronizerNeuronInfo* New(SynchronizerIds);
 };
 
 /**
@@ -42,10 +42,10 @@ class Synchronizer {
   virtual ~Synchronizer(){};
 
   /// Returns an instantiated class of the given type
-  static Synchronizer* New(Synchronizers);
+  static Synchronizer* New(SynchronizerIds);
 
   /// Returns class type
-  const virtual Synchronizers GetId() = 0;
+  const virtual SynchronizerIds GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;

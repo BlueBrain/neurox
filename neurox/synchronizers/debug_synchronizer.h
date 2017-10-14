@@ -12,7 +12,7 @@ class DebugSynchronizer : public Synchronizer {
   DebugSynchronizer();
   ~DebugSynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
   void InitLocality() override;
@@ -26,7 +26,7 @@ class DebugSynchronizer : public Synchronizer {
   void Launch();
   void Run(Branch*, const void*);
 
-  class CommunicationBarrier : public SynchronizerMetadata {
+  class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();

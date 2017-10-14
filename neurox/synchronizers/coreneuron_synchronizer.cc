@@ -15,8 +15,8 @@ CoreneuronSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   assert(0);
 }
 
-const Synchronizers CoreneuronSynchronizer::GetId() {
-  return Synchronizers::kCoreneuron;
+const SynchronizerIds CoreneuronSynchronizer::GetId() {
+  return SynchronizerIds::kCoreneuron;
 }
 
 const char* CoreneuronSynchronizer::GetString() {

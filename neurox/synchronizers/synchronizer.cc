@@ -4,17 +4,17 @@ using namespace neurox;
 using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
-Synchronizer* Synchronizer::New(Synchronizers type) {
+Synchronizer* Synchronizer::New(SynchronizerIds type) {
   switch (type) {
-    case Synchronizers::kDebug:
+    case SynchronizerIds::kDebug:
       return new DebugSynchronizer();
-    case Synchronizers::kCoreneuron:
+    case SynchronizerIds::kCoreneuron:
       return new CoreneuronSynchronizer();
-    case Synchronizers::kAllReduce:
+    case SynchronizerIds::kAllReduce:
       return new AllreduceSynchronizer();
-    case Synchronizers::kSlidingTimeWindow:
+    case SynchronizerIds::kSlidingTimeWindow:
       return new SlidingTimeWindowSynchronizer();
-    case Synchronizers::kTimeDependency:
+    case SynchronizerIds::kTimeDependency:
       return new TimeDependencySynchronizer();
     default:
       return nullptr;
@@ -22,20 +22,20 @@ Synchronizer* Synchronizer::New(Synchronizers type) {
   return nullptr;
 };
 
-SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
+SynchronizerNeuronInfo* SynchronizerNeuronInfo::New(SynchronizerIds type) {
   switch (type) {
-    case Synchronizers::kDebug:
+    case SynchronizerIds::kDebug:
       return new DebugSynchronizer::CommunicationBarrier();
-    case Synchronizers::kCoreneuron:
+    case SynchronizerIds::kCoreneuron:
       return new CoreneuronSynchronizer::CommunicationBarrier();
-    case Synchronizers::kAllReduce:
+    case SynchronizerIds::kAllReduce:
       return new AllreduceSynchronizer::AllReduceNeuronInfo(
           AllreduceSynchronizer::kAllReducesCount);
-    case Synchronizers::kSlidingTimeWindow:
+    case SynchronizerIds::kSlidingTimeWindow:
       // same as above, with different number of reduces
       return new AllreduceSynchronizer::AllReduceNeuronInfo(
           SlidingTimeWindowSynchronizer::kAllReducesCount);
-    case Synchronizers::kTimeDependency:
+    case SynchronizerIds::kTimeDependency:
       return new TimeDependencySynchronizer::TimeDependencies();
     default:
       return nullptr;
@@ -52,7 +52,7 @@ int Synchronizer::InitializeLocality_handler(const int* synchronizer_id_ptr,
   delete neurox::synchronizer_;
 
   // initiate synchronizer
-  Synchronizers synchronizer_id = *(Synchronizers*)synchronizer_id_ptr;
+  SynchronizerIds synchronizer_id = *(SynchronizerIds*)synchronizer_id_ptr;
   neurox::synchronizer_ = Synchronizer::New(synchronizer_id);
   neurox::synchronizer_->InitLocality();
   NEUROX_MEM_UNPIN;

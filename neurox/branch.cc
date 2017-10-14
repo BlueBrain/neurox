@@ -531,7 +531,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   NEUROX_MEM_PIN(Branch);
   assert(
       nargs ==
-      (input_params_->synchronizer_ == Synchronizers::kTimeDependency ? 3 : 2));
+      (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency ? 3 : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];

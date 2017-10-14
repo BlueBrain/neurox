@@ -90,7 +90,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
 
   // CVODES-specific
   if (input_params_->interpolator_ !=
-      interpolators::Interpolators::kBackwardEuler) {
+      interpolators::InterpolatorIds::kBackwardEuler) {
     this->state_vars_ = new StateVars();
     if (!this->is_ion_ && this->type_ != MechanismTypes::kCapacitance) {
       // get state variables count, values and offsets
@@ -239,7 +239,7 @@ void Mechanism::CallModFunction(
                   branch->mechs_graph_);
           } else  // regular version
           {
-            if (input_params_->interpolator_ != Interpolators::kBackwardEuler)
+            if (input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
               for (int i = 0; i < memb_list->nodecount; i++) {
                 int nd = memb_list->nodeindices[i];
                 // fprintf(stderr, "== current: mech %d, node %d\n",

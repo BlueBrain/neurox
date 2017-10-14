@@ -16,7 +16,7 @@ DebugSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const Synchronizers DebugSynchronizer::GetId() { return Synchronizers::kDebug; }
+const SynchronizerIds DebugSynchronizer::GetId() { return SynchronizerIds::kDebug; }
 
 const char* DebugSynchronizer::GetString() {
   return "BackwardEulerCoreneuronDebug";

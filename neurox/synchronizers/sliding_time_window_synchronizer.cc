@@ -7,8 +7,8 @@ SlidingTimeWindowSynchronizer::SlidingTimeWindowSynchronizer() {}
 
 SlidingTimeWindowSynchronizer::~SlidingTimeWindowSynchronizer() {}
 
-const Synchronizers SlidingTimeWindowSynchronizer::GetId() {
-  return Synchronizers::kSlidingTimeWindow;
+const SynchronizerIds SlidingTimeWindowSynchronizer::GetId() {
+  return SynchronizerIds::kSlidingTimeWindow;
 }
 
 const char* SlidingTimeWindowSynchronizer::GetString() {

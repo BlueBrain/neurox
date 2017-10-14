@@ -12,7 +12,7 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
   SlidingTimeWindowSynchronizer();
   ~SlidingTimeWindowSynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
   void InitLocality() override;

@@ -11,8 +11,8 @@ TimeDependencySynchronizer::TimeDependencySynchronizer() {}
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
 
-const Synchronizers TimeDependencySynchronizer::GetId() {
-  return Synchronizers::kTimeDependency;
+const SynchronizerIds TimeDependencySynchronizer::GetId() {
+  return SynchronizerIds::kTimeDependency;
 }
 
 const char* TimeDependencySynchronizer::GetString() {
@@ -35,7 +35,7 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
     /* fixes crash for Synchronizer::All when TimeDependency
      * synchronizer starts at t=inputParams->tend*2 increase
      * notification and dependencies time */
-    if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll) {
+    if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
       for (Neuron::Synapse*& s : b->soma_->synapses_)
         s->next_notification_time_ += b->nt_->_t;
       time_dependencies->IncreseDependenciesTime(b->nt_->_t);

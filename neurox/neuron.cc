@@ -16,7 +16,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
   this->synchronizer_metadata_ =
-      SynchronizerMetadata::New(input_params_->synchronizer_);
+      SynchronizerNeuronInfo::New(input_params_->synchronizer_);
 
   assert(this->synchronizer_metadata_ != nullptr);
   assert(

@@ -664,7 +664,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
    */
 
   NEUROX_MEM_PIN(uint64_t);
-  assert(nargs == 2);
+  assert(nargs == 3);
   assert(sizes[0] / sizeof(int) == sizes[1] / sizeof(hpx_t));
 
   const int recv_neurons_count = sizes[0] / sizeof(int);
@@ -1470,8 +1470,8 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(src_addr, min_delay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll ||
-            input_params_->synchronizer_ == Synchronizers::kTimeDependency) {
+        if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll ||
+            input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
           spike_time_t notificationTime =
               input_params_->tstart_ +
               min_delay * TimeDependencySynchronizer::TimeDependencies::

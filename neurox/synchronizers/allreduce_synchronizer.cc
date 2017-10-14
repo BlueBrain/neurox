@@ -11,8 +11,8 @@ AllreduceSynchronizer::AllreduceSynchronizer() {}
 
 AllreduceSynchronizer::~AllreduceSynchronizer() {}
 
-const Synchronizers AllreduceSynchronizer::GetId() {
-  return Synchronizers::kAllReduce;
+const SynchronizerIds AllreduceSynchronizer::GetId() {
+  return SynchronizerIds::kAllReduce;
 }
 
 const char* AllreduceSynchronizer::GetString() {

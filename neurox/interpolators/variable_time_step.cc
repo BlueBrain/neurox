@@ -456,7 +456,7 @@ void VariableTimeStep::Init(Branch *branch) {
   // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreConditionedDiagSolver: {
+    case InterpolatorIds::kCvodePreConditionedDiagSolver: {
       // CVODES guide chapter 8: Providing Alternate Linear Solver
       // Modules: only lsolve function is mandatory
       // (non-used functions need to be set to null)
@@ -467,7 +467,7 @@ void VariableTimeStep::Init(Branch *branch) {
       cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
     }
-    case Interpolators::kCvodeDenseMatrix:
+    case InterpolatorIds::kCvodeDenseMatrix:
       flag = CVDense(cvode_mem, equations_count);
       if (flag == CVDLS_MEM_FAIL) {
         throw std::runtime_error(
@@ -476,10 +476,10 @@ void VariableTimeStep::Init(Branch *branch) {
             to_string(equations_count) + " equations.\n");
       }
       break;
-    case Interpolators::kCvodeDiagonalMatrix:
+    case InterpolatorIds::kCvodeDiagonalMatrix:
       flag = CVDiag(cvode_mem);
       break;
-    case Interpolators::kCvodeSparseMatrix:
+    case InterpolatorIds::kCvodeSparseMatrix:
       // TODO
       assert(0);
 
@@ -517,7 +517,7 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
   CVodeGetNumSteps(cvode_mem, &num_steps);
   CVodeGetNumGEvals(cvode_mem, &num_roots);
   switch (input_params_->interpolator_) {
-    case Interpolators::kCvodePreConditionedDiagSolver:
+    case InterpolatorIds::kCvodePreConditionedDiagSolver:
       CVodeGetNumRhsEvals(cvode_mem, &num_rhs);
       CVodeGetNumNonlinSolvIters(cvode_mem, &num_others);
       printf(
@@ -525,7 +525,7 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
           "roots: %d\n",
           branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
-    case Interpolators::kCvodeDenseMatrix:
+    case InterpolatorIds::kCvodeDenseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
       CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
       printf(
@@ -533,12 +533,12 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
           "%d\n",
           branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
-    case Interpolators::kCvodeDiagonalMatrix:
+    case InterpolatorIds::kCvodeDiagonalMatrix:
       CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
       printf("-- Neuron %d completed. steps: %d, rhs: %d, roots: %d\n",
              branch->soma_->gid_, num_steps, num_rhs, num_roots);
       break;
-    case Interpolators::kCvodeSparseMatrix:
+    case InterpolatorIds::kCvodeSparseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
       CVDlsGetNumRhsEvals(cvode_mem, &num_rhs);
       // CVSlsGetNumJacEvals(cvode_mem, &num_jacob_evals);

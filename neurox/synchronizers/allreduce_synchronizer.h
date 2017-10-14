@@ -12,7 +12,7 @@ class AllreduceSynchronizer : public Synchronizer {
   AllreduceSynchronizer();
   ~AllreduceSynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
   void InitLocality() override;
@@ -53,7 +53,7 @@ class AllreduceSynchronizer : public Synchronizer {
     static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
   };
 
-  class AllReduceNeuronInfo : public SynchronizerMetadata {
+  class AllReduceNeuronInfo : public SynchronizerNeuronInfo {
    public:
     AllReduceNeuronInfo() = delete;
     AllReduceNeuronInfo(const size_t);

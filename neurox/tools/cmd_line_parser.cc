@@ -77,7 +77,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[3] BackwardEulerWithTimeDependency\
 \n[4] BackwardEulerCoreneuron\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
-        false, (int)synchronizers::Synchronizers::kAllReduce, "int");
+        false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
@@ -87,7 +87,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[2] CVODES with Diagonal Jacobian\
 \n[3] CVODES with Sparse Jacobian\
 \n[9] Backward Euler (default)",
-        false, (int)interpolators::Interpolators::kBackwardEuler, "int");
+        false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
 
     cmd.add(branch_parallelism_depth);
     cmd.add(synchronizer);
@@ -173,10 +173,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->synchronizer_ = (synchronizers::Synchronizers)synchronizer.getValue();
+    this->synchronizer_ = (synchronizers::SynchronizerIds)synchronizer.getValue();
     neurox::synchronizer_ =
         synchronizers::Synchronizer::New(this->synchronizer_);
-    this->interpolator_ = (interpolators::Interpolators)interpolator.getValue();
+    this->interpolator_ = (interpolators::InterpolatorIds)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
@@ -189,22 +189,22 @@ void CmdLineParser::Parse(int argc, char** argv) {
         fmod(this->tstop_, neurox::min_synaptic_delay_);
 
     if (this->branch_parallelism_depth_ > 0 &&
-        this->interpolator_ != interpolators::Interpolators::kBackwardEuler)
+        this->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 
     // handling of dt for variable-step interpolations
-    if (this->interpolator_ != Interpolators::kBackwardEuler) {
+    if (this->interpolator_ != InterpolatorIds::kBackwardEuler) {
       if (!dt.isSet())  // if not user-provided
       {
         switch (this->interpolator_) {
-          case Interpolators::kCvodePreConditionedDiagSolver:
+          case InterpolatorIds::kCvodePreConditionedDiagSolver:
             this->dt_ = 1e-4;
             break;
-          case Interpolators::kCvodeDenseMatrix:
+          case InterpolatorIds::kCvodeDenseMatrix:
             this->dt_ = 1e-3;
             break;
-          case Interpolators::kCvodeDiagonalMatrix:
+          case InterpolatorIds::kCvodeDiagonalMatrix:
             this->dt_ = 1e-5;
             break;
           default:

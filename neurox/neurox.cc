@@ -65,10 +65,10 @@ static int Main_handler() {
   // iterator through all synchronizers (if many) and run
   hpx_time_t total_time_now = hpx_time_now();
   const int synchronizer = (int)input_params_->synchronizer_;
-  const bool run_all = synchronizer == (int)Synchronizers::kBenchmarkAll;
+  const bool run_all = synchronizer == (int)SynchronizerIds::kBenchmarkAll;
   const int init_type = run_all ? 0 : synchronizer;
   const int end_type =
-      run_all ? (int)Synchronizers::kSynchronizersCount : synchronizer + 1;
+      run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   const double tstop = input_params_->tstop_;
   for (int type = init_type; type <= end_type; type++) {
     hpx_bcast_rsync(Synchronizer::InitializeLocality, &type, sizeof(type));
