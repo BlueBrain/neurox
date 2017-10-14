@@ -18,7 +18,7 @@ class AllreduceSynchronizer : public Synchronizer {
   void Init() override;
   void Clear() override;
   void BeforeStep(Branch*) override;
-  double GetMaxStepTime(Branch *) override;
+  double GetMaxStepTime(Branch*) override;
 
   void AfterStep(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
@@ -58,7 +58,7 @@ class AllreduceSynchronizer : public Synchronizer {
 
   class AllReducesInfo : public SynchronizerMetadata {
    public:
-    AllReducesInfo()=delete;
+    AllReducesInfo() = delete;
     AllReducesInfo(const size_t);
     ~AllReducesInfo();
 
