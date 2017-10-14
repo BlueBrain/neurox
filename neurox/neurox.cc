@@ -70,15 +70,14 @@ static int Main_handler() {
   const int end_type =
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   const double tstop = input_params_->tstop_;
+
   for (int type = init_type; type <= end_type; type++) {
-    hpx_bcast_rsync(Synchronizer::InitializeLocality, &type, sizeof(type));
-    //CallAllLocalities(Synchronizer::InitializeLocality, &type, sizeof(type));
-    CallAllNeurons(Synchronizer::InitializeNeuron);
+    CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::InitNeuronInfo, &type, sizeof(type));
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
-      hpx_bcast_rsync(Synchronizer::RunLocality, &tstop, sizeof(tstop));
-      //CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
+      CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
     else
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
@@ -98,7 +97,8 @@ static int Main_handler() {
            input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif
-    CallAllLocalities(Synchronizer::ClearLocality);
+    CallAllLocalities(Synchronizer::ClearLocalityInfo);
+    CallAllNeurons(Synchronizer::ClearNeuronInfo);
     delete synchronizer_;
   }
 

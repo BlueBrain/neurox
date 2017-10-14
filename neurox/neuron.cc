@@ -15,15 +15,6 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->synchronizer_neuron_info_ =
-      SynchronizerNeuronInfo::New(input_params_->synchronizer_);
-
-  assert(this->synchronizer_neuron_info_ != nullptr);
-  assert(
-      TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
-          0 &&
-      TimeDependencySynchronizer::TimeDependencies::
-              kNotificationIntervalRatio <= 1);
 }
 
 Neuron::~Neuron() {

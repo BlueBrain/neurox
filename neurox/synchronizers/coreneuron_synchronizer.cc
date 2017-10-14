@@ -25,11 +25,11 @@ const char* CoreneuronSynchronizer::GetString() {
 
 void CoreneuronSynchronizer::InitLocality() { assert(0); }
 
-void CoreneuronSynchronizer::Clear() {}
+void CoreneuronSynchronizer::ClearLocality() {}
 
-void CoreneuronSynchronizer::BeforeStep(Branch*) { assert(0); }
+void CoreneuronSynchronizer::BeforeSteps(Branch*) { assert(0); }
 
-void CoreneuronSynchronizer::AfterStep(Branch* b, hpx_t) { assert(0); }
+void CoreneuronSynchronizer::AfterSteps(Branch* b, hpx_t) { assert(0); }
 
 double CoreneuronSynchronizer::GetMaxStepTime(Branch* b) { assert(0); }
 

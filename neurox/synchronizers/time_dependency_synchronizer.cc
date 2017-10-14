@@ -7,7 +7,13 @@ constexpr floble_t
     TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
 constexpr double TimeDependencySynchronizer::TimeDependencies::kTEps;
 
-TimeDependencySynchronizer::TimeDependencySynchronizer() {}
+TimeDependencySynchronizer::TimeDependencySynchronizer() {
+    assert(
+        TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
+            0 &&
+        TimeDependencySynchronizer::TimeDependencies::
+                kNotificationIntervalRatio <= 1);
+}
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
 
@@ -25,7 +31,7 @@ void TimeDependencySynchronizer::InitLocality() {
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
 }
 
-void TimeDependencySynchronizer::Clear() {}
+void TimeDependencySynchronizer::ClearLocality() {}
 
 void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   if (b->soma_) {
@@ -43,7 +49,7 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   }
 }
 
-void TimeDependencySynchronizer::BeforeStep(Branch* b) {
+void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
@@ -63,7 +69,7 @@ double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
   return td->GetDependenciesMinTime();
 }
 
-void TimeDependencySynchronizer::AfterStep(Branch* b, hpx_t) {
+void TimeDependencySynchronizer::AfterSteps(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 }

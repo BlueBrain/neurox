@@ -24,7 +24,7 @@ const char* DebugSynchronizer::GetString() {
 
 void DebugSynchronizer::InitLocality() {}
 
-void DebugSynchronizer::Clear() {}
+void DebugSynchronizer::ClearLocality() {}
 
 void DebugSynchronizer::Launch() {
   /*
@@ -52,9 +52,9 @@ input::Debugger::CompareAllBranches();
 */
 }
 
-void DebugSynchronizer::BeforeStep(Branch*) {}
+void DebugSynchronizer::BeforeSteps(Branch*) {}
 
-void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
+void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 

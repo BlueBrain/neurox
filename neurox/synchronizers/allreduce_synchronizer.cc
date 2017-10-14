@@ -23,10 +23,11 @@ void AllreduceSynchronizer::InitLocality() {
   SubscribeAllReduces(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::Clear() { UnsubscribeAllReduces(kAllReducesCount); }
+void AllreduceSynchronizer::ClearLocality() {
+    UnsubscribeAllReduces(kAllReducesCount); }
 
-void AllreduceSynchronizer::BeforeStep(Branch* branch) {
-  AllreduceSynchronizer::BeforeStep2(branch, kAllReducesCount);
+void AllreduceSynchronizer::BeforeSteps(Branch* branch) {
+  AllreduceSynchronizer::NeuronReduce(branch, kAllReducesCount);
 }
 
 double AllreduceSynchronizer::GetMaxStepTime(Branch* b) {
@@ -41,16 +42,17 @@ void AllreduceSynchronizer::LocalityReduce() {
   AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::BeforeStep2(const Branch* branch,
+void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
                                         const int allreduces_count) {
-  // ignore neuron level reductions it they're done at locality level
+
+  //if locality-reduction is on, neurons no not participate n reduction
   if (input_params_->locality_comm_reduce_) return;
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;
 
   // if reduction id < 0, it's still on the first comm-window
-  // within first comm-window, synchronizer does not wait
+  // (within first comm-window, synchronizer does not wait)
   int& r = stw->next_allreduce_id_;
   if (r >= 0)
     /* fixes crash for Synchronizer::ALL when running two
@@ -76,7 +78,7 @@ double AllreduceSynchronizer::GetLocalityReductionInterval2(
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
-void AllreduceSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
+void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
@@ -87,6 +89,10 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
 }
 
 void AllreduceSynchronizer::SubscribeAllReduces(size_t allreduces_count) {
+
+  //rank 0 creates allreduces, broadcasts them and ask others to subscribe
+  if (hpx_get_my_rank() > 0 ) return;
+
   assert(allreduces_ == nullptr);
   allreduces_ = new hpx_t[allreduces_count];
 
@@ -106,6 +112,10 @@ void AllreduceSynchronizer::SubscribeAllReduces(size_t allreduces_count) {
 }
 
 void AllreduceSynchronizer::UnsubscribeAllReduces(size_t allreduces_count) {
+
+  //rank 0 ask others to unsubscribe
+  if (hpx_get_my_rank() > 0 ) return;
+
   assert(allreduces_ != nullptr);
   if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(AllReduceLocalityInfo::UnsubscribeAllReduce, allreduces_,
@@ -140,6 +150,10 @@ void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
 
 void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
     int allreduces_count) {
+
+  //if no reduction at locality level, reduction is done by neurons
+  if (!input_params_->locality_comm_reduce_) return;
+
   // if reduction id < 0, it's still on the first comm-window
   // within first comm-window, synchronizer does not wait
   int r = next_allreduce_id;

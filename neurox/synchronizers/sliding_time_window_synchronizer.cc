@@ -19,19 +19,19 @@ void SlidingTimeWindowSynchronizer::InitLocality() {
   AllreduceSynchronizer::SubscribeAllReduces(kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::Clear() {
+void SlidingTimeWindowSynchronizer::ClearLocality() {
   AllreduceSynchronizer::UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::BeforeStep(Branch* branch) {
-  AllreduceSynchronizer::BeforeStep2(branch, kAllReducesCount);
+void SlidingTimeWindowSynchronizer::BeforeSteps(Branch* branch) {
+  AllreduceSynchronizer::NeuronReduce(branch, kAllReducesCount);
 }
 
 double SlidingTimeWindowSynchronizer::GetMaxStepTime(Branch* b) {
   AllreduceSynchronizer::GetMaxStepTime2(b, kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
+void SlidingTimeWindowSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
   AllreduceSynchronizer::WaitForSpikesDelivery(b, spikesLco);
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);

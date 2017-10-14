@@ -16,10 +16,10 @@ class DebugSynchronizer : public Synchronizer {
   const char* GetString() override;
 
   void InitLocality() override;
-  void Clear() override;
+  void ClearLocality() override;
 
-  void BeforeStep(Branch*) override;
-  void AfterStep(Branch*, hpx_t) override;
+  void BeforeSteps(Branch*) override;
+  void AfterSteps(Branch*, hpx_t) override;
   double GetMaxStepTime(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 

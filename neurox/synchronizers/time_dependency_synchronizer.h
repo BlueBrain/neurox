@@ -19,11 +19,11 @@ class TimeDependencySynchronizer : public Synchronizer {
 
   void InitLocality() override;
   void InitNeuron(Branch*) override;
-  void Clear() override;
+  void ClearLocality() override;
 
-  void BeforeStep(Branch*) override;
+  void BeforeSteps(Branch*) override;
   double GetMaxStepTime(Branch*) override;
-  void AfterStep(Branch*, hpx_t) override;
+  void AfterSteps(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
