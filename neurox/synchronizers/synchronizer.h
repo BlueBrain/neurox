@@ -50,8 +50,11 @@ class Synchronizer {
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-  /// Initialize synchronizer meta data
-  virtual void Init() {}
+  /// Initialize synchronizer meta data in locality
+  virtual void InitLocality() {}
+
+  /// Initialize synchronizer meta data in neuron
+  virtual void InitNeuron(Branch*) {}
 
   /// Clears/finalizes synchronizer meta data
   virtual void Clear() {}
@@ -77,7 +80,8 @@ class Synchronizer {
   /// Locatility-based reduction
   virtual void LocalityReduce() {}
 
-  static hpx_action_t InitLocality;
+  static hpx_action_t InitializeLocality;
+  static hpx_action_t InitializeNeuron;
   static hpx_action_t ClearLocality;
   static hpx_action_t RunNeuron;
   static hpx_action_t RunLocality;
@@ -91,7 +95,8 @@ class Synchronizer {
   /// length of locality_neuronx_
   static int locality_neurons_count_;
 
-  static int InitLocality_handler(const int*, const size_t);
+  static int InitializeLocality_handler(const int*, const size_t);
+  static int InitializeNeuron_handler();
   static int ClearLocality_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);

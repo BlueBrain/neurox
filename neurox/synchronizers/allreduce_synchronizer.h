@@ -15,7 +15,7 @@ class AllreduceSynchronizer : public Synchronizer {
   const Synchronizers GetId() override;
   const char* GetString() override;
 
-  void Init() override;
+  void InitLocality() override;
   void Clear() override;
   void BeforeStep(Branch*) override;
   double GetMaxStepTime(Branch*) override;
@@ -56,11 +56,11 @@ class AllreduceSynchronizer : public Synchronizer {
     static int UnsubscribeAllReduce_handler(const hpx_t*, const size_t);
   };
 
-  class AllReducesInfo : public SynchronizerMetadata {
+  class AllReduceNeuronInfo : public SynchronizerMetadata {
    public:
-    AllReducesInfo() = delete;
-    AllReducesInfo(const size_t);
-    ~AllReducesInfo();
+    AllReduceNeuronInfo() = delete;
+    AllReduceNeuronInfo(const size_t);
+    ~AllReduceNeuronInfo();
 
     static void RegisterHpxActions();  ///> Register all HPX actions
 

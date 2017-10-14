@@ -15,7 +15,7 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
   const Synchronizers GetId() override;
   const char* GetString() override;
 
-  void Init() override;
+  void InitLocality() override;
   void Clear() override;
   void BeforeStep(Branch*) override;
   double GetMaxStepTime(Branch*) override;

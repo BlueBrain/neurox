@@ -19,7 +19,7 @@ const char* TimeDependencySynchronizer::GetString() {
   return "BackwardEulerTimeDependency";
 }
 
-void TimeDependencySynchronizer::Init() {
+void TimeDependencySynchronizer::InitLocality() {
   if (input_params_->locality_comm_reduce_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
@@ -53,10 +53,31 @@ void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
 #endif
 }
 
+void TimeDependencySynchronizer::InitNeuron(Branch *b)
+{
+    if (b->soma_) {
+
+      TimeDependencies* time_dependencies =
+          (TimeDependencies*)b->soma_->synchronizer_metadata_;
+
+      /* fixes crash for Synchronizer::All when TimeDependency
+       * synchronizer starts at t=inputParams->tend*2 increase
+       * notification and dependencies time */
+      if (input_params_->synchronizer_==Synchronizers::kBenchmarkAll) {
+          for (Neuron::Synapse*& s : b->soma_->synapses_)
+            s->next_notification_time_ += b->nt_->_t;
+          time_dependencies->IncreseDependenciesTime(b->nt_->_t);
+        }
+    }
+}
+
 void TimeDependencySynchronizer::BeforeStep(Branch* b) {
+
   if (b->soma_) {
+
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_metadata_;
+
     // inform time dependants that must be notified in this step
     time_dependencies->SendSteppingNotification(
         b->nt_->_t, b->nt_->_dt, b->soma_->gid_, b->soma_->synapses_);

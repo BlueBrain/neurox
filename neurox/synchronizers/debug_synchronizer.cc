@@ -22,7 +22,7 @@ const char* DebugSynchronizer::GetString() {
   return "BackwardEulerCoreneuronDebug";
 }
 
-void DebugSynchronizer::Init() {}
+void DebugSynchronizer::InitLocality() {}
 
 void DebugSynchronizer::Clear() {}
 
@@ -59,7 +59,9 @@ void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
                                               input_params_->second_order_);
 }
 
-double DebugSynchronizer::GetMaxStepTime(Branch* b) { return b->nt_->_dt; }
+double DebugSynchronizer::GetMaxStepTime(Branch* b) {
+    return b->nt_->_t + b->nt_->_dt; //single step at a time
+}
 
 void DebugSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;

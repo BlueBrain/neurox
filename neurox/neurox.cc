@@ -71,16 +71,17 @@ static int Main_handler() {
       run_all ? (int)Synchronizers::kSynchronizersCount : synchronizer;
   const double tstop = input_params_->tstop_;
   for (int type = init_type; type < end_type; type++) {
-    wrappers::CallAllLocalities(Synchronizer::InitLocality, &type,
-                                sizeof(type));
+    wrappers::CallAllLocalities(Synchronizer::InitializeLocality,
+                                &type, sizeof(type));
+    wrappers::CallAllNeurons(Synchronizer::InitializeNeuron);
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
-      neurox::wrappers::CallAllLocalities(Synchronizer::RunLocality, &tstop,
-                                          sizeof(tstop));
+      wrappers::CallAllLocalities(Synchronizer::RunLocality, &tstop,
+                                  sizeof(tstop));
     else
-      neurox::wrappers::CallAllNeurons(Synchronizer::RunNeuron, &tstop,
-                                       sizeof(tstop));
+      wrappers::CallAllNeurons(Synchronizer::RunNeuron, &tstop,
+                               sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
     printf("neurox::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",

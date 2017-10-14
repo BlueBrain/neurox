@@ -15,7 +15,7 @@ const char* SlidingTimeWindowSynchronizer::GetString() {
   return "BackwardEulerSlidingTimeWindow";
 }
 
-void SlidingTimeWindowSynchronizer::Init() {
+void SlidingTimeWindowSynchronizer::InitLocality() {
   AllreduceSynchronizer::SubscribeAllReduces(kAllReducesCount);
 }
 
