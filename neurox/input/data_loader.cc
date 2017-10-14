@@ -636,10 +636,12 @@ int DataLoader::InitNeurons_handler() {
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
   // all neurons created, advertise them
+  int my_rank = hpx_get_my_rank();
   hpx_bcast_rsync(DataLoader::AddNeurons, my_neurons_gids_->data(),
                   sizeof(int) * my_neurons_gids_->size(),
                   my_neurons_addr_->data(),
-                  sizeof(hpx_t) * my_neurons_addr_->size());
+                  sizeof(hpx_t) * my_neurons_addr_->size(),
+                  &my_rank, sizeof(my_rank));
 
   my_neurons_gids_->clear();
   delete my_neurons_gids_;
@@ -656,8 +658,9 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
                                    const size_t sizes[]) {
   /**
    * nargs=3 where
-   * args[1] = neurons Gids
-   * args[2] = neurons hpx addr
+   * args[0] = neurons Gids
+   * args[1] = neurons hpx addr
+   * args[2] = sender rank
    */
 
   NEUROX_MEM_PIN(uint64_t);
@@ -686,6 +689,18 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   assert(all_neurons_gids_->size() == neurox::neurons_count_);
   hpx_lco_sema_v_sync(all_neurons_mutex_);
+
+  //initialize local neurons
+  const int sender_rank = *(const int *)args[2];
+
+  if (sender_rank == hpx_get_my_rank()) //if these are my neurons
+  {
+      assert(neurox::locality_neurons_==nullptr);
+      neurox::locality_neurons_count_ = recv_neurons_count;
+      neurox::locality_neurons_ = new hpx_t[recv_neurons_count];
+      memcpy(neurox::locality_neurons_, neurons_addr, recv_neurons_count*sizeof(hpx_t));
+  }
+
   return neurox::wrappers::MemoryUnpin(target);
 }
 

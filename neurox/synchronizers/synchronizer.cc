@@ -4,9 +4,6 @@ using namespace neurox;
 using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
-hpx_t* Synchronizer::locality_neurons_ = nullptr;
-int Synchronizer::locality_neurons_count_ = -1;
-
 Synchronizer* Synchronizer::New(Synchronizers type) {
   switch (type) {
     case Synchronizers::kDebug:
@@ -50,18 +47,9 @@ hpx_action_t Synchronizer::InitializeLocality = 0;
 int Synchronizer::InitializeLocality_handler(const int* synchronizer_id_ptr,
                                              const size_t) {
   NEUROX_MEM_PIN(uint64_t);
-  delete neurox::synchronizer_;
 
-  // populate local neurons address if not populated
-  if (Synchronizer::locality_neurons_ == nullptr) {
-    std::vector<hpx_t> locality_neurons;
-    for (int i = 0; i < neurox::neurons_count_; i++)
-      if (HPX_HERE == HPX_THERE(neurox::neurons_[i]))
-        locality_neurons.push_back(neurox::neurons_[i]);
-    locality_neurons_ = new hpx_t[locality_neurons.size()];
-    std::copy(locality_neurons_, locality_neurons_ + locality_neurons.size(),
-              locality_neurons.data());
-  }
+  //delete previous synchronizer (if any)
+  delete neurox::synchronizer_;
 
   // initiate synchronizer
   Synchronizers synchronizer_id = *(Synchronizers*)synchronizer_id_ptr;
@@ -73,8 +61,7 @@ int Synchronizer::InitializeLocality_handler(const int* synchronizer_id_ptr,
 hpx_action_t Synchronizer::RunLocality = 0;
 int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
-  assert(locality_neurons_);
-  const hpx_t locality_neurons_lco = hpx_lco_and_new(locality_neurons_count_);
+  const hpx_t locality_neurons_lco = hpx_lco_and_new(neurox::locality_neurons_count_);
   const double reduction_interval =
       synchronizer_->GetLocalityReductionInterval();
   const double tstop = *tstop_ptr;
@@ -82,8 +69,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   for (double t = 0; t <= tstop; t += reduction_interval) {
     synchronizer_->LocalityReduce();
     step_to_time = t + reduction_interval;
-    for (int i = 0; i < locality_neurons_count_; i++)
-      hpx_call(Synchronizer::locality_neurons_[i], Synchronizer::RunNeuron,
+    for (int i = 0; i < neurox::locality_neurons_count_; i++)
+      hpx_call(neurox::locality_neurons_[i], Synchronizer::RunNeuron,
                locality_neurons_lco, &step_to_time, sizeof(double));
     hpx_lco_wait_reset(locality_neurons_lco);
   }

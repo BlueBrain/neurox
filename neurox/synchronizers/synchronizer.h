@@ -89,11 +89,6 @@ class Synchronizer {
   static void RegisterHpxActions();  ///> Register all HPX actions
 
  private:
-  ///  hpx address of all neurons in this locality
-  static hpx_t* locality_neurons_;
-
-  /// length of locality_neuronx_
-  static int locality_neurons_count_;
 
   static int InitializeLocality_handler(const int*, const size_t);
   static int InitializeNeuron_handler();
