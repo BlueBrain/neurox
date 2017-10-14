@@ -57,18 +57,6 @@ void DebugSynchronizer::BeforeStep(Branch*) {}
 void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
-}
-
-double DebugSynchronizer::GetMaxStepTime(Branch* b) {
-    return b->nt_->_t + b->nt_->_dt; //single step at a time
-}
-
-void DebugSynchronizer::Run(Branch* b, const void* args) {
-  int steps = *(int*)args;
-  for (int step = 0; step < steps; step++) BackwardEuler::FullStep(b);
-
-  // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
-  // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
@@ -78,6 +66,11 @@ void DebugSynchronizer::Run(Branch* b, const void* args) {
       hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
 }
+
+double DebugSynchronizer::GetMaxStepTime(Branch* b) {
+    return b->nt_->_t + b->nt_->_dt; //single step at a time
+}
+
 
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =

@@ -29,13 +29,6 @@ int BackwardEuler::GetMinSynapticDelaySteps() {
   return (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
 }
 
-void BackwardEuler::FullStep(Branch *branch) {
-  synchronizer_->BeforeStep(branch);
-  double t_step = branch->nt_->_t + branch->nt_->_dt;
-  hpx_t spikes_lco = branch->interpolator_->StepTo(branch, t_step);
-  synchronizer_->AfterStep(branch, spikes_lco);
-}
-
 hpx_t BackwardEuler::StepTo(Branch *branch, const double tstop) {
   hpx_t spikes_lco = HPX_NULL;
   while (branch->nt_->_t < tstop - 0.000001) {

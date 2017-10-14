@@ -79,10 +79,6 @@ void AllreduceSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
                                               input_params_->second_order_);
 }
 
-void AllreduceSynchronizer::Run(Branch* b, const void* args) {
-  AllreduceSynchronizer::Run2(b, args);
-}
-
 hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return Neuron::SendSpikesAsync(n, tt);
 }
@@ -138,45 +134,6 @@ void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
   }
 }
 
-void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
-  int steps = *(int*)args;
-  const int reductions_per_comm_step = -1;
-  const int comm_step_size = BackwardEuler::GetMinSynapticDelaySteps();
-  const int steps_per_reduction = comm_step_size / reductions_per_comm_step;
-  const AllReduceNeuronInfo* stw =
-      b->soma_ ? (AllReduceNeuronInfo*)b->soma_->synchronizer_metadata_ : nullptr;
-
-  for (int s = 0; s < steps; s += comm_step_size)  // for every comm step
-  {
-#ifndef NDEBUG
-    if (hpx_get_my_rank() == 0 && b->nt_->id == 0 && b->soma_) {
-      printf("-- t=%.4f ms\n", input_params_->dt_ * s);
-      fflush(stdout);
-    }
-#endif
-    // for every reduction step
-    for (int r = 0; r < reductions_per_comm_step; r++) {
-      if (b->soma_) {
-        if (s >= comm_step_size)  // first comm-window does not wait
-          hpx_lco_wait_reset(stw->allreduce_future_[r]);
-        else
-          // fixes crash for Synchronizer::ALL when running two hpx-reduce
-          // -based
-          // synchronizers in a row
-          hpx_lco_reset_sync(stw->allreduce_future_[r]);
-
-        hpx_process_collective_allreduce_join(stw->allreduce_lco_[r],
-                                              stw->allreduce_id_[r], NULL, 0);
-      }
-
-      for (int n = 0; n < steps_per_reduction; n++) BackwardEuler::FullStep(b);
-
-      // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
-      // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-    }
-  }
-}
-
 void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
     int allreduces_count) {
   // if reduction id < 0, it's still on the first comm-window
@@ -200,7 +157,6 @@ AllreduceSynchronizer::AllReduceNeuronInfo::AllReduceNeuronInfo(
   for (int s = 0; s < BackwardEuler::GetMinSynapticDelaySteps() - 1; s++)
     this->spikes_lco_queue_.push(HPX_NULL);
 
-  // TODO can Init go here?
   // negative value means ignore until it reaches 0
   next_allreduce_id_ = -allreduces_count;
 }

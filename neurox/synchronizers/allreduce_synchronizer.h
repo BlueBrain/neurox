@@ -25,12 +25,9 @@ class AllreduceSynchronizer : public Synchronizer {
   double GetLocalityReductionInterval() override;
   void LocalityReduce() override;
 
-  void Run(Branch*, const void*);
-
   static void SubscribeAllReduces(size_t allreduces_count);
   static void UnsubscribeAllReduces(size_t allreduces_count);
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
-  static void Run2(Branch*, const void*);
 
   static const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;

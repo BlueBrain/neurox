@@ -27,32 +27,6 @@ void TimeDependencySynchronizer::InitLocality() {
 
 void TimeDependencySynchronizer::Clear() {}
 
-void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
-  int steps = *(int*)args;
-
-  if (b->soma_) {
-    TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
-
-    // fixes crash for Synchronizer::All when TimeDependency synchronizer starts
-    // at
-    // t=inputParams->tend*2
-    // increase notification and dependencies time
-    for (Neuron::Synapse*& s : b->soma_->synapses_)
-      s->next_notification_time_ += b->nt_->_t;
-    time_dependencies->IncreseDependenciesTime(b->nt_->_t);
-  }
-
-  for (int step = 0; step < steps; step++)
-    interpolators::BackwardEuler::FullStep(b);
-// Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
-// &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-
-#ifndef NDEBUG
-  if (b->soma_) printf("-- neuron %d finished\n", b->soma_->gid_);
-#endif
-}
-
 void TimeDependencySynchronizer::InitNeuron(Branch *b)
 {
     if (b->soma_) {

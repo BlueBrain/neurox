@@ -31,8 +31,6 @@ class BackwardEuler : public Interpolator {
 
   static hpx_t Step(Branch*);
 
-  static void FullStep(Branch*);
-
   static hpx_action_t Finitialize;
 
   static void Finitialize2(Branch*);  ///> finitialize.c::finitialize()
