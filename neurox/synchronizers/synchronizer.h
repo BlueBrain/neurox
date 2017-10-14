@@ -41,14 +41,8 @@ class Synchronizer {
   Synchronizer(){};
   virtual ~Synchronizer(){};
 
-  /// Init for Fixed Step methods
-  static void FixedStepMethodsInit();
-
   /// Returns an instantiated class of the given type
   static Synchronizer* New(Synchronizers);
-
-  /// Prints info on synchronizer, data size, and steps count
-  void PrintStartInfo();
 
   /// Returns class type
   const virtual Synchronizers GetId() = 0;
@@ -56,30 +50,32 @@ class Synchronizer {
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-  /// Launch simulation on all neurons or localities
-  virtual void Launch() = 0;
-
-  /// Runs simulation for given branch
-  virtual void Run(Branch*, const void*) = 0;
-
   /// Initialize synchronizer meta data
-  virtual void Init(){};
+  virtual void Init() {}
 
   /// Clears/finalizes synchronizer meta data
-  virtual void Clear(){};
+  virtual void Clear() {}
 
   /// To be called at beginning of step
-  virtual void StepBegin(Branch*){};
+  virtual void BeforeStep(Branch*) {}
+
+  virtual double GetMaxStepTime(Branch*) = 0;
 
   /// To be called at end of step
-  virtual void StepEnd(Branch*, hpx_t spikesLco){};
+  virtual void AfterStep(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
   virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
-                                  spike_time_t){};
+                                  spike_time_t) {}
+
+  /// Time-step between locality-based comm. reductions
+  virtual double GetLocalityReductionInterval();
+
+  /// Locatility-based reduction
+  virtual void LocalityReduce() {}
 
   static hpx_action_t InitLocality;
   static hpx_action_t ClearLocality;
@@ -88,13 +84,17 @@ class Synchronizer {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-private:
+ private:
+  ///  hpx address of all neurons in this locality
+  static hpx_t* locality_neurons_;
+
+  /// length of locality_neuronx_
+  static int locality_neurons_count_;
 
   static int InitLocality_handler(const int*, const size_t);
   static int ClearLocality_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
-
 };
 
 };  // synchronizers

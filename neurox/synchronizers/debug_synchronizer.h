@@ -17,12 +17,14 @@ class DebugSynchronizer : public Synchronizer {
 
   void Init() override;
   void Clear() override;
-  void Launch() override;
 
-  void StepBegin(Branch*) override;
-  void StepEnd(Branch*, hpx_t) override;
-  void Run(Branch*, const void*) override;
+  void BeforeStep(Branch*) override;
+  void AfterStep(Branch*, hpx_t) override;
+  double GetMaxStepTime(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
+
+  void Launch();
+  void Run(Branch*, const void*);
 
   class CommunicationBarrier : public SynchronizerMetadata {
    public:

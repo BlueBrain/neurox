@@ -22,52 +22,48 @@ const char* DebugSynchronizer::GetString() {
   return "BackwardEulerCoreneuronDebug";
 }
 
-void DebugSynchronizer::Init() {
-  const int allReducesCount = 0;
-  hpx_bcast_rsync(
-      AllreduceSynchronizer::AllReducesInfo::SetReductionsPerCommStep,
-      &allReducesCount, sizeof(int));
-}
+void DebugSynchronizer::Init() {}
 
 void DebugSynchronizer::Clear() {}
 
 void DebugSynchronizer::Launch() {
-    /*
-  int comm_step_size = neurox::min_delay_steps_;
-  int total_steps = 0;
+  /*
+int comm_step_size = neurox::min_delay_steps_;
+int total_steps = 0;
 
-  for (int s = 0; s < total_steps; s += comm_step_size) {
+for (int s = 0; s < total_steps; s += comm_step_size) {
 #ifdef NEUROX_TIME_STEPPING_VERBOSE
-    if (hpx_get_my_rank() == 0)
-      DebugMessage(
-          std::string("-- t=" + std::to_string(inputParams->dt * s) + " ms\n")
-              .c_str());
+  if (hpx_get_my_rank() == 0)
+    DebugMessage(
+        std::string("-- t=" + std::to_string(inputParams->dt * s) + " ms\n")
+            .c_str());
 #endif
 
-    // Reduction at locality not implemented (debugging only)
-    wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron, &comm_step_size,
-                                     sizeof(int));
+  // Reduction at locality not implemented (debugging only)
+  wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron, &comm_step_size,
+                                   sizeof(int));
 
 #ifndef NDEBUG
-    if (neurox::ParallelExecution())  // if parallel execution... spike exchange
-      hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
+  if (neurox::ParallelExecution())  // if parallel execution... spike exchange
+    hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
 #endif
-  }
-  input::Debugger::CompareAllBranches();
-  */
+}
+input::Debugger::CompareAllBranches();
+*/
 }
 
-void DebugSynchronizer::StepBegin(Branch*) {}
+void DebugSynchronizer::BeforeStep(Branch*) {}
 
-void DebugSynchronizer::StepEnd(Branch* b, hpx_t) {
+void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
   input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                               input_params_->second_order_);
 }
 
+double DebugSynchronizer::GetMaxStepTime(Branch* b) { return b->nt_->_dt; }
+
 void DebugSynchronizer::Run(Branch* b, const void* args) {
   int steps = *(int*)args;
-  for (int step = 0; step < steps; step++)
-      BackwardEuler::Step(b);
+  for (int step = 0; step < steps; step++) BackwardEuler::FullStep(b);
 
   // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
   // &nrn_threads[this->nt->id], secondorder); //SMP ONLY

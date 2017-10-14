@@ -9,12 +9,10 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
-const char* VariableTimeStep::GetString() {
-  return "VariableTimeStep";
-}
+const char *VariableTimeStep::GetString() { return "VariableTimeStep"; }
 
 void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
-  const VariableTimeStep *vardt = (VariableTimeStep*)branch->interpolator_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   const bool is_scatter_op =
       op == CopyOps::kScatterYdot || op == CopyOps::kScatterY;
   const bool use_ydot =
@@ -81,7 +79,7 @@ int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
 int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
                                   void *user_data) {
   Branch *branch = (Branch *)user_data;
-  VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
@@ -179,7 +177,7 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
                                     N_Vector, N_Vector, N_Vector) {
   realtype **jac = J->cols;
   Branch *branch = (Branch *)user_data;
-  VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   assert(t == nt->_t);
 
@@ -275,10 +273,9 @@ VariableTimeStep::VariableTimeStep()
       y_(nullptr),
       no_cap_child_ids_(nullptr),
       no_cap_node_ids_(nullptr),
-      no_cap_ml_(nullptr)
-{}
+      no_cap_ml_(nullptr) {}
 
-VariableTimeStep::~VariableTimeStep(){
+VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);
   CVodeFree((void **)(&cvode_mem_));
 
@@ -290,9 +287,9 @@ VariableTimeStep::~VariableTimeStep(){
 }
 
 // Neuron :: occvode.cpp :: init_global()
-void VariableTimeStep::Init(Branch * branch) {
+void VariableTimeStep::Init(Branch *branch) {
   assert(branch->interpolator_ != nullptr);
-  VariableTimeStep* vardt = (VariableTimeStep*) branch->interpolator_;
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   CVodeMem &cvode_mem = vardt->cvode_mem_;
   int cap_count = branch->mechs_instances_[mechanisms_map_[CAP]].nodecount;
   NrnThread *&nt = branch->nt_;
@@ -365,12 +362,13 @@ void VariableTimeStep::Init(Branch * branch) {
   // create childs ids and count of no-cap parents
   vardt->no_cap_child_ids_count_ = child_ids.size();
   vardt->no_cap_child_ids_ = new int[vardt->no_cap_child_ids_count_];
-  memcpy(vardt->no_cap_child_ids_, child_ids.data(), child_ids.size() * sizeof(int));
+  memcpy(vardt->no_cap_child_ids_, child_ids.data(),
+         child_ids.size() * sizeof(int));
   assert(vardt->no_cap_node_ids_count_ == no_cap_count);
 
   // occvode.cpp::new_no_cap_memb()
-  Vectorizer::GroupBranchInstancesByCapacitors(
-      branch, &(vardt->no_cap_ml_), nullptr, &capacitor_ids);
+  Vectorizer::GroupBranchInstancesByCapacitors(branch, &(vardt->no_cap_ml_),
+                                               nullptr, &capacitor_ids);
 
   ////////////  build remaining map with state vars
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
@@ -473,8 +471,9 @@ void VariableTimeStep::Init(Branch * branch) {
       flag = CVDense(cvode_mem, equations_count);
       if (flag == CVDLS_MEM_FAIL) {
         throw std::runtime_error(
-                      "ERROR: can't allocate memory for dense jacobian for gid "
-                      + to_string(branch->soma_->gid_) + " and " + to_string(equations_count) + " equations.\n");
+            "ERROR: can't allocate memory for dense jacobian for gid " +
+            to_string(branch->soma_->gid_) + " and " +
+            to_string(equations_count) + " equations.\n");
       }
       break;
     case Interpolators::kCvodeDiagonalMatrix:
@@ -497,53 +496,23 @@ void VariableTimeStep::Init(Branch * branch) {
   }
   assert(flag == CV_SUCCESS);
 
-
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
   CVodeSetMaxStep(cvode_mem, neurox::min_synaptic_delay_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
 }
 
-void VariableTimeStep::Run(Branch * local) {
-  assert(local->soma_);
-  VariableTimeStep* vardt = (VariableTimeStep*) local->interpolator_;
+void VariableTimeStep::Clear(Branch *branch) {
+  assert(branch->soma_);
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
+  vardt->~VariableTimeStep();
+  branch->interpolator_ = nullptr;
+}
+
+void VariableTimeStep::PrintStatistics(const Branch *branch) {
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
-  NrnThread *nt = local->nt_;
 
-  int roots_found[1];  // AP-threshold
-  int flag = CV_ERR_FAILURE;
-  realtype tout = input_params_->tstop_;
-
-  while (nt->_t < input_params_->tstop_) {
-    // delivers all events whithin the next delivery-time-window
-    local->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
-
-    // get tout as time of next undelivered event (if any)
-    hpx_lco_sema_p(local->events_queue_mutex_);
-    if (!local->events_queue_.empty()) {
-      tout = local->events_queue_.top().first;
-    }
-    hpx_lco_sema_v_sync(local->events_queue_mutex_);
-    tout = std::min(input_params_->tstop_, tout);
-
-    // call CVODE method: steps until reaching/passing tout, or hitting root;
-    flag = CVode(cvode_mem, tout, vardt->y_, &(nt->_t), CV_NORMAL);
-
-    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
-    {
-      flag = CVodeGetRootInfo(cvode_mem, roots_found);
-      assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0);  // only root: AP threshold reached
-      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
-      {
-        // if root found, integrator time is now at time of root
-        hpx_t spikes_lco_ = local->soma_->SendSpikes(nt->_t);
-      }
-    }
-  }
-
-#ifndef NDEBUG
-  // Final statistics output:
   long num_steps = -1, num_rhs = -1, num_roots = -1, num_others = 0;
   CVodeGetNumSteps(cvode_mem, &num_steps);
   CVodeGetNumGEvals(cvode_mem, &num_roots);
@@ -554,7 +523,7 @@ void VariableTimeStep::Run(Branch * local) {
       printf(
           "-- Neuron %d completed. steps: %d, rhs: %d, pre-cond. solves: %d, "
           "roots: %d\n",
-          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+          branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDenseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
@@ -562,12 +531,12 @@ void VariableTimeStep::Run(Branch * local) {
       printf(
           "-- Neuron %d completed. steps: %d, rhs: %d, jacobians: %d, roots: "
           "%d\n",
-          local->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
+          branch->soma_->gid_, num_steps, num_rhs, num_others, num_roots);
       break;
     case Interpolators::kCvodeDiagonalMatrix:
       CVDiagGetNumRhsEvals(cvode_mem, &num_rhs);
       printf("-- Neuron %d completed. steps: %d, rhs: %d, roots: %d\n",
-             local->soma_->gid_, num_steps, num_rhs, num_roots);
+             branch->soma_->gid_, num_steps, num_rhs, num_roots);
       break;
     case Interpolators::kCvodeSparseMatrix:
       CVDlsGetNumJacEvals(cvode_mem, &num_others);
@@ -576,15 +545,47 @@ void VariableTimeStep::Run(Branch * local) {
       // CVSlsGetNumRhsEvals(cvode_mem, &num_rhs_evals);
       break;
   }
-#endif
 }
 
-void VariableTimeStep::Clear(Branch * branch) {
-  assert(branch->soma_);
-  VariableTimeStep * vardt = (VariableTimeStep*) branch->interpolator_;
-  vardt->~VariableTimeStep();
-  branch->interpolator_ = nullptr;
-}
+hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
+  VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
+  NrnThread *nt = branch->nt_;
+  CVodeMem cvode_mem = vardt->cvode_mem_;
+  hpx_t spikes_lco = HPX_NULL;
+  int roots_found[1];  // AP-threshold
+  int flag = CV_ERR_FAILURE;
 
-void VariableTimeStep::StepTo(Branch * branch, const double tend) {
+  double cvode_tstop = -1;
+  while (nt->_t < tstop) {
+    // delivers all events whithin the next delivery-time-window
+    branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
+
+    // get tout as time of next undelivered event (if any)
+    hpx_lco_sema_p(branch->events_queue_mutex_);
+    if (!branch->events_queue_.empty()) {
+      cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
+    }
+    hpx_lco_sema_v_sync(branch->events_queue_mutex_);
+
+    // call CVODE method: steps until reaching/passing tout, or hitting root;
+    flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+
+    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
+    {
+      flag = CVodeGetRootInfo(cvode_mem, roots_found);
+      assert(flag == CV_SUCCESS);
+      assert(roots_found[0] != 0);  // only root: AP threshold reached
+      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+      {
+        // if root found, integrator time is now at time of root
+        hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
+        if (new_spikes_lco) {
+          // make sure only an AP occurred in between
+          assert(!spikes_lco);
+          spikes_lco = new_spikes_lco;
+        }
+      }
+    }
+  }
+  return spikes_lco;
 }

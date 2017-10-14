@@ -5,8 +5,8 @@
 #include <deque>
 #include <map>
 #include <memory>
-#include <vector>
 #include <set>
+#include <vector>
 
 using namespace std;
 
@@ -29,7 +29,7 @@ class Vectorizer {
   static const int kSOAPadding = 4;
 
   /// converts a branch from AoS to SoA
-  static void ConvertToSOA(Branch* b);
+  static void ConvertToSOA(Branch *b);
 
   /// get size of datastructure with alignment-based padding
   static size_t SizeOf(size_t size) {
@@ -37,8 +37,7 @@ class Vectorizer {
   }
 
   /// Call function 'f' on a vectorized way
-  static void CallVecFunction(cvode_f_t, NrnThread*, Memb_list*, int);
-
+  static void CallVecFunction(cvode_f_t, NrnThread *, Memb_list *, int);
 
   /// returns a copy of Memb_list of a branch, sorted by no-cap and cap
   static void GroupBranchInstancesByCapacitors(
@@ -52,14 +51,14 @@ class Vectorizer {
 
   /// memory-aligned memory allocation
   template <typename T>
-  static T* New(size_t count) {
-    return (T*)coreneuron::ecalloc_align(SizeOf(count), kMemoryAlignment,
-                                         sizeof(T));
+  static T *New(size_t count) {
+    return (T *)coreneuron::ecalloc_align(SizeOf(count), kMemoryAlignment,
+                                          sizeof(T));
   }
 
   /// delete for the New method
   template <typename T>
-  static void Delete(T* ptr) {
+  static void Delete(T *ptr) {
     free(ptr);
     ptr = nullptr;  // delete[] (ptr);
   }

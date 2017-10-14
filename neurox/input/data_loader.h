@@ -31,8 +31,8 @@ class DataLoader {
 
   /// Calls coreneuron nrn_init_and_load_data
   static void LoadCoreneuronData(int argc, char **argv,
-                                        bool nrnmpi_under_nrncontrol = false,
-                                        bool run_setup_cleanup = false);
+                                 bool nrnmpi_under_nrncontrol = false,
+                                 bool run_setup_cleanup = false);
 
   /// removes all data structures loaded for coreneuron
   static void CleanCoreneuronData(const bool clean_ion_global_map = true);

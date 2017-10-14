@@ -20,8 +20,12 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 
 // morphology classes (branches, neuron) and Hines solver
 #include "neurox/branch.h"
-#include "neurox/neuron.h"
 #include "neurox/hines_solver.h"
+#include "neurox/neuron.h"
+
+// abstract classes
+#include "neurox/interpolators/interpolator.h"
+#include "neurox/synchronizers/synchronizer.h"
 
 // Tools
 #include "neurox/tools/cmd_line_parser.h"
@@ -30,7 +34,6 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/tools/vectorizer.h"
 
 // Synchronizers
-#include "neurox/synchronizers/synchronizer.h"
 #include "neurox/synchronizers/allreduce_synchronizer.h"
 #include "neurox/synchronizers/coreneuron_synchronizer.h"
 #include "neurox/synchronizers/debug_synchronizer.h"
@@ -38,9 +41,8 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/synchronizers/time_dependency_synchronizer.h"
 
 // Interpolators
-#include "neurox/interpolators/interpolator.h"
-#include "neurox/interpolators/variable_time_step.h"
 #include "neurox/interpolators/backward_euler.h"
+#include "neurox/interpolators/variable_time_step.h"
 
 // CoreNeuron-based input
 #include "neurox/input/compartment.h"

@@ -20,19 +20,16 @@ enum class Interpolators : int {
 };
 
 class Interpolator {
-
  public:
+  /// Returns class type as string
+  const virtual char* GetString() = 0;
 
-    /// Returns class type as string
-    const virtual char* GetString() = 0;
+  virtual void Init(Branch*) {}
+  virtual hpx_t StepTo(Branch*, const double) = 0;
+  virtual void Clear(Branch*) {}
 
-    virtual void Init(Branch*) {}
-    virtual void StepTo(Branch*, const double tend) = 0;
-    virtual void Clear(Branch*) {}
-
-    /// Returns an instantiated class of the given type
-    static Interpolator* New(Interpolators);
-
+  /// Returns an instantiated class of the given type
+  static Interpolator* New(Interpolators);
 };
 };  // interpolators
 

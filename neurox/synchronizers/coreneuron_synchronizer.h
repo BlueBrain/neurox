@@ -17,11 +17,10 @@ class CoreneuronSynchronizer : public Synchronizer {
 
   void Init() override;
   void Clear() override;
-  void Launch() override;
 
-  void StepBegin(Branch*) override;
-  void StepEnd(Branch*, hpx_t) override;
-  void Run(Branch*, const void*) override;
+  void BeforeStep(Branch*) override;
+  void AfterStep(Branch*, hpx_t) override;
+  double GetMaxStepTime(Branch* b) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   class CommunicationBarrier : public SynchronizerMetadata {

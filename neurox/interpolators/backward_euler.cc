@@ -10,45 +10,51 @@ using namespace neurox::tools;
 using namespace neurox::interpolators;
 using namespace neurox::synchronizers;
 
-const char* BackwardEuler::GetString() {
-  return "BackwardEuler";
+const char *BackwardEuler::GetString() { return "BackwardEuler"; }
+
+void BackwardEuler::Init(Branch *b) {
+  BackwardEuler::Finitialize2(b);
+  b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
+#if !defined(NDEBUG)
+// Input::Debugger::StepAfterStepFinitialize(local,
+// &nrn_threads[local->nt->id]);
+#endif
 }
 
-void BackwardEuler::Init(Branch *b)
-{
-    BackwardEuler::Finitialize2(b);
-    b->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
-    #if !defined(NDEBUG)
-    // Input::Debugger::StepAfterStepFinitialize(local,
-    // &nrn_threads[local->nt->id]);
-    #endif
+int BackwardEuler::GetTotalSteps() {
+  return (input_params_->tstop_ + 0.00001) / input_params_->dt_;
 }
 
-int BackwardEuler::GetTotalSteps()
-{
-    return input_params_->tstop_/input_params_->dt_;
+int BackwardEuler::GetMinSynapticDelaySteps() {
+  return (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
 }
 
-int BackwardEuler::GetMinSynapticDelaySteps()
-{
-    return neurox::min_synaptic_delay_/input_params_->dt_;
+void BackwardEuler::FullStep(Branch *branch) {
+  synchronizer_->BeforeStep(branch);
+  double t_step = branch->nt_->_t + branch->nt_->_dt;
+  hpx_t spikes_lco = branch->interpolator_->StepTo(branch, t_step);
+  synchronizer_->AfterStep(branch, spikes_lco);
 }
 
-void BackwardEuler::StepTo(Branch * branch, const double tstop)
-{
-    for (double t = branch->nt_->_t; t<tstop; t++)
-        BackwardEuler::Step(branch);
+hpx_t BackwardEuler::StepTo(Branch *branch, const double tstop) {
+  hpx_t spikes_lco = HPX_NULL;
+  while (branch->nt_->_t < tstop - 0.000001) {
+    // spikes_lco |= BackwardEuler::Step(branch);
+    hpx_t new_spikes_lco = BackwardEuler::Step(branch);
+    if (new_spikes_lco) {
+      // make sure only an AP occurred in between
+      assert(!spikes_lco);
+      spikes_lco = new_spikes_lco;
+    }
+  }
+  return spikes_lco;
 }
-
 
 // fadvance_core.c::nrn_fixed_step_thread
-void BackwardEuler::Step(Branch* branch)
-{
-  NrnThread * nt = branch->nt_;
+hpx_t BackwardEuler::Step(Branch *branch) {
+  NrnThread *nt = branch->nt_;
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;
-
-  synchronizer_->StepBegin(branch);
 
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
@@ -64,7 +70,7 @@ void BackwardEuler::Step(Branch* branch)
 
   // netcvode.cpp::NetCvode::deliver_net_events()
   t += .5 * branch->nt_->_dt;
-  branch->DeliverEvents(t); // delivers events in the first HALF step
+  branch->DeliverEvents(t);  // delivers events in the first HALF step
   branch->FixedPlayContinuous();
   SetupTreeMatrix(branch);
   HinesSolver::SolveTreeMatrix(branch);
@@ -88,16 +94,12 @@ void BackwardEuler::Step(Branch* branch)
   branch->CallModFunction(Mechanism::ModFunctions::kState);
   branch->CallModFunction(Mechanism::ModFunctions::kAfterSolve);
   branch->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  branch->DeliverEvents(t); //delivers events in second HALF-step
+  branch->DeliverEvents(t);  // delivers events in second HALF-step
 
-  // if we are at the output time instant output to file
-  if (fmod(t, input_params_->dt_io_) == 0) {
-  }
-
-  synchronizer_->StepEnd(branch, spikes_lco);
+  return spikes_lco;
 }
 
-void BackwardEuler::Finitialize2(Branch * branch) {
+void BackwardEuler::Finitialize2(Branch *branch) {
   floble_t *v = branch->nt_->_actual_v;
   double t = branch->nt_->_t;
 
@@ -123,7 +125,7 @@ void BackwardEuler::Finitialize2(Branch * branch) {
   branch->DeliverEvents(t);
 }
 
-void BackwardEuler::SetupTreeMatrix(Branch * branch) {
+void BackwardEuler::SetupTreeMatrix(Branch *branch) {
   // treeset_core.c::nrn_rhs: Set up Right-Hand-Side
   // of Matrix-Vector multiplication
   HinesSolver::ResetArray(branch, branch->nt_->_actual_rhs);
