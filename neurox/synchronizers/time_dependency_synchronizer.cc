@@ -30,7 +30,7 @@ void TimeDependencySynchronizer::Clear() {}
 void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
     /* fixes crash for Synchronizer::All when TimeDependency
      * synchronizer starts at t=inputParams->tend*2 increase
@@ -46,7 +46,7 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
 void TimeDependencySynchronizer::BeforeStep(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
     // inform time dependants that must be notified in this step
     time_dependencies->SendSteppingNotification(
@@ -59,7 +59,7 @@ void TimeDependencySynchronizer::BeforeStep(Branch* b) {
 
 double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
   TimeDependencies* td =
-      (TimeDependencies*)branch->soma_->synchronizer_metadata_;
+      (TimeDependencies*)branch->soma_->synchronizer_neuron_info_;
   return td->GetDependenciesMinTime();
 }
 
@@ -76,7 +76,7 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
   hpx_t top_branch_addr = b->soma_ ? target : b->branch_tree_->top_branch_addr_;
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
     time_dependencies->UpdateTimeDependency(pre_neuron_id, max_time);
   } else
     hpx_call(top_branch_addr, Branch::UpdateTimeDependency, HPX_NULL,

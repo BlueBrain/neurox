@@ -563,10 +563,10 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
 
   assert(local->soma_);
-  assert(local->soma_->synchronizer_metadata_);
+  assert(local->soma_->synchronizer_neuron_info_);
   TimeDependencySynchronizer::TimeDependencies *time_dependencies =
       (TimeDependencySynchronizer::TimeDependencies *)
-          local->soma_->synchronizer_metadata_;
+          local->soma_->synchronizer_neuron_info_;
   time_dependencies->UpdateTimeDependency(
       pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
       init_phase);

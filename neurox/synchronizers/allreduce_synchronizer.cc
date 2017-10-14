@@ -47,7 +47,7 @@ void AllreduceSynchronizer::BeforeStep2(const Branch* branch,
   if (input_params_->locality_comm_reduce_) return;
 
   AllReduceNeuronInfo* stw =
-      (AllReduceNeuronInfo*)branch->soma_->synchronizer_metadata_;
+      (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;
 
   // if reduction id < 0, it's still on the first comm-window
   // within first comm-window, synchronizer does not wait
@@ -125,7 +125,7 @@ void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
   if (b->soma_) {
     AllReduceNeuronInfo* stw =
-        (AllReduceNeuronInfo*)b->soma_->synchronizer_metadata_;
+        (AllReduceNeuronInfo*)b->soma_->synchronizer_neuron_info_;
     assert(stw->spikes_lco_queue_.size() ==
            BackwardEuler::GetMinSynapticDelaySteps() - 1);
     stw->spikes_lco_queue_.push(spikes_lco);
@@ -179,7 +179,7 @@ int AllreduceSynchronizer::AllReduceNeuronInfo::SubscribeAllReduce_handler(
   NEUROX_MEM_PIN(Branch);
   const int allreduces_count = size / sizeof(hpx_t);
   AllReduceNeuronInfo* stw =
-      (AllReduceNeuronInfo*)local->soma_->synchronizer_metadata_;
+      (AllReduceNeuronInfo*)local->soma_->synchronizer_neuron_info_;
   stw->allreduce_future_ = new hpx_t[allreduces_count];
   stw->allreduce_lco_ = new hpx_t[allreduces_count];
   stw->allreduce_id_ = new int[allreduces_count];
@@ -199,7 +199,7 @@ int AllreduceSynchronizer::AllReduceNeuronInfo::UnsubscribeAllReduce_handler(
     const hpx_t* allreduces, const size_t size) {
   NEUROX_MEM_PIN(Branch);
   AllReduceNeuronInfo* stw =
-      (AllReduceNeuronInfo*)local->soma_->synchronizer_metadata_;
+      (AllReduceNeuronInfo*)local->soma_->synchronizer_neuron_info_;
   for (int i = 0; i < size / sizeof(hpx_t); i++) {
     hpx_process_collective_allreduce_unsubscribe(allreduces[i],
                                                  stw->allreduce_id_[i]);

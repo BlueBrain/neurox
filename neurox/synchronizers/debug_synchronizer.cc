@@ -61,7 +61,7 @@ void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
-        (CommunicationBarrier*)b->soma_->synchronizer_metadata_;
+        (CommunicationBarrier*)b->soma_->synchronizer_neuron_info_;
     if (comm_barrier->all_spikes_lco_ != HPX_NULL)  // was set/used once
       hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
@@ -73,7 +73,7 @@ double DebugSynchronizer::GetMaxStepTime(Branch* b) {
 
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
-      (CommunicationBarrier*)neuron->synchronizer_metadata_;
+      (CommunicationBarrier*)neuron->synchronizer_neuron_info_;
   if (comm_barrier->all_spikes_lco_ == HPX_NULL)  // first use
     comm_barrier->all_spikes_lco_ = hpx_lco_and_new(neuron->synapses_.size());
   else

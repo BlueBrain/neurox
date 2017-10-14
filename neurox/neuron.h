@@ -66,7 +66,7 @@ class Neuron {
   size_t GetSynapsesCount();
 
   /// Synchronizer-dependent metadata
-  synchronizers::SynchronizerNeuronInfo* synchronizer_metadata_;
+  synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;

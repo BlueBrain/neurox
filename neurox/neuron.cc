@@ -11,14 +11,14 @@ using namespace neurox::interpolators;
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
       threshold_(ap_threshold),
-      synchronizer_metadata_(nullptr) {
+      synchronizer_neuron_info_(nullptr) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-  this->synchronizer_metadata_ =
+  this->synchronizer_neuron_info_ =
       SynchronizerNeuronInfo::New(input_params_->synchronizer_);
 
-  assert(this->synchronizer_metadata_ != nullptr);
+  assert(this->synchronizer_neuron_info_ != nullptr);
   assert(
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
           0 &&
@@ -29,7 +29,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
 Neuron::~Neuron() {
   if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
   for (Synapse*& s : synapses_) delete s;
-  delete synchronizer_metadata_;
+  delete synchronizer_neuron_info_;
 }
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
