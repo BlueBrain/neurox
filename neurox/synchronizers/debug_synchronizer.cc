@@ -68,9 +68,8 @@ void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
 }
 
 double DebugSynchronizer::GetMaxStepTime(Branch* b) {
-    return b->nt_->_t + b->nt_->_dt; //single step at a time
+  return b->nt_->_t + b->nt_->_dt;  // single step at a time
 }
-
 
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =

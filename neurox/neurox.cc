@@ -7,6 +7,7 @@
 
 using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
+using namespace neurox::wrappers;
 
 namespace neurox {
 
@@ -29,21 +30,19 @@ Mechanism *GetMechanismFromType(int type) {
 hpx_action_t Main = 0;
 static int Main_handler() {
   printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
-         neurox::wrappers::NumRanks(), neurox::wrappers::NumThreads(),
-         LAYOUT == 0 ? "SoA" : "AoS");
+         NumRanks(), NumThreads(), LAYOUT == 0 ? "SoA" : "AoS");
   DebugMessage("neurox::Input::DataLoader::Init...\n");
-  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Init);
+  CallAllLocalities(neurox::input::DataLoader::Init);
   DebugMessage("neurox::Input::DataLoader::InitMechanisms...\n");
-  neurox::wrappers::CallAllLocalities(
-      neurox::input::DataLoader::InitMechanisms);
+  CallAllLocalities(neurox::input::DataLoader::InitMechanisms);
   DebugMessage("neurox::Input::DataLoader::InitNeurons...\n");
-  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::InitNeurons);
+  CallAllLocalities(neurox::input::DataLoader::InitNeurons);
   DebugMessage("neurox::Input::DataLoader::InitNetcons...\n");
-  neurox::wrappers::CallAllNeurons(neurox::input::DataLoader::InitNetcons);
+  CallAllNeurons(neurox::input::DataLoader::InitNetcons);
   DebugMessage("neurox::Input::DataLoader::Finalize...\n");
-  neurox::wrappers::CallAllLocalities(neurox::input::DataLoader::Finalize);
+  CallAllLocalities(neurox::input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
-  neurox::wrappers::CallAllNeurons(Branch::BranchTree::InitLCOs);
+  CallAllNeurons(Branch::BranchTree::InitLCOs);
   neurox::input::Debugger::CompareMechanismsFunctions();
   neurox::input::Debugger::CompareAllBranches();
 
@@ -55,7 +54,7 @@ static int Main_handler() {
 
   // call init action on each neuron (e.g. Finitialize, Cvodes init)
   DebugMessage("neurox::Branch::Initialize...\n");
-  neurox::wrappers::CallAllNeurons(Branch::Initialize);
+  CallAllNeurons(Branch::Initialize);
 #ifndef NDEBUG
   hpx_bcast_rsync(neurox::input::Debugger::Finitialize);
   hpx_bcast_rsync(neurox::input::Debugger::ThreadTableCheck);
@@ -68,20 +67,17 @@ static int Main_handler() {
   const bool run_all = synchronizer == (int)Synchronizers::kBenchmarkAll;
   const int init_type = run_all ? 0 : synchronizer;
   const int end_type =
-      run_all ? (int)Synchronizers::kSynchronizersCount : synchronizer;
+      run_all ? (int)Synchronizers::kSynchronizersCount : synchronizer + 1;
   const double tstop = input_params_->tstop_;
-  for (int type = init_type; type < end_type; type++) {
-    wrappers::CallAllLocalities(Synchronizer::InitializeLocality,
-                                &type, sizeof(type));
-    wrappers::CallAllNeurons(Synchronizer::InitializeNeuron);
+  for (int type = init_type; type <= end_type; type++) {
+    CallAllLocalities(Synchronizer::InitializeLocality, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::InitializeNeuron);
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
-      wrappers::CallAllLocalities(Synchronizer::RunLocality, &tstop,
-                                  sizeof(tstop));
+      CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
     else
-      wrappers::CallAllNeurons(Synchronizer::RunNeuron, &tstop,
-                               sizeof(tstop));
+      CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
     printf("neurox::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
@@ -99,13 +95,9 @@ static int Main_handler() {
            input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif
-    neurox::wrappers::CallAllLocalities(Synchronizer::ClearLocality);
+    CallAllLocalities(Synchronizer::ClearLocality);
     delete synchronizer_;
   }
-
-  DebugMessage("neurox::Interpolator::ClearNeuron...\n");
-  wrappers::CallAllNeurons(Branch::Clear);
-  hpx_bcast_rsync(neurox::Clear);
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
   printf(
@@ -113,6 +105,9 @@ static int Main_handler() {
       "secs).\n",
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
       total_elapsed_time);
+
+  CallAllNeurons(Branch::Clear);
+  hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);
 }
 
@@ -127,7 +122,7 @@ int Clear_handler() {
 #ifndef NDEBUG
   input::DataLoader::CleanCoreneuronData(true);
 #endif
-  return wrappers::MemoryUnpin(target);
+  return MemoryUnpin(target);
 }
 
 void DebugMessage(const char *str) {
@@ -140,8 +135,8 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(Main, Main_handler);
-  wrappers::RegisterZeroVarAction(Clear, Clear_handler);
+  RegisterZeroVarAction(Main, Main_handler);
+  RegisterZeroVarAction(Clear, Clear_handler);
 }
 
 };  // neurox

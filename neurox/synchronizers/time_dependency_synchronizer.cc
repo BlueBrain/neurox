@@ -27,28 +27,24 @@ void TimeDependencySynchronizer::InitLocality() {
 
 void TimeDependencySynchronizer::Clear() {}
 
-void TimeDependencySynchronizer::InitNeuron(Branch *b)
-{
-    if (b->soma_) {
+void TimeDependencySynchronizer::InitNeuron(Branch* b) {
+  if (b->soma_) {
+    TimeDependencies* time_dependencies =
+        (TimeDependencies*)b->soma_->synchronizer_metadata_;
 
-      TimeDependencies* time_dependencies =
-          (TimeDependencies*)b->soma_->synchronizer_metadata_;
-
-      /* fixes crash for Synchronizer::All when TimeDependency
-       * synchronizer starts at t=inputParams->tend*2 increase
-       * notification and dependencies time */
-      if (input_params_->synchronizer_==Synchronizers::kBenchmarkAll) {
-          for (Neuron::Synapse*& s : b->soma_->synapses_)
-            s->next_notification_time_ += b->nt_->_t;
-          time_dependencies->IncreseDependenciesTime(b->nt_->_t);
-        }
+    /* fixes crash for Synchronizer::All when TimeDependency
+     * synchronizer starts at t=inputParams->tend*2 increase
+     * notification and dependencies time */
+    if (input_params_->synchronizer_ == Synchronizers::kBenchmarkAll) {
+      for (Neuron::Synapse*& s : b->soma_->synapses_)
+        s->next_notification_time_ += b->nt_->_t;
+      time_dependencies->IncreseDependenciesTime(b->nt_->_t);
     }
+  }
 }
 
 void TimeDependencySynchronizer::BeforeStep(Branch* b) {
-
   if (b->soma_) {
-
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_metadata_;
 

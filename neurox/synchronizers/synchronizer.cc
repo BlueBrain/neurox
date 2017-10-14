@@ -48,7 +48,7 @@ SynchronizerMetadata* SynchronizerMetadata::New(Synchronizers type) {
 
 hpx_action_t Synchronizer::InitializeLocality = 0;
 int Synchronizer::InitializeLocality_handler(const int* synchronizer_id_ptr,
-                                       const size_t) {
+                                             const size_t) {
   NEUROX_MEM_PIN(uint64_t);
   delete neurox::synchronizer_;
 
@@ -145,6 +145,7 @@ void Synchronizer::RegisterHpxActions() {
                                             Synchronizer::RunLocality_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunNeuron,
                                             Synchronizer::RunNeuron_handler);
-  wrappers::RegisterSingleVarAction<int>(Synchronizer::InitializeLocality,
-                                         Synchronizer::InitializeLocality_handler);
+  wrappers::RegisterSingleVarAction<int>(
+      Synchronizer::InitializeLocality,
+      Synchronizer::InitializeLocality_handler);
 }
