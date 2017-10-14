@@ -43,14 +43,14 @@ class CmdLineParser {
   char pattern_stim_[512];  ///> patternStim file path (the filename of an
                             /// output_spikes.h format raster file.)
 
-  //TODO make const?
+  // TODO make const?
   // neurox specific options
-  bool output_statistics_;       ///> outputs statistics file
-  bool output_mechanisms_dot_;   ///> outputs mechanisms.dot file
-  bool output_netcons_dot;       ///> outputs netcons.dot file
-  bool output_compartments_dot_; ///> outputs compartments*.dot files
-  bool mechs_parallelism_;       ///> graph-based parallelism of mechanisms
-  bool locality_comm_reduce_;    ///> locality-based communication reduction
+  bool output_statistics_;        ///> outputs statistics file
+  bool output_mechanisms_dot_;    ///> outputs mechanisms.dot file
+  bool output_netcons_dot;        ///> outputs netcons.dot file
+  bool output_compartments_dot_;  ///> outputs compartments*.dot files
+  bool mechs_parallelism_;        ///> graph-based parallelism of mechanisms
+  bool locality_comm_reduce_;     ///> locality-based communication reduction
 
   /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;

@@ -44,7 +44,7 @@ void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
   }
 
   for (int step = 0; step < steps; step++)
-      interpolators::BackwardEuler::FullStep(b);
+    interpolators::BackwardEuler::FullStep(b);
 // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
 // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
 
@@ -64,6 +64,12 @@ void TimeDependencySynchronizer::BeforeStep(Branch* b) {
     time_dependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
                                                     b->soma_->gid_);
   }
+}
+
+double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
+  TimeDependencies* td =
+      (TimeDependencies*)branch->soma_->synchronizer_metadata_;
+  return td->GetDependenciesMinTime();
 }
 
 void TimeDependencySynchronizer::AfterStep(Branch* b, hpx_t) {

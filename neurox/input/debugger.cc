@@ -258,7 +258,7 @@ void Debugger::CompareAllBranches() {
   if (input_params_->branch_parallelism_depth_ > 0 ||
       input_params_->load_balancing_ ||
       input_params_->interpolator_ != Interpolators::kBackwardEuler)
-      return;
+    return;
 
   DebugMessage("neurox::Input::CoreNeuron::Debugger::CompareBranch...\n");
   neurox::wrappers::CallAllNeurons(input::Debugger::CompareBranch);
@@ -418,7 +418,7 @@ int Debugger::FixedStepMinimal_handler(const int *steps_ptr, const size_t) {
 hpx_action_t Debugger::Finitialize = 0;
 int Debugger::Finitialize_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
+  if (input_params_->interpolator_ == Interpolators::kBackwardEuler)
     nrn_finitialize(input_params_->voltage_ != 1000., input_params_->voltage_);
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -427,8 +427,7 @@ hpx_action_t Debugger::ThreadTableCheck = 0;
 int Debugger::ThreadTableCheck_handler() {
   // beginning of fadvance_core.c::nrn_fixed_step_group_minimal
   NEUROX_MEM_PIN(uint64_t);
-  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
-  {
+  if (input_params_->interpolator_ == Interpolators::kBackwardEuler) {
     dt2thread(dt);  // does nothing
     nrn_thread_table_check();
   }
@@ -438,7 +437,7 @@ int Debugger::ThreadTableCheck_handler() {
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
   NEUROX_MEM_PIN(uint64_t);
-  if (input_params_->interpolator_== Interpolators::kBackwardEuler)
+  if (input_params_->interpolator_ == Interpolators::kBackwardEuler)
     nrn_spike_exchange(nrn_threads);
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -448,7 +447,7 @@ int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
   if (input_params_->branch_parallelism_depth_ > 0 ||
       input_params_->load_balancing_ ||
-      input_params_->interpolator_!= Interpolators::kBackwardEuler)
+      input_params_->interpolator_ != Interpolators::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
@@ -458,7 +457,7 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
   if (input_params_->branch_parallelism_depth_ > 0 ||
       input_params_->load_balancing_ ||
-      input_params_->interpolator_!= Interpolators::kBackwardEuler)
+      input_params_->interpolator_ != Interpolators::kBackwardEuler)
     return;
   if (neurox::ParallelExecution())  // parallel execution only (serial execs are
                                     // compared on-the-fly)

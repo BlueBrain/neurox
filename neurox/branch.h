@@ -12,9 +12,8 @@ using namespace neurox;
 
 namespace neurox {
 
-//Fwd declarations
-namespace interpolators
-{
+// Fwd declarations
+namespace interpolators {
 class Interpolator;
 }
 
@@ -127,8 +126,8 @@ class Branch {
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
-  static hpx_action_t InitSoma;  ///> Initializes soma information
-  static hpx_action_t Initialize; ///> Initializes interpolator for this neuron
+  static hpx_action_t InitSoma;    ///> Initializes soma information
+  static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;  ///>add incoming synapse to queue
 

@@ -34,8 +34,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
       events_queue_mutex_(HPX_NULL),
-      interpolator_(nullptr)
-{
+      interpolator_(nullptr) {
   this->nt_ = (NrnThread *)malloc(sizeof(NrnThread));
   NrnThread *nt = this->nt_;
 
@@ -70,7 +69,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // assignemnts start here
   nt->_dt = input_params_->dt_;
   nt->_t = input_params_->tstart_;
-  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt ;
+  nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   nt->end = n;
 
   nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count);
@@ -445,8 +444,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
-    for (int i=0; i<comm_steps; i++)
-        BackwardEuler::FullStep(local);
+    for (int i = 0; i < comm_steps; i++) BackwardEuler::FullStep(local);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     return neurox::wrappers::MemoryUnpin(target, time_elapsed);
@@ -575,7 +573,6 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-
 hpx_action_t Branch::ThreadTableCheck = 0;
 int Branch::ThreadTableCheck_handler() {
   NEUROX_MEM_PIN(Branch);
@@ -636,12 +633,11 @@ Branch::BranchTree::~BranchTree() {
   delete[] with_children_lcos_;
 }
 
-
 hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
-  local->interpolator_->Init(local); //Finitialize, Cvodes init, etc
+  local->interpolator_->Init(local);  // Finitialize, Cvodes init, etc
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }

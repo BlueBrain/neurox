@@ -42,12 +42,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg locality_comm_reduce(
-        "R", "locality_comm_reduce",
-        "perform HPX all-reduce operation at "
-        "locality level instead of neuron "
-        "level (better for small cluster).",
-        cmd, false);
+    TCLAP::SwitchArg locality_comm_reduce("R", "locality_comm_reduce",
+                                          "perform HPX all-reduce operation at "
+                                          "locality level instead of neuron "
+                                          "level (better for small cluster).",
+                                          cmd, false);
     TCLAP::SwitchArg output_statistics(
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
@@ -219,8 +218,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
             "time-step size (ms) should be a positive value", "dt");
 
       if (!(remainder_tstop_tcomm < 0.00001 ||
-            remainder_tstop_tcomm >
-                neurox::min_synaptic_delay_ - 0.00001))
+            remainder_tstop_tcomm > neurox::min_synaptic_delay_ - 0.00001))
         throw TCLAP::ArgException(
             "execution time " + to_string(this->tstop_) +
                 "ms should be a multiple of the communication delay " +

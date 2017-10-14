@@ -20,14 +20,63 @@ const char* AllreduceSynchronizer::GetString() {
 }
 
 void AllreduceSynchronizer::Init() {
-  SubscribeAllReduces(AllreduceSynchronizer::kAllReducesCount);
+  SubscribeAllReduces(kAllReducesCount);
 }
 
 void AllreduceSynchronizer::Clear() {
-  UnsubscribeAllReduces(AllreduceSynchronizer::kAllReducesCount);
+  UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::BeforeStep(Branch*) {}
+void AllreduceSynchronizer::BeforeStep(Branch* branch){
+    AllreduceSynchronizer::BeforeStep2(branch, kAllReducesCount);
+}
+
+double AllreduceSynchronizer::GetMaxStepTime(Branch* b){
+    AllreduceSynchronizer::GetMaxStepTime2(b, kAllReducesCount);
+}
+
+double AllreduceSynchronizer::GetLocalityReductionInterval(){
+    return AllreduceSynchronizer::GetLocalityReductionInterval2(kAllReducesCount);
+}
+
+void AllreduceSynchronizer::LocalityReduce() {
+    AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
+}
+
+void AllreduceSynchronizer::BeforeStep2(const Branch* branch, const int allreduces_count)
+{
+    //ignore neuron level reductions it they're done at locality level
+    if (input_params_->locality_comm_reduce_)
+        return;
+
+    AllReducesInfo * stw = (AllReducesInfo*) branch->soma_->synchronizer_metadata_;
+
+    // if reduction id < 0, it's still on the first comm-window
+    //within first comm-window, synchronizer does not wait
+    int & r = stw->next_allreduce_id_;
+    if (r>=0)
+      /* fixes crash for Synchronizer::ALL when running two
+       *  hpx-reduce -based synchronizers in a row*/
+      hpx_lco_reset_sync(stw->allreduce_future_[r]);
+    else
+      /* neuron-level reduction */
+      hpx_lco_wait_reset(stw->allreduce_future_[r]);
+
+    hpx_process_collective_allreduce_join(
+                stw->allreduce_lco_[r], stw->allreduce_id_[r], NULL, 0);
+
+    if (++r == allreduces_count)
+        r=0;
+}
+
+double AllreduceSynchronizer::GetMaxStepTime2(const Branch* b, const int allreduces_count)
+{
+    return b->nt_->_t + neurox::min_synaptic_delay_/allreduces_count;
+}
+
+double AllreduceSynchronizer::GetLocalityReductionInterval2(const double allreduces_count) {
+     return neurox::min_synaptic_delay_/allreduces_count;
+}
 
 void AllreduceSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
@@ -35,21 +84,11 @@ void AllreduceSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
                                               input_params_->second_order_);
 }
 
-void AllreduceSynchronizer::Run(Branch* b, const void* args) { Run2(b, args); }
+void AllreduceSynchronizer::Run(Branch* b, const void* args) {
+    AllreduceSynchronizer::Run2(b, args); }
 
 hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return Neuron::SendSpikesAsync(n, tt);
-}
-
-double AllreduceSynchronizer::GetLocalityReductionInterval()
-{
-    return neurox::min_synaptic_delay_/kAllReducesCount;
-}
-
-void AllreduceSynchronizer::LocalityReduce() {
-    AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
-                AllreduceSynchronizer::kAllReducesCount
-                );
 }
 
 
@@ -122,7 +161,7 @@ void AllreduceSynchronizer::Run2(Branch* b, const void* args) {
     }
 #endif
     // for every reduction step
-    for (int r = 0; r < reductions_per_comm_step; r++)  
+    for (int r = 0; r < reductions_per_comm_step; r++)
     {
       if (b->soma_) {
         if (s >= comm_step_size)  // first comm-window does not wait
@@ -166,9 +205,13 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(int allreduces
 }
 
 
-AllreduceSynchronizer::AllReducesInfo::AllReducesInfo() {
+AllreduceSynchronizer::AllReducesInfo::AllReducesInfo(const size_t allreduces_count) {
   for (int s = 0; s < BackwardEuler::GetMinSynapticDelaySteps() - 1; s++)
     this->spikes_lco_queue_.push(HPX_NULL);
+
+  //TODO can Init go here?
+  //negative value means ignore until it reaches 0
+  next_allreduce_id_ = -allreduces_count;
 }
 
 AllreduceSynchronizer::AllReducesInfo::~AllReducesInfo() {

@@ -16,16 +16,20 @@ const char* SlidingTimeWindowSynchronizer::GetString() {
 }
 
 void SlidingTimeWindowSynchronizer::Init() {
-  AllreduceSynchronizer::SubscribeAllReduces(
-      SlidingTimeWindowSynchronizer::kAllReducesCount);
+  AllreduceSynchronizer::SubscribeAllReduces(kAllReducesCount);
 }
 
 void SlidingTimeWindowSynchronizer::Clear() {
-  AllreduceSynchronizer::UnsubscribeAllReduces(
-      SlidingTimeWindowSynchronizer::kAllReducesCount);
+  AllreduceSynchronizer::UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::BeforeStep(Branch*) {}
+void SlidingTimeWindowSynchronizer::BeforeStep(Branch* branch) {
+  AllreduceSynchronizer::BeforeStep2(branch, kAllReducesCount);
+}
+
+double SlidingTimeWindowSynchronizer::GetMaxStepTime(Branch* b) {
+  AllreduceSynchronizer::GetMaxStepTime2(b, kAllReducesCount);
+}
 
 void SlidingTimeWindowSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
   AllreduceSynchronizer::WaitForSpikesDelivery(b, spikesLco);
@@ -33,21 +37,15 @@ void SlidingTimeWindowSynchronizer::AfterStep(Branch* b, hpx_t spikesLco) {
                                               input_params_->second_order_);
 }
 
-void SlidingTimeWindowSynchronizer::Run(Branch* b, const void* args) {
-  AllreduceSynchronizer::Run2(b, args);
-}
-
 hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return Neuron::SendSpikesAsync(n, tt);
 }
 
-double SlidingTimeWindowSynchronizer::GetLocalityReductionInterval()
-{
-    return neurox::min_synaptic_delay_/kAllReducesCount;
+double SlidingTimeWindowSynchronizer::GetLocalityReductionInterval() {
+  return AllreduceSynchronizer::GetLocalityReductionInterval2(kAllReducesCount);
 }
 
 void SlidingTimeWindowSynchronizer::LocalityReduce() {
-    AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
-                SlidingTimeWindowSynchronizer::kAllReducesCount
-                );
+  AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
+      kAllReducesCount);
 }

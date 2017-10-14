@@ -411,8 +411,8 @@ void DataLoader::CleanCoreneuronData(const bool clean_ion_global_map) {
 }
 
 void DataLoader::LoadCoreneuronData(int argc, char **argv,
-                                           bool nrnmpi_under_nrncontrol,
-                                           bool run_setup_cleanup) {
+                                    bool nrnmpi_under_nrncontrol,
+                                    bool run_setup_cleanup) {
   // nrnmpi_under_nrncontrol=true allows parallel data loading without "-m"
   // flag, see rnmpi_init()
   nrn_init_and_load_data(argc, argv, nrnmpi_under_nrncontrol,

@@ -51,23 +51,25 @@ class Synchronizer {
   const virtual char* GetString() = 0;
 
   /// Initialize synchronizer meta data
-  virtual void Init(){}
+  virtual void Init() {}
 
   /// Clears/finalizes synchronizer meta data
-  virtual void Clear(){}
+  virtual void Clear() {}
 
   /// To be called at beginning of step
-  virtual void BeforeStep(Branch*){}
+  virtual void BeforeStep(Branch*) {}
+
+  virtual double GetMaxStepTime(Branch*) = 0;
 
   /// To be called at end of step
-  virtual void AfterStep(Branch*, hpx_t spikesLco){}
+  virtual void AfterStep(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
   virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
-                                  spike_time_t){}
+                                  spike_time_t) {}
 
   /// Time-step between locality-based comm. reductions
   virtual double GetLocalityReductionInterval();
@@ -82,8 +84,7 @@ class Synchronizer {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-private:
-
+ private:
   ///  hpx address of all neurons in this locality
   static hpx_t* locality_neurons_;
 
@@ -94,7 +95,6 @@ private:
   static int ClearLocality_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
-
 };
 
 };  // synchronizers

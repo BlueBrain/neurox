@@ -166,15 +166,15 @@ void tools::Vectorizer::CallVecFunction(cvode_f_t func, NrnThread* nt,
 }
 
 void tools::Vectorizer::GroupBranchInstancesByCapacitors(
-    const Branch *branch,              // in
-    Memb_list **ml_no_capacitors_ptr,  // out (optional)
-    Memb_list **ml_capacitors_ptr,     // out (optional)
-    std::set<int> *capacitor_ids_ptr   // in  (optional)
+    const Branch* branch,              // in
+    Memb_list** ml_no_capacitors_ptr,  // out (optional)
+    Memb_list** ml_capacitors_ptr,     // out (optional)
+    std::set<int>* capacitor_ids_ptr   // in  (optional)
     ) {
   // if not provided, build list of capacitor ids
   std::set<int> new_capacitor_ids;
   if (capacitor_ids_ptr == nullptr) {
-    Memb_list *capac_instances =
+    Memb_list* capac_instances =
         &branch->mechs_instances_[mechanisms_map_[CAP]];
     // get list of all nodes that are capacitors
     for (int c = 0; c < capac_instances->nodecount; c++) {
@@ -183,20 +183,20 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     }
   }
 
-  std::set<int> &capacitor_ids =
+  std::set<int>& capacitor_ids =
       capacitor_ids_ptr ? *capacitor_ids_ptr : new_capacitor_ids;
 
   /* occvode.cpp::new_no_cap_memb(): get Memb_list for non-capacitor
   nodes only: pointers will point to same place in nt->data, we
   will re-order Memb_list to have no-caps first, and then
   update nodecount for no-caps instance to cover no-caps only */
-  Memb_list *ml_no_capacitors = new Memb_list[neurox::mechanisms_count_];
+  Memb_list* ml_no_capacitors = new Memb_list[neurox::mechanisms_count_];
   memcpy(ml_no_capacitors, branch->mechs_instances_,
          neurox::mechanisms_count_ * sizeof(Memb_list));
 
   // ml_capacitors is optional
   if (ml_capacitors_ptr != nullptr) {
-    Memb_list *&ml_capacitors = *ml_capacitors_ptr;
+    Memb_list*& ml_capacitors = *ml_capacitors_ptr;
     ml_capacitors = new Memb_list[neurox::mechanisms_count_];
     memcpy(ml_capacitors, branch->mechs_instances_,
            neurox::mechanisms_count_ * sizeof(Memb_list));
@@ -206,8 +206,8 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
   map<int, map<int, int>> ions_data_map;
 
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    Mechanism *mech = neurox::mechanisms_[m];
-    Memb_list *instances = &branch->mechs_instances_[m];
+    Mechanism* mech = neurox::mechanisms_[m];
+    Memb_list* instances = &branch->mechs_instances_[m];
 
     // neuron: "only point processes with currents are possibilities"
     bool mech_valid_in_phase_1 = mech->pnt_map_ && mech->memb_func_.current;
@@ -303,7 +303,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
 
     // create Memb_list for capacitors only mechanisms
     if (ml_capacitors_ptr != nullptr) {
-      Memb_list *&ml_capacitors = *ml_capacitors_ptr;
+      Memb_list*& ml_capacitors = *ml_capacitors_ptr;
 
       ml_capacitors[m].nodecount =
           instances[m].nodecount - ml_no_capacitors[m].nodecount;

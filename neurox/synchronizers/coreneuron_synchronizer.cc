@@ -23,15 +23,15 @@ const char* CoreneuronSynchronizer::GetString() {
   return "BackwardEulerCoreneuron";
 }
 
-void CoreneuronSynchronizer::Init() {
-  assert(0);
-}
+void CoreneuronSynchronizer::Init() { assert(0); }
 
 void CoreneuronSynchronizer::Clear() {}
 
 void CoreneuronSynchronizer::BeforeStep(Branch*) { assert(0); }
 
 void CoreneuronSynchronizer::AfterStep(Branch* b, hpx_t) { assert(0); }
+
+double CoreneuronSynchronizer::GetMaxStepTime(Branch* b) { assert(0); }
 
 hpx_t CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   assert(0);

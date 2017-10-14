@@ -18,6 +18,8 @@ class AllreduceSynchronizer : public Synchronizer {
   void Init() override;
   void Clear() override;
   void BeforeStep(Branch*) override;
+  double GetMaxStepTime(Branch *) override;
+
   void AfterStep(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
   double GetLocalityReductionInterval() override;
@@ -30,8 +32,12 @@ class AllreduceSynchronizer : public Synchronizer {
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
   static void Run2(Branch*, const void*);
 
-  const size_t kAllReducesCount = 1;
+  static const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;
+
+  static void BeforeStep2(const Branch*, const int);
+  static double GetMaxStepTime2(const Branch*, const int);
+  static double GetLocalityReductionInterval2(const double);
 
   // for node level reduction only (initialized by initNodeLevelInformaion)
   class AllReduceLocalityInfo {
@@ -52,7 +58,8 @@ class AllreduceSynchronizer : public Synchronizer {
 
   class AllReducesInfo : public SynchronizerMetadata {
    public:
-    AllReducesInfo();
+    AllReducesInfo()=delete;
+    AllReducesInfo(const size_t);
     ~AllReducesInfo();
 
     static void RegisterHpxActions();  ///> Register all HPX actions
@@ -62,6 +69,7 @@ class AllreduceSynchronizer : public Synchronizer {
     hpx_t* allreduce_future_;
     hpx_t* allreduce_lco_;
     int* allreduce_id_;
+    int next_allreduce_id_;
 
     // all-reduce functions
     static hpx_action_t Init;

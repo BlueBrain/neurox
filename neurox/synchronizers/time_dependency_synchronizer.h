@@ -21,6 +21,7 @@ class TimeDependencySynchronizer : public Synchronizer {
   void Clear() override;
 
   void BeforeStep(Branch*) override;
+  double GetMaxStepTime(Branch*) override;
   void AfterStep(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
 

@@ -247,7 +247,7 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
 }
 
 void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch) {
-  const VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
 
   floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *d = branch->nt_->_actual_d;
@@ -261,7 +261,7 @@ void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch) {
 }
 
 void HinesSolver::ResetRHSNoCapacitors(Branch *branch) {
-  const VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
 
   floble_t *rhs = branch->nt_->_actual_rhs;
   const int *node_ids = vardt->no_cap_node_ids_;
@@ -271,7 +271,7 @@ void HinesSolver::ResetRHSNoCapacitors(Branch *branch) {
 }
 
 void HinesSolver::SetupMatrixVoltageNoCapacitors(Branch *branch) {
-  const VariableTimeStep *vardt = (VariableTimeStep*) branch->interpolator_;
+  const VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
 
   const floble_t *a = branch->nt_->_actual_a;
   const floble_t *b = branch->nt_->_actual_b;

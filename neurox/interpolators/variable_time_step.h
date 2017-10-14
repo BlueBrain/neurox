@@ -15,7 +15,7 @@
 #include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
 
 // For Pre-conditioned matrix solvers
-#include <cvodes/cvodes_diag.h>      /*For Approx Diagonal matrix*/
+#include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -25,28 +25,24 @@ namespace interpolators {
 
 class VariableTimeStep : public Interpolator {
  public:
-
   VariableTimeStep();
   ~VariableTimeStep();
 
-  const char* GetString() override;
-  void Init(Branch*)  override;
-  hpx_t Step(Branch*)  override;
-  void Clear(Branch*) override;
+  const char *GetString() override;
+  void Init(Branch *) override;
+  hpx_t StepTo(Branch *, const double) override;
+  void Clear(Branch *) override;
 
-  static void Run(Branch*) ; //TODO delete
-
-  static void PrintStatistics(const Branch*);
+  static void PrintStatistics(const Branch *);
 
   // Information of no-capacitance nodes
-  int* no_cap_node_ids_;        ///> no-cap node ids
-  int  no_cap_node_ids_count_;  ///> size of node_ids_
-  int* no_cap_child_ids_;       ///> id of nodes with no-cap parents
-  int  no_cap_child_ids_count_; ///> size of child_ids_
-  Memb_list *no_cap_ml_;  ///> Memb_list of no-cap nodes
+  int *no_cap_node_ids_;        ///> no-cap node ids
+  int no_cap_node_ids_count_;   ///> size of node_ids_
+  int *no_cap_child_ids_;       ///> id of nodes with no-cap parents
+  int no_cap_child_ids_count_;  ///> size of child_ids_
+  Memb_list *no_cap_ml_;        ///> Memb_list of no-cap nodes
 
-private:
-
+ private:
   /// absolute tolerance per equation
   N_Vector absolute_tolerance_;
 
