@@ -15,9 +15,7 @@ class AllreduceSynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
   void InitLocality() override;
-  void InitNeuron(Branch *b) override;
   void ClearLocality() override;
-  void ClearNeuron(Branch*) override;
   void BeforeSteps(Branch*) override;
   double GetMaxStepTime(Branch*) override;
   void AfterSteps(Branch*, hpx_t) override;
@@ -25,10 +23,8 @@ class AllreduceSynchronizer : public Synchronizer {
   double GetLocalityReductionInterval() override;
   void LocalityReduce() override;
 
-  static void SubscribeAllReducesLocality(size_t allreduces_count);
-  static void SubscribeAllReducesNeuron(Branch *b, size_t allreduces_count);
-  static void UnsubscribeAllReducesLocality(size_t allreduces_count);
-  static void UnsubscribeAllReducesNeuron(Branch* b, size_t allreduces_count);
+  static void SubscribeAllReduces(size_t allreduces_count);
+  static void UnsubscribeAllReduces(size_t allreduces_count);
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
 
   static const size_t kAllReducesCount = 1;

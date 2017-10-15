@@ -43,8 +43,8 @@ SynchronizerNeuronInfo* SynchronizerNeuronInfo::New(SynchronizerIds type) {
   return nullptr;
 }
 
-hpx_action_t Synchronizer::InitLocalityInfo = 0;
-int Synchronizer::InitLocalityInfo_handler(const int* synchronizer_id_ptr,
+hpx_action_t Synchronizer::CallInitLocality = 0;
+int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
                                            const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
@@ -70,8 +70,8 @@ int Synchronizer::NeuronInfoConstructor_handler(const int* synchronizer_id_ptr,
     NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t Synchronizer::InitNeuronInfo = 0;
-int Synchronizer::InitNeuronInfo_handler() {
+hpx_action_t Synchronizer::CallInitNeuron = 0;
+int Synchronizer::CallInitNeuron_handler() {
   NEUROX_MEM_PIN(Branch);
   assert(neurox::synchronizer_);
   neurox::synchronizer_->InitNeuron(local);
@@ -121,8 +121,8 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t Synchronizer::ClearLocalityInfo = 0;
-int Synchronizer::ClearLocalityInfo_handler() {
+hpx_action_t Synchronizer::CallClearLocality = 0;
+int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
   neurox::synchronizer_->ClearLocality();
   delete neurox::synchronizer_;
@@ -130,16 +130,24 @@ int Synchronizer::ClearLocalityInfo_handler() {
   NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t Synchronizer::ClearNeuronInfo = 0;
-int Synchronizer::ClearNeuronInfo_handler() {
+hpx_action_t Synchronizer::CallClearNeuron = 0;
+int Synchronizer::CallClearNeuron_handler() {
   NEUROX_MEM_PIN(Branch);
   neurox::synchronizer_->ClearNeuron(local);
-  if (local->soma_) {
-    delete local->soma_->synchronizer_neuron_info_;
-    local->soma_->synchronizer_neuron_info_ = nullptr;
-  }
   NEUROX_MEM_UNPIN;
 }
+
+hpx_action_t Synchronizer::NeuronInfoDestructor = 0;
+int Synchronizer::NeuronInfoDestructor_handler()
+{
+    NEUROX_MEM_PIN(Branch);
+    if (local->soma_) {
+      delete local->soma_->synchronizer_neuron_info_;
+      local->soma_->synchronizer_neuron_info_ = nullptr;
+    }
+    NEUROX_MEM_UNPIN;
+}
+
 
 double Synchronizer::GetLocalityReductionInterval()  // virtual
 {
@@ -147,18 +155,20 @@ double Synchronizer::GetLocalityReductionInterval()  // virtual
 }
 
 void Synchronizer::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(Synchronizer::ClearLocalityInfo,
-                                  Synchronizer::ClearLocalityInfo_handler);
-  wrappers::RegisterZeroVarAction(Synchronizer::ClearNeuronInfo,
-                                  Synchronizer::ClearNeuronInfo_handler);
-  wrappers::RegisterZeroVarAction(Synchronizer::InitNeuronInfo,
-                                  Synchronizer::InitNeuronInfo_handler);
+  wrappers::RegisterZeroVarAction(Synchronizer::CallClearLocality,
+                                  Synchronizer::CallClearLocality_handler);
+  wrappers::RegisterZeroVarAction(Synchronizer::CallClearNeuron,
+                                  Synchronizer::CallClearNeuron_handler);
+  wrappers::RegisterZeroVarAction(Synchronizer::CallInitNeuron,
+                                  Synchronizer::CallInitNeuron_handler);
+  wrappers::RegisterZeroVarAction(Synchronizer::NeuronInfoDestructor,
+                                  Synchronizer::NeuronInfoDestructor_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunLocality,
                                             Synchronizer::RunLocality_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunNeuron,
                                             Synchronizer::RunNeuron_handler);
   wrappers::RegisterSingleVarAction<int>(
-      Synchronizer::InitLocalityInfo, Synchronizer::InitLocalityInfo_handler);
+      Synchronizer::CallInitLocality, Synchronizer::CallInitLocality_handler);
   wrappers::RegisterSingleVarAction<int>(Synchronizer::NeuronInfoConstructor,
                                          Synchronizer::NeuronInfoConstructor_handler);
 }

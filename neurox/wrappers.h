@@ -58,6 +58,34 @@ inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
 /// calls method (with arguments) on all neurons in neurox::neurons
 template <typename... Args>
 inline hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
+  assert(neurox::neurons_!=nullptr);
+  hpx_t lco = hpx_lco_and_new(neurox::neurons_count_);
+  int e = HPX_SUCCESS;
+  int n = wrappers::CountArgs(args...);
+  for (size_t i = 0; i < neurox::neurons_count_; i++)
+    e += _hpx_call(neurox::neurons_[i], f, lco, n, args...);
+  hpx_lco_wait_reset(lco);
+  hpx_lco_delete_sync(lco);
+  return e;
+}
+
+/// calls method (with arguments) on all neurox::locality_neurons
+template <typename... Args>
+inline hpx_status_t CallLocalNeurons(hpx_action_t f, Args... args) {
+  assert(neurox::locality_neurons_!=nullptr);
+  hpx_t lco = hpx_lco_and_new(neurox::locality_neurons_count_);
+  int e = HPX_SUCCESS;
+  int n = wrappers::CountArgs(args...);
+  for (size_t i = 0; i < neurox::locality_neurons_count_; i++)
+    e += _hpx_call(neurox::locality_neurons_[i], f, lco, n, args...);
+  hpx_lco_wait_reset(lco);
+  hpx_lco_delete_sync(lco);
+  return e;
+}
+
+/// calls method (with arguments) on all neurons locally
+template <typename... Args>
+inline hpx_status_t CallAllNeuronsLocally(hpx_action_t f, Args... args) {
   hpx_t lco = hpx_lco_and_new(neurox::neurons_count_);
   int e = HPX_SUCCESS;
   int n = wrappers::CountArgs(args...);

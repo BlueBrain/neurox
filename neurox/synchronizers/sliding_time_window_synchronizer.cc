@@ -16,19 +16,11 @@ const char* SlidingTimeWindowSynchronizer::GetString() {
 }
 
 void SlidingTimeWindowSynchronizer::InitLocality() {
-  AllreduceSynchronizer::SubscribeAllReducesLocality(kAllReducesCount);
-}
-
-void SlidingTimeWindowSynchronizer::InitNeuron(Branch *b) {
-  AllreduceSynchronizer::SubscribeAllReducesNeuron(b, kAllReducesCount);
+  AllreduceSynchronizer::SubscribeAllReduces(kAllReducesCount);
 }
 
 void SlidingTimeWindowSynchronizer::ClearLocality() {
-  AllreduceSynchronizer::UnsubscribeAllReducesLocality(kAllReducesCount);
-}
-
-void SlidingTimeWindowSynchronizer::ClearNeuron(Branch *b) {
-  AllreduceSynchronizer::UnsubscribeAllReducesNeuron(b, kAllReducesCount);
+  AllreduceSynchronizer::UnsubscribeAllReduces(kAllReducesCount);
 }
 
 void SlidingTimeWindowSynchronizer::BeforeSteps(Branch* b) {

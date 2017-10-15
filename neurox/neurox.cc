@@ -72,9 +72,9 @@ static int Main_handler() {
   const double tstop = input_params_->tstop_;
 
   for (int type = init_type; type < end_type; type++) {
-    CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
     CallAllNeurons(Synchronizer::NeuronInfoConstructor, &type, sizeof(type));
-    CallAllNeurons(Synchronizer::InitNeuronInfo);
+    CallAllLocalities(Synchronizer::CallInitLocality, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::CallInitNeuron);
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
@@ -98,8 +98,9 @@ static int Main_handler() {
            input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif
-    CallAllNeurons(Synchronizer::ClearNeuronInfo);
-    CallAllLocalities(Synchronizer::ClearLocalityInfo);
+    CallAllNeurons(Synchronizer::CallClearNeuron);
+    CallAllLocalities(Synchronizer::CallClearLocality);
+    CallAllNeurons(Synchronizer::NeuronInfoDestructor);
   }
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
