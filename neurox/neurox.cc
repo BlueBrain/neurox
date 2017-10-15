@@ -69,7 +69,7 @@ static int Main_handler() {
   const int init_type = run_all ? 1 /*0 is debug*/ : synchronizer;
   const int end_type =
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
-  const double tstop = input_params_->tstop_;
+  double tstop = input_params_->tstop_;
 
   for (int type = init_type; type < end_type; type++) {
     CallAllNeurons(Synchronizer::NeuronInfoConstructor, &type, sizeof(type));
@@ -101,6 +101,10 @@ static int Main_handler() {
     CallAllNeurons(Synchronizer::CallClearNeuron);
     CallAllLocalities(Synchronizer::CallClearLocality);
     CallAllNeurons(Synchronizer::NeuronInfoDestructor);
+
+    //if running all methods, run the next one for the same time
+    if (input_params_->synchronizer_==SynchronizerIds::kBenchmarkAll)
+        tstop += input_params_->tstop_;
   }
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
