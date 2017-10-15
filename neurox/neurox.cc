@@ -57,8 +57,8 @@ static int Main_handler() {
   DebugMessage("neurox::Branch::Initialize...\n");
   CallAllNeurons(Branch::Initialize);
 #ifndef NDEBUG
-  hpx_bcast_rsync(input::Debugger::Finitialize);
-  hpx_bcast_rsync(input::Debugger::ThreadTableCheck);
+  CallAllLocalities(input::Debugger::Finitialize);
+  CallAllLocalities(input::Debugger::ThreadTableCheck);
   input::Debugger::CompareAllBranches();
 #endif
 
@@ -140,6 +140,8 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
+  RegisterMultipleVarAction(wrappers::CallAllNeuronsAux,
+                            wrappers::CallAllNeuronsAux_handler);
   RegisterZeroVarAction(Main, Main_handler);
   RegisterZeroVarAction(Clear, Clear_handler);
 }
