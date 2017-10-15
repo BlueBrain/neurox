@@ -83,7 +83,7 @@ static int Main_handler() {
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
-    printf("neurox::%s (%d neurons, t=%.03f secs, dt=%.03f milisecs\n",
+    printf("neurox::%s (%d neurons, t=%.03f secs, dt=0.5f milisecs\n",
            synchronizer_->GetString(), neurox::neurons_count_,
            input_params_->tstop_ / 1000, input_params_->dt_);
 
@@ -110,7 +110,7 @@ static int Main_handler() {
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
       total_elapsed_time);
 
-  input::Debugger::CompareAllBranches();
+  input::Debugger::RunCoreneuronAndCompareAllBranches();
   CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);

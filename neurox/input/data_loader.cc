@@ -1439,10 +1439,11 @@ int DataLoader::InitNetcons_handler() {
     fprintf(file_netcons_, "%d [style=filled, shape=ellipse];\n",
             local->soma_->gid_);
 
-  std::deque<std::pair<hpx_t, floble_t>>
-      netcons;  // set of <srcAddr, minDelay> synapses to notify
-  std::deque<std::pair<int, spike_time_t>>
-      dependencies;  // set of <srcGid, nextNotificationtime> for dependencies
+  // set of <srcAddr, minDelay> synapses to notify
+  std::deque<std::pair<hpx_t, floble_t>> netcons;
+
+  // set of <srcGid, nextNotificationtime> for dependencies
+  std::deque<std::pair<int, spike_time_t>>  dependencies;
 
   const floble_t impossibly_large_delay = 99999999;
   for (int i = 0; i < all_neurons_gids_->size(); i++) {
@@ -1505,7 +1506,12 @@ int DataLoader::InitNetcons_handler() {
   hpx_lco_delete_sync(dependencies_lco);
 
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
+}
+
+hpx_action_t DataLoader::InitTimeDependencies = 0;
+int DataLoader::InitTimeDependencies_handler() {
+
 }
 
 hpx_action_t DataLoader::AddSynapse = 0;

@@ -143,7 +143,10 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
-  assert(dependencies_map_.size() > 0);
+  //if no dependencies, walk to the end of the simulation
+  if (dependencies_map_.empty())
+      return input_params_->tstop_;
+
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
                           [](pair<neuron_id_t, floble_t> const& lhs,
                              pair<neuron_id_t, floble_t> const& rhs) {

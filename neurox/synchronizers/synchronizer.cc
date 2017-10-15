@@ -81,8 +81,6 @@ int Synchronizer::CallInitNeuron_handler() {
 hpx_action_t Synchronizer::RunLocality = 0;
 int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
-  const hpx_t locality_neurons_lco =
-      hpx_lco_and_new(neurox::locality_neurons_count_);
   const double reduction_interval =
       synchronizer_->GetLocalityReductionInterval();
   const double tstop = *tstop_ptr;
@@ -90,10 +88,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   for (double t = 0; t <= tstop; t += reduction_interval) {
     synchronizer_->LocalityReduce();
     step_to_time = t + reduction_interval;
-    for (int i = 0; i < neurox::locality_neurons_count_; i++)
-      hpx_call(neurox::locality_neurons_[i], Synchronizer::RunNeuron,
-               locality_neurons_lco, &step_to_time, sizeof(double));
-    hpx_lco_wait_reset(locality_neurons_lco);
+    wrappers::CallLocalNeurons(Synchronizer::RunNeuron, &step_to_time, sizeof(double));
   }
   NEUROX_MEM_UNPIN;
 }
@@ -103,16 +98,17 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
                                     const size_t size) {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::RunNeuron, tstop_ptr, size);
-  const double tstop = *tstop_ptr;
+  const double tstop = *tstop_ptr-0.00001;
   Interpolator* interpolator = local->interpolator_;
-
   const double dt_io = input_params_->dt_io_;
+  double tpause = -1;
+  hpx_t spikes_lco = HPX_NULL;
 
   double& t = local->nt_->_t;
   while (t <= tstop) {
     synchronizer_->BeforeSteps(local);
-    double tpause = synchronizer_->GetMaxStepTime(local);
-    hpx_t spikes_lco = interpolator->StepTo(local, tpause);
+    tpause = synchronizer_->GetMaxStepTime(local);
+    spikes_lco = interpolator->StepTo(local, tpause);
     synchronizer_->AfterSteps(local, spikes_lco);
     if (fmod(t, dt_io) == 0) {  // output
     }
