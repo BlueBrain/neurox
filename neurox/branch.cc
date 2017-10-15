@@ -444,7 +444,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
     // benchmark execution time of a communication-step time-frame
     hpx_time_t now = hpx_time_now();
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
-    for (int i = 0; i < comm_steps; i++) BackwardEuler::FullStep(local);
+    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     return neurox::wrappers::MemoryUnpin(target, time_elapsed);
@@ -529,9 +529,10 @@ hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
                                   const size_t[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(
-      nargs ==
-      (input_params_->synchronizer_ == Synchronizers::kTimeDependency ? 3 : 2));
+  assert(nargs ==
+         (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency
+              ? 3
+              : 2));
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
@@ -563,10 +564,10 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
 
   assert(local->soma_);
-  assert(local->soma_->synchronizer_metadata_);
+  assert(local->soma_->synchronizer_neuron_info_);
   TimeDependencySynchronizer::TimeDependencies *time_dependencies =
       (TimeDependencySynchronizer::TimeDependencies *)
-          local->soma_->synchronizer_metadata_;
+          local->soma_->synchronizer_neuron_info_;
   time_dependencies->UpdateTimeDependency(
       pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
       init_phase);

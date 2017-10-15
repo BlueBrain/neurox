@@ -12,18 +12,18 @@ class CoreneuronSynchronizer : public Synchronizer {
   CoreneuronSynchronizer();
   ~CoreneuronSynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void Init() override;
-  void Clear() override;
+  void InitLocality() override;
+  void ClearLocality() override;
 
-  void BeforeStep(Branch*) override;
-  void AfterStep(Branch*, hpx_t) override;
+  void BeforeSteps(Branch*) override;
+  void AfterSteps(Branch*, hpx_t) override;
   double GetMaxStepTime(Branch* b) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
-  class CommunicationBarrier : public SynchronizerMetadata {
+  class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();

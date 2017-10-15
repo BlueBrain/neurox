@@ -8,7 +8,7 @@ namespace neurox {
 
 /// forward declarations
 namespace synchronizers {
-class SynchronizerMetadata;
+class SynchronizerNeuronInfo;
 };
 
 /**
@@ -66,7 +66,7 @@ class Neuron {
   size_t GetSynapsesCount();
 
   /// Synchronizer-dependent metadata
-  synchronizers::SynchronizerMetadata* synchronizer_metadata_;
+  synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;

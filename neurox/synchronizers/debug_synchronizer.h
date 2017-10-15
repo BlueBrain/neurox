@@ -12,21 +12,21 @@ class DebugSynchronizer : public Synchronizer {
   DebugSynchronizer();
   ~DebugSynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void Init() override;
-  void Clear() override;
+  void InitLocality() override;
+  void ClearLocality() override;
 
-  void BeforeStep(Branch*) override;
-  void AfterStep(Branch*, hpx_t) override;
+  void BeforeSteps(Branch*) override;
+  void AfterSteps(Branch*, hpx_t) override;
   double GetMaxStepTime(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   void Launch();
   void Run(Branch*, const void*);
 
-  class CommunicationBarrier : public SynchronizerMetadata {
+  class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:
     CommunicationBarrier();
     ~CommunicationBarrier();

@@ -10,7 +10,7 @@ namespace synchronizers {
  * @brief The Synchronizers enum
  * Uniquely identifies the Id of each synchronizer
  */
-enum class Synchronizers : int {
+enum class SynchronizerIds : int {
   kDebug = 0,  // For debug only
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
@@ -25,10 +25,10 @@ enum class Synchronizers : int {
  * Purely abstract class, represents metadata at neuron level
  * relative to a neuron
  */
-class SynchronizerMetadata {
+class SynchronizerNeuronInfo {
  public:
   /// Returns an instantiated metadata for the synchronizer of given type
-  static SynchronizerMetadata* New(Synchronizers);
+  static SynchronizerNeuronInfo* New(SynchronizerIds);
 };
 
 /**
@@ -42,27 +42,35 @@ class Synchronizer {
   virtual ~Synchronizer(){};
 
   /// Returns an instantiated class of the given type
-  static Synchronizer* New(Synchronizers);
+  static Synchronizer* New(SynchronizerIds);
 
   /// Returns class type
-  const virtual Synchronizers GetId() = 0;
+  const virtual SynchronizerIds GetId() = 0;
 
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-  /// Initialize synchronizer meta data
-  virtual void Init() {}
+  /// Initialize synchronizer meta data in locality
+  virtual void InitLocality() {}
 
-  /// Clears/finalizes synchronizer meta data
-  virtual void Clear() {}
+  /// Initialize synchronizer meta data in neuron
+  virtual void InitNeuron(Branch*) {}
 
-  /// To be called at beginning of step
-  virtual void BeforeStep(Branch*) {}
+  /// Clears/finalizes synchronizer meta data at locality-level
+  virtual void ClearLocality() {}
 
+  /// Clears/finalizes synchronizer meta data at neuron-level
+  virtual void ClearNeuron(Branch*) {}
+
+  /// To be called at beginning of steps
+  virtual void BeforeSteps(Branch*) {}
+
+  /// Get next possible time where a neuron can step to,
+  /// without synchronization
   virtual double GetMaxStepTime(Branch*) = 0;
 
-  /// To be called at end of step
-  virtual void AfterStep(Branch*, hpx_t spikesLco) {}
+  /// To be called at end of steps
+  virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
   virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
@@ -72,29 +80,32 @@ class Synchronizer {
                                   spike_time_t) {}
 
   /// Time-step between locality-based comm. reductions
+  /// (default is total execution time: ie no reduction)
   virtual double GetLocalityReductionInterval();
 
-  /// Locatility-based reduction
+  /// Locatility-based reduction, at every reduction-interval
   virtual void LocalityReduce() {}
 
-  static hpx_action_t InitLocality;
-  static hpx_action_t ClearLocality;
+  static hpx_action_t InitLocalityInfo;
+  static hpx_action_t NeuronInfoConstructor;
+  static hpx_action_t InitNeuronInfo;
   static hpx_action_t RunNeuron;
   static hpx_action_t RunLocality;
+  static hpx_action_t ClearLocalityInfo;
+  static hpx_action_t ClearNeuronInfo;
+  static hpx_action_t VoidFunction;
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
  private:
-  ///  hpx address of all neurons in this locality
-  static hpx_t* locality_neurons_;
-
-  /// length of locality_neuronx_
-  static int locality_neurons_count_;
-
-  static int InitLocality_handler(const int*, const size_t);
-  static int ClearLocality_handler();
+  static int InitLocalityInfo_handler(const int*, const size_t);
+  static int NeuronInfoConstructor_handler(const int*, const size_t);
+  static int InitNeuronInfo_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
+  static int ClearLocalityInfo_handler();
+  static int ClearNeuronInfo_handler();
+  static int VoidFunction_handler();
 };
 
 };  // synchronizers

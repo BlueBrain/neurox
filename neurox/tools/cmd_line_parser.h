@@ -5,12 +5,12 @@ namespace neurox {
 
 // Forward declarations
 namespace synchronizers {
-enum class Synchronizers : int;
+enum class SynchronizerIds : int;
 class Synchronizer;
 }
 
 namespace interpolators {
-enum class Interpolators : int;
+enum class InterpolatorIds : int;
 }
 
 namespace tools {
@@ -59,10 +59,10 @@ class CmdLineParser {
   int branch_parallelism_depth_;
 
   /// neurons sychronization synchronizer
-  synchronizers::Synchronizers synchronizer_;
+  synchronizers::SynchronizerIds synchronizer_;
 
   /// interpolation agorithm
-  interpolators::Interpolators interpolator_;
+  interpolators::InterpolatorIds interpolator_;
 
  private:
   /// Parses command line arguments and populates structure

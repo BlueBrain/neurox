@@ -15,21 +15,21 @@ CoreneuronSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   assert(0);
 }
 
-const Synchronizers CoreneuronSynchronizer::GetId() {
-  return Synchronizers::kCoreneuron;
+const SynchronizerIds CoreneuronSynchronizer::GetId() {
+  return SynchronizerIds::kCoreneuron;
 }
 
 const char* CoreneuronSynchronizer::GetString() {
-  return "BackwardEulerCoreneuron";
+  return "CoreneuronSynchronizer";
 }
 
-void CoreneuronSynchronizer::Init() { assert(0); }
+void CoreneuronSynchronizer::InitLocality() { assert(0); }
 
-void CoreneuronSynchronizer::Clear() {}
+void CoreneuronSynchronizer::ClearLocality() {}
 
-void CoreneuronSynchronizer::BeforeStep(Branch*) { assert(0); }
+void CoreneuronSynchronizer::BeforeSteps(Branch*) { assert(0); }
 
-void CoreneuronSynchronizer::AfterStep(Branch* b, hpx_t) { assert(0); }
+void CoreneuronSynchronizer::AfterSteps(Branch* b, hpx_t) { assert(0); }
 
 double CoreneuronSynchronizer::GetMaxStepTime(Branch* b) { assert(0); }
 

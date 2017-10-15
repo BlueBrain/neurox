@@ -14,25 +14,23 @@ class TimeDependencySynchronizer : public Synchronizer {
   TimeDependencySynchronizer();
   ~TimeDependencySynchronizer();
 
-  const Synchronizers GetId() override;
+  const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void Init() override;
-  void Clear() override;
+  void InitLocality() override;
+  void InitNeuron(Branch*) override;
+  void ClearLocality() override;
 
-  void BeforeStep(Branch*) override;
+  void BeforeSteps(Branch*) override;
   double GetMaxStepTime(Branch*) override;
-  void AfterStep(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
-
-  void Run(Branch*, const void*);
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
                           spike_time_t max_time) override;
 
   /// controls time-dependencies from incoming neuron connections
-  class TimeDependencies : public SynchronizerMetadata {
+  class TimeDependencies : public SynchronizerNeuronInfo {
    public:
     TimeDependencies();
     ~TimeDependencies();

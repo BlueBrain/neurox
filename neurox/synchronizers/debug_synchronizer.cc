@@ -16,15 +16,17 @@ DebugSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const Synchronizers DebugSynchronizer::GetId() { return Synchronizers::kDebug; }
-
-const char* DebugSynchronizer::GetString() {
-  return "BackwardEulerCoreneuronDebug";
+const SynchronizerIds DebugSynchronizer::GetId() {
+  return SynchronizerIds::kDebug;
 }
 
-void DebugSynchronizer::Init() {}
+const char* DebugSynchronizer::GetString() {
+  return "DebugSynchronizer";
+}
 
-void DebugSynchronizer::Clear() {}
+void DebugSynchronizer::InitLocality() {}
+
+void DebugSynchronizer::ClearLocality() {}
 
 void DebugSynchronizer::Launch() {
   /*
@@ -52,34 +54,25 @@ input::Debugger::CompareAllBranches();
 */
 }
 
-void DebugSynchronizer::BeforeStep(Branch*) {}
+void DebugSynchronizer::BeforeSteps(Branch*) {}
 
-void DebugSynchronizer::AfterStep(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
-                                              input_params_->second_order_);
-}
-
-double DebugSynchronizer::GetMaxStepTime(Branch* b) { return b->nt_->_dt; }
-
-void DebugSynchronizer::Run(Branch* b, const void* args) {
-  int steps = *(int*)args;
-  for (int step = 0; step < steps; step++) BackwardEuler::FullStep(b);
-
-  // Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
-  // &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-
+void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
-        (CommunicationBarrier*)b->soma_->synchronizer_metadata_;
+        (CommunicationBarrier*)b->soma_->synchronizer_neuron_info_;
     if (comm_barrier->all_spikes_lco_ != HPX_NULL)  // was set/used once
       hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
 }
 
+double DebugSynchronizer::GetMaxStepTime(Branch* b) {
+  return b->nt_->_t + b->nt_->_dt;  // single step at a time
+}
+
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
-      (CommunicationBarrier*)neuron->synchronizer_metadata_;
+      (CommunicationBarrier*)neuron->synchronizer_neuron_info_;
   if (comm_barrier->all_spikes_lco_ == HPX_NULL)  // first use
     comm_barrier->all_spikes_lco_ = hpx_lco_and_new(neuron->synapses_.size());
   else

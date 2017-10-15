@@ -11,7 +11,7 @@ namespace interpolators {
  * Identifies the synchronizer and jacobian used on
  * fixed or variable step interpolations;
  */
-enum class Interpolators : int {
+enum class InterpolatorIds : int {
   kCvodePreConditionedDiagSolver = 0,
   kCvodeDenseMatrix = 1,
   kCvodeDiagonalMatrix = 2,
@@ -29,7 +29,7 @@ class Interpolator {
   virtual void Clear(Branch*) {}
 
   /// Returns an instantiated class of the given type
-  static Interpolator* New(Interpolators);
+  static Interpolator* New(InterpolatorIds);
 };
 };  // interpolators
 

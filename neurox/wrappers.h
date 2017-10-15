@@ -50,7 +50,9 @@ inline int CountArgs() {
 /// call action (with arguments) on all localities
 template <typename... Args>
 inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
-  return hpx_bcast_rsync(f, args...);
+  // return hpx_bcast_rsync(f, args...); //Broken for more than zero args
+  int n = wrappers::CountArgs(args...);
+  return _hpx_process_broadcast_rsync(hpx_thread_current_pid(), f, n, args...);
 }
 
 /// calls method (with arguments) on all neurons in neurox::neurons

@@ -7,56 +7,53 @@ constexpr floble_t
     TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
 constexpr double TimeDependencySynchronizer::TimeDependencies::kTEps;
 
-TimeDependencySynchronizer::TimeDependencySynchronizer() {}
+TimeDependencySynchronizer::TimeDependencySynchronizer() {
+  assert(
+      TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
+          0 &&
+      TimeDependencySynchronizer::TimeDependencies::
+              kNotificationIntervalRatio <= 1);
+}
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
 
-const Synchronizers TimeDependencySynchronizer::GetId() {
-  return Synchronizers::kTimeDependency;
+const SynchronizerIds TimeDependencySynchronizer::GetId() {
+  return SynchronizerIds::kTimeDependency;
 }
 
 const char* TimeDependencySynchronizer::GetString() {
-  return "BackwardEulerTimeDependency";
+  return "TimeDependencySynchronizer";
 }
 
-void TimeDependencySynchronizer::Init() {
+void TimeDependencySynchronizer::InitLocality() {
   if (input_params_->locality_comm_reduce_)
     throw std::runtime_error(
         "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
 }
 
-void TimeDependencySynchronizer::Clear() {}
+void TimeDependencySynchronizer::ClearLocality() {}
 
-void TimeDependencySynchronizer::Run(Branch* b, const void* args) {
-  int steps = *(int*)args;
-
+void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
-    // fixes crash for Synchronizer::All when TimeDependency synchronizer starts
-    // at
-    // t=inputParams->tend*2
-    // increase notification and dependencies time
-    for (Neuron::Synapse*& s : b->soma_->synapses_)
-      s->next_notification_time_ += b->nt_->_t;
-    time_dependencies->IncreseDependenciesTime(b->nt_->_t);
+    /* fixes crash for Synchronizer::All when TimeDependency
+     * synchronizer starts at t=inputParams->tend*2 increase
+     * notification and dependencies time */
+    if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
+      for (Neuron::Synapse*& s : b->soma_->synapses_)
+        s->next_notification_time_ += b->nt_->_t;
+      time_dependencies->IncreseDependenciesTime(b->nt_->_t);
+    }
   }
-
-  for (int step = 0; step < steps; step++)
-    interpolators::BackwardEuler::FullStep(b);
-// Input::Coreneuron::Debugger::stepAfterStepBackwardEuler(local,
-// &nrn_threads[this->nt->id], secondorder); //SMP ONLY
-
-#ifndef NDEBUG
-  if (b->soma_) printf("-- neuron %d finished\n", b->soma_->gid_);
-#endif
 }
 
-void TimeDependencySynchronizer::BeforeStep(Branch* b) {
+void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+
     // inform time dependants that must be notified in this step
     time_dependencies->SendSteppingNotification(
         b->nt_->_t, b->nt_->_dt, b->soma_->gid_, b->soma_->synapses_);
@@ -68,13 +65,8 @@ void TimeDependencySynchronizer::BeforeStep(Branch* b) {
 
 double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
   TimeDependencies* td =
-      (TimeDependencies*)branch->soma_->synchronizer_metadata_;
+      (TimeDependencies*)branch->soma_->synchronizer_neuron_info_;
   return td->GetDependenciesMinTime();
-}
-
-void TimeDependencySynchronizer::AfterStep(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
-                                              input_params_->second_order_);
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -85,7 +77,7 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
   hpx_t top_branch_addr = b->soma_ ? target : b->branch_tree_->top_branch_addr_;
   if (b->soma_) {
     TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_metadata_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
     time_dependencies->UpdateTimeDependency(pre_neuron_id, max_time);
   } else
     hpx_call(top_branch_addr, Branch::UpdateTimeDependency, HPX_NULL,

@@ -3,17 +3,17 @@
 using namespace neurox;
 using namespace neurox::interpolators;
 
-Interpolator* Interpolator::New(Interpolators type) {
+Interpolator* Interpolator::New(InterpolatorIds type) {
   switch (type) {
-    case Interpolators::kCvodeDenseMatrix:
+    case InterpolatorIds::kCvodeDenseMatrix:
       return new VariableTimeStep();
-    case Interpolators::kCvodeDiagonalMatrix:
+    case InterpolatorIds::kCvodeDiagonalMatrix:
       return new VariableTimeStep();
-    case Interpolators::kCvodePreConditionedDiagSolver:
+    case InterpolatorIds::kCvodePreConditionedDiagSolver:
       return new VariableTimeStep();
-    case Interpolators::kCvodeSparseMatrix:
+    case InterpolatorIds::kCvodeSparseMatrix:
       return new VariableTimeStep();
-    case Interpolators::kBackwardEuler:
+    case InterpolatorIds::kBackwardEuler:
       return new BackwardEuler();
     default:
       return nullptr;

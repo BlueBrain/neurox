@@ -29,20 +29,15 @@ int BackwardEuler::GetMinSynapticDelaySteps() {
   return (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
 }
 
-void BackwardEuler::FullStep(Branch *branch) {
-  synchronizer_->BeforeStep(branch);
-  double t_step = branch->nt_->_t + branch->nt_->_dt;
-  hpx_t spikes_lco = branch->interpolator_->StepTo(branch, t_step);
-  synchronizer_->AfterStep(branch, spikes_lco);
-}
-
-hpx_t BackwardEuler::StepTo(Branch *branch, const double tstop) {
+hpx_t BackwardEuler::StepTo(Branch *b, const double tstop) {
   hpx_t spikes_lco = HPX_NULL;
-  while (branch->nt_->_t < tstop - 0.000001) {
+  while (b->nt_->_t < tstop - 0.000001) {
     // spikes_lco |= BackwardEuler::Step(branch);
-    hpx_t new_spikes_lco = BackwardEuler::Step(branch);
+    hpx_t new_spikes_lco = BackwardEuler::Step(b);
+    input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
+                                                input_params_->second_order_);
     if (new_spikes_lco) {
-      // make sure only an AP occurred in between
+      // make sure only one AP occurred in between
       assert(!spikes_lco);
       spikes_lco = new_spikes_lco;
     }
