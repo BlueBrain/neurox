@@ -71,9 +71,9 @@ static int Main_handler() {
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   const double tstop = input_params_->tstop_;
 
-  for (int type = init_type; type <= end_type; type++) {
-    CallAllNeurons(Synchronizer::InitNeuronInfo, &type, sizeof(type));
+  for (int type = init_type; type < end_type; type++) {
     CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::InitNeuronInfo, &type, sizeof(type));
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
@@ -99,7 +99,6 @@ static int Main_handler() {
 #endif
     CallAllNeurons(Synchronizer::ClearNeuronInfo);
     CallAllLocalities(Synchronizer::ClearLocalityInfo);
-    delete synchronizer_;
   }
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
