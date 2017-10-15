@@ -1509,11 +1509,6 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t DataLoader::InitTimeDependencies = 0;
-int DataLoader::InitTimeDependencies_handler() {
-
-}
-
 hpx_action_t DataLoader::AddSynapse = 0;
 int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {

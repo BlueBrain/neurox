@@ -12,9 +12,9 @@ namespace synchronizers {
  */
 enum class SynchronizerIds : int {
   kDebug = 0,  // For debug only
-  kAllReduce = 1,
-  kSlidingTimeWindow = 2,
-  kTimeDependency = 3,
+  kTimeDependency = 1, /* Needs to be first */
+  kAllReduce = 2,
+  kSlidingTimeWindow = 3,
   kCoreneuron = 4,
   kSynchronizersCount = 5,
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
@@ -65,9 +65,8 @@ class Synchronizer {
   /// To be called at beginning of steps
   virtual void BeforeSteps(Branch*) {}
 
-  /// Get next possible time where a neuron can step to,
-  /// without synchronization
-  virtual double GetMaxStepTime(Branch*) = 0;
+  /// Maximum possible step, without synchronization
+  virtual double GetMaxStep(Branch*) = 0;
 
   /// To be called at end of steps
   virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
@@ -80,8 +79,8 @@ class Synchronizer {
                                   spike_time_t) {}
 
   /// Time-step between locality-based comm. reductions
-  /// (default is total execution time: ie no reduction)
-  virtual double GetLocalityReductionInterval();
+  /// (default 0, filtered as 'no locality reduction')
+  virtual double GetLocalityReductionInterval() {return 0.;}
 
   /// Locatility-based reduction, at every reduction-interval
   virtual void LocalityReduce() {}

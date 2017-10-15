@@ -20,7 +20,7 @@ class DebugSynchronizer : public Synchronizer {
 
   void BeforeSteps(Branch*) override;
   void AfterSteps(Branch*, hpx_t) override;
-  double GetMaxStepTime(Branch*) override;
+  double GetMaxStep(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   void Launch();

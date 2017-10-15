@@ -27,8 +27,8 @@ void SlidingTimeWindowSynchronizer::BeforeSteps(Branch* b) {
  AllreduceSynchronizer:: NeuronReduce(b, kAllReducesCount);
 }
 
-double SlidingTimeWindowSynchronizer::GetMaxStepTime(Branch* b) {
-  AllreduceSynchronizer::GetMaxStepTime2(b, kAllReducesCount);
+double SlidingTimeWindowSynchronizer::GetMaxStep(Branch* b) {
+  AllreduceSynchronizer::GetMaxStep2(b, kAllReducesCount);
 }
 
 double SlidingTimeWindowSynchronizer::GetLocalityReductionInterval() {

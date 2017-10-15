@@ -17,7 +17,7 @@ class AllreduceSynchronizer : public Synchronizer {
   void InitLocality() override;
   void ClearLocality() override;
   void BeforeSteps(Branch*) override;
-  double GetMaxStepTime(Branch*) override;
+  double GetMaxStep(Branch*) override;
   void AfterSteps(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
   double GetLocalityReductionInterval() override;
@@ -31,7 +31,7 @@ class AllreduceSynchronizer : public Synchronizer {
   static hpx_t* allreduces_;
 
   static void NeuronReduce(const Branch*, const int);
-  static double GetMaxStepTime2(const Branch*, const int);
+  static double GetMaxStep2(const Branch*, const int);
   static double GetLocalityReductionInterval2(const double);
 
   // for node level reduction only (initialized by initNodeLevelInformaion)

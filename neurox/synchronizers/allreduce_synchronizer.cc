@@ -31,8 +31,8 @@ void AllreduceSynchronizer::BeforeSteps(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::GetMaxStepTime(Branch* b) {
-  GetMaxStepTime2(b, kAllReducesCount);
+double AllreduceSynchronizer::GetMaxStep(Branch* b) {
+  GetMaxStep2(b, kAllReducesCount);
 }
 
 double AllreduceSynchronizer::GetLocalityReductionInterval() {
@@ -80,9 +80,9 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::GetMaxStepTime2(const Branch* b,
+double AllreduceSynchronizer::GetMaxStep2(const Branch* b,
                                               const int allreduces_count) {
-  return b->nt_->_t + neurox::min_synaptic_delay_ / allreduces_count;
+  return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
 double AllreduceSynchronizer::GetLocalityReductionInterval2(

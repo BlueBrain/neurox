@@ -63,10 +63,9 @@ void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
   }
 }
 
-double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
-  TimeDependencies* td =
-      (TimeDependencies*)branch->soma_->synchronizer_neuron_info_;
-  return td->GetDependenciesMinTime();
+double TimeDependencySynchronizer::GetMaxStep(Branch* branch) {
+    //at every step we check for notification intervals
+    return branch->nt_->_dt;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,

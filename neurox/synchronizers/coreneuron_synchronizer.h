@@ -20,7 +20,7 @@ class CoreneuronSynchronizer : public Synchronizer {
 
   void BeforeSteps(Branch*) override;
   void AfterSteps(Branch*, hpx_t) override;
-  double GetMaxStepTime(Branch* b) override;
+  double GetMaxStep(Branch* b) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {
