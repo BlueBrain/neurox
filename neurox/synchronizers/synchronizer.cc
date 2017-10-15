@@ -58,18 +58,23 @@ int Synchronizer::InitLocalityInfo_handler(const int* synchronizer_id_ptr,
   NEUROX_MEM_UNPIN;
 }
 
+hpx_action_t Synchronizer::NeuronInfoConstructor = 0;
+int Synchronizer::NeuronInfoConstructor_handler(const int* synchronizer_id_ptr,
+                                         const size_t)
+{
+    NEUROX_MEM_PIN(Branch);
+    SynchronizerIds synchronizer_id = *(SynchronizerIds*)synchronizer_id_ptr;
+    if (local->soma_)
+      local->soma_->synchronizer_neuron_info_ =
+          SynchronizerNeuronInfo::New(synchronizer_id);
+    NEUROX_MEM_UNPIN;
+}
+
 hpx_action_t Synchronizer::InitNeuronInfo = 0;
-int Synchronizer::InitNeuronInfo_handler(const int* synchronizer_id_ptr,
-                                         const size_t) {
+int Synchronizer::InitNeuronInfo_handler() {
   NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::InitNeuronInfo);
   assert(neurox::synchronizer_);
-  SynchronizerIds synchronizer_id = *(SynchronizerIds*)synchronizer_id_ptr;
-  if (local->soma_)
-    local->soma_->synchronizer_neuron_info_ =
-        SynchronizerNeuronInfo::New(synchronizer_id);
   neurox::synchronizer_->InitNeuron(local);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
 
@@ -128,13 +133,11 @@ int Synchronizer::ClearLocalityInfo_handler() {
 hpx_action_t Synchronizer::ClearNeuronInfo = 0;
 int Synchronizer::ClearNeuronInfo_handler() {
   NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::ClearNeuronInfo)
   neurox::synchronizer_->ClearNeuron(local);
   if (local->soma_) {
     delete local->soma_->synchronizer_neuron_info_;
     local->soma_->synchronizer_neuron_info_ = nullptr;
   }
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
 
@@ -148,12 +151,14 @@ void Synchronizer::RegisterHpxActions() {
                                   Synchronizer::ClearLocalityInfo_handler);
   wrappers::RegisterZeroVarAction(Synchronizer::ClearNeuronInfo,
                                   Synchronizer::ClearNeuronInfo_handler);
+  wrappers::RegisterZeroVarAction(Synchronizer::InitNeuronInfo,
+                                  Synchronizer::InitNeuronInfo_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunLocality,
                                             Synchronizer::RunLocality_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunNeuron,
                                             Synchronizer::RunNeuron_handler);
   wrappers::RegisterSingleVarAction<int>(
       Synchronizer::InitLocalityInfo, Synchronizer::InitLocalityInfo_handler);
-  wrappers::RegisterSingleVarAction<int>(Synchronizer::InitNeuronInfo,
-                                         Synchronizer::InitNeuronInfo_handler);
+  wrappers::RegisterSingleVarAction<int>(Synchronizer::NeuronInfoConstructor,
+                                         Synchronizer::NeuronInfoConstructor_handler);
 }

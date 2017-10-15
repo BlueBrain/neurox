@@ -73,7 +73,8 @@ static int Main_handler() {
 
   for (int type = init_type; type < end_type; type++) {
     CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
-    CallAllNeurons(Synchronizer::InitNeuronInfo, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::NeuronInfoConstructor, &type, sizeof(type));
+    CallAllNeurons(Synchronizer::InitNeuronInfo);
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
@@ -108,6 +109,7 @@ static int Main_handler() {
       neurox::neurons_count_, input_params_->tstop_ / 1000.0,
       total_elapsed_time);
 
+  input::Debugger::CompareAllBranches();
   CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
   hpx_exit(0, NULL);

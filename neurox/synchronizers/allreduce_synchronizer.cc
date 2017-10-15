@@ -63,6 +63,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
                                          const int allreduces_count) {
   // if locality-reduction is on, neurons no not participate n reduction
   if (input_params_->locality_comm_reduce_) return;
+  if (!branch->soma_) return;
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;
@@ -100,7 +101,6 @@ double AllreduceSynchronizer::GetLocalityReductionInterval2(
 void AllreduceSynchronizer::SubscribeAllReducesLocality(size_t allreduces_count) {
   // rank 0 creates allreduces, broadcasts them and ask others to subscribe
   if (hpx_get_my_rank() > 0) return;
-
   if (!input_params_->locality_comm_reduce_) return;
 
   assert(allreduces_ == nullptr);
@@ -120,7 +120,7 @@ void AllreduceSynchronizer::SubscribeAllReducesLocality(size_t allreduces_count)
 void AllreduceSynchronizer::SubscribeAllReducesNeuron(Branch *b, size_t allreduces_count) {
   // rank 0 creates allreduces, broadcasts them and ask others to subscribe
   if (hpx_get_my_rank() > 0) return;
-
+  if (!b->soma_) return;
   if (input_params_->locality_comm_reduce_) return;
 
   assert(allreduces_ == nullptr);
@@ -140,7 +140,6 @@ void AllreduceSynchronizer::SubscribeAllReducesNeuron(Branch *b, size_t allreduc
 void AllreduceSynchronizer::UnsubscribeAllReducesLocality(size_t allreduces_count) {
   // rank 0 ask others to unsubscribe
   if (hpx_get_my_rank() > 0) return;
-
   if (!input_params_->locality_comm_reduce_) return;
 
   hpx_bcast_rsync(AllReduceLocalityInfo::Unsubscribe, allreduces_,
@@ -156,7 +155,7 @@ void AllreduceSynchronizer::UnsubscribeAllReducesLocality(size_t allreduces_coun
 void AllreduceSynchronizer::UnsubscribeAllReducesNeuron(Branch *b, size_t allreduces_count) {
   // rank 0 ask others to unsubscribe
   if (hpx_get_my_rank() > 0) return;
-
+  if (!b->soma_) return;
   if (input_params_->locality_comm_reduce_) return;
 
     wrappers::CallAllNeurons(AllReduceNeuronInfo::Unsubscribe, allreduces_,
@@ -244,7 +243,7 @@ int AllreduceSynchronizer::AllReduceNeuronInfo::Subscribe_handler(
     stw->allreduce_id_[i] = hpx_process_collective_allreduce_subscribe(
         allreduces[i], hpx_lco_set_action, stw->allreduce_future_[i]);
   }
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t AllreduceSynchronizer::AllReduceNeuronInfo::Unsubscribe = 0;

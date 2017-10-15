@@ -87,21 +87,25 @@ class Synchronizer {
   virtual void LocalityReduce() {}
 
   static hpx_action_t InitLocalityInfo;
+  static hpx_action_t NeuronInfoConstructor;
   static hpx_action_t InitNeuronInfo;
   static hpx_action_t RunNeuron;
   static hpx_action_t RunLocality;
   static hpx_action_t ClearLocalityInfo;
   static hpx_action_t ClearNeuronInfo;
+  static hpx_action_t VoidFunction;
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
  private:
   static int InitLocalityInfo_handler(const int*, const size_t);
-  static int InitNeuronInfo_handler(const int*, const size_t);
+  static int NeuronInfoConstructor_handler(const int*, const size_t);
+  static int InitNeuronInfo_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
   static int ClearLocalityInfo_handler();
   static int ClearNeuronInfo_handler();
+  static int VoidFunction_handler();
 };
 
 };  // synchronizers
