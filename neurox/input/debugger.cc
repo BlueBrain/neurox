@@ -274,7 +274,7 @@ void Debugger::CompareBranch2(Branch *branch) {
 
   bool multiMex = branch->mechs_graph_ != NULL;
 
-  assert(branch->nt_->_t == nt._t);
+  assert(IsEqual(branch->nt_->_t, nt._t, true));
   assert(branch->nt_->_ndata == nt._ndata);
   assert(secondorder == input_params_->second_order_);
   assert(branch->soma_->threshold_ == nt.presyns[0].threshold_);
@@ -480,11 +480,6 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
 void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
-  if (neurox::ParallelExecution() &&
-      synchronizer_->GetId() != synchronizers::SynchronizerIds::kDebug)
-    return;  // non-debug mode in parallel are compared at the end of execution
-             // instead
-
   if (input_params_->branch_parallelism_depth_ > 0 ||
       input_params_->load_balancing_)
     return;  // can't be compared

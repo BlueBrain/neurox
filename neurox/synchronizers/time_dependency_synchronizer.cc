@@ -8,11 +8,11 @@ constexpr floble_t
 constexpr double TimeDependencySynchronizer::TimeDependencies::kTEps;
 
 TimeDependencySynchronizer::TimeDependencySynchronizer() {
-    assert(
-        TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
-            0 &&
-        TimeDependencySynchronizer::TimeDependencies::
-                kNotificationIntervalRatio <= 1);
+  assert(
+      TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio >
+          0 &&
+      TimeDependencySynchronizer::TimeDependencies::
+              kNotificationIntervalRatio <= 1);
 }
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
@@ -22,7 +22,7 @@ const SynchronizerIds TimeDependencySynchronizer::GetId() {
 }
 
 const char* TimeDependencySynchronizer::GetString() {
-  return "BackwardEulerTimeDependency";
+  return "TimeDependencySynchronizer";
 }
 
 void TimeDependencySynchronizer::InitLocality() {
@@ -67,11 +67,6 @@ double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
   TimeDependencies* td =
       (TimeDependencies*)branch->soma_->synchronizer_neuron_info_;
   return td->GetDependenciesMinTime();
-}
-
-void TimeDependencySynchronizer::AfterSteps(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
-                                              input_params_->second_order_);
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,

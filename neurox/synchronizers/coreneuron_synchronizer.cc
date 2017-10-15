@@ -20,7 +20,7 @@ const SynchronizerIds CoreneuronSynchronizer::GetId() {
 }
 
 const char* CoreneuronSynchronizer::GetString() {
-  return "BackwardEulerCoreneuron";
+  return "CoreneuronSynchronizer";
 }
 
 void CoreneuronSynchronizer::InitLocality() { assert(0); }

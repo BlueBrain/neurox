@@ -96,7 +96,6 @@ class Synchronizer {
   static void RegisterHpxActions();  ///> Register all HPX actions
 
  private:
-
   static int InitLocalityInfo_handler(const int*, const size_t);
   static int InitNeuronInfo_handler(const int*, const size_t);
   static int RunNeuron_handler(const double*, const size_t);

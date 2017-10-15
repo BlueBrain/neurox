@@ -16,10 +16,12 @@ DebugSynchronizer::CommunicationBarrier::~CommunicationBarrier() {
   if (all_spikes_lco_ != HPX_NULL) hpx_lco_delete_sync(all_spikes_lco_);
 }
 
-const SynchronizerIds DebugSynchronizer::GetId() { return SynchronizerIds::kDebug; }
+const SynchronizerIds DebugSynchronizer::GetId() {
+  return SynchronizerIds::kDebug;
+}
 
 const char* DebugSynchronizer::GetString() {
-  return "BackwardEulerCoreneuronDebug";
+  return "DebugSynchronizer";
 }
 
 void DebugSynchronizer::InitLocality() {}
@@ -55,9 +57,6 @@ input::Debugger::CompareAllBranches();
 void DebugSynchronizer::BeforeSteps(Branch*) {}
 
 void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
-  input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
-                                              input_params_->second_order_);
-
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =

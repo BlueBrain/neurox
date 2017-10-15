@@ -65,7 +65,7 @@ extern hpx_t *neurons_;
 extern int neurons_count_;
 
 ///  hpx address of all neurons in this locality
-extern hpx_t* locality_neurons_;
+extern hpx_t *locality_neurons_;
 
 /// length of locality_neuronx_
 extern int locality_neurons_count_;

@@ -45,10 +45,10 @@ SynchronizerNeuronInfo* SynchronizerNeuronInfo::New(SynchronizerIds type) {
 
 hpx_action_t Synchronizer::InitLocalityInfo = 0;
 int Synchronizer::InitLocalityInfo_handler(const int* synchronizer_id_ptr,
-                                             const size_t) {
+                                           const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
-  //delete previous synchronizer (if any)
+  // delete previous synchronizer (if any)
   delete neurox::synchronizer_;
 
   // initiate synchronizer
@@ -67,7 +67,7 @@ int Synchronizer::InitNeuronInfo_handler(const int* synchronizer_id_ptr,
   SynchronizerIds synchronizer_id = *(SynchronizerIds*)synchronizer_id_ptr;
   if (local->soma_)
     local->soma_->synchronizer_neuron_info_ =
-          SynchronizerNeuronInfo::New(synchronizer_id);
+        SynchronizerNeuronInfo::New(synchronizer_id);
   neurox::synchronizer_->InitNeuron(local);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
@@ -76,7 +76,8 @@ int Synchronizer::InitNeuronInfo_handler(const int* synchronizer_id_ptr,
 hpx_action_t Synchronizer::RunLocality = 0;
 int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
-  const hpx_t locality_neurons_lco = hpx_lco_and_new(neurox::locality_neurons_count_);
+  const hpx_t locality_neurons_lco =
+      hpx_lco_and_new(neurox::locality_neurons_count_);
   const double reduction_interval =
       synchronizer_->GetLocalityReductionInterval();
   const double tstop = *tstop_ptr;
@@ -93,21 +94,21 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
 }
 
 hpx_action_t Synchronizer::RunNeuron = 0;
-int Synchronizer::RunNeuron_handler(const double* tstop_ptr, const size_t size) {
+int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
+                                    const size_t size) {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::RunNeuron, tstop_ptr, size);
   const double tstop = *tstop_ptr;
   Interpolator* interpolator = local->interpolator_;
 
   const double dt_io = input_params_->dt_io_;
-  double& t = local->nt_->_t;
 
+  double& t = local->nt_->_t;
   while (t <= tstop) {
     synchronizer_->BeforeSteps(local);
     double tpause = synchronizer_->GetMaxStepTime(local);
     hpx_t spikes_lco = interpolator->StepTo(local, tpause);
     synchronizer_->AfterSteps(local, spikes_lco);
-
     if (fmod(t, dt_io) == 0) {  // output
     }
   }
@@ -120,6 +121,7 @@ int Synchronizer::ClearLocalityInfo_handler() {
   NEUROX_MEM_PIN(uint64_t);
   neurox::synchronizer_->ClearLocality();
   delete neurox::synchronizer_;
+  neurox::synchronizer_ = nullptr;
   NEUROX_MEM_UNPIN;
 }
 
@@ -128,12 +130,13 @@ int Synchronizer::ClearNeuronInfo_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::ClearNeuronInfo)
   neurox::synchronizer_->ClearNeuron(local);
-  if (local->soma_)
+  if (local->soma_) {
     delete local->soma_->synchronizer_neuron_info_;
+    local->soma_->synchronizer_neuron_info_ = nullptr;
+  }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
-
 
 double Synchronizer::GetLocalityReductionInterval()  // virtual
 {
@@ -150,9 +153,7 @@ void Synchronizer::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunNeuron,
                                             Synchronizer::RunNeuron_handler);
   wrappers::RegisterSingleVarAction<int>(
-      Synchronizer::InitLocalityInfo,
-      Synchronizer::InitLocalityInfo_handler);
-  wrappers::RegisterSingleVarAction<int>(
-      Synchronizer::InitNeuronInfo,
-      Synchronizer::InitNeuronInfo_handler);
+      Synchronizer::InitLocalityInfo, Synchronizer::InitLocalityInfo_handler);
+  wrappers::RegisterSingleVarAction<int>(Synchronizer::InitNeuronInfo,
+                                         Synchronizer::InitNeuronInfo_handler);
 }

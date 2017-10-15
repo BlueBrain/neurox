@@ -66,14 +66,14 @@ static int Main_handler() {
   hpx_time_t total_time_now = hpx_time_now();
   const int synchronizer = (int)input_params_->synchronizer_;
   const bool run_all = synchronizer == (int)SynchronizerIds::kBenchmarkAll;
-  const int init_type = run_all ? 0 : synchronizer;
+  const int init_type = run_all ? 1 /*0 is debug*/ : synchronizer;
   const int end_type =
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   const double tstop = input_params_->tstop_;
 
   for (int type = init_type; type <= end_type; type++) {
-    CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
     CallAllNeurons(Synchronizer::InitNeuronInfo, &type, sizeof(type));
+    CallAllLocalities(Synchronizer::InitLocalityInfo, &type, sizeof(type));
 
     hpx_time_t time_now = hpx_time_now();
     if (input_params_->locality_comm_reduce_)
@@ -97,8 +97,8 @@ static int Main_handler() {
            input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif
-    CallAllLocalities(Synchronizer::ClearLocalityInfo);
     CallAllNeurons(Synchronizer::ClearNeuronInfo);
+    CallAllLocalities(Synchronizer::ClearLocalityInfo);
     delete synchronizer_;
   }
 

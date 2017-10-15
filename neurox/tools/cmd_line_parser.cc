@@ -71,11 +71,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
         "\
-[0] BackwardEulerCoreneuronDebug\
-\n[1] BackwardEulerWithAllReduceBarrier (default)\
-\n[2] BackwardEulerWithSlidingTimeWindow\
-\n[3] BackwardEulerWithTimeDependency\
-\n[4] BackwardEulerCoreneuron\
+[0] Sequential Single-step Barrier (debug  only)\
+\n[1] All-reduce barrier (default)\
+\n[2] Sliding Time Window\
+\n[3] Time Dependency LCO\
+\n[4] MPI-based (a la Coreneuron)\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
         false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");
 
@@ -173,10 +173,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
-    this->synchronizer_ = (synchronizers::SynchronizerIds)synchronizer.getValue();
+    this->synchronizer_ =
+        (synchronizers::SynchronizerIds)synchronizer.getValue();
     neurox::synchronizer_ =
         synchronizers::Synchronizer::New(this->synchronizer_);
-    this->interpolator_ = (interpolators::InterpolatorIds)interpolator.getValue();
+    this->interpolator_ =
+        (interpolators::InterpolatorIds)interpolator.getValue();
 
     if (this->branch_parallelism_depth_ < 0)
       throw TCLAP::ArgException("branch parallism depth should be >= 0",
