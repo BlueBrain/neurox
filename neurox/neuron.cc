@@ -74,7 +74,8 @@ void Neuron::AddSynapse(Synapse* syn, hpx_t source_locality_addr) {
   hpx_lco_sema_p(synapses_mutex_);
   synapses_.push_back(syn);
   synapses_.shrink_to_fit();
-  synapses_localities_->insert(source_locality_addr);
+  if (input_params_->locality_comm_reduce_)
+    synapses_localities_->insert(source_locality_addr);
   hpx_lco_sema_v_sync(synapses_mutex_);
 }
 
@@ -101,22 +102,9 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
-  if (synapses_.size() == 0) return HPX_NULL;
+  const bool locality_reduce = input_params_->locality_comm_reduce_;
+  if ((!locality_reduce && synapses_.size() == 0) ||
+      (locality_reduce && synapses_localities_->size() == 0))
+    return HPX_NULL;
   return synchronizer_->SendSpikes(this, tt, t);
-}
-
-hpx_t Neuron::SendSpikesAsync(Neuron* neuron, double tt) {
-  hpx_t new_synapses_lco = HPX_NULL;
-  if (input_params_->locality_comm_reduce_) {
-    new_synapses_lco = hpx_lco_and_new(neuron->synapses_localities_->size());
-    for (hpx_t locality_addr : *(neuron->synapses_localities_))
-      hpx_call(locality_addr, Branch::AddSpikeEventLocality, new_synapses_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  } else {
-    new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
-    for (Neuron::Synapse*& s : neuron->synapses_)
-      hpx_call(s->branch_addr_, Branch::AddSpikeEvent, new_synapses_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  }
-  return new_synapses_lco;
 }

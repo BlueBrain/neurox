@@ -90,9 +90,10 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
     spike_time_t maxTimeAllowed =
         t + teps + s->min_delay_ + neuron->refractory_period_;
 
-    hpx_lco_wait_reset(s->previous_spike_lco_);  // reset LCO to be used next
-    // any spike or step notification happening after must wait for this spike
-    // delivery
+    /* reset LCO to be used next. any spike or step notification
+     * happening after must wait for this spike delivery */
+    hpx_lco_wait_reset(s->previous_spike_lco_);
+    //
 
     hpx_call(s->branch_addr_, Branch::AddSpikeEvent, s->previous_spike_lco_,
              &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),

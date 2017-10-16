@@ -57,9 +57,6 @@ class Neuron {
   /// fires AP, returns LCO for sent synapses
   hpx_t SendSpikes(floble_t t);
 
-  /// fires AP, and returns HPX address (to be called by some Synchronizers)
-  static hpx_t SendSpikesAsync(Neuron*, double);
-
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse* target, hpx_t locality);
 

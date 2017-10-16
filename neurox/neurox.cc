@@ -69,14 +69,14 @@ static int Main_handler() {
   hpx_time_t total_time_now = hpx_time_now();
   const int synchronizer = (int)input_params_->synchronizer_;
   const bool run_all = synchronizer == (int)SynchronizerIds::kBenchmarkAll;
-  const int init_type = run_all ? 1 /*0 is debug*/ : synchronizer;
-  const int end_type =
+  const int init_sync = run_all ? 0 : synchronizer;
+  const int end_sync =
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   double tstop = input_params_->tstop_;
 
-  for (int type = init_type; type < end_type; type++) {
-    CallAllNeurons(Synchronizer::NeuronInfoConstructor, &type, sizeof(type));
-    CallAllLocalities(Synchronizer::CallInitLocality, &type, sizeof(type));
+  for (int sync = init_sync; sync < end_sync; sync++) {
+    CallAllNeurons(Synchronizer::NeuronInfoConstructor, &sync, sizeof(sync));
+    CallAllLocalities(Synchronizer::CallInitLocality, &sync, sizeof(sync));
     CallAllNeurons(Synchronizer::CallInitNeuron);
 
     hpx_time_t time_now = hpx_time_now();

@@ -11,12 +11,12 @@ namespace synchronizers {
  * Uniquely identifies the Id of each synchronizer
  */
 enum class SynchronizerIds : int {
-  kDebug = 0,          // For debug only
-  kTimeDependency = 1, /* Needs to be first */
-  kAllReduce = 2,
-  kSlidingTimeWindow = 3,
-  kCoreneuron = 4,
-  kSynchronizersCount = 5,
+  kTimeDependency = 0, /* Needs to be first */
+  kAllReduce = 1,
+  kSlidingTimeWindow = 2,
+  kCoreneuron = 3,
+  kSynchronizersCount = 3,
+  kDebug = 8,        // For debug only
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 
@@ -72,9 +72,7 @@ class Synchronizer {
   virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
-  virtual hpx_t SendSpikes(Neuron* n, double tt, double t) {
-    return Neuron::SendSpikesAsync(n, tt);
-  }
+  virtual hpx_t SendSpikes(Neuron* n, double tt, double t)=0;
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
