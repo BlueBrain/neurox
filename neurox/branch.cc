@@ -427,8 +427,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (PointProcInfo *)args[12],
       sizes[12] / sizeof(PointProcInfo),                 // point processes info
       (NetconX *)args[13], sizes[13] / sizeof(NetconX),  // netcons
-      (neuron_id_t *)args[14],
-      sizes[14] / sizeof(neuron_id_t),  // netcons preneuron ids
+      (neuron_id_t *)args[14], sizes[14] / sizeof(neuron_id_t),// netcons pre-ids
       (floble_t *)args[15], sizes[15] / sizeof(floble_t),  // netcons weights
       (unsigned char *)args[16],
       sizes[16] / sizeof(unsigned char));  // serialized vdata
@@ -448,6 +447,23 @@ int Branch::Init_handler(const int nargs, const void *args[],
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     return neurox::wrappers::MemoryUnpin(target, time_elapsed);
+  }
+  else
+  {
+      //reconstruct map of locality to branch netcons (if needed)
+      if (input_params_->locality_comm_reduce_)
+      {
+          const offset_t netcons_count = sizes[13]/sizeof(NetconX);
+          const neuron_id_t * netcons_pre_ids = (neuron_id_t *)args[14];
+          hpx_lco_sema_p(input::DataLoader::locality_mutex_);
+          for (offset_t nc = 0; nc < netcons_count; nc++)
+          {
+              const neuron_id_t pre_neuron_id = netcons_pre_ids[nc];
+              (*locality::netcons_)[pre_neuron_id].push_back(target);
+              //duplicates will be deleted in DataLoader::Finalize
+          }
+          hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
+      }
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -552,7 +568,7 @@ int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
                                   const size_t sizes[]) {
   NEUROX_MEM_PIN(uint64_t);
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  vector<hpx_t> & branch_addrs = neurox::locality::synapses_map_->at(pre_neuron_id);
+  vector<hpx_t> & branch_addrs = neurox::locality::netcons_->at(pre_neuron_id);
   hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
   for (hpx_t & branch_addr : branch_addrs)
       if (nargs==2)

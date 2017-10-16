@@ -55,12 +55,12 @@ class DataLoader {
     vector<int> node_ids;  ///> compartments ids for each instance
   };
 
+  /// mutex controlling multi-threaded write of data structs
+  static hpx_t locality_mutex_;
+
  private:
   /// pointer of netcons.dot file
   static FILE *file_netcons_;
-
-  /// mutex controlling multi-threaded write of data structs
-  static hpx_t all_neurons_mutex_;
 
   /// temporary hpx address of neurons read by this locality
   static std::vector<hpx_t> *my_neurons_addr_;

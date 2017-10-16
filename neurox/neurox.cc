@@ -24,8 +24,7 @@ neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 //locality info
 hpx_t *locality::neurons_ = nullptr;
 int locality::neurons_count_ = 0;
-std::map<neuron_id_t, std::vector<hpx_t> > *locality::synapses_map_ = 0;
-hpx_t locality_synapses_map_mutex_ = HPX_NULL;
+std::map<neuron_id_t, std::vector<hpx_t> > *locality::netcons_ = 0;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -131,6 +130,15 @@ int Clear_handler() {
   delete[] neurox::neurons_;
   delete[] neurox::mechanisms_map_;
   delete synchronizer_;
+
+  if (input_params_->locality_comm_reduce_)
+  {
+      delete [] neurox::locality::neurons_;
+      (*neurox::locality::netcons_).clear();
+      delete neurox::locality::netcons_;
+      neurox::locality::netcons_=nullptr;
+      neurox::locality::neurons_count_=-1;
+  }
 
 #ifndef NDEBUG
   input::DataLoader::CleanCoreneuronData(true);

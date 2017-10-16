@@ -89,8 +89,8 @@ namespace locality
   /// length of locality_neuronx_
   extern int neurons_count_;
 
-  /// for a pre-neuron id, the list of hpx addr of recipient branches
-  extern std::map<neuron_id_t, std::vector<hpx_t> > *synapses_map_;
+  /// map of recipient netcons branch addresses per pre-syn gid
+  extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_;
 }
 
 

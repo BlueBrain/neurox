@@ -27,7 +27,7 @@ using namespace neurox::synchronizers;
 using namespace neurox::tools;
 
 FILE *DataLoader::file_netcons_ = nullptr;
-hpx_t DataLoader::all_neurons_mutex_ = HPX_NULL;
+hpx_t DataLoader::locality_mutex_ = HPX_NULL;
 std::vector<hpx_t> *DataLoader::my_neurons_addr_ = nullptr;
 std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
@@ -573,7 +573,7 @@ hpx_action_t DataLoader::Init = 0;
 int DataLoader::Init_handler() {
   NEUROX_MEM_PIN(uint64_t);
   all_neurons_gids_ = new std::vector<int>();
-  all_neurons_mutex_ = hpx_lco_sema_new(1);
+  locality_mutex_ = hpx_lco_sema_new(1);
 
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
@@ -598,6 +598,14 @@ int DataLoader::Init_handler() {
     fprintf(file_netcons_, "external [color=gray fontcolor=gray];\n");
 #endif
   }
+
+  //initiate map of locality to branch netcons (if needed)
+  if (input_params_->locality_comm_reduce_)
+  {
+      assert(locality::netcons_ == nullptr);
+      locality::netcons_ = new map<neuron_id_t, vector<hpx_t> >();
+  }
+
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -670,7 +678,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
   const int *neurons_gids = (const int *)args[0];
   const hpx_t *neurons_addr = (const hpx_t *)args[1];
 
-  hpx_lco_sema_p(all_neurons_mutex_);
+  hpx_lco_sema_p(locality_mutex_);
 
   all_neurons_gids_->insert(all_neurons_gids_->end(), neurons_gids,
                             neurons_gids + recv_neurons_count);
@@ -687,21 +695,24 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
   neurox::neurons_ = neurons_new;
 
   assert(all_neurons_gids_->size() == neurox::neurons_count_);
-  hpx_lco_sema_v_sync(all_neurons_mutex_);
 
   // initialize local neurons
   const int sender_rank = *(const int *)args[2];
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    assert(neurox::locality::neurons_ == nullptr);
-    neurox::locality::neurons_count_ = recv_neurons_count;
-    neurox::locality::neurons_ = new hpx_t[recv_neurons_count];
-    memcpy(neurox::locality::neurons_, neurons_addr,
+    if (input_params_->locality_comm_reduce_)
+    {
+      assert(neurox::locality::neurons_ == nullptr);
+      neurox::locality::neurons_count_ = recv_neurons_count;
+      neurox::locality::neurons_ = new hpx_t[recv_neurons_count];
+      memcpy(neurox::locality::neurons_, neurons_addr,
            recv_neurons_count * sizeof(hpx_t));
+    }
   }
+  hpx_lco_sema_v_sync(locality_mutex_);
 
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::SetMechanisms = 0;
@@ -738,7 +749,7 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
                                 const int *dependencies,
                                 const int *successors_count,
                                 const int *successors) {
-  hpx_lco_sema_p(all_neurons_mutex_);
+  hpx_lco_sema_p(locality_mutex_);
 
   // if I'm receiving new information, rebuild mechanisms
   if (mechs_count > neurox::mechanisms_count_) {
@@ -795,7 +806,7 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
       }
     }
   }
-  hpx_lco_sema_v_sync(all_neurons_mutex_);
+  hpx_lco_sema_v_sync(locality_mutex_);
 }
 
 hpx_action_t DataLoader::Finalize = 0;
@@ -892,7 +903,7 @@ int DataLoader::Finalize_handler() {
   all_neurons_gids_ = nullptr;
 
   nrn_setup_cleanup();
-  hpx_lco_delete_sync(all_neurons_mutex_);
+  hpx_lco_delete_sync(locality_mutex_);
 
 #if defined(NDEBUG)
   // if not on debug, there's no CoreNeuron comparison, so data can be
@@ -905,6 +916,17 @@ int DataLoader::Finalize_handler() {
 
   delete load_balancing_;
   load_balancing_ = nullptr;
+
+  //delete duplicates in locality map of netcons to addr
+  if (input_params_->locality_comm_reduce_ && locality::netcons_)
+  {
+      for (auto & map_it : (*locality::netcons_))
+      {
+           vector<hpx_t> & addrs = map_it.second;
+           std::sort(addrs.begin(), addrs.end());
+           addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
+      }
+  }
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -1421,10 +1443,10 @@ hpx_t DataLoader::CreateBranch(
     hpx_call_sync(branch_addr, Branch::InitSoma, NULL, 0, &neuron_id,
                   sizeof(neuron_id_t), &ap_threshold, sizeof(floble_t));
 
-    hpx_lco_sema_p(all_neurons_mutex_);
+    hpx_lco_sema_p(locality_mutex_);
     my_neurons_addr_->push_back(branch_addr);
     my_neurons_gids_->push_back(neuron_id);
-    hpx_lco_sema_v_sync(all_neurons_mutex_);
+    hpx_lco_sema_v_sync(locality_mutex_);
   }
   return branch_addr;
 }
