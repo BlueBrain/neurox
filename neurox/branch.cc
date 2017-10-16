@@ -561,6 +561,8 @@ int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
       else
         hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco,
              args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
+  hpx_lco_wait(spikes_lco);
+  hpx_lco_delete(spikes_lco, HPX_NULL);
   NEUROX_MEM_UNPIN
 }
 
