@@ -64,15 +64,6 @@ extern hpx_t *neurons_;
 /// length of neurox::neurons
 extern int neurons_count_;
 
-///  hpx address of all neurons in this locality
-extern hpx_t *locality_neurons_;
-
-/// length of locality_neuronx_
-extern int locality_neurons_count_;
-
-/// for a pre-neuron id, gives the list of hpx addr of recipient branches
-extern std::map<neuron_id_t, std::vector<hpx_t> > *locality_synapses_map_;
-
 /// array to all existing mechanisms
 extern neurox::Mechanism **mechanisms_;
 
@@ -87,6 +78,22 @@ extern tools::CmdLineParser *input_params_;
 
 /// neurons synchronization synchronizer instance
 extern synchronizers::Synchronizer *synchronizer_;
+
+/// information unique to this locality (required only if
+/// locality-level communication reduction is performed)
+namespace locality
+{
+  ///  hpx address of all neurons in this locality
+  extern hpx_t *neurons_;
+
+  /// length of locality_neuronx_
+  extern int neurons_count_;
+
+  /// for a pre-neuron id, the list of hpx addr of recipient branches
+  extern std::map<neuron_id_t, std::vector<hpx_t> > *synapses_map_;
+}
+
+
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);

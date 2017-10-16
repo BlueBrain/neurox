@@ -552,7 +552,7 @@ int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
                                   const size_t sizes[]) {
   NEUROX_MEM_PIN(uint64_t);
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  vector<hpx_t> & branch_addrs = neurox::locality_synapses_map_->at(pre_neuron_id);
+  vector<hpx_t> & branch_addrs = neurox::locality::synapses_map_->at(pre_neuron_id);
   hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
   for (hpx_t & branch_addr : branch_addrs)
       if (nargs==2)

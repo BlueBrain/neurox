@@ -694,10 +694,10 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    assert(neurox::locality_neurons_ == nullptr);
-    neurox::locality_neurons_count_ = recv_neurons_count;
-    neurox::locality_neurons_ = new hpx_t[recv_neurons_count];
-    memcpy(neurox::locality_neurons_, neurons_addr,
+    assert(neurox::locality::neurons_ == nullptr);
+    neurox::locality::neurons_count_ = recv_neurons_count;
+    neurox::locality::neurons_ = new hpx_t[recv_neurons_count];
+    memcpy(neurox::locality::neurons_, neurons_addr,
            recv_neurons_count * sizeof(hpx_t));
   }
 

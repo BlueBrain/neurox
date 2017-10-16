@@ -22,9 +22,9 @@ neurox::tools::CmdLineParser *input_params_ = nullptr;
 neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
 //locality info
-hpx_t *locality_neurons_ = nullptr;
-int locality_neurons_count_ = 0;
-std::map<neuron_id_t, std::vector<hpx_t> > *locality_synapses_map_ = 0;
+hpx_t *locality::neurons_ = nullptr;
+int locality::neurons_count_ = 0;
+std::map<neuron_id_t, std::vector<hpx_t> > *locality::synapses_map_ = 0;
 hpx_t locality_synapses_map_mutex_ = HPX_NULL;
 
 Mechanism *GetMechanismFromType(int type) {
