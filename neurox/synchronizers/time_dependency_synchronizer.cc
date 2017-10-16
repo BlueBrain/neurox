@@ -58,8 +58,8 @@ void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
 }
 
 double TimeDependencySynchronizer::GetMaxStep(Branch* branch) {
-    //at every step we check for notification intervals
-    return branch->nt_->_dt;
+  // at every step we check for notification intervals
+  return branch->nt_->_dt;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -136,9 +136,8 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
-  //if no dependencies, walk to the end of the simulation
-  if (dependencies_map_.empty())
-      return input_params_->tstop_;
+  // if no dependencies, walk to the end of the simulation
+  if (dependencies_map_.empty()) return input_params_->tstop_;
 
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
                           [](pair<neuron_id_t, floble_t> const& lhs,

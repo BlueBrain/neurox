@@ -81,19 +81,16 @@ extern synchronizers::Synchronizer *synchronizer_;
 
 /// information unique to this locality (required only if
 /// locality-level communication reduction is performed)
-namespace locality
-{
-  ///  hpx address of all neurons in this locality
-  extern hpx_t *neurons_;
+namespace locality {
+///  hpx address of all neurons in this locality
+extern hpx_t *neurons_;
 
-  /// length of locality_neuronx_
-  extern int neurons_count_;
+/// length of locality_neuronx_
+extern int neurons_count_;
 
-  /// map of recipient netcons branch addresses per pre-syn gid
-  extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_;
+/// map of recipient netcons branch addresses per pre-syn gid
+extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_;
 }
-
-
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);

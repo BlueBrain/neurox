@@ -599,11 +599,10 @@ int DataLoader::Init_handler() {
 #endif
   }
 
-  //initiate map of locality to branch netcons (if needed)
-  if (input_params_->locality_comm_reduce_)
-  {
-      assert(locality::netcons_ == nullptr);
-      locality::netcons_ = new map<neuron_id_t, vector<hpx_t> >();
+  // initiate map of locality to branch netcons (if needed)
+  if (input_params_->locality_comm_reduce_) {
+    assert(locality::netcons_ == nullptr);
+    locality::netcons_ = new map<neuron_id_t, vector<hpx_t>>();
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -701,13 +700,12 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    if (input_params_->locality_comm_reduce_)
-    {
+    if (input_params_->locality_comm_reduce_) {
       assert(neurox::locality::neurons_ == nullptr);
       neurox::locality::neurons_count_ = recv_neurons_count;
       neurox::locality::neurons_ = new hpx_t[recv_neurons_count];
       memcpy(neurox::locality::neurons_, neurons_addr,
-           recv_neurons_count * sizeof(hpx_t));
+             recv_neurons_count * sizeof(hpx_t));
     }
   }
   hpx_lco_sema_v_sync(locality_mutex_);
@@ -917,15 +915,13 @@ int DataLoader::Finalize_handler() {
   delete load_balancing_;
   load_balancing_ = nullptr;
 
-  //delete duplicates in locality map of netcons to addr
-  if (input_params_->locality_comm_reduce_ && locality::netcons_)
-  {
-      for (auto & map_it : (*locality::netcons_))
-      {
-           vector<hpx_t> & addrs = map_it.second;
-           std::sort(addrs.begin(), addrs.end());
-           addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
-      }
+  // delete duplicates in locality map of netcons to addr
+  if (input_params_->locality_comm_reduce_ && locality::netcons_) {
+    for (auto &map_it : (*locality::netcons_)) {
+      vector<hpx_t> &addrs = map_it.second;
+      std::sort(addrs.begin(), addrs.end());
+      addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
+    }
   }
   return neurox::wrappers::MemoryUnpin(target);
 }
@@ -1465,7 +1461,7 @@ int DataLoader::InitNetcons_handler() {
   std::deque<std::pair<hpx_t, floble_t>> netcons;
 
   // set of <srcGid, nextNotificationtime> for dependencies
-  std::deque<std::pair<int, spike_time_t>>  dependencies;
+  std::deque<std::pair<int, spike_time_t>> dependencies;
 
   const floble_t impossibly_large_delay = 99999999;
   for (int i = 0; i < all_neurons_gids_->size(); i++) {
@@ -1543,7 +1539,8 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   hpx_t top_branch_addr = *(const hpx_t *)args[2];
   hpx_t sender_locality_addr = *(const hpx_t *)args[3];
   int destination_gid = *(const int *)args[4];
-  Neuron::Synapse * syn = new Neuron::Synapse(addr, min_delay, top_branch_addr, destination_gid);
+  Neuron::Synapse *syn =
+      new Neuron::Synapse(addr, min_delay, top_branch_addr, destination_gid);
   local->soma_->AddSynapse(syn, sender_locality_addr);
   return neurox::wrappers::MemoryUnpin(target);
 }

@@ -21,7 +21,7 @@ neurox::Mechanism **mechanisms_ = nullptr;
 neurox::tools::CmdLineParser *input_params_ = nullptr;
 neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
-//locality info
+// locality info
 hpx_t *locality::neurons_ = nullptr;
 int locality::neurons_count_ = 0;
 std::map<neuron_id_t, std::vector<hpx_t> > *locality::netcons_ = 0;
@@ -105,9 +105,9 @@ static int Main_handler() {
     CallAllLocalities(Synchronizer::CallClearLocality);
     CallAllNeurons(Synchronizer::NeuronInfoDestructor);
 
-    //if running all methods, run the next one for the same time
-    if (input_params_->synchronizer_==SynchronizerIds::kBenchmarkAll)
-        tstop += input_params_->tstop_;
+    // if running all methods, run the next one for the same time
+    if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll)
+      tstop += input_params_->tstop_;
   }
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
@@ -131,13 +131,12 @@ int Clear_handler() {
   delete[] neurox::mechanisms_map_;
   delete synchronizer_;
 
-  if (input_params_->locality_comm_reduce_)
-  {
-      delete [] neurox::locality::neurons_;
-      (*neurox::locality::netcons_).clear();
-      delete neurox::locality::netcons_;
-      neurox::locality::netcons_=nullptr;
-      neurox::locality::neurons_count_=-1;
+  if (input_params_->locality_comm_reduce_) {
+    delete[] neurox::locality::neurons_;
+    (*neurox::locality::netcons_).clear();
+    delete neurox::locality::netcons_;
+    neurox::locality::netcons_ = nullptr;
+    neurox::locality::neurons_count_ = -1;
   }
 
 #ifndef NDEBUG

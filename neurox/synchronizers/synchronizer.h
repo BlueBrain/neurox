@@ -11,7 +11,7 @@ namespace synchronizers {
  * Uniquely identifies the Id of each synchronizer
  */
 enum class SynchronizerIds : int {
-  kDebug = 0,  // For debug only
+  kDebug = 0,          // For debug only
   kTimeDependency = 1, /* Needs to be first */
   kAllReduce = 2,
   kSlidingTimeWindow = 3,
@@ -72,8 +72,9 @@ class Synchronizer {
   virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
-  virtual hpx_t SendSpikes(Neuron* n, double tt, double t)
-  { return Neuron::SendSpikesAsync(n , tt); }
+  virtual hpx_t SendSpikes(Neuron* n, double tt, double t) {
+    return Neuron::SendSpikesAsync(n, tt);
+  }
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
@@ -81,7 +82,7 @@ class Synchronizer {
 
   /// Time-step between locality-based comm. reductions
   /// (default 0, filtered as 'no locality reduction')
-  virtual double GetLocalityReductionInterval() {return 0.;}
+  virtual double GetLocalityReductionInterval() { return 0.; }
 
   /// Locatility-based reduction, at every reduction-interval
   virtual void LocalityReduce() {}
@@ -97,7 +98,6 @@ class Synchronizer {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
-
   /// auxiliar method for CallLocalNeurons
   /// (TODO move it to wrappers?)
   static hpx_action_t CallAllNeuronsAux;
@@ -112,7 +112,8 @@ class Synchronizer {
   static int NeuronInfoConstructor_handler(const int*, const size_t);
   static int NeuronInfoDestructor_handler();
 
-  static int CallAllNeuronsAux_handler(const int, const void*[], const size_t[]);
+  static int CallAllNeuronsAux_handler(const int, const void* [],
+                                       const size_t[]);
 };
 
 };  // synchronizers

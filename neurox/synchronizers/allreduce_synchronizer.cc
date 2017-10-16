@@ -77,7 +77,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
 }
 
 double AllreduceSynchronizer::GetMaxStep2(const Branch* b,
-                                              const int allreduces_count) {
+                                          const int allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
@@ -98,11 +98,11 @@ void AllreduceSynchronizer::SubscribeAllReduces(size_t allreduces_count) {
         0, AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Reduce);
 
   if (input_params_->locality_comm_reduce_)
-   hpx_bcast_rsync(AllReduceLocalityInfo::Subscribe, allreduces_,
+    hpx_bcast_rsync(AllReduceLocalityInfo::Subscribe, allreduces_,
                     sizeof(hpx_t) * allreduces_count);
   else
     wrappers::CallAllNeurons(AllReduceNeuronInfo::Subscribe, allreduces_,
-                           sizeof(hpx_t) * allreduces_count);
+                             sizeof(hpx_t) * allreduces_count);
 
   for (int i = 0; i < allreduces_count; i++)
     hpx_process_collective_allreduce_subscribe_finalize(allreduces_[i]);
@@ -114,13 +114,13 @@ void AllreduceSynchronizer::UnsubscribeAllReduces(size_t allreduces_count) {
 
   if (input_params_->locality_comm_reduce_)
     hpx_bcast_rsync(AllReduceLocalityInfo::Unsubscribe, allreduces_,
-                  sizeof(hpx_t) * allreduces_count);
+                    sizeof(hpx_t) * allreduces_count);
   else
     wrappers::CallAllNeurons(AllReduceNeuronInfo::Unsubscribe, allreduces_,
-                           sizeof(hpx_t) * allreduces_count);
+                             sizeof(hpx_t) * allreduces_count);
 
   for (int i = 0; i < allreduces_count; i++)
-      hpx_process_collective_allreduce_delete(allreduces_[i]);
+    hpx_process_collective_allreduce_delete(allreduces_[i]);
 
   delete[] allreduces_;
   allreduces_ = nullptr;

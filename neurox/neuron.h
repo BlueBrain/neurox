@@ -73,7 +73,7 @@ class Neuron {
   std::vector<Synapse*> synapses_;
 
   /// the outgoing localities of neuron connections:
-  std::set<hpx_t> *synapses_localities_;
+  std::set<hpx_t>* synapses_localities_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses
