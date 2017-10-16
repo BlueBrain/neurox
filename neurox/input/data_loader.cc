@@ -1506,6 +1506,7 @@ int DataLoader::InitNetcons_handler() {
   }
 
   // inform pre-syn neuron that he connects to me
+  hpx_t my_addr = HPX_HERE;
   hpx_t netcons_lco = hpx_lco_and_new(netcons.size());
   hpx_t top_branch_addr =
       local->soma_ ? target : local->branch_tree_->top_branch_addr_;
@@ -1513,7 +1514,7 @@ int DataLoader::InitNetcons_handler() {
   for (std::pair<hpx_t, floble_t> &nc : netcons)
     hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &target,
              sizeof(hpx_t), &nc.second, sizeof(nc.second), &top_branch_addr,
-             sizeof(hpx_t), &my_gid, sizeof(int));
+             sizeof(hpx_t), &my_addr, sizeof(hpx_t), &my_gid, sizeof(int));
   hpx_lco_wait_reset(netcons_lco);
   hpx_lco_delete_sync(netcons_lco);
 
@@ -1536,13 +1537,14 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(local->soma_);
-  assert(nargs == 4);
+  assert(nargs == 5);
   hpx_t addr = *(const hpx_t *)args[0];
   floble_t min_delay = *(const floble_t *)args[1];
   hpx_t top_branch_addr = *(const hpx_t *)args[2];
-  int destination_gid = *(const int *)args[3];
-  local->soma_->AddSynapse(
-      new Neuron::Synapse(addr, min_delay, top_branch_addr, destination_gid));
+  hpx_t sender_locality_addr = *(const hpx_t *)args[3];
+  int destination_gid = *(const int *)args[4];
+  Neuron::Synapse * syn = new Neuron::Synapse(addr, min_delay, top_branch_addr, destination_gid);
+  local->soma_->AddSynapse(syn, sender_locality_addr);
   return neurox::wrappers::MemoryUnpin(target);
 }
 

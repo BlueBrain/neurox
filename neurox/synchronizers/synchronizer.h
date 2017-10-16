@@ -72,7 +72,8 @@ class Synchronizer {
   virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
-  virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
+  virtual hpx_t SendSpikes(Neuron* n, double tt, double t)
+  { return Neuron::SendSpikesAsync(n , tt); }
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,

@@ -3,6 +3,7 @@
 #include "neurox/neurox.h"
 
 #include <deque>
+#include <set>
 
 namespace neurox {
 
@@ -36,8 +37,8 @@ class Neuron {
   class Synapse {
    public:
     Synapse() = delete;
-    Synapse(hpx_t branch_addr_, floble_t min_delay_,
-            hpx_t top_branch_addr_ = HPX_NULL, int destination_gid_ = -1);
+    Synapse(hpx_t branch_addr, floble_t min_delay,
+            hpx_t top_branch_addr = HPX_NULL, int destination_gid = -1);
     ~Synapse();
     hpx_t branch_addr_;      ///> address of destination
     hpx_t top_branch_addr_;  ///> addres of top-branch (soma) of destination
@@ -60,7 +61,7 @@ class Neuron {
   static hpx_t SendSpikesAsync(Neuron*, double);
 
   /// add hpx address of post-synaptic branch
-  void AddSynapse(Synapse* target);
+  void AddSynapse(Synapse* target, hpx_t locality);
 
   /// get size of vector synapse
   size_t GetSynapsesCount();
@@ -70,6 +71,9 @@ class Neuron {
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
+
+  /// the outgoing localities of neuron connections:
+  std::set<hpx_t> *synapses_localities_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses

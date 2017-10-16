@@ -19,7 +19,6 @@ class AllreduceSynchronizer : public Synchronizer {
   void BeforeSteps(Branch*) override;
   double GetMaxStep(Branch*) override;
   void AfterSteps(Branch*, hpx_t) override;
-  hpx_t SendSpikes(Neuron*, double, double) override;
   double GetLocalityReductionInterval() override;
   void LocalityReduce() override;
 

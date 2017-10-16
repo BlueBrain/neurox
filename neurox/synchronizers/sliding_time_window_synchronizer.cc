@@ -42,7 +42,3 @@ void SlidingTimeWindowSynchronizer::LocalityReduce() {
 void SlidingTimeWindowSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
   AllreduceSynchronizer::WaitForSpikesDelivery(b, spikesLco);
 }
-
-hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
-  return Neuron::SendSpikesAsync(n, tt);
-}

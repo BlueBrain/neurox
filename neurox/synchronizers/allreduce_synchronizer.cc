@@ -47,10 +47,6 @@ void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
-hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
-  return Neuron::SendSpikesAsync(n, tt);
-}
-
 void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
                                          const int allreduces_count) {
   // if locality-reduction is on, neurons no not participate n reduction
