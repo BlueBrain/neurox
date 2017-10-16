@@ -76,8 +76,10 @@ int Synchronizer::NeuronInfoConstructor_handler(const int* synchronizer_id_ptr,
 hpx_action_t Synchronizer::CallInitNeuron = 0;
 int Synchronizer::CallInitNeuron_handler() {
   NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::CallInitNeuron);
   assert(neurox::synchronizer_);
   neurox::synchronizer_->InitNeuron(local);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
 
@@ -138,7 +140,9 @@ int Synchronizer::CallClearLocality_handler() {
 hpx_action_t Synchronizer::CallClearNeuron = 0;
 int Synchronizer::CallClearNeuron_handler() {
   NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::CallClearNeuron);
   neurox::synchronizer_->ClearNeuron(local);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
 }
 
