@@ -130,6 +130,7 @@ class Branch {
   static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;  ///>add incoming synapse to queue
+  static hpx_action_t AddSpikeEventLocality;  ///>add incoming synapse to queue
 
   /// update maximum time allowed based on received dependency info
   static hpx_action_t UpdateTimeDependency;
@@ -158,6 +159,7 @@ class Branch {
   static int Initialize_handler();
   static int Clear_handler();
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
+  static int AddSpikeEventLocality_handler(const int, const void* [], const size_t[]);
   static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
   static int ThreadTableCheck_handler();

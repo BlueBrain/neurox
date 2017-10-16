@@ -70,6 +70,9 @@ extern hpx_t *locality_neurons_;
 /// length of locality_neuronx_
 extern int locality_neurons_count_;
 
+/// for a pre-neuron id, gives the list of hpx addr of recipient branches
+extern std::map<neuron_id_t, std::vector<hpx_t> > *locality_synapses_map_;
+
 /// array to all existing mechanisms
 extern neurox::Mechanism **mechanisms_;
 

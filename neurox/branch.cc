@@ -544,7 +544,24 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
 
   synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
                                     max_time);
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
+}
+
+hpx_action_t Branch::AddSpikeEventLocality = 0;
+int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
+                                  const size_t sizes[]) {
+  NEUROX_MEM_PIN(uint64_t);
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
+  vector<hpx_t> & branch_addrs = neurox::locality_synapses_map_->at(pre_neuron_id);
+  hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
+  for (hpx_t & branch_addr : branch_addrs)
+      if (nargs==2)
+        hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco,
+             args[0], sizes[0], args[1], sizes[1]);
+      else
+        hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco,
+             args[0], sizes[0], args[1], sizes[1], args[2], sizes[2]);
+  NEUROX_MEM_UNPIN
 }
 
 hpx_action_t Branch::UpdateTimeDependency = 0;
@@ -813,6 +830,8 @@ void Branch::RegisterHpxActions() {
                                       Branch::InitSoma_handler);
   wrappers::RegisterMultipleVarAction(Branch::AddSpikeEvent,
                                       Branch::AddSpikeEvent_handler);
+  wrappers::RegisterMultipleVarAction(Branch::AddSpikeEventLocality,
+                                      Branch::AddSpikeEventLocality_handler);
   wrappers::RegisterMultipleVarAction(Branch::UpdateTimeDependency,
                                       Branch::UpdateTimeDependency_handler);
 
