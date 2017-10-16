@@ -52,18 +52,14 @@ void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
 }
 
 hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, double tt) {
-  hpx_t new_synapses_lco = HPX_NULL;
-  if (input_params_->locality_comm_reduce_) {
-    new_synapses_lco = hpx_lco_and_new(neuron->synapses_localities_->size());
-    for (hpx_t locality_addr : *(neuron->synapses_localities_))
-      hpx_call(locality_addr, Branch::AddSpikeEventLocality, new_synapses_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  } else {
-    new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
-    for (Neuron::Synapse*& s : neuron->synapses_)
-      hpx_call(s->branch_addr_, Branch::AddSpikeEvent, new_synapses_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  }
+  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
+  hpx_action_t spike_action = input_params_->locality_comm_reduce_
+                                  ? Branch::AddSpikeEventLocality
+                                  : Branch::AddSpikeEvent;
+
+  for (Neuron::Synapse*& s : neuron->synapses_)
+    hpx_call(s->synapse_addr_, spike_action, new_synapses_lco, &neuron->gid_,
+             sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   return new_synapses_lco;
 }
 

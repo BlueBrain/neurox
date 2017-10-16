@@ -134,6 +134,7 @@ class Branch {
 
   /// update maximum time allowed based on received dependency info
   static hpx_action_t UpdateTimeDependency;
+  static hpx_action_t UpdateTimeDependencyLocality;
   static hpx_action_t ThreadTableCheck;
 
   void CallModFunction(const Mechanism::ModFunctions functionId,
@@ -163,6 +164,8 @@ class Branch {
                                            const size_t[]);
   static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
+  static int UpdateTimeDependencyLocality_handler(const int, const void* [],
+                                                  const size_t[]);
   static int ThreadTableCheck_handler();
 };
 

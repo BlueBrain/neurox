@@ -11,8 +11,7 @@ using namespace neurox::interpolators;
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
       threshold_(ap_threshold),
-      synchronizer_neuron_info_(nullptr),
-      synapses_localities_(nullptr) {
+      synchronizer_neuron_info_(nullptr) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
@@ -23,9 +22,6 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   if (id == SynchronizerIds::kBenchmarkAll)
     id = SynchronizerIds::kTimeDependency;  // First in Benchmark
   this->synchronizer_neuron_info_ = SynchronizerNeuronInfo::New(id);
-
-  if (input_params_->locality_comm_reduce_)
-    this->synapses_localities_ = new set<hpx_t>();
 }
 
 Neuron::~Neuron() {
@@ -36,9 +32,9 @@ Neuron::~Neuron() {
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
                          hpx_t topBranchAddr, int destinationGid)
-    : branch_addr_(branchAddr),
+    : synapse_addr_(branchAddr),
       min_delay_(minDelay),
-      top_branch_addr_(topBranchAddr) {
+      synapse_soma_addr_(topBranchAddr) {
   const double& teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
   const double& notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
@@ -62,20 +58,16 @@ Neuron::Synapse::~Synapse() {
 size_t Neuron::GetSynapsesCount() {
   hpx_lco_sema_p(synapses_mutex_);
   size_t size = synapses_.size();
-  if (synapses_localities_) {
-    synapses_localities_->clear();
-    synapses_localities_ = nullptr;
-  }
   hpx_lco_sema_v_sync(synapses_mutex_);
   return size;
 }
 
-void Neuron::AddSynapse(Synapse* syn, hpx_t source_locality_addr) {
+void Neuron::AddSynapse(Synapse* syn) {
+  /* for locality-based reduction, repeated synapses
+   * will be filtered by DataLoader::Finalize */
   hpx_lco_sema_p(synapses_mutex_);
   synapses_.push_back(syn);
   synapses_.shrink_to_fit();
-  if (input_params_->locality_comm_reduce_)
-    synapses_localities_->insert(source_locality_addr);
   hpx_lco_sema_v_sync(synapses_mutex_);
 }
 
@@ -102,9 +94,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
-  const bool locality_reduce = input_params_->locality_comm_reduce_;
-  if ((!locality_reduce && synapses_.size() == 0) ||
-      (locality_reduce && synapses_localities_->size() == 0))
-    return HPX_NULL;
+  if (synapses_.size() == 0)
+      return HPX_NULL;
   return synchronizer_->SendSpikes(this, tt, t);
 }

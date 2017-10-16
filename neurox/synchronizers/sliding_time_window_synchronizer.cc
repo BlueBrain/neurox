@@ -27,7 +27,7 @@ void SlidingTimeWindowSynchronizer::BeforeSteps(Branch* b) {
   AllreduceSynchronizer::NeuronReduce(b, kAllReducesCount);
 }
 
-hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double){
+hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return AllreduceSynchronizer::SendSpikes2(n, tt);
 }
 

@@ -90,6 +90,9 @@ extern int neurons_count_;
 
 /// map of recipient netcons branch addresses per pre-syn gid
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_;
+
+/// map of top branch for each netcon
+extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;
 }
 
 /// returns mechanism of type 'type'

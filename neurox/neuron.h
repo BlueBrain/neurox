@@ -40,14 +40,19 @@ class Neuron {
     Synapse(hpx_t branch_addr, floble_t min_delay,
             hpx_t top_branch_addr = HPX_NULL, int destination_gid = -1);
     ~Synapse();
-    hpx_t branch_addr_;      ///> address of destination
-    hpx_t top_branch_addr_;  ///> addres of top-branch (soma) of destination
-                             /// neuron
+
+    /// address of destination branch or locality
+    hpx_t synapse_addr_;
+
+    /// address of top-branch (soma) of destination neuron
+    hpx_t synapse_soma_addr_;
+
 #ifndef NDEBUG
     int destination_gid_;
 #endif
     ///  next time this post-syn neuron needs to be informed of my actual time
     floble_t next_notification_time_;
+
     /// interval  of notification in case of no spykes (fastest Netcon from
     /// current neuron to dependant-neuron)
     floble_t min_delay_;
@@ -58,7 +63,7 @@ class Neuron {
   hpx_t SendSpikes(floble_t t);
 
   /// add hpx address of post-synaptic branch
-  void AddSynapse(Synapse* target, hpx_t locality);
+  void AddSynapse(Synapse*);
 
   /// get size of vector synapse
   size_t GetSynapsesCount();
@@ -68,9 +73,6 @@ class Neuron {
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
-
-  /// the outgoing localities of neuron connections:
-  std::set<hpx_t>* synapses_localities_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses

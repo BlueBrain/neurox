@@ -72,10 +72,14 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
     time_dependencies->UpdateTimeDependency(pre_neuron_id, max_time);
-  } else
-    hpx_call(top_branch_addr, Branch::UpdateTimeDependency, HPX_NULL,
-             &pre_neuron_id, sizeof(neuron_id_t), &max_time,
-             sizeof(spike_time_t));
+  } else {
+    hpx_action_t update_time_dep_action =
+        input_params_->locality_comm_reduce_
+            ? Branch::UpdateTimeDependencyLocality
+            : Branch::UpdateTimeDependency;
+    hpx_call(top_branch_addr, update_time_dep_action, HPX_NULL, &pre_neuron_id,
+             sizeof(neuron_id_t), &max_time, sizeof(spike_time_t));
+  }
 }
 
 hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
@@ -85,6 +89,7 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
 
   for (Neuron::Synapse*& s : neuron->synapses_) {
+    /* reminder, s->min_delay_ is the syn. min-delay to branch or locality*/
     s->next_notification_time_ =
         t + (s->min_delay_ + neuron->refractory_period_) * notification_ratio;
     spike_time_t maxTimeAllowed =
@@ -93,9 +98,11 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
     /* reset LCO to be used next. any spike or step notification
      * happening after must wait for this spike delivery */
     hpx_lco_wait_reset(s->previous_spike_lco_);
-    //
 
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, s->previous_spike_lco_,
+    hpx_action_t add_spike_action = input_params_->locality_comm_reduce_
+                                        ? Branch::AddSpikeEventLocality
+                                        : Branch::AddSpikeEvent;
+    hpx_call(s->synapse_addr_, add_spike_action, s->previous_spike_lco_,
              &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
              &maxTimeAllowed, sizeof(spike_time_t));
 
@@ -251,23 +258,26 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     floble_t t, floble_t dt, int gid, std::vector<Neuron::Synapse*>& synapses) {
   for (Neuron::Synapse*& s : synapses)
-    if (s->next_notification_time_ - kTEps <= t + dt)  // if in this time step
-    //(-teps to give or take few nanosecs for correction of floating point time
-    // roundings)
-    {
-      assert(s->next_notification_time_ >=
-             t);  // must have been covered by previous steps
+    /* if in this time step (-teps to give or take few nanosecs for
+     * correction of floating point time roundings) */
+    if (s->next_notification_time_ - kTEps <= t + dt) {
+      // must have been covered by previous steps
+      assert(s->next_notification_time_ >= t);
       s->next_notification_time_ =
           t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
       spike_time_t max_time_allowed =
           t + TimeDependencies::kTEps + s->min_delay_;
 
-      // wait for previous synapse to be delivered (if any) before telling
-      // post-syn neuron to proceed in time
+      /* wait for previous synapse to be delivered (if any) before telling
+       * post-syn neuron to proceed in time */
       hpx_lco_wait(s->previous_spike_lco_);
-      hpx_call(s->top_branch_addr_, Branch::UpdateTimeDependency, HPX_NULL,
-               &gid, sizeof(neuron_id_t), &max_time_allowed,
-               sizeof(spike_time_t));
+
+      hpx_action_t update_time_dep_action =
+          input_params_->locality_comm_reduce_
+              ? Branch::UpdateTimeDependencyLocality
+              : Branch::UpdateTimeDependency;
+      hpx_call(s->synapse_soma_addr_, update_time_dep_action, HPX_NULL, &gid,
+               sizeof(neuron_id_t), &max_time_allowed, sizeof(spike_time_t));
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
       printf("## %d notifies %d he can proceed up to %.6fms\n", gid,

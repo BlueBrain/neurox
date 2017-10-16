@@ -453,16 +453,18 @@ int Branch::Init_handler(const int nargs, const void *args[],
     if (input_params_->locality_comm_reduce_) {
       const offset_t netcons_count = sizes[13] / sizeof(NetconX);
       const neuron_id_t *netcons_pre_ids = (neuron_id_t *)args[14];
+      const hpx_t soma_addr = *(hpx_t *)args[7];
       hpx_lco_sema_p(input::DataLoader::locality_mutex_);
       for (offset_t nc = 0; nc < netcons_count; nc++) {
         const neuron_id_t pre_neuron_id = netcons_pre_ids[nc];
         (*locality::netcons_)[pre_neuron_id].push_back(target);
+        (*locality::netcons_somas_)[pre_neuron_id].push_back(soma_addr);
         // duplicates will be deleted in DataLoader::Finalize
       }
       hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
     }
   }
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN
 }
 
 hpx_action_t Branch::InitSoma = 0;
@@ -473,7 +475,7 @@ int Branch::InitSoma_handler(const int nargs, const void *args[],
   const neuron_id_t neuron_id = *(const neuron_id_t *)args[0];
   const floble_t ap_threshold = *(const floble_t *)args[1];
   local->soma_ = new Neuron(neuron_id, ap_threshold);
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN
 }
 
 hpx_action_t Branch::Clear = 0;
@@ -482,7 +484,7 @@ int Branch::Clear_handler() {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
   delete local;
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN
 }
 
 void Branch::InitVecPlayContinous() {
@@ -537,6 +539,25 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
   }
 }
 
+hpx_action_t Branch::AddSpikeEventLocality = 0;
+int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
+                                          const size_t sizes[]) {
+  NEUROX_MEM_PIN(uint64_t);
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
+  vector<hpx_t> &branch_addrs = neurox::locality::netcons_->at(pre_neuron_id);
+  hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
+  for (hpx_t &branch_addr : branch_addrs)
+    if (nargs == 2)
+      hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco, args[0],
+               sizes[0], args[1], sizes[1]);
+    else
+      hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco, args[0],
+               sizes[0], args[1], sizes[1], args[2], sizes[2]);
+  hpx_lco_wait(spikes_lco);
+  hpx_lco_delete(spikes_lco, HPX_NULL);
+  NEUROX_MEM_UNPIN
+}
+
 // netcvode.cpp::PreSyn::send() --> NetCvode::bin_event.cpp
 hpx_action_t Branch::AddSpikeEvent = 0;
 int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
@@ -560,25 +581,6 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   NEUROX_MEM_UNPIN;
 }
 
-hpx_action_t Branch::AddSpikeEventLocality = 0;
-int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
-                                          const size_t sizes[]) {
-  NEUROX_MEM_PIN(uint64_t);
-  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  vector<hpx_t> &branch_addrs = neurox::locality::netcons_->at(pre_neuron_id);
-  hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
-  for (hpx_t &branch_addr : branch_addrs)
-    if (nargs == 2)
-      hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco, args[0],
-               sizes[0], args[1], sizes[1]);
-    else
-      hpx_call(branch_addr, Branch::AddSpikeEvent, spikes_lco, args[0],
-               sizes[0], args[1], sizes[1], args[2], sizes[2]);
-  hpx_lco_wait(spikes_lco);
-  hpx_lco_delete(spikes_lco, HPX_NULL);
-  NEUROX_MEM_UNPIN
-}
-
 hpx_action_t Branch::UpdateTimeDependency = 0;
 int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
                                          const size_t[]) {
@@ -598,7 +600,29 @@ int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
   time_dependencies->UpdateTimeDependency(
       pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
       init_phase);
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN
+}
+
+hpx_action_t Branch::UpdateTimeDependencyLocality = 0;
+int Branch::UpdateTimeDependencyLocality_handler(const int nargs,
+                                                 const void *args[],
+                                                 const size_t sizes[]) {
+  NEUROX_MEM_PIN(uint64_t);
+  assert(nargs == 2 || nargs == 3);
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
+  vector<hpx_t> &branch_soma_addrs =
+      neurox::locality::netcons_somas_->at(pre_neuron_id);
+  hpx_t spikes_lco = hpx_lco_and_new(branch_soma_addrs.size());
+  for (hpx_t &soma_addr : branch_soma_addrs)
+    if (nargs == 2)
+      hpx_call(soma_addr, Branch::UpdateTimeDependency, spikes_lco, args[0],
+               sizes[0], args[1], sizes[1]);
+    else
+      hpx_call(soma_addr, Branch::UpdateTimeDependency, spikes_lco, args[0],
+               sizes[0], args[1], sizes[1], args[2], sizes[2]);
+  hpx_lco_wait(spikes_lco);
+  hpx_lco_delete(spikes_lco, HPX_NULL);
+  NEUROX_MEM_UNPIN
 }
 
 hpx_action_t Branch::ThreadTableCheck = 0;
@@ -849,7 +873,9 @@ void Branch::RegisterHpxActions() {
                                       Branch::AddSpikeEventLocality_handler);
   wrappers::RegisterMultipleVarAction(Branch::UpdateTimeDependency,
                                       Branch::UpdateTimeDependency_handler);
-
+  wrappers::RegisterMultipleVarAction(
+      Branch::UpdateTimeDependencyLocality,
+      Branch::UpdateTimeDependencyLocality_handler);
   wrappers::RegisterAllReduceInitAction<Mechanism::ModFunctions>(
       Branch::MechanismsGraph::Init, Branch::MechanismsGraph::Init_handler);
   wrappers::RegisterAllReduceReduceAction<Mechanism::ModFunctions>(

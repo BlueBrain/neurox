@@ -72,26 +72,13 @@ hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
       (CommunicationBarrier*)neuron->synchronizer_neuron_info_;
 
-  const int recipients_count = input_params_->locality_comm_reduce_
-                                   ? neuron->synapses_localities_->size()
-                                   : neuron->synapses_.size();
-
   hpx_t& all_spikes_lco = comm_barrier->all_spikes_lco_;
 
   if (all_spikes_lco == HPX_NULL)  // first use
-    all_spikes_lco = hpx_lco_and_new(recipients_count);
+    all_spikes_lco = hpx_lco_and_new(neuron->synapses_.size());
   else
     hpx_lco_reset_sync(all_spikes_lco);  // reset to use after
 
-  if (input_params_->locality_comm_reduce_) {
-    for (hpx_t locality_addr : *(neuron->synapses_localities_))
-      hpx_call(locality_addr, Branch::AddSpikeEventLocality, all_spikes_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  } else {
-    for (Neuron::Synapse*& s : neuron->synapses_)
-      hpx_call(s->branch_addr_, Branch::AddSpikeEvent, all_spikes_lco,
-               &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  }
-
+  all_spikes_lco = AllreduceSynchronizer::SendSpikes2(neuron, tt);
   return HPX_NULL;
 }

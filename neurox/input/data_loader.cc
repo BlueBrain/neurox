@@ -603,6 +603,7 @@ int DataLoader::Init_handler() {
   if (input_params_->locality_comm_reduce_) {
     assert(locality::netcons_ == nullptr);
     locality::netcons_ = new map<neuron_id_t, vector<hpx_t>>();
+    locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -918,6 +919,12 @@ int DataLoader::Finalize_handler() {
   // delete duplicates in locality map of netcons to addr
   if (input_params_->locality_comm_reduce_ && locality::netcons_) {
     for (auto &map_it : (*locality::netcons_)) {
+      vector<hpx_t> &addrs = map_it.second;
+      std::sort(addrs.begin(), addrs.end());
+      addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
+    }
+
+    for (auto &map_it : (*locality::netcons_somas_)) {
       vector<hpx_t> &addrs = map_it.second;
       std::sort(addrs.begin(), addrs.end());
       addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
@@ -1507,10 +1514,13 @@ int DataLoader::InitNetcons_handler() {
   hpx_t top_branch_addr =
       local->soma_ ? target : local->branch_tree_->top_branch_addr_;
   int my_gid = local->soma_ ? local->soma_->gid_ : -1;
-  for (std::pair<hpx_t, floble_t> &nc : netcons)
-    hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &target,
+  for (std::pair<hpx_t, floble_t> &nc : netcons) {
+    hpx_t synapse_addr =
+        input_params_->locality_comm_reduce_ ? HPX_HERE : target;
+    hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &synapse_addr,
              sizeof(hpx_t), &nc.second, sizeof(nc.second), &top_branch_addr,
              sizeof(hpx_t), &my_addr, sizeof(hpx_t), &my_gid, sizeof(int));
+  }
   hpx_lco_wait_reset(netcons_lco);
   hpx_lco_delete_sync(netcons_lco);
 
@@ -1533,15 +1543,14 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
                                    const size_t[]) {
   NEUROX_MEM_PIN(Branch);
   assert(local->soma_);
-  assert(nargs == 5);
+  assert(nargs == 4);
   hpx_t addr = *(const hpx_t *)args[0];
   floble_t min_delay = *(const floble_t *)args[1];
   hpx_t top_branch_addr = *(const hpx_t *)args[2];
-  hpx_t sender_locality_addr = *(const hpx_t *)args[3];
-  int destination_gid = *(const int *)args[4];
+  int destination_gid = *(const int *)args[3];
   Neuron::Synapse *syn =
       new Neuron::Synapse(addr, min_delay, top_branch_addr, destination_gid);
-  local->soma_->AddSynapse(syn, sender_locality_addr);
+  local->soma_->AddSynapse(syn);
   return neurox::wrappers::MemoryUnpin(target);
 }
 
