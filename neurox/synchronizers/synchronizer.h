@@ -96,6 +96,11 @@ class Synchronizer {
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
+
+  /// auxiliar method for CallLocalNeurons
+  /// (TODO move it to wrappers?)
+  static hpx_action_t CallAllNeuronsAux;
+
  private:
   static int CallInitLocality_handler(const int*, const size_t);
   static int CallInitNeuron_handler();
@@ -105,6 +110,8 @@ class Synchronizer {
   static int CallClearNeuron_handler();
   static int NeuronInfoConstructor_handler(const int*, const size_t);
   static int NeuronInfoDestructor_handler();
+
+  static int CallAllNeuronsAux_handler(const int, const void*[], const size_t[]);
 };
 
 };  // synchronizers

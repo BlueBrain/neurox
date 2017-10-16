@@ -51,6 +51,7 @@ inline int CountArgs() {
 template <typename... Args>
 inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
   // return hpx_bcast_rsync(f, args...); //Broken for more than zero args
+  assert(f!=0);
   int n = wrappers::CountArgs(args...);
   return _hpx_process_broadcast_rsync(hpx_thread_current_pid(), f, n, args...);
 }
@@ -69,34 +70,6 @@ inline hpx_status_t CallLocalNeurons(hpx_action_t f, Args... args) {
   hpx_lco_wait_reset(lco);
   hpx_lco_delete_sync(lco);
   return e;
-}
-
-/// auxiliar method for CallLocalNeurons
-static hpx_action_t CallAllNeuronsAux=0;
-inline int CallAllNeuronsAux_handler(
-        const int nargs, const void *args[], const size_t sizes[])
-{
-    //TODO clean this
-    NEUROX_MEM_PIN(uint64_t);
-    hpx_action_t f = *(hpx_action_t*) args[0];  //first arg is action id
-    if (nargs==1)
-      wrappers::CallLocalNeurons(f);
-    else if (nargs==2)
-      wrappers::CallLocalNeurons(f, args[1], sizes[1]);
-    else if (nargs==3)
-      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2]);
-    else if (nargs==4)
-      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
-              args[3], sizes[3]);
-    else if (nargs==5)
-      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
-              args[3], sizes[3], args[4], sizes[4]);
-    else if (nargs==6)
-      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
-              args[3], sizes[3], args[4], sizes[4], args[5], sizes[5]);
-    else
-      { assert(0);}
-    NEUROX_MEM_UNPIN;
 }
 
 /// calls method with arguments on all neurox::neurons_
@@ -118,9 +91,9 @@ inline hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
   }
 
   //one call per locality, then locality calls its local neurons
-  return _hpx_process_broadcast_rsync(hpx_thread_current_pid(),
-                                      wrappers::CallAllNeuronsAux,
-                                      n+2, &f, sizeof(f), args...);
+  hpx_action_t func = f;
+  return CallAllLocalities(synchronizers::Synchronizer::CallAllNeuronsAux,
+                           &func, sizeof(func), args...);
 }
 
 /// register hpx-action and handlers for zero-variables action

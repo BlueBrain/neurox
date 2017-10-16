@@ -25,12 +25,6 @@ const char* TimeDependencySynchronizer::GetString() {
   return "TimeDependencySynchronizer";
 }
 
-void TimeDependencySynchronizer::InitLocality() {
-  if (input_params_->locality_comm_reduce_)
-    throw std::runtime_error(
-        "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
-}
-
 void TimeDependencySynchronizer::ClearLocality() {}
 
 void TimeDependencySynchronizer::InitNeuron(Branch* b) {

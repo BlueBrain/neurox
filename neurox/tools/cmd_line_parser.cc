@@ -42,7 +42,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg locality_comm_reduce("R", "locality_comm_reduce",
+    TCLAP::SwitchArg locality_comm_reduce("R", "locality-comm-reduce",
                                           "perform HPX all-reduce operation at "
                                           "locality level instead of neuron "
                                           "level (better for small cluster).",

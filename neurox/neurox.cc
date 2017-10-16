@@ -144,8 +144,6 @@ void DebugMessage(const char *str) {
 bool ParallelExecution() { return hpx_get_num_ranks() > 1; }
 
 void RegisterHpxActions() {
-  RegisterMultipleVarAction(wrappers::CallAllNeuronsAux,
-                            wrappers::CallAllNeuronsAux_handler);
   RegisterZeroVarAction(Main, Main_handler);
   RegisterZeroVarAction(Clear, Clear_handler);
 }

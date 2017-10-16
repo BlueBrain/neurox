@@ -5,7 +5,7 @@ using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 hpx_t* AllreduceSynchronizer::allreduces_ = nullptr;
-int AllreduceSynchronizer::AllReduceLocalityInfo::next_allreduce_id = -1;
+int AllreduceSynchronizer::AllReduceLocalityInfo::next_allreduce_id_ = -1;
 
 AllreduceSynchronizer::AllreduceSynchronizer() {}
 
@@ -154,7 +154,7 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
 
   // if reduction id < 0, it's still on the first comm-window
   // within first comm-window, synchronizer does not wait
-  int r = next_allreduce_id;
+  int& r = next_allreduce_id_;
   int allreduce_id = r < 0 ? r + allreduces_count : r;
   if (r < 0)
     /* fixes crash for Synchronizer::ALL when running two
@@ -164,11 +164,11 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
     /* locality-level reduction */
     hpx_lco_wait_reset(allreduce_future_[allreduce_id]);
 
-  if (r >= 0) /* mark step on this allreduce */
-    hpx_process_collective_allreduce_join(allreduce_lco_[allreduce_id],
-                                          allreduce_id_[allreduce_id], NULL, 0);
+  /* mark locality step on this allreduce */
+  hpx_process_collective_allreduce_join(allreduce_lco_[allreduce_id],
+                                        allreduce_id_[allreduce_id], NULL, 0);
 
-  if (++next_allreduce_id == allreduces_count) next_allreduce_id = 0;
+  if (++r == allreduces_count) r = 0;
 }
 
 AllreduceSynchronizer::AllReduceNeuronInfo::AllReduceNeuronInfo(
@@ -251,7 +251,7 @@ int AllreduceSynchronizer::AllReduceLocalityInfo::Subscribe_handler(
   }
 
   // negative value means ignore until it reaches 0
-  AllReduceLocalityInfo::next_allreduce_id = -allreduces_count;
+  AllReduceLocalityInfo::next_allreduce_id_ = -allreduces_count;
   return neurox::wrappers::MemoryUnpin(target);
 }
 

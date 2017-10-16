@@ -90,8 +90,9 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   else
   {
     const double tstop = *tstop_ptr;
+    const double tstart = tstop - input_params_->tstop_; //for benchmarks
     double step_to_time = -1;
-    for (double t = 0; t <= tstop; t += reduction_dt) {
+    for (double t = tstart; t <= tstop-0.00001; t += reduction_dt) {
       synchronizer_->LocalityReduce();
       step_to_time = t + reduction_dt;
       wrappers::CallLocalNeurons(Synchronizer::RunNeuron, &step_to_time, sizeof(double));
@@ -105,16 +106,17 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
                                     const size_t size) {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::RunNeuron, tstop_ptr, size);
-  const double tstop = *tstop_ptr-0.00001;
+  const double tstop = *tstop_ptr;
   Interpolator* interpolator = local->interpolator_;
   const double dt_io = input_params_->dt_io_;
   double tpause = -1;
   hpx_t spikes_lco = HPX_NULL;
 
   double& t = local->nt_->_t;
-  while (t <= tstop) {
+  while (t < tstop - 0.00001) {
     synchronizer_->BeforeSteps(local);
     tpause = t + synchronizer_->GetMaxStep(local);
+    tpause = std::min(tpause, tstop);
     spikes_lco = interpolator->StepTo(local, tpause);
     synchronizer_->AfterSteps(local, spikes_lco);
     if (fmod(t, dt_io) == 0) {  // output
@@ -151,7 +153,38 @@ int Synchronizer::NeuronInfoDestructor_handler()
     NEUROX_MEM_UNPIN;
 }
 
+/// auxiliar method for CallLocalNeurons
+hpx_action_t Synchronizer::CallAllNeuronsAux=0;
+int Synchronizer::CallAllNeuronsAux_handler(
+    const int nargs, const void *args[], const size_t sizes[])
+{
+    //TODO clean this
+    NEUROX_MEM_PIN(uint64_t);
+    hpx_action_t f = *(hpx_action_t*) args[0];  //first arg is action id
+    if (nargs==1)
+      wrappers::CallLocalNeurons(f);
+    else if (nargs==2)
+      wrappers::CallLocalNeurons(f, args[1], sizes[1]);
+    else if (nargs==3)
+      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2]);
+    else if (nargs==4)
+      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
+              args[3], sizes[3]);
+    else if (nargs==5)
+      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
+              args[3], sizes[3], args[4], sizes[4]);
+    else if (nargs==6)
+      wrappers::CallLocalNeurons(f, args[1], sizes[1], args[2], sizes[2],
+              args[3], sizes[3], args[4], sizes[4], args[5], sizes[5]);
+    else
+      { assert(0);}
+    NEUROX_MEM_UNPIN;
+}
+
 void Synchronizer::RegisterHpxActions() {
+  wrappers::RegisterMultipleVarAction(Synchronizer::CallAllNeuronsAux,
+                              Synchronizer::CallAllNeuronsAux_handler);
+
   wrappers::RegisterZeroVarAction(Synchronizer::CallClearLocality,
                                   Synchronizer::CallClearLocality_handler);
   wrappers::RegisterZeroVarAction(Synchronizer::CallClearNeuron,

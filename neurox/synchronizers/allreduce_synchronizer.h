@@ -40,7 +40,7 @@ class AllreduceSynchronizer : public Synchronizer {
     static hpx_t* allreduce_future_;
     static hpx_t* allreduce_lco_;
     static int* allreduce_id_;
-    static int next_allreduce_id;
+    static int next_allreduce_id_;
 
     static void LocalityReduce(int);
 
