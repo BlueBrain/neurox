@@ -94,7 +94,6 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
-  if (synapses_.size() == 0)
-      return HPX_NULL;
+  if (synapses_.size() == 0) return HPX_NULL;
   return synchronizer_->SendSpikes(this, tt, t);
 }

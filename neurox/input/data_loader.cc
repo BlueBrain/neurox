@@ -604,7 +604,7 @@ int DataLoader::Init_handler() {
     assert(locality::netcons_branches_ == nullptr);
     locality::neurons_ = new vector<hpx_t>();
     locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
-    locality::netcons_somas_  = new map<neuron_id_t, vector<hpx_t>>();
+    locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -702,10 +702,10 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    assert(locality::neurons_->size()==0);
-    if (input_params_->locality_comm_reduce_)
-    {
-      locality::neurons_->insert(locality::neurons_->end(), neurons_addr, neurons_addr+recv_neurons_count);
+    if (input_params_->locality_comm_reduce_) {
+      assert(locality::neurons_->size() == 0);
+      locality::neurons_->insert(locality::neurons_->end(), neurons_addr,
+                                 neurons_addr + recv_neurons_count);
       locality::neurons_->shrink_to_fit();
     }
   }
@@ -1507,23 +1507,26 @@ int DataLoader::InitNetcons_handler() {
     }
   }
 
-  // inform pre-syn neuron that he connects to me
+  // inform pre-syn neuron that he connects to this branch or locality
+  // (repeated entries will be removed by DataLoader::FilterLocalitySynapses)
   hpx_t netcons_lco = hpx_lco_and_new(netcons.size());
-  hpx_t top_branch_addr = HPX_NULL;
-  if (input_params_->locality_comm_reduce_)
-      top_branch_addr = HPX_HERE;
-  else if (local->soma_)
-      top_branch_addr = target;
-  else
-      top_branch_addr = local->branch_tree_->top_branch_addr_;
   int my_gid = local->soma_ ? local->soma_->gid_ : -1;
-  for (std::pair<hpx_t, floble_t> &nc : netcons) {
-    hpx_t synapse_addr =
-        input_params_->locality_comm_reduce_ ? HPX_HERE : target;
-    hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &synapse_addr,
+  hpx_t top_branch_addr = HPX_NULL;
+  hpx_t branch_addr = HPX_NULL;
+  if (input_params_->locality_comm_reduce_)
+  {
+    top_branch_addr = HPX_HERE;
+    branch_addr = HPX_HERE;
+  }
+  else
+  {
+    top_branch_addr = local->soma_ ? target : local->branch_tree_->top_branch_addr_;
+    branch_addr = target;
+  }
+  for (std::pair<hpx_t, floble_t> &nc : netcons)
+    hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &branch_addr,
              sizeof(hpx_t), &nc.second, sizeof(nc.second), &top_branch_addr,
              sizeof(hpx_t), &my_gid, sizeof(int));
-  }
   hpx_lco_wait_reset(netcons_lco);
   hpx_lco_delete_sync(netcons_lco);
 
@@ -1531,7 +1534,8 @@ int DataLoader::InitNetcons_handler() {
   hpx_t dependencies_lco = hpx_lco_and_new(dependencies.size());
   bool init_phase = true;
   for (std::pair<int, spike_time_t> &dep : dependencies)
-    TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(top_branch_addr, dependencies_lco, dep.first, dep.second, init_phase);
+    TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
+        top_branch_addr, dependencies_lco, dep.first, dep.second, init_phase);
   hpx_lco_wait_reset(dependencies_lco);
   hpx_lco_delete_sync(dependencies_lco);
 
@@ -1552,10 +1556,45 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   Neuron::Synapse *syn =
       new Neuron::Synapse(addr, min_delay, synapse_soma_addr, destination_gid);
   local->soma_->AddSynapse(syn);
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN
+}
+
+hpx_action_t DataLoader::FilterLocalitySynapses=0;
+int DataLoader::FilterLocalitySynapses_handler()
+{
+    if (!input_params_->branch_parallelism_depth_)
+        return HPX_SUCCESS;
+
+    NEUROX_MEM_PIN(Branch);
+
+    //initial synapses, several per locality
+    std::vector<Neuron::Synapse*> & synapses = local->soma_->synapses_;
+    //filtered synapses (1 per locality)
+    map<hpx_t, Neuron::Synapse*> synapses_loc;
+    for (Neuron::Synapse *s : synapses)
+    {
+        if (synapses_loc.find(s->synapse_addr_) == synapses_loc.end())
+        {
+            synapses_loc[s->synapse_addr_] = s;
+            continue;
+        }
+
+        //synapse already exists, use only the one with min syn delay
+        Neuron::Synapse * syn_old = synapses_loc.at(s->synapse_addr_);
+        assert(syn_old->synapse_addr_ == s->synapse_addr_);
+        if (s->min_delay_ < syn_old->min_delay_)
+            synapses_loc.at(s->synapse_addr_) = s;
+    }
+
+    synapses.clear();
+    for (auto & syn_it : synapses_loc)
+        synapses.push_back(syn_it.second);
+    assert(synapses.size() <= hpx_get_num_ranks());
+    NEUROX_MEM_UNPIN
 }
 
 void DataLoader::RegisterHpxActions() {
+  wrappers::RegisterZeroVarAction(DataLoader::FilterLocalitySynapses, DataLoader::FilterLocalitySynapses_handler);
   wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
   wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms,
                                   DataLoader::InitMechanisms_handler);

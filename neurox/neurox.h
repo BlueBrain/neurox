@@ -96,7 +96,7 @@ extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;
 Mechanism *GetMechanismFromType(int type);
 
 /// printf of a given message only on debug mode
-void DebugMessage(const char *str);
+inline void DebugMessage(const char *str);
 
 /// returns true if program launched in more than one locality
 bool ParallelExecution();

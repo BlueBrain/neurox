@@ -51,7 +51,10 @@ class TimeDependencySynchronizer : public Synchronizer {
                               neuron_id_t my_gid = -1,
                               bool initialization = false);
 
-    static void SendTimeUpdateMessage( hpx_t top_branch_addr,  hpx_t lco, neuron_id_t preneuron_id, spike_time_t max_time, bool init_phase=false);
+    static void SendTimeUpdateMessage(hpx_t top_branch_addr, hpx_t lco,
+                                      neuron_id_t preneuron_id,
+                                      spike_time_t max_time,
+                                      bool init_phase = false);
 
     /// get smallest time across all dependencies
     floble_t GetDependenciesMinTime();
@@ -77,7 +80,7 @@ class TimeDependencySynchronizer : public Synchronizer {
     floble_t dependencies_time_neuron_waits_for_;
   };
 
-private:
+ private:
   static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
   static int UpdateTimeDependencyLocality_handler(const int, const void* [],

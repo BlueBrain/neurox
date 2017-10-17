@@ -206,7 +206,7 @@ void Synchronizer::RegisterHpxActions() {
       Synchronizer::NeuronInfoConstructor,
       Synchronizer::NeuronInfoConstructor_handler);
 
-  //registration of instantiated synchronizers
+  // registration of instantiated synchronizers
   AllreduceSynchronizer::RegisterHpxActions();
   TimeDependencySynchronizer::RegisterHpxActions();
 }
