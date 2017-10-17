@@ -1562,7 +1562,7 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
 hpx_action_t DataLoader::FilterLocalitySynapses=0;
 int DataLoader::FilterLocalitySynapses_handler()
 {
-    if (!input_params_->branch_parallelism_depth_)
+    if (!input_params_->locality_comm_reduce_)
         return HPX_SUCCESS;
 
     NEUROX_MEM_PIN(Branch);
