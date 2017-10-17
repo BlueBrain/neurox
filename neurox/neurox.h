@@ -79,16 +79,27 @@ extern tools::CmdLineParser *input_params_;
 /// neurons synchronization synchronizer instance
 extern synchronizers::Synchronizer *synchronizer_;
 
-/// information unique to this locality (required only if
-/// locality-level communication reduction is performed)
+/** information unique to this locality (required only if
+ * locality-level communication reduction is performed)
+ */
 namespace locality {
+
 ///  hpx address of all neurons in this locality
 extern std::vector<hpx_t> *neurons_;
 
-/// map of recipient netcons branch addresses per pre-syn gid
+/** map of recipient netcons branch addresses per pre-syn gid.
+ * Used for spikes delivery: once spikes from a pre-syn neuron
+ * (map-key) are delivered to this locality, it retrieves all
+ * branches where spikes are to be delivered (map-value).
+ */
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_branches_;
 
-/// map of top branch for each netcon
+/** map of top-branch of neurons in netcons_branches. Used by
+ * TimeDependency-baded synchronizer to update time-dependencies
+ * step updates: when a locality receives a time-update message
+ * from a pre-neuron that stepped (map-key), it consults this map
+ * to get the list of somas (map-value) of all branches where
+ * spikes were delivered */
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;
 }
 
