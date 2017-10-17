@@ -33,6 +33,7 @@ Mechanism *GetMechanismFromType(int type) {
 
 hpx_action_t Main = 0;
 static int Main_handler() {
+  hpx_time_t total_time_now = hpx_time_now();
   printf("\nneurox::Main (localities: %d, threads/locality: %d, %s)\n",
          NumRanks(), NumThreads(), LAYOUT == 0 ? "SoA" : "AoS");
   DebugMessage("neurox::input::DataLoader::Init...\n");
@@ -68,7 +69,6 @@ static int Main_handler() {
 #endif
 
   // iterator through all synchronizers (if many) and run
-  hpx_time_t total_time_now = hpx_time_now();
   const int synchronizer = (int)input_params_->synchronizer_;
   const bool run_all = synchronizer == (int)SynchronizerIds::kBenchmarkAll;
   const int init_sync = run_all ? 0 : synchronizer;
@@ -88,9 +88,9 @@ static int Main_handler() {
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
-    printf("neurox::%s (%d neurons, t=%.03f secs, dt=0.5f milisecs\n",
+    printf("neurox::%s (%d neurons, biological time: %.03f secs, solver time: %.02f secs\n",
            synchronizer_->GetString(), neurox::neurons_count_,
-           input_params_->tstop_ / 1000, input_params_->dt_);
+           input_params_->tstop_ / 1000, time_elapsed);
 
 #ifdef NDEBUG
     // output benchmark info
@@ -112,16 +112,12 @@ static int Main_handler() {
       tstop += input_params_->tstop_;
   }
 
-  double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
-  printf(
-      "neurox::end (%d neurons, biological time: %.3f secs, solver time: %.3f "
-      "secs).\n",
-      neurox::neurons_count_, input_params_->tstop_ / 1000.0,
-      total_elapsed_time);
-
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   CallAllNeurons(Branch::Clear);
   hpx_bcast_rsync(neurox::Clear);
+
+  double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
+  DebugMessage(string("neurox:: total time: " + std::to_string(total_elapsed_time) + " secs\n").c_str());
   hpx_exit(0, NULL);
 }
 
