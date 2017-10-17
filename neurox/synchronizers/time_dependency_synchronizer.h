@@ -51,7 +51,7 @@ class TimeDependencySynchronizer : public Synchronizer {
                               neuron_id_t my_gid = -1,
                               bool initialization = false);
 
-    static void SendTimeUpdateMessage(hpx_t top_branch_addr, hpx_t lco,
+    static void SendTimeUpdateMessage(hpx_t soma_or_locality_addr, hpx_t lco,
                                       neuron_id_t preneuron_id,
                                       spike_time_t max_time,
                                       bool init_phase = false);

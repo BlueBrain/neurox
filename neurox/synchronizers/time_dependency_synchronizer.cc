@@ -212,14 +212,14 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
-    hpx_t top_branch_addr, hpx_t lco, neuron_id_t preneuron_id,
+    hpx_t soma_or_locality_addr, hpx_t lco, neuron_id_t preneuron_id,
     spike_time_t max_time, bool init_phase) {
   const hpx_action_t update_time_dep_action =
       input_params_->locality_comm_reduce_
           ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
-  hpx_call(top_branch_addr, update_time_dep_action, lco, &preneuron_id,
+  hpx_call(soma_or_locality_addr, update_time_dep_action, lco, &preneuron_id,
            sizeof(neuron_id_t), &max_time, sizeof(spike_time_t), &init_phase,
            sizeof(bool));
 }
