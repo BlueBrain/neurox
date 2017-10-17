@@ -35,6 +35,8 @@ class AllreduceSynchronizer : public Synchronizer {
   static double GetLocalityReductionInterval2(const double);
   static hpx_t SendSpikes2(Neuron*, double);
 
+  static void RegisterHpxActions();  ///> Register all HPX actions
+
   // for node level reduction only (initialized by initNodeLevelInformaion)
   class AllReduceLocalityInfo {
    public:
@@ -57,8 +59,6 @@ class AllreduceSynchronizer : public Synchronizer {
     AllReduceNeuronInfo() = delete;
     AllReduceNeuronInfo(const size_t);
     ~AllReduceNeuronInfo();
-
-    static void RegisterHpxActions();  ///> Register all HPX actions
 
     // initiated by constructor (one per neuron)
     std::queue<hpx_t> spikes_lco_queue_;

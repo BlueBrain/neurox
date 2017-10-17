@@ -601,9 +601,10 @@ int DataLoader::Init_handler() {
 
   // initiate map of locality to branch netcons (if needed)
   if (input_params_->locality_comm_reduce_) {
-    assert(locality::netcons_ == nullptr);
-    locality::netcons_ = new map<neuron_id_t, vector<hpx_t>>();
-    locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
+    assert(locality::netcons_branches_ == nullptr);
+    locality::neurons_ = new vector<hpx_t>();
+    locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
+    locality::netcons_somas_  = new map<neuron_id_t, vector<hpx_t>>();
   }
 
   return neurox::wrappers::MemoryUnpin(target);
@@ -701,16 +702,14 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    if (input_params_->locality_comm_reduce_) {
-      assert(neurox::locality::neurons_ == nullptr);
-      neurox::locality::neurons_count_ = recv_neurons_count;
-      neurox::locality::neurons_ = new hpx_t[recv_neurons_count];
-      memcpy(neurox::locality::neurons_, neurons_addr,
-             recv_neurons_count * sizeof(hpx_t));
+    assert(locality::neurons_->size()==0);
+    if (input_params_->locality_comm_reduce_)
+    {
+      locality::neurons_->insert(locality::neurons_->end(), neurons_addr, neurons_addr+recv_neurons_count);
+      locality::neurons_->shrink_to_fit();
     }
   }
   hpx_lco_sema_v_sync(locality_mutex_);
-
   NEUROX_MEM_UNPIN;
 }
 
@@ -917,8 +916,8 @@ int DataLoader::Finalize_handler() {
   load_balancing_ = nullptr;
 
   // delete duplicates in locality map of netcons to addr
-  if (input_params_->locality_comm_reduce_ && locality::netcons_) {
-    for (auto &map_it : (*locality::netcons_)) {
+  if (input_params_->locality_comm_reduce_ && locality::netcons_branches_) {
+    for (auto &map_it : (*locality::netcons_branches_)) {
       vector<hpx_t> &addrs = map_it.second;
       std::sort(addrs.begin(), addrs.end());
       addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
@@ -1531,14 +1530,8 @@ int DataLoader::InitNetcons_handler() {
   // inform my soma of my time dependencies
   hpx_t dependencies_lco = hpx_lco_and_new(dependencies.size());
   bool init_phase = true;
-  hpx_action_t update_time_dep_action =
-      input_params_->locality_comm_reduce_
-          ? Branch::UpdateTimeDependencyLocality
-          : Branch::UpdateTimeDependency;
   for (std::pair<int, spike_time_t> &dep : dependencies)
-    hpx_call(top_branch_addr, update_time_dep_action, dependencies_lco,
-             &dep.first, sizeof(neuron_id_t), &dep.second, sizeof(spike_time_t),
-             &init_phase, sizeof(bool));
+    TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(top_branch_addr, dependencies_lco, dep.first, dep.second, init_phase);
   hpx_lco_wait_reset(dependencies_lco);
   hpx_lco_delete_sync(dependencies_lco);
 

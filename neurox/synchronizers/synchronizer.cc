@@ -205,4 +205,8 @@ void Synchronizer::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<int>(
       Synchronizer::NeuronInfoConstructor,
       Synchronizer::NeuronInfoConstructor_handler);
+
+  //registration of instantiated synchronizers
+  AllreduceSynchronizer::RegisterHpxActions();
+  TimeDependencySynchronizer::RegisterHpxActions();
 }

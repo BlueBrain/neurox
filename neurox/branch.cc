@@ -447,7 +447,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
     for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
-    return neurox::wrappers::MemoryUnpin(target, time_elapsed);
+    NEUROX_MEM_UNPIN_CONTINUE(time_elapsed);
   } else {
     // reconstruct map of locality to branch netcons (if needed)
     if (input_params_->locality_comm_reduce_) {
@@ -457,7 +457,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       hpx_lco_sema_p(input::DataLoader::locality_mutex_);
       for (offset_t nc = 0; nc < netcons_count; nc++) {
         const neuron_id_t pre_neuron_id = netcons_pre_ids[nc];
-        (*locality::netcons_)[pre_neuron_id].push_back(target);
+        (*locality::netcons_branches_)[pre_neuron_id].push_back(target);
         (*locality::netcons_somas_)[pre_neuron_id].push_back(soma_addr);
         // duplicates will be deleted in DataLoader::Finalize
       }
@@ -544,7 +544,7 @@ int Branch::AddSpikeEventLocality_handler(const int nargs, const void *args[],
                                           const size_t sizes[]) {
   NEUROX_MEM_PIN(uint64_t);
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  vector<hpx_t> &branch_addrs = neurox::locality::netcons_->at(pre_neuron_id);
+  vector<hpx_t> &branch_addrs = neurox::locality::netcons_branches_->at(pre_neuron_id);
   hpx_t spikes_lco = hpx_lco_and_new(branch_addrs.size());
   for (hpx_t &branch_addr : branch_addrs)
     if (nargs == 2)
@@ -579,50 +579,6 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
                                     max_time);
   NEUROX_MEM_UNPIN;
-}
-
-hpx_action_t Branch::UpdateTimeDependency = 0;
-int Branch::UpdateTimeDependency_handler(const int nargs, const void *args[],
-                                         const size_t[]) {
-  NEUROX_MEM_PIN(Branch);
-  assert(nargs == 2 || nargs == 3);
-
-  // auto source = libhpx_parcel_get_source(p);
-  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  const spike_time_t max_time = *(const spike_time_t *)args[1];
-  const bool init_phase = nargs == 3 ? *(const bool *)args[2] : false;
-
-  assert(local->soma_);
-  assert(local->soma_->synchronizer_neuron_info_);
-  TimeDependencySynchronizer::TimeDependencies *time_dependencies =
-      (TimeDependencySynchronizer::TimeDependencies *)
-          local->soma_->synchronizer_neuron_info_;
-  time_dependencies->UpdateTimeDependency(
-      pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
-      init_phase);
-  NEUROX_MEM_UNPIN
-}
-
-hpx_action_t Branch::UpdateTimeDependencyLocality = 0;
-int Branch::UpdateTimeDependencyLocality_handler(const int nargs,
-                                                 const void *args[],
-                                                 const size_t sizes[]) {
-  NEUROX_MEM_PIN(uint64_t);
-  assert(nargs == 2 || nargs == 3);
-  const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
-  vector<hpx_t> &branch_soma_addrs =
-      neurox::locality::netcons_somas_->at(pre_neuron_id);
-  hpx_t spikes_lco = hpx_lco_and_new(branch_soma_addrs.size());
-  for (hpx_t &soma_addr : branch_soma_addrs)
-    if (nargs == 2)
-      hpx_call(soma_addr, Branch::UpdateTimeDependency, spikes_lco, args[0],
-               sizes[0], args[1], sizes[1]);
-    else
-      hpx_call(soma_addr, Branch::UpdateTimeDependency, spikes_lco, args[0],
-               sizes[0], args[1], sizes[1], args[2], sizes[2]);
-  hpx_lco_wait(spikes_lco);
-  hpx_lco_delete(spikes_lco, HPX_NULL);
-  NEUROX_MEM_UNPIN
 }
 
 hpx_action_t Branch::ThreadTableCheck = 0;
@@ -871,11 +827,6 @@ void Branch::RegisterHpxActions() {
                                       Branch::AddSpikeEvent_handler);
   wrappers::RegisterMultipleVarAction(Branch::AddSpikeEventLocality,
                                       Branch::AddSpikeEventLocality_handler);
-  wrappers::RegisterMultipleVarAction(Branch::UpdateTimeDependency,
-                                      Branch::UpdateTimeDependency_handler);
-  wrappers::RegisterMultipleVarAction(
-      Branch::UpdateTimeDependencyLocality,
-      Branch::UpdateTimeDependencyLocality_handler);
   wrappers::RegisterAllReduceInitAction<Mechanism::ModFunctions>(
       Branch::MechanismsGraph::Init, Branch::MechanismsGraph::Init_handler);
   wrappers::RegisterAllReduceReduceAction<Mechanism::ModFunctions>(

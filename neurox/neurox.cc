@@ -22,10 +22,9 @@ neurox::tools::CmdLineParser *input_params_ = nullptr;
 neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
 // locality info
-hpx_t *locality::neurons_ = nullptr;
-int locality::neurons_count_ = 0;
-map<neuron_id_t, vector<hpx_t> > *locality::netcons_ = 0;
-map<neuron_id_t, vector<hpx_t> > *locality::netcons_somas_ = 0;
+std::vector<hpx_t> *locality::neurons_ = nullptr;
+map<neuron_id_t, vector<hpx_t> > *locality::netcons_branches_ = nullptr;
+map<neuron_id_t, vector<hpx_t> > *locality::netcons_somas_ = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -133,14 +132,15 @@ int Clear_handler() {
   delete synchronizer_;
 
   if (input_params_->locality_comm_reduce_) {
-    delete[] neurox::locality::neurons_;
-    (*neurox::locality::netcons_).clear();
+    (*neurox::locality::neurons_).clear();
+    (*neurox::locality::netcons_branches_).clear();
     (*neurox::locality::netcons_somas_).clear();
-    delete neurox::locality::netcons_;
+    delete neurox::locality::neurons_;
+    delete neurox::locality::netcons_branches_;
     delete neurox::locality::netcons_somas_;
-    neurox::locality::netcons_ = nullptr;
+    neurox::locality::netcons_branches_ = nullptr;
     neurox::locality::netcons_somas_ = nullptr;
-    neurox::locality::neurons_count_ = -1;
+    neurox::locality::neurons_ = nullptr;
   }
 
 #ifndef NDEBUG

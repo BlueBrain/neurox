@@ -60,11 +60,12 @@ inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
 template <typename... Args>
 inline hpx_status_t CallLocalNeurons(hpx_action_t f, Args... args) {
   assert(neurox::locality::neurons_ != nullptr);
-  hpx_t lco = hpx_lco_and_new(neurox::locality::neurons_count_);
+  const size_t neurons_count = neurox::locality::neurons_->size();
+  hpx_t lco = hpx_lco_and_new(neurons_count);
   int e = HPX_SUCCESS;
   int n = wrappers::CountArgs(args...);
-  for (size_t i = 0; i < neurox::locality::neurons_count_; i++)
-    e += _hpx_call(neurox::locality::neurons_[i], f, lco, n, args...);
+  for (size_t i = 0; i < neurons_count; i++)
+    e += _hpx_call(neurox::locality::neurons_->at(i), f, lco, n, args...);
   hpx_lco_wait_reset(lco);
   hpx_lco_delete_sync(lco);
   return e;

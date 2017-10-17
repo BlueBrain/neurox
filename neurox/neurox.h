@@ -83,13 +83,10 @@ extern synchronizers::Synchronizer *synchronizer_;
 /// locality-level communication reduction is performed)
 namespace locality {
 ///  hpx address of all neurons in this locality
-extern hpx_t *neurons_;
-
-/// length of locality_neuronx_
-extern int neurons_count_;
+extern std::vector<hpx_t> *neurons_;
 
 /// map of recipient netcons branch addresses per pre-syn gid
-extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_;
+extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_branches_;
 
 /// map of top branch for each netcon
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;

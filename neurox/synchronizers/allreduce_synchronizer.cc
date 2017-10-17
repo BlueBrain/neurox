@@ -295,18 +295,20 @@ void AllreduceSynchronizer::AllReduceNeuronInfo::Reduce_handler(void*,
                                                                 const void*,
                                                                 const size_t) {}
 
-void AllreduceSynchronizer::AllReduceNeuronInfo::RegisterHpxActions() {
-  wrappers::RegisterSingleVarAction<hpx_t>(Subscribe, Subscribe_handler);
-  wrappers::RegisterSingleVarAction<hpx_t>(Unsubscribe, Unsubscribe_handler);
+void AllreduceSynchronizer::RegisterHpxActions() {
+  //node level functions
+  wrappers::RegisterSingleVarAction<hpx_t>(AllReduceNeuronInfo::Subscribe, AllReduceNeuronInfo::Subscribe_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(AllReduceNeuronInfo::Unsubscribe, AllReduceNeuronInfo::Unsubscribe_handler);
+  wrappers::RegisterAllReduceInitAction<void>(
+      AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Init_handler);
+  wrappers::RegisterAllReduceReduceAction<void>(
+      AllReduceNeuronInfo::Reduce, AllReduceNeuronInfo::Reduce_handler);
+
+  //locality leve functions
   wrappers::RegisterSingleVarAction<hpx_t>(
       AllReduceLocalityInfo::Subscribe,
       AllReduceLocalityInfo::Subscribe_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(
       AllReduceLocalityInfo::Unsubscribe,
       AllReduceLocalityInfo::Unsubscribe_handler);
-
-  wrappers::RegisterAllReduceInitAction<void>(
-      AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Init_handler);
-  wrappers::RegisterAllReduceReduceAction<void>(
-      AllReduceNeuronInfo::Reduce, AllReduceNeuronInfo::Reduce_handler);
 }
