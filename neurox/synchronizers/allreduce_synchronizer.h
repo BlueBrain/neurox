@@ -15,28 +15,27 @@ class AllreduceSynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
   void InitLocality() override;
-  void InitNeuron(Branch *b) override;
   void ClearLocality() override;
-  void ClearNeuron(Branch*) override;
   void BeforeSteps(Branch*) override;
-  double GetMaxStepTime(Branch*) override;
-  void AfterSteps(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
+  double GetMaxStep(Branch*) override;
+  void AfterSteps(Branch*, hpx_t) override;
   double GetLocalityReductionInterval() override;
   void LocalityReduce() override;
 
-  static void SubscribeAllReducesLocality(size_t allreduces_count);
-  static void SubscribeAllReducesNeuron(Branch *b, size_t allreduces_count);
-  static void UnsubscribeAllReducesLocality(size_t allreduces_count);
-  static void UnsubscribeAllReducesNeuron(Branch* b, size_t allreduces_count);
+  static void SubscribeAllReduces(size_t allreduces_count);
+  static void UnsubscribeAllReduces(size_t allreduces_count);
   static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
 
   static const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;
 
   static void NeuronReduce(const Branch*, const int);
-  static double GetMaxStepTime2(const Branch*, const int);
+  static double GetMaxStep2(const Branch*, const int);
   static double GetLocalityReductionInterval2(const double);
+  static hpx_t SendSpikes2(Neuron*, double);
+
+  static void RegisterHpxActions();  ///> Register all HPX actions
 
   // for node level reduction only (initialized by initNodeLevelInformaion)
   class AllReduceLocalityInfo {
@@ -44,7 +43,7 @@ class AllreduceSynchronizer : public Synchronizer {
     static hpx_t* allreduce_future_;
     static hpx_t* allreduce_lco_;
     static int* allreduce_id_;
-    static int next_allreduce_id;
+    static int next_allreduce_id_;
 
     static void LocalityReduce(int);
 
@@ -60,8 +59,6 @@ class AllreduceSynchronizer : public Synchronizer {
     AllReduceNeuronInfo() = delete;
     AllReduceNeuronInfo(const size_t);
     ~AllReduceNeuronInfo();
-
-    static void RegisterHpxActions();  ///> Register all HPX actions
 
     // initiated by constructor (one per neuron)
     std::queue<hpx_t> spikes_lco_queue_;

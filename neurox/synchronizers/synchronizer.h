@@ -11,12 +11,12 @@ namespace synchronizers {
  * Uniquely identifies the Id of each synchronizer
  */
 enum class SynchronizerIds : int {
-  kDebug = 0,  // For debug only
+  kTimeDependency = 0, /* Needs to be first */
   kAllReduce = 1,
   kSlidingTimeWindow = 2,
-  kTimeDependency = 3,
-  kCoreneuron = 4,
-  kSynchronizersCount = 5,
+  kCoreneuron = 3,
+  kSynchronizersCount = 3,
+  kDebug = 8,        // For debug only
   kBenchmarkAll = 9  // Benchmark of all non-debug modes
 };
 
@@ -65,47 +65,55 @@ class Synchronizer {
   /// To be called at beginning of steps
   virtual void BeforeSteps(Branch*) {}
 
-  /// Get next possible time where a neuron can step to,
-  /// without synchronization
-  virtual double GetMaxStepTime(Branch*) = 0;
+  /// Maximum possible step, without synchronization
+  virtual double GetMaxStep(Branch*) = 0;
 
   /// To be called at end of steps
   virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
 
   /// To handle sending of spikes
-  virtual hpx_t SendSpikes(Neuron*, double tt, double t) = 0;
+  virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
 
   /// To handle receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t) {}
 
-  /// Time-step between locality-based comm. reductions
-  /// (default is total execution time: ie no reduction)
-  virtual double GetLocalityReductionInterval();
+  /// Time-step between locality-based comm. reductions:
+  /// - positive value: call LocalityReduce at every interval
+  /// - 0 (default): no reduction, launch neurons independently
+  /// - -1 : locality level syncrhonizer, launch last neuron first
+  virtual double GetLocalityReductionInterval() { return 0; }
 
   /// Locatility-based reduction, at every reduction-interval
   virtual void LocalityReduce() {}
 
-  static hpx_action_t InitLocalityInfo;
-  static hpx_action_t NeuronInfoConstructor;
-  static hpx_action_t InitNeuronInfo;
+  static hpx_action_t CallInitLocality;
+  static hpx_action_t CallInitNeuron;
   static hpx_action_t RunNeuron;
   static hpx_action_t RunLocality;
-  static hpx_action_t ClearLocalityInfo;
-  static hpx_action_t ClearNeuronInfo;
-  static hpx_action_t VoidFunction;
+  static hpx_action_t CallClearLocality;
+  static hpx_action_t CallClearNeuron;
+  static hpx_action_t NeuronInfoConstructor;
+  static hpx_action_t NeuronInfoDestructor;
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
+  /// auxiliar method for CallLocalNeurons
+  /// (TODO move it to wrappers?)
+  static hpx_action_t CallAllNeuronsAux;
+
  private:
-  static int InitLocalityInfo_handler(const int*, const size_t);
-  static int NeuronInfoConstructor_handler(const int*, const size_t);
-  static int InitNeuronInfo_handler();
+  static int CallInitLocality_handler(const int*, const size_t);
+  static int CallInitNeuron_handler();
   static int RunNeuron_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
-  static int ClearLocalityInfo_handler();
-  static int ClearNeuronInfo_handler();
-  static int VoidFunction_handler();
+  static int CallClearLocality_handler();
+  static int CallClearNeuron_handler();
+  static int NeuronInfoConstructor_handler(const int*, const size_t);
+  static int NeuronInfoDestructor_handler();
+
+  static int CallAllNeuronsAux_handler(const int, const void* [],
+                                       const size_t[]);
 };
 
 };  // synchronizers

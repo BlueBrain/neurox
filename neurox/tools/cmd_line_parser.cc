@@ -42,7 +42,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg mechs_parallelism(
         "M", "multimex", "activates graph-based parallelism of mechanisms.",
         cmd, false);
-    TCLAP::SwitchArg locality_comm_reduce("R", "locality_comm_reduce",
+    TCLAP::SwitchArg locality_comm_reduce("R", "locality-comm-reduce",
                                           "perform HPX all-reduce operation at "
                                           "locality level instead of neuron "
                                           "level (better for small cluster).",
@@ -72,9 +72,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "A", "synchronizer",
         "\
 [0] Sequential Single-step Barrier (debug  only)\
-\n[1] All-reduce barrier (default)\
-\n[2] Sliding Time Window\
-\n[3] Time Dependency LCO\
+\n[1] Time Dependency LCO\
+\n[2] All-reduce barrier (default)\
+\n[3] Sliding Time Window\
 \n[4] MPI-based (a la Coreneuron)\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
         false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");

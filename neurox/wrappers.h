@@ -51,21 +51,47 @@ inline int CountArgs() {
 template <typename... Args>
 inline hpx_status_t CallAllLocalities(hpx_action_t f, Args... args) {
   // return hpx_bcast_rsync(f, args...); //Broken for more than zero args
+  assert(f != 0);
   int n = wrappers::CountArgs(args...);
   return _hpx_process_broadcast_rsync(hpx_thread_current_pid(), f, n, args...);
 }
 
-/// calls method (with arguments) on all neurons in neurox::neurons
+/// calls method with arguments on all neurox::locality_neurons_
 template <typename... Args>
-inline hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
-  hpx_t lco = hpx_lco_and_new(neurox::neurons_count_);
+inline hpx_status_t CallLocalNeurons(hpx_action_t f, Args... args) {
+  assert(neurox::locality::neurons_ != nullptr);
+  const size_t neurons_count = neurox::locality::neurons_->size();
+  hpx_t lco = hpx_lco_and_new(neurons_count);
   int e = HPX_SUCCESS;
   int n = wrappers::CountArgs(args...);
-  for (size_t i = 0; i < neurox::neurons_count_; i++)
-    e += _hpx_call(neurox::neurons_[i], f, lco, n, args...);
+  for (size_t i = 0; i < neurons_count; i++)
+    e += _hpx_call(neurox::locality::neurons_->at(i), f, lco, n, args...);
   hpx_lco_wait_reset(lco);
   hpx_lco_delete_sync(lco);
   return e;
+}
+
+/// calls method with arguments on all neurox::neurons_
+template <typename... Args>
+inline hpx_status_t CallAllNeurons(hpx_action_t f, Args... args) {
+  int n = wrappers::CountArgs(args...);
+
+  // std use-case: once call per neuron
+  if (!neurox::input_params_->locality_comm_reduce_) {
+    assert(neurox::neurons_ != nullptr);
+    hpx_t lco = hpx_lco_and_new(neurox::neurons_count_);
+    int e = HPX_SUCCESS;
+    for (size_t i = 0; i < neurox::neurons_count_; i++)
+      e += _hpx_call(neurox::neurons_[i], f, lco, n, args...);
+    hpx_lco_wait_reset(lco);
+    hpx_lco_delete_sync(lco);
+    return e;
+  }
+
+  // one call per locality, then locality calls its local neurons
+  hpx_action_t func = f;
+  return CallAllLocalities(synchronizers::Synchronizer::CallAllNeuronsAux,
+                           &func, sizeof(func), args...);
 }
 
 /// register hpx-action and handlers for zero-variables action

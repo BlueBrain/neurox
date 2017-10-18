@@ -11,23 +11,35 @@ using namespace neurox::interpolators;
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
       threshold_(ap_threshold),
-      synchronizer_neuron_info_(nullptr) {
+      synchronizer_neuron_info_(nullptr),
+      synchronizer_step_trigger_(HPX_NULL)
+{
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
+
+  /* Some synchronizers (eg Time Dependency) populate neuron
+   * info during DataLoader, so must be instantiated now */
+  SynchronizerIds id = (SynchronizerIds)input_params_->synchronizer_;
+  if (id == SynchronizerIds::kBenchmarkAll)
+    id = SynchronizerIds::kTimeDependency;  // First in Benchmark
+  this->synchronizer_neuron_info_ = SynchronizerNeuronInfo::New(id);
 }
 
 Neuron::~Neuron() {
-  if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
   for (Synapse*& s : synapses_) delete s;
   delete synchronizer_neuron_info_;
+  if (synapses_mutex_ != HPX_NULL)
+      hpx_lco_delete_sync(synapses_mutex_);
+  if (synchronizer_step_trigger_ != HPX_NULL)
+      hpx_lco_delete_sync(synchronizer_step_trigger_);
 }
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
                          hpx_t topBranchAddr, int destinationGid)
-    : branch_addr_(branchAddr),
+    : synapse_addr_(branchAddr),
       min_delay_(minDelay),
-      top_branch_addr_(topBranchAddr) {
+      synapse_soma_addr_(topBranchAddr) {
   const double& teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
   const double& notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
@@ -43,7 +55,9 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
 }
 
 Neuron::Synapse::~Synapse() {
-  if (previous_spike_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_spike_lco_);
+  if (previous_spike_lco_ != HPX_NULL) {
+    hpx_lco_delete_sync(previous_spike_lco_);
+  }
 }
 
 size_t Neuron::GetSynapsesCount() {
@@ -54,6 +68,8 @@ size_t Neuron::GetSynapsesCount() {
 }
 
 void Neuron::AddSynapse(Synapse* syn) {
+  /* for locality-based reduction, repeated synapses
+   * will be filtered by DataLoader::Finalize */
   hpx_lco_sema_p(synapses_mutex_);
   synapses_.push_back(syn);
   synapses_.shrink_to_fit();
@@ -85,12 +101,4 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
 
   if (synapses_.size() == 0) return HPX_NULL;
   return synchronizer_->SendSpikes(this, tt, t);
-}
-
-hpx_t Neuron::SendSpikesAsync(Neuron* neuron, double tt) {
-  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
-  for (Neuron::Synapse*& s : neuron->synapses_)
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, new_synapses_lco,
-             &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
-  return new_synapses_lco;
 }

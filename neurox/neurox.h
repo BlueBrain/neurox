@@ -64,12 +64,6 @@ extern hpx_t *neurons_;
 /// length of neurox::neurons
 extern int neurons_count_;
 
-///  hpx address of all neurons in this locality
-extern hpx_t *locality_neurons_;
-
-/// length of locality_neuronx_
-extern int locality_neurons_count_;
-
 /// array to all existing mechanisms
 extern neurox::Mechanism **mechanisms_;
 
@@ -85,11 +79,46 @@ extern tools::CmdLineParser *input_params_;
 /// neurons synchronization synchronizer instance
 extern synchronizers::Synchronizer *synchronizer_;
 
+/** information unique to this locality (required only if
+ * locality-level communication reduction is performed)
+ */
+namespace locality {
+
+///  hpx address of all neurons in this locality
+extern std::vector<hpx_t> *neurons_;
+
+/** map of recipient netcons branch addresses per pre-syn gid.
+ * Used for spikes delivery: once spikes from a pre-syn neuron
+ * (map-key) are delivered to this locality, it retrieves all
+ * branches where spikes are to be delivered (map-value).
+ */
+extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_branches_;
+
+/** map of top-branch of neurons in netcons_branches. Used by
+ * TimeDependency-based synchronizer to update time-dependencies
+ * step updates: when a locality receives a time-update message
+ * from a pre-neuron that stepped (map-key), it consults this map
+ * to get the list of somas (map-value) of all branches where
+ * spikes were delivered */
+extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;
+
+/** execution-time ordered set of branches and-gates (hpx_t).
+ * Useful for locality based TimeDependency-based synchronizer */
+extern set<pair<floble_t, hpx_t>> * neurons_progress_;
+
+/** mutex to locality::neurons_progress_ */
+extern hpx_t neurons_progress_mutex_;
+
+/** semaphort controling number of active neurons per locality.
+ *  (default size of "number of compute cores" per locality)*/
+extern hpx_t neurons_scheduler_sema_;
+}
+
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);
 
 /// printf of a given message only on debug mode
-void DebugMessage(const char *str);
+inline void DebugMessage(const char *str);
 
 /// returns true if program launched in more than one locality
 bool ParallelExecution();

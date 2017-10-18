@@ -15,13 +15,11 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
   void InitLocality() override;
-  void InitNeuron(Branch *b) override;
   void ClearLocality() override;
-  void ClearNeuron(Branch*) override;
   void BeforeSteps(Branch*) override;
-  double GetMaxStepTime(Branch*) override;
-  void AfterSteps(Branch*, hpx_t) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
+  double GetMaxStep(Branch*) override;
+  void AfterSteps(Branch*, hpx_t) override;
   double GetLocalityReductionInterval() override;
   void LocalityReduce() override;
 

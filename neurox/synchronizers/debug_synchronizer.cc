@@ -20,9 +20,7 @@ const SynchronizerIds DebugSynchronizer::GetId() {
   return SynchronizerIds::kDebug;
 }
 
-const char* DebugSynchronizer::GetString() {
-  return "DebugSynchronizer";
-}
+const char* DebugSynchronizer::GetString() { return "DebugSynchronizer"; }
 
 void DebugSynchronizer::InitLocality() {}
 
@@ -66,24 +64,21 @@ void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
   }
 }
 
-double DebugSynchronizer::GetMaxStepTime(Branch* b) {
-  return b->nt_->_t + b->nt_->_dt;  // single step at a time
+double DebugSynchronizer::GetMaxStep(Branch* b) {
+  return b->nt_->_dt;  // single step at a time
 }
 
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
       (CommunicationBarrier*)neuron->synchronizer_neuron_info_;
-  if (comm_barrier->all_spikes_lco_ == HPX_NULL)  // first use
-    comm_barrier->all_spikes_lco_ = hpx_lco_and_new(neuron->synapses_.size());
+
+  hpx_t& all_spikes_lco = comm_barrier->all_spikes_lco_;
+
+  if (all_spikes_lco == HPX_NULL)  // first use
+    all_spikes_lco = hpx_lco_and_new(neuron->synapses_.size());
   else
-    hpx_lco_reset_sync(comm_barrier->all_spikes_lco_);  // reset to use after
+    hpx_lco_reset_sync(all_spikes_lco);  // reset to use after
 
-  for (Neuron::Synapse*& s : neuron->synapses_)
-    // deliveryTime (t+delay) is handled on post-syn side (diff value for every
-    // NetCon)
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent,
-             comm_barrier->all_spikes_lco_, &neuron->gid_, sizeof(neuron_id_t),
-             &tt, sizeof(spike_time_t));
-
+  all_spikes_lco = AllreduceSynchronizer::SendSpikes2(neuron, tt);
   return HPX_NULL;
 }

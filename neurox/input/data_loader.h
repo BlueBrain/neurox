@@ -42,9 +42,10 @@ class DataLoader {
   static hpx_action_t Init;
   static hpx_action_t InitMechanisms;
   static hpx_action_t InitNeurons;
-  static hpx_action_t setNeurons;
+  static hpx_action_t SetNeurons;
   static hpx_action_t InitNetcons;
   static hpx_action_t Finalize;
+  static hpx_action_t FilterLocalitySynapses;
 
   /// holds information about offsets of instances of mechanisms
   struct IonInstancesInfo {
@@ -55,12 +56,12 @@ class DataLoader {
     vector<int> node_ids;  ///> compartments ids for each instance
   };
 
+  /// mutex controlling multi-threaded write of data structs
+  static hpx_t locality_mutex_;
+
  private:
   /// pointer of netcons.dot file
   static FILE *file_netcons_;
-
-  /// mutex controlling multi-threaded write of data structs
-  static hpx_t all_neurons_mutex_;
 
   /// temporary hpx address of neurons read by this locality
   static std::vector<hpx_t> *my_neurons_addr_;
@@ -129,12 +130,13 @@ class DataLoader {
   static int CreateNeuron(int neuron_idx, void *);
   static int GetMyNrnThreadsCount();
   static int AddSynapse_handler(const int, const void *[], const size_t[]);
+  static int FilterLocalitySynapses_handler();
   static int AddNeurons_handler(const int, const void *[], const size_t[]);
   static int SetMechanisms_handler(const int, const void *[], const size_t[]);
   static int Init_handler();
   static int InitMechanisms_handler();
   static int InitNeurons_handler();
-  static int setNeurons_handler();
+  static int SetNeurons_handler();
   static int InitNetcons_handler();
   static int Finalize_handler();
 };

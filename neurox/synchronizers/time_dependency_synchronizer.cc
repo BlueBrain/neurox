@@ -25,12 +25,6 @@ const char* TimeDependencySynchronizer::GetString() {
   return "TimeDependencySynchronizer";
 }
 
-void TimeDependencySynchronizer::InitLocality() {
-  if (input_params_->locality_comm_reduce_)
-    throw std::runtime_error(
-        "Cant run BackwardEulerTimeDependency with allReduceAtLocality\n");
-}
-
 void TimeDependencySynchronizer::ClearLocality() {}
 
 void TimeDependencySynchronizer::InitNeuron(Branch* b) {
@@ -63,10 +57,16 @@ void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
   }
 }
 
-double TimeDependencySynchronizer::GetMaxStepTime(Branch* branch) {
-  TimeDependencies* td =
-      (TimeDependencies*)branch->soma_->synchronizer_neuron_info_;
-  return td->GetDependenciesMinTime();
+double TimeDependencySynchronizer::GetMaxStep(Branch* branch) {
+  // at every step we check for notification intervals
+    /*
+  if (b->soma_) {
+    TimeDependencies* time_dependencies =
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+    return time_dependencies->GetDependenciesMinTime();
+  }
+  */
+  return branch->nt_->_dt;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -79,10 +79,10 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
     time_dependencies->UpdateTimeDependency(pre_neuron_id, max_time);
-  } else
-    hpx_call(top_branch_addr, Branch::UpdateTimeDependency, HPX_NULL,
-             &pre_neuron_id, sizeof(neuron_id_t), &max_time,
-             sizeof(spike_time_t));
+  } else {
+    TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
+        top_branch_addr, HPX_NULL, pre_neuron_id, max_time);
+  }
 }
 
 hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
@@ -92,16 +92,20 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
 
   for (Neuron::Synapse*& s : neuron->synapses_) {
+    /* reminder, s->min_delay_ is the syn. min-delay to branch or locality*/
     s->next_notification_time_ =
         t + (s->min_delay_ + neuron->refractory_period_) * notification_ratio;
     spike_time_t maxTimeAllowed =
         t + teps + s->min_delay_ + neuron->refractory_period_;
 
-    hpx_lco_wait_reset(s->previous_spike_lco_);  // reset LCO to be used next
-    // any spike or step notification happening after must wait for this spike
-    // delivery
+    /* reset LCO to be used next. any spike or step notification
+     * happening after must wait for this spike delivery */
+    hpx_lco_wait_reset(s->previous_spike_lco_);
 
-    hpx_call(s->branch_addr_, Branch::AddSpikeEvent, s->previous_spike_lco_,
+    hpx_action_t add_spike_action = input_params_->locality_comm_reduce_
+                                        ? Branch::AddSpikeEventLocality
+                                        : Branch::AddSpikeEvent;
+    hpx_call(s->synapse_addr_, add_spike_action, s->previous_spike_lco_,
              &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
              &maxTimeAllowed, sizeof(spike_time_t));
 
@@ -113,6 +117,10 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 #endif
   }
   return HPX_NULL;
+}
+
+double TimeDependencySynchronizer::GetLocalityReductionInterval() {
+    return -1; //means advance last neuron first (see synchronizer.h)
 }
 
 TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {
@@ -143,7 +151,9 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
-  assert(dependencies_map_.size() > 0);
+  // if no dependencies, walk to the end of the simulation
+  if (dependencies_map_.empty()) return input_params_->tstop_;
+
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
                           [](pair<neuron_id_t, floble_t> const& lhs,
                              pair<neuron_id_t, floble_t> const& rhs) {
@@ -212,6 +222,18 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
   libhpx_mutex_unlock(&this->dependencies_lock_);
 }
 
+void TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
+    hpx_t soma_or_locality_addr, hpx_t lco, neuron_id_t preneuron_id,
+    spike_time_t max_time, bool init_phase) {
+  const hpx_action_t update_time_dep_action =
+      input_params_->locality_comm_reduce_
+          ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
+          : TimeDependencySynchronizer::UpdateTimeDependency;
+
+  hpx_call(soma_or_locality_addr, update_time_dep_action, lco, &preneuron_id,
+           sizeof(neuron_id_t), &max_time, sizeof(spike_time_t), &init_phase,
+           sizeof(bool));
+}
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     floble_t t, floble_t dt, int gid) {
   // if I have no dependencies... I'm free to go!
@@ -255,27 +277,77 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     floble_t t, floble_t dt, int gid, std::vector<Neuron::Synapse*>& synapses) {
   for (Neuron::Synapse*& s : synapses)
-    if (s->next_notification_time_ - kTEps <= t + dt)  // if in this time step
-    //(-teps to give or take few nanosecs for correction of floating point time
-    // roundings)
-    {
-      assert(s->next_notification_time_ >=
-             t);  // must have been covered by previous steps
+    /* if in this time step (-teps to give or take few nanosecs for
+     * correction of floating point time roundings) */
+    if (s->next_notification_time_ - kTEps <= t + dt) {
+      // must have been covered by previous steps
+      assert(s->next_notification_time_ >= t);
       s->next_notification_time_ =
           t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
       spike_time_t max_time_allowed =
           t + TimeDependencies::kTEps + s->min_delay_;
 
-      // wait for previous synapse to be delivered (if any) before telling
-      // post-syn neuron to proceed in time
+      /* wait for previous synapse to be delivered (if any) before telling
+       * post-syn neuron to proceed in time */
       hpx_lco_wait(s->previous_spike_lco_);
-      hpx_call(s->top_branch_addr_, Branch::UpdateTimeDependency, HPX_NULL,
-               &gid, sizeof(neuron_id_t), &max_time_allowed,
-               sizeof(spike_time_t));
+
+      TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
+          s->synapse_soma_addr_, HPX_NULL, gid, max_time_allowed);
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
       printf("## %d notifies %d he can proceed up to %.6fms\n", gid,
              s->destination_gid_, max_time_allowed);
 #endif
     }
+}
+
+hpx_action_t TimeDependencySynchronizer::UpdateTimeDependency = 0;
+int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
+                                                             const void* args[],
+                                                             const size_t[]) {
+  NEUROX_MEM_PIN(Branch);
+  assert(nargs == 2 || nargs == 3);
+
+  // auto source = libhpx_parcel_get_source(p);
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t*)args[0];
+  const spike_time_t max_time = *(const spike_time_t*)args[1];
+  const bool init_phase = nargs == 3 ? *(const bool*)args[2] : false;
+
+  assert(local->soma_);
+  assert(local->soma_->synchronizer_neuron_info_);
+  TimeDependencies* time_dependencies =
+      (TimeDependencies*)local->soma_->synchronizer_neuron_info_;
+  time_dependencies->UpdateTimeDependency(
+      pre_neuron_id, (floble_t)max_time, local->soma_ ? local->soma_->gid_ : -1,
+      init_phase);
+  NEUROX_MEM_UNPIN
+}
+
+hpx_action_t TimeDependencySynchronizer::UpdateTimeDependencyLocality = 0;
+int TimeDependencySynchronizer::UpdateTimeDependencyLocality_handler(
+    const int nargs, const void* args[], const size_t sizes[]) {
+  NEUROX_MEM_PIN(uint64_t);
+  assert(nargs == 2 || nargs == 3);
+  const neuron_id_t pre_neuron_id = *(const neuron_id_t*)args[0];
+  vector<hpx_t>& branch_soma_addrs =
+      neurox::locality::netcons_somas_->at(pre_neuron_id);
+  hpx_t spikes_lco = hpx_lco_and_new(branch_soma_addrs.size());
+  for (hpx_t& soma_addr : branch_soma_addrs)
+    if (nargs == 2)
+      hpx_call(soma_addr, TimeDependencySynchronizer::UpdateTimeDependency,
+               spikes_lco, args[0], sizes[0], args[1], sizes[1]);
+    else
+      hpx_call(soma_addr, TimeDependencySynchronizer::UpdateTimeDependency,
+               spikes_lco, args[0], sizes[0], args[1], sizes[1], args[2],
+               sizes[2]);
+  hpx_lco_wait(spikes_lco);
+  hpx_lco_delete(spikes_lco, HPX_NULL);
+  NEUROX_MEM_UNPIN
+}
+
+void TimeDependencySynchronizer::RegisterHpxActions() {
+  wrappers::RegisterMultipleVarAction(UpdateTimeDependency,
+                                      UpdateTimeDependency_handler);
+  wrappers::RegisterMultipleVarAction(UpdateTimeDependencyLocality,
+                                      UpdateTimeDependencyLocality_handler);
 }

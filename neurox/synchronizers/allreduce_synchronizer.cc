@@ -5,7 +5,7 @@ using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 hpx_t* AllreduceSynchronizer::allreduces_ = nullptr;
-int AllreduceSynchronizer::AllReduceLocalityInfo::next_allreduce_id = -1;
+int AllreduceSynchronizer::AllReduceLocalityInfo::next_allreduce_id_ = -1;
 
 AllreduceSynchronizer::AllreduceSynchronizer() {}
 
@@ -20,27 +20,23 @@ const char* AllreduceSynchronizer::GetString() {
 }
 
 void AllreduceSynchronizer::InitLocality() {
-  SubscribeAllReducesLocality(kAllReducesCount);
-}
-
-void AllreduceSynchronizer::InitNeuron(Branch *b) {
-  SubscribeAllReducesNeuron(b, kAllReducesCount);
+  SubscribeAllReduces(kAllReducesCount);
 }
 
 void AllreduceSynchronizer::ClearLocality() {
-  UnsubscribeAllReducesLocality(kAllReducesCount);
-}
-
-void AllreduceSynchronizer::ClearNeuron(Branch *b) {
-  UnsubscribeAllReducesNeuron(b, kAllReducesCount);
+  UnsubscribeAllReduces(kAllReducesCount);
 }
 
 void AllreduceSynchronizer::BeforeSteps(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::GetMaxStepTime(Branch* b) {
-  GetMaxStepTime2(b, kAllReducesCount);
+hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
+  return SendSpikes2(n, tt);
+}
+
+double AllreduceSynchronizer::GetMaxStep(Branch* b) {
+  return GetMaxStep2(b, kAllReducesCount);
 }
 
 double AllreduceSynchronizer::GetLocalityReductionInterval() {
@@ -55,8 +51,16 @@ void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
-hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
-  return Neuron::SendSpikesAsync(n, tt);
+hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, double tt) {
+  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
+  hpx_action_t spike_action = input_params_->locality_comm_reduce_
+                                  ? Branch::AddSpikeEventLocality
+                                  : Branch::AddSpikeEvent;
+
+  for (Neuron::Synapse*& s : neuron->synapses_)
+    hpx_call(s->synapse_addr_, spike_action, new_synapses_lco, &neuron->gid_,
+             sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+  return new_synapses_lco;
 }
 
 void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
@@ -88,9 +92,9 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::GetMaxStepTime2(const Branch* b,
-                                              const int allreduces_count) {
-  return b->nt_->_t + neurox::min_synaptic_delay_ / allreduces_count;
+double AllreduceSynchronizer::GetMaxStep2(const Branch* b,
+                                          const int allreduces_count) {
+  return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
 double AllreduceSynchronizer::GetLocalityReductionInterval2(
@@ -98,10 +102,9 @@ double AllreduceSynchronizer::GetLocalityReductionInterval2(
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
-void AllreduceSynchronizer::SubscribeAllReducesLocality(size_t allreduces_count) {
-  // rank 0 creates allreduces, broadcasts them and ask others to subscribe
+void AllreduceSynchronizer::SubscribeAllReduces(size_t allreduces_count) {
+  // rank 0 ask all ranks or neurons to unsubscribe
   if (hpx_get_my_rank() > 0) return;
-  if (!input_params_->locality_comm_reduce_) return;
 
   assert(allreduces_ == nullptr);
   allreduces_ = new hpx_t[allreduces_count];
@@ -110,62 +113,33 @@ void AllreduceSynchronizer::SubscribeAllReducesLocality(size_t allreduces_count)
     allreduces_[i] = hpx_process_collective_allreduce_new(
         0, AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Reduce);
 
-   hpx_bcast_rsync(AllReduceLocalityInfo::Subscribe, allreduces_,
+  if (input_params_->locality_comm_reduce_)
+    hpx_bcast_rsync(AllReduceLocalityInfo::Subscribe, allreduces_,
                     sizeof(hpx_t) * allreduces_count);
+  else
+    wrappers::CallAllNeurons(AllReduceNeuronInfo::Subscribe, allreduces_,
+                             sizeof(hpx_t) * allreduces_count);
 
   for (int i = 0; i < allreduces_count; i++)
     hpx_process_collective_allreduce_subscribe_finalize(allreduces_[i]);
 }
 
-void AllreduceSynchronizer::SubscribeAllReducesNeuron(Branch *b, size_t allreduces_count) {
-  // rank 0 creates allreduces, broadcasts them and ask others to subscribe
+void AllreduceSynchronizer::UnsubscribeAllReduces(size_t allreduces_count) {
+  // rank 0 asks all ranks or neurons to unsubscribe
   if (hpx_get_my_rank() > 0) return;
-  if (!b->soma_) return;
-  if (input_params_->locality_comm_reduce_) return;
 
-  assert(allreduces_ == nullptr);
-  allreduces_ = new hpx_t[allreduces_count];
-
-  for (int i = 0; i < allreduces_count; i++)
-    allreduces_[i] = hpx_process_collective_allreduce_new(
-        0, AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Reduce);
-
-   wrappers::CallAllNeurons(AllReduceNeuronInfo::Subscribe, allreduces_,
-                            sizeof(hpx_t) * allreduces_count);
-
-  for (int i = 0; i < allreduces_count; i++)
-    hpx_process_collective_allreduce_subscribe_finalize(allreduces_[i]);
-}
-
-void AllreduceSynchronizer::UnsubscribeAllReducesLocality(size_t allreduces_count) {
-  // rank 0 ask others to unsubscribe
-  if (hpx_get_my_rank() > 0) return;
-  if (!input_params_->locality_comm_reduce_) return;
-
-  hpx_bcast_rsync(AllReduceLocalityInfo::Unsubscribe, allreduces_,
-                  sizeof(hpx_t) * allreduces_count);
-
-  for (int i = 0; i < allreduces_count; i++)
-      hpx_process_collective_allreduce_delete(allreduces_[i]);
-
-  delete[] allreduces_;
-  allreduces_ = nullptr;
-}
-
-void AllreduceSynchronizer::UnsubscribeAllReducesNeuron(Branch *b, size_t allreduces_count) {
-  // rank 0 ask others to unsubscribe
-  if (hpx_get_my_rank() > 0) return;
-  if (!b->soma_) return;
-  if (input_params_->locality_comm_reduce_) return;
-
+  if (input_params_->locality_comm_reduce_)
+    hpx_bcast_rsync(AllReduceLocalityInfo::Unsubscribe, allreduces_,
+                    sizeof(hpx_t) * allreduces_count);
+  else
     wrappers::CallAllNeurons(AllReduceNeuronInfo::Unsubscribe, allreduces_,
                              sizeof(hpx_t) * allreduces_count);
 
-    for (int i = 0; i < allreduces_count; i++)
-      hpx_process_collective_allreduce_delete(allreduces_[i]);
+  for (int i = 0; i < allreduces_count; i++)
+    hpx_process_collective_allreduce_delete(allreduces_[i]);
 
-    delete[] allreduces_;
-    allreduces_ = nullptr;
+  delete[] allreduces_;
+  allreduces_ = nullptr;
 }
 
 void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
@@ -192,7 +166,7 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
 
   // if reduction id < 0, it's still on the first comm-window
   // within first comm-window, synchronizer does not wait
-  int r = next_allreduce_id;
+  int& r = next_allreduce_id_;
   int allreduce_id = r < 0 ? r + allreduces_count : r;
   if (r < 0)
     /* fixes crash for Synchronizer::ALL when running two
@@ -202,11 +176,11 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
     /* locality-level reduction */
     hpx_lco_wait_reset(allreduce_future_[allreduce_id]);
 
-  if (r >= 0) /* mark step on this allreduce */
-    hpx_process_collective_allreduce_join(allreduce_lco_[allreduce_id],
-                                          allreduce_id_[allreduce_id], NULL, 0);
+  /* mark locality step on this allreduce */
+  hpx_process_collective_allreduce_join(allreduce_lco_[allreduce_id],
+                                        allreduce_id_[allreduce_id], NULL, 0);
 
-  if (++next_allreduce_id == allreduces_count) next_allreduce_id = 0;
+  if (++r == allreduces_count) r = 0;
 }
 
 AllreduceSynchronizer::AllReduceNeuronInfo::AllReduceNeuronInfo(
@@ -289,7 +263,7 @@ int AllreduceSynchronizer::AllReduceLocalityInfo::Subscribe_handler(
   }
 
   // negative value means ignore until it reaches 0
-  AllReduceLocalityInfo::next_allreduce_id = -allreduces_count;
+  AllReduceLocalityInfo::next_allreduce_id_ = -allreduces_count;
   return neurox::wrappers::MemoryUnpin(target);
 }
 
@@ -321,18 +295,23 @@ void AllreduceSynchronizer::AllReduceNeuronInfo::Reduce_handler(void*,
                                                                 const void*,
                                                                 const size_t) {}
 
-void AllreduceSynchronizer::AllReduceNeuronInfo::RegisterHpxActions() {
-  wrappers::RegisterSingleVarAction<hpx_t>(Subscribe, Subscribe_handler);
-  wrappers::RegisterSingleVarAction<hpx_t>(Unsubscribe, Unsubscribe_handler);
+void AllreduceSynchronizer::RegisterHpxActions() {
+  // node level functions
+  wrappers::RegisterSingleVarAction<hpx_t>(
+      AllReduceNeuronInfo::Subscribe, AllReduceNeuronInfo::Subscribe_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(
+      AllReduceNeuronInfo::Unsubscribe,
+      AllReduceNeuronInfo::Unsubscribe_handler);
+  wrappers::RegisterAllReduceInitAction<void>(
+      AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Init_handler);
+  wrappers::RegisterAllReduceReduceAction<void>(
+      AllReduceNeuronInfo::Reduce, AllReduceNeuronInfo::Reduce_handler);
+
+  // locality leve functions
   wrappers::RegisterSingleVarAction<hpx_t>(
       AllReduceLocalityInfo::Subscribe,
       AllReduceLocalityInfo::Subscribe_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(
       AllReduceLocalityInfo::Unsubscribe,
       AllReduceLocalityInfo::Unsubscribe_handler);
-
-  wrappers::RegisterAllReduceInitAction<void>(
-      AllReduceNeuronInfo::Init, AllReduceNeuronInfo::Init_handler);
-  wrappers::RegisterAllReduceReduceAction<void>(
-      AllReduceNeuronInfo::Reduce, AllReduceNeuronInfo::Reduce_handler);
 }

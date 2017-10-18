@@ -3,6 +3,7 @@
 #include "neurox/neurox.h"
 
 #include <deque>
+#include <set>
 
 namespace neurox {
 
@@ -36,17 +37,22 @@ class Neuron {
   class Synapse {
    public:
     Synapse() = delete;
-    Synapse(hpx_t branch_addr_, floble_t min_delay_,
-            hpx_t top_branch_addr_ = HPX_NULL, int destination_gid_ = -1);
+    Synapse(hpx_t branch_addr, floble_t min_delay,
+            hpx_t top_branch_addr = HPX_NULL, int destination_gid = -1);
     ~Synapse();
-    hpx_t branch_addr_;      ///> address of destination
-    hpx_t top_branch_addr_;  ///> addres of top-branch (soma) of destination
-                             /// neuron
+
+    /// address of destination branch or locality
+    hpx_t synapse_addr_;
+
+    /// address of top-branch (soma) of destination neuron
+    hpx_t synapse_soma_addr_;
+
 #ifndef NDEBUG
     int destination_gid_;
 #endif
     ///  next time this post-syn neuron needs to be informed of my actual time
     floble_t next_notification_time_;
+
     /// interval  of notification in case of no spykes (fastest Netcon from
     /// current neuron to dependant-neuron)
     floble_t min_delay_;
@@ -56,20 +62,20 @@ class Neuron {
   /// fires AP, returns LCO for sent synapses
   hpx_t SendSpikes(floble_t t);
 
-  /// fires AP, and returns HPX address (to be called by some Synchronizers)
-  static hpx_t SendSpikesAsync(Neuron*, double);
-
   /// add hpx address of post-synaptic branch
-  void AddSynapse(Synapse* target);
+  void AddSynapse(Synapse*);
 
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
+  /// the outgoing neuron connections:
+  std::vector<Synapse*> synapses_;
+
   /// Synchronizer-dependent metadata
   synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
 
-  /// the outgoing neuron connections:
-  std::vector<Synapse*> synapses_;
+  /// and-gate (trigger) for time-based synchronization of stepping
+  hpx_t synchronizer_step_trigger_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses

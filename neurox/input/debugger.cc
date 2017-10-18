@@ -459,9 +459,9 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
       input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return;
-  if (neurox::ParallelExecution())  // parallel execution only (serial execs are
-                                    // compared on-the-fly)
-  {
+
+  // parallel execution only (serial execs are compared on-the-fly
+  if (neurox::ParallelExecution()) {
     const int total_steps = BackwardEuler::GetTotalSteps();
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
     DebugMessage(
@@ -481,7 +481,7 @@ void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
   if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_)
+      input_params_->load_balancing_ || neurox::ParallelExecution())
     return;  // can't be compared
 
   input::Debugger::FixedStepMinimal2(nt, secondorder);
