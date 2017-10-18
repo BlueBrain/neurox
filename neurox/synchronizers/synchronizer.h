@@ -50,42 +50,56 @@ class Synchronizer {
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-  /// Initialize synchronizer meta data in locality
-  virtual void InitLocality() {}
+
+
 
   /// Initialize synchronizer meta data in neuron
   virtual void InitNeuron(Branch*) {}
 
-  /// Clears/finalizes synchronizer meta data at locality-level
-  virtual void ClearLocality() {}
-
   /// Clears/finalizes synchronizer meta data at neuron-level
   virtual void ClearNeuron(Branch*) {}
 
-  /// To be called at beginning of steps
-  virtual void BeforeSteps(Branch*) {}
+  /// neuron-based reduction: interval between reduction
+  virtual double NeuronReduceInterval(Branch*) = 0;
 
-  /// Maximum possible step, without synchronization
-  virtual double GetMaxStep(Branch*) = 0;
+  /// Neuron-based reduction: called at the start of every neuron reduction
+  virtual void NeuronReduceInit(Branch*) {}
 
-  /// To be called at end of steps
-  virtual void AfterSteps(Branch*, hpx_t spikesLco) {}
+  /// Neuron-based reduction: called at the end of every neuron reduction
+  virtual void NeuronReduceEnd(Branch*, hpx_t spikesLco) {}
 
-  /// To handle sending of spikes
+
+
+
+  /// Initialize synchronizer meta data in locality
+  virtual void InitLocality() {}
+
+  /// Clears/finalizes synchronizer meta data at locality-level
+  virtual void ClearLocality() {}
+
+  /* Locatility-based reduction:
+   * Time-step between locality-based comm. reductions:
+   *  - positive value: call LocalityReduce at every interval
+   *  - 0 (default): no reduction, launch neurons independently
+   *  - -1 : locality level syncrhonizer, launch last neuron first
+   */
+  virtual double LocalityReductionInterval() { return 0; }
+
+  /// Locatility-based reduction: called at the start every reduction-interval
+  virtual void LocalityReduceInit() {}
+
+  /// Locatility-based reduction: called at the end of every reduction-interval
+  virtual void LocalityReduceEnd() {}
+
+
+
+  /// spikes handling: how it hadles outgoing spikes after Action-Potential
   virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
 
-  /// To handle receival of spikes
+  /// spikes handling: how it reacts to receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t) {}
 
-  /// Time-step between locality-based comm. reductions:
-  /// - positive value: call LocalityReduce at every interval
-  /// - 0 (default): no reduction, launch neurons independently
-  /// - -1 : locality level syncrhonizer, launch last neuron first
-  virtual double GetLocalityReductionInterval() { return 0; }
-
-  /// Locatility-based reduction, at every reduction-interval
-  virtual void LocalityReduce() {}
 
   static hpx_action_t CallInitLocality;
   static hpx_action_t CallInitNeuron;

@@ -58,7 +58,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
 
   //if we use "last neuron advances first" methodology
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->GetLocalityReductionInterval() == -1)
+      synchronizer_->LocalityReductionInterval() == -1)
   {
       //scheduler semaphore (controls how many parallel jobs can run)
       size_t thread_count = hpx_get_num_threads();
@@ -123,7 +123,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   const double tstop = *tstop_ptr;
   const double tstart = tstop - input_params_->tstop_; //for all-benchmark
 
-  const double reduction_dt = synchronizer_->GetLocalityReductionInterval();
+  const double reduction_dt = synchronizer_->LocalityReductionInterval();
   if (reduction_dt == 0) //no reduction, launch neurons independently
   {
     wrappers::CallLocalNeurons(Synchronizer::RunNeuron, tstop_ptr,
@@ -174,14 +174,15 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
       hpx_lco_wait_reset(neurons_lco);
       hpx_lco_delete_sync(neurons_lco);
   }
-  else
+  else //positive comm-reduce interval
   {
    double step_to_time = -1;
     for (double t = tstart; t <= tstop - 0.00001; t += reduction_dt) {
-      synchronizer_->LocalityReduce();
+      synchronizer_->LocalityReduceInit();
       step_to_time = t + reduction_dt;
       wrappers::CallLocalNeurons(Synchronizer::RunNeuron, &step_to_time,
                                  sizeof(double));
+      synchronizer_->LocalityReduceEnd();
     }
   }
   NEUROX_MEM_UNPIN;
@@ -212,18 +213,18 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   //std use case: step neurons until t_stop
   while (t < tstop - 0.00001) {
 
-    //do before-step operations e.g. wait for dependencies
-    synchronizer_->BeforeSteps(local);
+    //do before-step operations e.g. mark step in all-reduces
+    synchronizer_->NeuronReduceInit(local);
 
     //wait for scheduler signal to proceed
     if (step_trigger)
         hpx_lco_wait_reset(step_trigger);
 
-    tpause = t + synchronizer_->GetMaxStep(local);
+    tpause = t + synchronizer_->NeuronReduceInterval(local);
     tpause = std::min(tpause, tstop);
     spikes_lco = interpolator->StepTo(local, tpause);
-    synchronizer_->AfterSteps(local, spikes_lco);
-    if (fmod(t, dt_io) == 0) {  /*output*/ }
+    synchronizer_->NeuronReduceEnd(local, spikes_lco);
+    //if (fmod(t, dt_io) == 0) {  /*output*/ }
 
     //decrement schedular semaphor (wake up if necessary)
     if (step_trigger)
@@ -247,7 +248,7 @@ int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->GetLocalityReductionInterval() == -1)
+      synchronizer_->LocalityReductionInterval() == -1)
   {
       hpx_lco_delete_sync(neurox::locality::neurons_progress_mutex_);
       hpx_lco_delete_sync(neurox::locality::neurons_scheduler_sema_);

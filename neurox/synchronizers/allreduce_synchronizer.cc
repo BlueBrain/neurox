@@ -27,7 +27,7 @@ void AllreduceSynchronizer::ClearLocality() {
   UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::BeforeSteps(Branch* b) {
+void AllreduceSynchronizer::NeuronReduceInit(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
@@ -35,19 +35,19 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::GetMaxStep(Branch* b) {
-  return GetMaxStep2(b, kAllReducesCount);
+double AllreduceSynchronizer::NeuronReduceInterval(Branch* b) {
+  return NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::GetLocalityReductionInterval() {
-  return AllreduceSynchronizer::GetLocalityReductionInterval2(kAllReducesCount);
+double AllreduceSynchronizer::LocalityReductionInterval() {
+  return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::LocalityReduce() {
+void AllreduceSynchronizer::LocalityReduceInit() {
   AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
+void AllreduceSynchronizer::NeuronReduceEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
@@ -92,12 +92,12 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::GetMaxStep2(const Branch* b,
+double AllreduceSynchronizer::NeuronReduceInterval2(const Branch* b,
                                           const int allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
-double AllreduceSynchronizer::GetLocalityReductionInterval2(
+double AllreduceSynchronizer::LocalityReduceInterval2(
     const double allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }

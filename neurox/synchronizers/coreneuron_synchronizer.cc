@@ -27,11 +27,11 @@ void CoreneuronSynchronizer::InitLocality() { assert(0); }
 
 void CoreneuronSynchronizer::ClearLocality() {}
 
-void CoreneuronSynchronizer::BeforeSteps(Branch*) { assert(0); }
+void CoreneuronSynchronizer::NeuronReduceInit(Branch*) { assert(0); }
 
-void CoreneuronSynchronizer::AfterSteps(Branch* b, hpx_t) { assert(0); }
+void CoreneuronSynchronizer::NeuronReduceEnd(Branch* b, hpx_t) { assert(0); }
 
-double CoreneuronSynchronizer::GetMaxStep(Branch* b) { return b->nt_->_dt; }
+double CoreneuronSynchronizer::NeuronReduceInterval(Branch* b) { return b->nt_->_dt; }
 
 hpx_t CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   assert(0);

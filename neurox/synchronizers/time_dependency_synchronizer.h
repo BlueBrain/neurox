@@ -20,10 +20,10 @@ class TimeDependencySynchronizer : public Synchronizer {
   void InitNeuron(Branch*) override;
   void ClearLocality() override;
 
-  void BeforeSteps(Branch*) override;
-  double GetMaxStep(Branch*) override;
+  void NeuronReduceInit(Branch*) override;
+  double NeuronReduceInterval(Branch*) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
-  double GetLocalityReductionInterval();
+  double LocalityReductionInterval();
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,

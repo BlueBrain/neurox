@@ -18,9 +18,9 @@ class DebugSynchronizer : public Synchronizer {
   void InitLocality() override;
   void ClearLocality() override;
 
-  void BeforeSteps(Branch*) override;
-  void AfterSteps(Branch*, hpx_t) override;
-  double GetMaxStep(Branch*) override;
+  void NeuronReduceInit(Branch*) override;
+  void NeuronReduceEnd(Branch*, hpx_t) override;
+  double NeuronReduceInterval(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   void Launch();

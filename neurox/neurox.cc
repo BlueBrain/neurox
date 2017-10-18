@@ -120,7 +120,7 @@ static int Main_handler() {
   hpx_bcast_rsync(neurox::Clear);
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
-  DebugMessage(string("neurox:: total time: " + std::to_string(total_elapsed_time) + " secs\n").c_str());
+  DebugMessage(string("neurox::total time: " + std::to_string(total_elapsed_time) + " secs\n").c_str());
   hpx_exit(0, NULL);
 }
 

@@ -52,9 +52,9 @@ input::Debugger::CompareAllBranches();
 */
 }
 
-void DebugSynchronizer::BeforeSteps(Branch*) {}
+void DebugSynchronizer::NeuronReduceInit(Branch*) {}
 
-void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
+void DebugSynchronizer::NeuronReduceEnd(Branch* b, hpx_t) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
@@ -64,7 +64,7 @@ void DebugSynchronizer::AfterSteps(Branch* b, hpx_t) {
   }
 }
 
-double DebugSynchronizer::GetMaxStep(Branch* b) {
+double DebugSynchronizer::NeuronReduceInterval(Branch* b) {
   return b->nt_->_dt;  // single step at a time
 }
 
