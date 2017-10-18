@@ -35,12 +35,8 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::NeuronReduceInterval(Branch* b) {
-  return NeuronReduceInterval2(b, kAllReducesCount);
-}
-
-double AllreduceSynchronizer::LocalityReductionInterval() {
-  return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
+double AllreduceSynchronizer::GetReduceInterval() {
+  return AllreduceSynchronizer::GetReduceInterval2(kAllReducesCount);
 }
 
 void AllreduceSynchronizer::LocalityReduceInit() {
@@ -92,12 +88,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::NeuronReduceInterval2(const Branch* b,
-                                          const int allreduces_count) {
-  return neurox::min_synaptic_delay_ / allreduces_count;
-}
-
-double AllreduceSynchronizer::LocalityReduceInterval2(
+double AllreduceSynchronizer::GetReduceInterval2(
     const double allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }

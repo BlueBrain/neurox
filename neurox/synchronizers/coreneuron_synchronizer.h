@@ -20,7 +20,7 @@ class CoreneuronSynchronizer : public Synchronizer {
 
   void NeuronReduceInit(Branch*) override;
   void NeuronReduceEnd(Branch*, hpx_t) override;
-  double NeuronReduceInterval(Branch* b) override;
+  double GetReduceInterval() override;
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {

@@ -50,7 +50,12 @@ class Synchronizer {
   /// Returns class type as string
   const virtual char* GetString() = 0;
 
-
+  /** Time-step between reductions at neuron and locality level:
+   *  - positive value: call LocalityReduce at every interval
+   *  - 0 (default): no reduction, launch neurons independently
+   *  - -1 : locality level syncrhonizer, launch last neuron first
+   */
+  virtual double GetReduceInterval() { return 0; }
 
 
   /// Initialize synchronizer meta data in neuron
@@ -58,9 +63,6 @@ class Synchronizer {
 
   /// Clears/finalizes synchronizer meta data at neuron-level
   virtual void ClearNeuron(Branch*) {}
-
-  /// neuron-based reduction: interval between reduction
-  virtual double NeuronReduceInterval(Branch*) = 0;
 
   /// Neuron-based reduction: called at the start of every neuron reduction
   virtual void NeuronReduceInit(Branch*) {}
@@ -76,14 +78,6 @@ class Synchronizer {
 
   /// Clears/finalizes synchronizer meta data at locality-level
   virtual void ClearLocality() {}
-
-  /* Locatility-based reduction:
-   * Time-step between locality-based comm. reductions:
-   *  - positive value: call LocalityReduce at every interval
-   *  - 0 (default): no reduction, launch neurons independently
-   *  - -1 : locality level syncrhonizer, launch last neuron first
-   */
-  virtual double LocalityReductionInterval() { return 0; }
 
   /// Locatility-based reduction: called at the start every reduction-interval
   virtual void LocalityReduceInit() {}

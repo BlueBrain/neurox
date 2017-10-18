@@ -31,12 +31,8 @@ hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return AllreduceSynchronizer::SendSpikes2(n, tt);
 }
 
-double SlidingTimeWindowSynchronizer::NeuronReduceInterval(Branch* b) {
-  return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
-}
-
-double SlidingTimeWindowSynchronizer::LocalityReductionInterval() {
-  return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
+double SlidingTimeWindowSynchronizer::GetReduceInterval() {
+  return AllreduceSynchronizer::GetReduceInterval2(kAllReducesCount);
 }
 
 void SlidingTimeWindowSynchronizer::LocalityReduceInit() {

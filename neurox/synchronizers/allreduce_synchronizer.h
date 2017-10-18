@@ -18,9 +18,8 @@ class AllreduceSynchronizer : public Synchronizer {
   void ClearLocality() override;
   void NeuronReduceInit(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-  double NeuronReduceInterval(Branch*) override;
   void NeuronReduceEnd(Branch*, hpx_t) override;
-  double LocalityReductionInterval() override;
+  double GetReduceInterval() override;
   void LocalityReduceInit() override;
 
   static void SubscribeAllReduces(size_t allreduces_count);
@@ -31,8 +30,7 @@ class AllreduceSynchronizer : public Synchronizer {
   static hpx_t* allreduces_;
 
   static void NeuronReduce(const Branch*, const int);
-  static double NeuronReduceInterval2(const Branch*, const int);
-  static double LocalityReduceInterval2(const double);
+  static double GetReduceInterval2(const double);
   static hpx_t SendSpikes2(Neuron*, double);
 
   static void RegisterHpxActions();  ///> Register all HPX actions

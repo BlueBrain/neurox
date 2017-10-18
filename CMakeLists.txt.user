@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.5.1, 2017-10-19T00:33:18. -->
+<!-- Written by QtCreator 3.5.1, 2017-10-19T01:04:15. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -162,7 +162,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">neurox_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d ~/Workspace/Circuits/PCP/MiniColumn_0/data/ -e 1 -M -A 9 -C</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d ~/Workspace/Circuits/PCP/10/data/ -e 1 -M -A 9 -C</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"></value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>

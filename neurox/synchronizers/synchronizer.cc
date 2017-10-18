@@ -58,7 +58,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
 
   //if we use "last neuron advances first" methodology
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReductionInterval() == -1)
+      synchronizer_->GetReduceInterval() == -1)
   {
       //scheduler semaphore (controls how many parallel jobs can run)
       size_t thread_count = hpx_get_num_threads();
@@ -123,7 +123,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   const double tstop = *tstop_ptr;
   const double tstart = tstop - input_params_->tstop_; //for all-benchmark
 
-  const double reduction_dt = synchronizer_->LocalityReductionInterval();
+  const double reduction_dt = synchronizer_->GetReduceInterval();
   if (reduction_dt == 0) //no reduction, launch neurons independently
   {
     wrappers::CallLocalNeurons(Synchronizer::RunNeuron, tstop_ptr,
@@ -196,6 +196,8 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   const double tstop = *tstop_ptr;
   Interpolator* interpolator = local->interpolator_;
   const double dt_io = input_params_->dt_io_;
+  double reduce_dt = synchronizer_->GetReduceInterval();
+  reduce_dt = reduce_dt > 0 ? reduce_dt : local->nt_->_dt;
   double tpause = -1;
   hpx_t spikes_lco = HPX_NULL;
   hpx_t step_trigger = !local->soma_ ? HPX_NULL : local->soma_->synchronizer_step_trigger_;
@@ -220,10 +222,14 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     if (step_trigger)
         hpx_lco_wait_reset(step_trigger);
 
-    tpause = t + synchronizer_->NeuronReduceInterval(local);
-    tpause = std::min(tpause, tstop);
+    //if (reduce_it) //if there's a fixes reduction interval, step there
+    {
+    tpause = std::min(t + reduce_dt, tstop);
     spikes_lco = interpolator->StepTo(local, tpause);
     synchronizer_->NeuronReduceEnd(local, spikes_lco);
+    } //else
+
+
     //if (fmod(t, dt_io) == 0) {  /*output*/ }
 
     //decrement schedular semaphor (wake up if necessary)
@@ -248,7 +254,7 @@ int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReductionInterval() == -1)
+      synchronizer_->GetReduceInterval() == -1)
   {
       hpx_lco_delete_sync(neurox::locality::neurons_progress_mutex_);
       hpx_lco_delete_sync(neurox::locality::neurons_scheduler_sema_);

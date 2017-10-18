@@ -20,11 +20,8 @@ class DebugSynchronizer : public Synchronizer {
 
   void NeuronReduceInit(Branch*) override;
   void NeuronReduceEnd(Branch*, hpx_t) override;
-  double NeuronReduceInterval(Branch*) override;
+  double GetReduceInterval() override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-
-  void Launch();
-  void Run(Branch*, const void*);
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:

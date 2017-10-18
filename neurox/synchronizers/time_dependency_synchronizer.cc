@@ -57,18 +57,6 @@ void TimeDependencySynchronizer::NeuronReduceInit(Branch* b) {
   }
 }
 
-double TimeDependencySynchronizer::NeuronReduceInterval(Branch* branch) {
-  // at every step we check for notification intervals
-    /*
-  if (b->soma_) {
-    TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-    return time_dependencies->GetDependenciesMinTime();
-  }
-  */
-  return branch->nt_->_dt;
-}
-
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
                                                     neuron_id_t pre_neuron_id,
                                                     spike_time_t spike_time,
@@ -119,7 +107,7 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   return HPX_NULL;
 }
 
-double TimeDependencySynchronizer::LocalityReductionInterval() {
+double TimeDependencySynchronizer::GetReduceInterval() {
     return -1; //means advance last neuron first (see synchronizer.h)
 }
 
