@@ -39,7 +39,7 @@ double AllreduceSynchronizer::NeuronReduceInterval(Branch* b) {
   return NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::LocalityReductionInterval() {
+double AllreduceSynchronizer::LocalityReduceInterval() {
   return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 

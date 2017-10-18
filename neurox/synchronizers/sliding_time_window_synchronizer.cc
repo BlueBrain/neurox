@@ -35,7 +35,7 @@ double SlidingTimeWindowSynchronizer::NeuronReduceInterval(Branch* b) {
   return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double SlidingTimeWindowSynchronizer::LocalityReductionInterval() {
+double SlidingTimeWindowSynchronizer::LocalityReduceInterval() {
   return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 

@@ -20,7 +20,7 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
   hpx_t SendSpikes(Neuron*, double, double) override;
   double NeuronReduceInterval(Branch*) override;
   void NeuronReduceEnd(Branch*, hpx_t) override;
-  double LocalityReductionInterval() override;
+  double LocalityReduceInterval() override;
   void LocalityReduceInit() override;
 
   static const size_t kAllReducesCount = 2;

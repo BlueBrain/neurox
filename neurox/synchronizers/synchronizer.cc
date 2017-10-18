@@ -58,7 +58,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
 
   //if we use "last neuron advances first" methodology
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReductionInterval() == -1)
+      synchronizer_->LocalityReduceInterval() == -1)
   {
       //scheduler semaphore (controls how many parallel jobs can run)
       size_t thread_count = hpx_get_num_threads();
@@ -123,7 +123,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   const double tstop = *tstop_ptr;
   const double tstart = tstop - input_params_->tstop_; //for all-benchmark
 
-  const double reduction_dt = synchronizer_->LocalityReductionInterval();
+  const double reduction_dt = synchronizer_->LocalityReduceInterval();
   if (reduction_dt == 0) //no reduction, launch neurons independently
   {
     wrappers::CallLocalNeurons(Synchronizer::RunNeuron, tstop_ptr,
@@ -248,7 +248,7 @@ int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReductionInterval() == -1)
+      synchronizer_->LocalityReduceInterval() == -1)
   {
       hpx_lco_delete_sync(neurox::locality::neurons_progress_mutex_);
       hpx_lco_delete_sync(neurox::locality::neurons_scheduler_sema_);

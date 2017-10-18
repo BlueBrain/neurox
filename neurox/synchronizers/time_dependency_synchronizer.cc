@@ -119,7 +119,7 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   return HPX_NULL;
 }
 
-double TimeDependencySynchronizer::LocalityReductionInterval() {
+double TimeDependencySynchronizer::LocalityReduceInterval() {
     return -1; //means advance last neuron first (see synchronizer.h)
 }
 

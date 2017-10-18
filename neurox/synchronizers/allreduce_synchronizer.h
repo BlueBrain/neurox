@@ -20,7 +20,7 @@ class AllreduceSynchronizer : public Synchronizer {
   hpx_t SendSpikes(Neuron*, double, double) override;
   double NeuronReduceInterval(Branch*) override;
   void NeuronReduceEnd(Branch*, hpx_t) override;
-  double LocalityReductionInterval() override;
+  double LocalityReduceInterval() override;
   void LocalityReduceInit() override;
 
   static void SubscribeAllReduces(size_t allreduces_count);

@@ -83,7 +83,7 @@ class Synchronizer {
    *  - 0 (default): no reduction, launch neurons independently
    *  - -1 : locality level syncrhonizer, launch last neuron first
    */
-  virtual double LocalityReductionInterval() { return 0; }
+  virtual double LocalityReduceInterval() { return 0; }
 
   /// Locatility-based reduction: called at the start every reduction-interval
   virtual void LocalityReduceInit() {}
