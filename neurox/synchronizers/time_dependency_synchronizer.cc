@@ -59,6 +59,13 @@ void TimeDependencySynchronizer::BeforeSteps(Branch* b) {
 
 double TimeDependencySynchronizer::GetMaxStep(Branch* branch) {
   // at every step we check for notification intervals
+    /*
+  if (b->soma_) {
+    TimeDependencies* time_dependencies =
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+    return time_dependencies->GetDependenciesMinTime();
+  }
+  */
   return branch->nt_->_dt;
 }
 
@@ -110,6 +117,10 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 #endif
   }
   return HPX_NULL;
+}
+
+double TimeDependencySynchronizer::GetLocalityReductionInterval() {
+    return -1; //means advance last neuron first (see synchronizer.h)
 }
 
 TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {

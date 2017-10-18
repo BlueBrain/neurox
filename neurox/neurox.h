@@ -95,12 +95,23 @@ extern std::vector<hpx_t> *neurons_;
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_branches_;
 
 /** map of top-branch of neurons in netcons_branches. Used by
- * TimeDependency-baded synchronizer to update time-dependencies
+ * TimeDependency-based synchronizer to update time-dependencies
  * step updates: when a locality receives a time-update message
  * from a pre-neuron that stepped (map-key), it consults this map
  * to get the list of somas (map-value) of all branches where
  * spikes were delivered */
 extern std::map<neuron_id_t, std::vector<hpx_t> > *netcons_somas_;
+
+/** execution-time ordered set of branches and-gates (hpx_t).
+ * Useful for locality based TimeDependency-based synchronizer */
+extern set<pair<floble_t, hpx_t>> * neurons_progress_;
+
+/** mutex to locality::neurons_progress_ */
+extern hpx_t neurons_progress_mutex_;
+
+/** semaphort controling number of active neurons per locality.
+ *  (default size of "number of compute cores" per locality)*/
+extern hpx_t neurons_scheduler_sema_;
 }
 
 /// returns mechanism of type 'type'

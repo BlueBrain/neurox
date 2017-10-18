@@ -78,9 +78,11 @@ class Synchronizer {
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t) {}
 
-  /// Time-step between locality-based comm. reductions
-  /// (default 0, filtered as 'no locality reduction')
-  virtual double GetLocalityReductionInterval() { return 0.; }
+  /// Time-step between locality-based comm. reductions:
+  /// - positive value: call LocalityReduce at every interval
+  /// - 0 (default): no reduction, launch neurons independently
+  /// - -1 : locality level syncrhonizer, launch last neuron first
+  virtual double GetLocalityReductionInterval() { return 0; }
 
   /// Locatility-based reduction, at every reduction-interval
   virtual void LocalityReduce() {}

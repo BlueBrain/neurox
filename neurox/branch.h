@@ -131,6 +131,7 @@ class Branch {
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;          ///>add incoming synapse to queue
   static hpx_action_t AddSpikeEventLocality;  ///>add incoming synapse to queue
+  static hpx_action_t SetSyncStepTrigger;
 
   /// update maximum time allowed based on received dependency info
   static hpx_action_t ThreadTableCheck;
@@ -161,6 +162,7 @@ class Branch {
   static int AddSpikeEventLocality_handler(const int, const void* [],
                                            const size_t[]);
   static int ThreadTableCheck_handler();
+  static int SetSyncStepTrigger_handler(const hpx_t*, const size_t);
 };
 
 };  // namespace

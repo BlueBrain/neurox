@@ -68,11 +68,14 @@ class Neuron {
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
+  /// the outgoing neuron connections:
+  std::vector<Synapse*> synapses_;
+
   /// Synchronizer-dependent metadata
   synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
 
-  /// the outgoing neuron connections:
-  std::vector<Synapse*> synapses_;
+  /// and-gate (trigger) for time-based synchronization of stepping
+  hpx_t synchronizer_step_trigger_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses

@@ -25,6 +25,9 @@ neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 std::vector<hpx_t> *locality::neurons_ = nullptr;
 map<neuron_id_t, vector<hpx_t> > *locality::netcons_branches_ = nullptr;
 map<neuron_id_t, vector<hpx_t> > *locality::netcons_somas_ = nullptr;
+set<pair<floble_t, hpx_t>> * locality::neurons_progress_ = nullptr;
+hpx_t locality::neurons_progress_mutex_ = HPX_NULL;
+hpx_t locality::neurons_scheduler_sema_ = HPX_NULL;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -88,7 +91,7 @@ static int Main_handler() {
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
-    printf("neurox::%s (%d neurons, biological time: %.03f secs, solver time: %.02f secs\n",
+    printf("neurox::%s: %d neurons, biological time: %.03f secs, solver time: %.02f secs\n",
            synchronizer_->GetString(), neurox::neurons_count_,
            input_params_->tstop_ / 1000, time_elapsed);
 
