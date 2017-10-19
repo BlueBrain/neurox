@@ -31,7 +31,7 @@ void CoreneuronSynchronizer::NeuronSyncInit(Branch*) { assert(0); }
 
 void CoreneuronSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) { assert(0); }
 
-double CoreneuronSynchronizer::NeuronSyncInterval(Branch* b) {
+double CoreneuronSynchronizer::GetNeuronMaxStep(Branch* b) {
   return b->nt_->_dt;
 }
 

@@ -81,7 +81,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
 
       // set this value in the ordered set of neurons stepping
       locality::neurons_progress_->insert(
-          std::pair<floble_t, hpx_t>(tstart, step_trigger));
+          std::make_pair(tstart, step_trigger));
     }
     hpx_lco_wait(lco);
     hpx_lco_delete(lco, HPX_NULL);
@@ -148,9 +148,12 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
     // instead of end time of previous synchronizer
     while (1) {
       // wait if all possilbe neurons are running
+      //printf("Scheduler START\n");
+      //TODO problem here, it's not released!
       hpx_lco_sema_p(locality::neurons_scheduler_sema_);
+      //printf("Scheduler END\n");
 
-      // get trigger of last neuron and launc it
+      // get trigger of last neuron and launch it
       //(delete it from set of jobs, will be added by neuron later)
       hpx_lco_sema_p(locality::neurons_progress_mutex_);
       neuron_it = locality::neurons_progress_->begin();
@@ -207,10 +210,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
    * - it waits for job scheduler (last-neuron first)
    * - it performs outgoing spikes handling
    */
-  double tpause = -1;
+  floble_t tpause = -1;
   hpx_t spikes_lco = HPX_NULL;
-  hpx_t step_trigger =
-      !local->soma_ ? HPX_NULL : local->soma_->synchronizer_step_trigger_;
+  hpx_t step_trigger = local->soma_->synchronizer_step_trigger_;
   double& t = local->nt_->_t;
   // const double dt_io = input_params_->dt_io_;
 
@@ -222,22 +224,28 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     if (step_trigger) hpx_lco_wait_reset(step_trigger);
 
     // step to the next possible time instant
-    tpause = t + synchronizer_->NeuronSyncInterval(local);
+    //NeuronMaxStep for Time-dependency LCO returns:
+    //- execution end time of no scheduler
+    //- next possible time allows by dependencies, otherwise
+    tpause = t + synchronizer_->GetNeuronMaxStep(local);
     tpause = std::min(tpause, tstop);
     spikes_lco = interpolator->StepTo(local, tpause);
+
+    // do after-step operations e.g. wait for spike delivery
     synchronizer_->NeuronSyncEnd(local, spikes_lco);
     // if (fmod(t, dt_io) == 0) {  /*output*/ }
 
-    // decrement schedular semaphor (wake up if necessary)
+    // decrement scheduler semaphor (wake up if necessary)
+    assert(step_trigger);
     if (step_trigger) {
+      //decrement scheduler counter to allow it to look for next job
+      hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
+
       // re-add this job to queue, to be picked up again later
       hpx_lco_sema_p(locality::neurons_progress_mutex_);
       locality::neurons_progress_->insert(
-          std::pair<floble_t, hpx_t>(tpause, step_trigger));
+                  std::make_pair(tpause, step_trigger));
       hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-
-      // decrement scheduler counter to allow it to look for next job
-      hpx_lco_sema_v(locality::neurons_scheduler_sema_, HPX_NULL);
     }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;

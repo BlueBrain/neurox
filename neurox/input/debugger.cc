@@ -152,11 +152,7 @@ void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
   if (b->soma_ &&
       input_params_->synchronizer_ ==
           neurox::synchronizers::SynchronizerIds::kTimeDependency) {
-    TimeDependencySynchronizer::TimeDependencies *timeDependencies =
-        (TimeDependencySynchronizer::TimeDependencies *)
-            b->soma_->synchronizer_neuron_info_;
-    timeDependencies->SendSteppingNotification(b);
-    timeDependencies->WaitForTimeDependencyNeurons(b);
+            synchronizer_->StepBegin(b);
   }
   if (b->soma_) {
     // Soma waits for AIS to have threshold V value updated

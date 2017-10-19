@@ -83,7 +83,7 @@ class Synchronizer {
   virtual void ClearNeuron(Branch*) {}
 
   /// neuron-based reduction: interval between reduction
-  virtual double NeuronSyncInterval(Branch*) = 0;
+  virtual double GetNeuronMaxStep(Branch*) = 0;
 
   /// Neuron-based reduction: called at the start of every neuron reduction
   virtual void NeuronSyncInit(Branch* b) { assert(b->soma_); }

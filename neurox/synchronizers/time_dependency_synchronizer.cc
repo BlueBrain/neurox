@@ -54,12 +54,24 @@ void TimeDependencySynchronizer::StepBegin(Branch* b) {
   time_dependencies->WaitForTimeDependencyNeurons(b);
 }
 
-double TimeDependencySynchronizer::NeuronSyncInterval(Branch* b) {
+double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   // at every step we check for notification intervals
   assert(b->soma_);
-  TimeDependencies* time_dependencies =
+
+  /* if a scheduler exists, it steps the last neuron until maximum possible
+   * time. If it does not exist, this neuron steps freely until tstop and
+   * independently waits for dependencies at every step, via method
+   * WaitForTimeDependencyNeurons*/
+  bool has_scheduler = b->soma_->synchronizer_step_trigger_;
+  if (has_scheduler)
+  {
+    TimeDependencies* time_dependencies =
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-  return time_dependencies->GetDependenciesMinTime();
+    const double dep_min_time = time_dependencies->GetDependenciesMinTime();
+    assert(dep_min_time>=t);
+    return dep_min_time - b->nt_->_t;
+  }
+  return input_params_->tstop_;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -232,6 +244,11 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b) {
   // if I have no dependencies... I'm free to go!
   if (dependencies_map_.size() == 0) return;
+
+  /* if a scheduler exists, it only allows me to step as far as dependencies
+   * allows, so no need to wait for dependencies (see NeuronSyncInterval)*/
+  bool has_scheduler = b->soma_->synchronizer_step_trigger_;
+  if (has_scheduler) return;
 
   floble_t t = b->nt_->_t;
   floble_t dt = b->nt_->_dt;

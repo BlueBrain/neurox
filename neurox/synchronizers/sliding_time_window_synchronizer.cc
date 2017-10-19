@@ -31,7 +31,7 @@ hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return AllreduceSynchronizer::SendSpikes2(n, tt);
 }
 
-double SlidingTimeWindowSynchronizer::NeuronSyncInterval(Branch* b) {
+double SlidingTimeWindowSynchronizer::GetNeuronMaxStep(Branch* b) {
   return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
 }
 

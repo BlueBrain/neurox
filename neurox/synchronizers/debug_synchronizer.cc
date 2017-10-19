@@ -30,7 +30,7 @@ double DebugSynchronizer::LocalitySyncInterval() {
   return neurox::min_synaptic_delay_;
 }
 
-double DebugSynchronizer::NeuronSyncInterval(Branch* b) { return b->nt_->_dt; }
+double DebugSynchronizer::GetNeuronMaxStep(Branch* b) { return b->nt_->_dt; }
 
 void DebugSynchronizer::NeuronSyncInit(Branch*) {}
 

@@ -18,7 +18,7 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
   void ClearLocality() override;
   void NeuronSyncInit(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-  double NeuronSyncInterval(Branch*) override;
+  double GetNeuronMaxStep(Branch*) override;
   void NeuronSyncEnd(Branch*, hpx_t) override;
   double LocalitySyncInterval() override;
   void LocalitySyncInit() override;

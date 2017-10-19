@@ -20,7 +20,7 @@ class CoreneuronSynchronizer : public Synchronizer {
 
   void NeuronSyncInit(Branch*) override;
   void NeuronSyncEnd(Branch*, hpx_t) override;
-  double NeuronSyncInterval(Branch* b) override;
+  double GetNeuronMaxStep(Branch* b) override;
 
   hpx_t SendSpikes(Neuron*, double, double) override;
 

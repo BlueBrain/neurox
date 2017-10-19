@@ -35,7 +35,7 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::NeuronSyncInterval(Branch* b) {
+double AllreduceSynchronizer::GetNeuronMaxStep(Branch* b) {
   return NeuronReduceInterval2(b, kAllReducesCount);
 }
 
