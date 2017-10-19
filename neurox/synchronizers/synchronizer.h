@@ -41,6 +41,9 @@ class Synchronizer {
   Synchronizer(){};
   virtual ~Synchronizer(){};
 
+
+  /*************** Methods specific to Synchronizer: ****************/
+
   /// Returns an instantiated class of the given type
   static Synchronizer* New(SynchronizerIds);
 
@@ -51,25 +54,7 @@ class Synchronizer {
   const virtual char* GetString() = 0;
 
 
-
-
-  /// Initialize synchronizer meta data in neuron
-  virtual void InitNeuron(Branch*) {}
-
-  /// Clears/finalizes synchronizer meta data at neuron-level
-  virtual void ClearNeuron(Branch*) {}
-
-  /// neuron-based reduction: interval between reduction
-  virtual double NeuronSyncInterval(Branch*) = 0;
-
-  /// Neuron-based reduction: called at the start of every neuron reduction
-  virtual void NeuronSyncInit(Branch* b) {assert(b->soma_);}
-
-  /// Neuron-based reduction: called at the end of every neuron reduction
-  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) {assert(b->soma_);}
-
-
-
+  /*********** Methods specific to Localities synchronization ************/
 
   /// Initialize synchronizer meta data in locality
   virtual void InitLocality() {}
@@ -92,6 +77,28 @@ class Synchronizer {
   virtual void LocalitySyncEnd() {}
 
 
+  /************ Methods specific to Neurons synchronization **************/
+
+  /// Initialize synchronizer meta data in neuron
+  virtual void InitNeuron(Branch*) {}
+
+  /// Clears/finalizes synchronizer meta data at neuron-level
+  virtual void ClearNeuron(Branch*) {}
+
+  /// neuron-based reduction: interval between reduction
+  virtual double NeuronSyncInterval(Branch*) = 0;
+
+  /// Neuron-based reduction: called at the start of every neuron reduction
+  virtual void NeuronSyncInit(Branch* b) {assert(b->soma_);}
+
+  /// Neuron-based reduction: called at the end of every neuron reduction
+  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) {assert(b->soma_);}
+
+
+  /*************** Methods specific to individual steps ******************/
+
+  /// to be called inside each individual step, after dt being set
+  virtual void StepBegin(Branch *b){};
 
   /// spikes handling: how it hadles outgoing spikes after Action-Potential
   virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;

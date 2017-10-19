@@ -54,6 +54,10 @@ hpx_t BackwardEuler::Step(Branch *branch) {
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
   if (branch->soma_) {
+
+    //perform step-begin operations, eg wait for dependencies
+    synchronizer_->StepBegin(branch);
+
     // Soma waits for AIS to have threshold V value updated
     floble_t threshold_v;
     HinesSolver::SynchronizeThresholdV(branch, &threshold_v);

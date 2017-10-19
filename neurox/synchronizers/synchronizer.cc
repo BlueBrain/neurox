@@ -232,7 +232,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     //step to the next possible reduction interval
     tpause = t + synchronizer_->NeuronSyncInterval(local);
     tpause = std::min(tpause, tstop);
+    //printf("Before step neuron %d t=%f\n", local->soma_->gid_, t);
     spikes_lco = interpolator->StepTo(local, tpause);
+    //printf("After step neuron %d t=%f\n", local->soma_->gid_, t);
     synchronizer_->NeuronSyncEnd(local, spikes_lco);
     //if (fmod(t, dt_io) == 0) {  /*output*/ }
 

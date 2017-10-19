@@ -43,17 +43,15 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   }
 }
 
-void TimeDependencySynchronizer::NeuronSyncInit(Branch* b) {
+void TimeDependencySynchronizer::StepBegin(Branch* b) {
   assert(b->soma_);
   TimeDependencies* time_dependencies =
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
     // inform time dependants that must be notified in this step
-    time_dependencies->SendSteppingNotification(
-        b->nt_->_t, b->nt_->_dt, b->soma_->gid_, b->soma_->synapses_);
+    time_dependencies->SendSteppingNotification(b);
     // wait until Im sure I can start and finalize this step at t+dt
-    time_dependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
-                                                    b->soma_->gid_);
+    time_dependencies->WaitForTimeDependencyNeurons(b);
 }
 
 double TimeDependencySynchronizer::NeuronSyncInterval(Branch* b) {
@@ -148,6 +146,7 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
   // if no dependencies, walk to the end of the simulation
+  //TODO this only owrks if This is the first sync in the benchmarks (tstop?)
   if (dependencies_map_.empty()) return input_params_->tstop_;
 
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
@@ -231,9 +230,13 @@ void TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
            sizeof(bool));
 }
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
-    floble_t t, floble_t dt, int gid) {
+    Branch *b) {
   // if I have no dependencies... I'm free to go!
   if (dependencies_map_.size() == 0) return;
+
+  floble_t t = b->nt_->_t;
+  floble_t dt = b->nt_->_dt;
+  int gid = b->soma_->gid_;
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
   printf("== %d enters TimeDependencies::waitForTimeDependencyNeurons\n", gid);
@@ -271,13 +274,22 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
-    floble_t t, floble_t dt, int gid, std::vector<Neuron::Synapse*>& synapses) {
+Branch * b)
+{
+
+  floble_t t = b->nt_->_t;
+  floble_t dt = b->nt_->_dt;
+  int gid = b->soma_->gid_;
+  std::vector<Neuron::Synapse*>& synapses = b->soma_->synapses_;
+
   for (Neuron::Synapse*& s : synapses)
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
     if (s->next_notification_time_ - kTEps <= t + dt) {
       // must have been covered by previous steps
-      assert(s->next_notification_time_ >= t);
+      //TODO add a condition if (b->interpolator_)
+      //this only works for fixed step, on var dt it can jump ahead notification time
+      //assert(s->next_notification_time_ >= t);
       s->next_notification_time_ =
           t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
       spike_time_t max_time_allowed =

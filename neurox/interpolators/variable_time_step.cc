@@ -89,6 +89,9 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
+  //perform step-begin operations, eg wait for dependencies
+  synchronizer_->StepBegin(branch);
+
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
   // point proc mechanisms' nrn_current function

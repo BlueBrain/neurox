@@ -20,10 +20,11 @@ class TimeDependencySynchronizer : public Synchronizer {
   void InitNeuron(Branch*) override;
   void ClearLocality() override;
 
-  void NeuronSyncInit(Branch*) override;
   double NeuronSyncInterval(Branch*) override;
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
   double LocalitySyncInterval();
+
+  void StepBegin(Branch*) override;
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
@@ -40,11 +41,10 @@ class TimeDependencySynchronizer : public Synchronizer {
     TimeDependencies();
     ~TimeDependencies();
 
-    void WaitForTimeDependencyNeurons(floble_t t, floble_t dt, int gid);
+    void WaitForTimeDependencyNeurons(Branch *b);
 
     /// inform my outgoing-connection neurons that I stepped
-    void SendSteppingNotification(floble_t t, floble_t dt, int gid,
-                                  std::vector<Neuron::Synapse*>& synapses);
+    void SendSteppingNotification(Branch *b);
 
     /// update time of a given dependency
     void UpdateTimeDependency(neuron_id_t src_gid,
