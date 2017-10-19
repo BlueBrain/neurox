@@ -626,12 +626,11 @@ void Branch::FixedPlayContinuous() { FixedPlayContinuous(this->nt_->_t); }
 
 hpx_action_t Branch::SetSyncStepTrigger = 0;
 int Branch::SetSyncStepTrigger_handler(const hpx_t *step_trigger_ptr,
-                                                  const size_t)
-{
-NEUROX_MEM_PIN(Branch);
-assert(local->soma_);
-local->soma_->synchronizer_step_trigger_=*step_trigger_ptr;
-NEUROX_MEM_UNPIN
+                                       const size_t) {
+  NEUROX_MEM_PIN(Branch);
+  assert(local->soma_);
+  local->soma_->synchronizer_step_trigger_ = *step_trigger_ptr;
+  NEUROX_MEM_UNPIN
 }
 
 //////////////////// Branch::NeuronTree ///////////////////////
@@ -832,7 +831,7 @@ void Branch::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
                                          MechanismsGraph::MechFunction_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(Branch::SetSyncStepTrigger,
-                                         Branch::SetSyncStepTrigger_handler);
+                                           Branch::SetSyncStepTrigger_handler);
   wrappers::RegisterMultipleVarAction(Branch::Init, Branch::Init_handler);
   wrappers::RegisterMultipleVarAction(Branch::InitSoma,
                                       Branch::InitSoma_handler);

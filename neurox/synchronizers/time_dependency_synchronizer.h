@@ -41,10 +41,10 @@ class TimeDependencySynchronizer : public Synchronizer {
     TimeDependencies();
     ~TimeDependencies();
 
-    void WaitForTimeDependencyNeurons(Branch *b);
+    void WaitForTimeDependencyNeurons(Branch* b);
 
     /// inform my outgoing-connection neurons that I stepped
-    void SendSteppingNotification(Branch *b);
+    void SendSteppingNotification(Branch* b);
 
     /// update time of a given dependency
     void UpdateTimeDependency(neuron_id_t src_gid,

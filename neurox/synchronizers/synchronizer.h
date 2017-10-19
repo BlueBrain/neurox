@@ -41,7 +41,6 @@ class Synchronizer {
   Synchronizer(){};
   virtual ~Synchronizer(){};
 
-
   /*************** Methods specific to Synchronizer: ****************/
 
   /// Returns an instantiated class of the given type
@@ -52,7 +51,6 @@ class Synchronizer {
 
   /// Returns class type as string
   const virtual char* GetString() = 0;
-
 
   /*********** Methods specific to Localities synchronization ************/
 
@@ -76,7 +74,6 @@ class Synchronizer {
   /// Locatility-based reduction: called at the end of every reduction-interval
   virtual void LocalitySyncEnd() {}
 
-
   /************ Methods specific to Neurons synchronization **************/
 
   /// Initialize synchronizer meta data in neuron
@@ -89,16 +86,15 @@ class Synchronizer {
   virtual double NeuronSyncInterval(Branch*) = 0;
 
   /// Neuron-based reduction: called at the start of every neuron reduction
-  virtual void NeuronSyncInit(Branch* b) {assert(b->soma_);}
+  virtual void NeuronSyncInit(Branch* b) { assert(b->soma_); }
 
   /// Neuron-based reduction: called at the end of every neuron reduction
-  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) {assert(b->soma_);}
-
+  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) { assert(b->soma_); }
 
   /*************** Methods specific to individual steps ******************/
 
   /// to be called inside each individual step, after dt being set
-  virtual void StepBegin(Branch *b){};
+  virtual void StepBegin(Branch* b){};
 
   /// spikes handling: how it hadles outgoing spikes after Action-Potential
   virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
@@ -106,7 +102,6 @@ class Synchronizer {
   /// spikes handling: how it reacts to receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,
                                   spike_time_t) {}
-
 
   static hpx_action_t CallInitLocality;
   static hpx_action_t CallInitNeuron;

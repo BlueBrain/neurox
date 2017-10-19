@@ -12,8 +12,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
       threshold_(ap_threshold),
       synchronizer_neuron_info_(nullptr),
-      synchronizer_step_trigger_(HPX_NULL)
-{
+      synchronizer_step_trigger_(HPX_NULL) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
@@ -29,10 +28,9 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
 Neuron::~Neuron() {
   for (Synapse*& s : synapses_) delete s;
   delete synchronizer_neuron_info_;
-  if (synapses_mutex_ != HPX_NULL)
-      hpx_lco_delete_sync(synapses_mutex_);
+  if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
   if (synchronizer_step_trigger_ != HPX_NULL)
-      hpx_lco_delete_sync(synchronizer_step_trigger_);
+    hpx_lco_delete_sync(synchronizer_step_trigger_);
 }
 
 Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,

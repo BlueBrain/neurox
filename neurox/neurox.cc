@@ -23,9 +23,9 @@ neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 
 // locality info
 std::vector<hpx_t> *locality::neurons_ = nullptr;
-map<neuron_id_t, vector<hpx_t> > *locality::netcons_branches_ = nullptr;
-map<neuron_id_t, vector<hpx_t> > *locality::netcons_somas_ = nullptr;
-set<pair<floble_t, hpx_t>> * locality::neurons_progress_ = nullptr;
+map<neuron_id_t, vector<hpx_t>> *locality::netcons_branches_ = nullptr;
+map<neuron_id_t, vector<hpx_t>> *locality::netcons_somas_ = nullptr;
+set<pair<floble_t, hpx_t>> *locality::neurons_progress_ = nullptr;
 hpx_t locality::neurons_progress_mutex_ = HPX_NULL;
 hpx_t locality::neurons_scheduler_sema_ = HPX_NULL;
 
@@ -80,8 +80,10 @@ static int Main_handler() {
   double tstop = input_params_->tstop_;
 
   printf("neurox::%s::%d neurons::starting...\n",
-         input_params_->synchronizer_==SynchronizerIds::kBenchmarkAll ? "benchmark all" :
-         synchronizer_->GetString(), neurox::neurons_count_);
+         input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll
+             ? "benchmark all"
+             : synchronizer_->GetString(),
+         neurox::neurons_count_);
 
   for (int sync = init_sync; sync < end_sync; sync++) {
     CallAllNeurons(Synchronizer::NeuronInfoConstructor, &sync, sizeof(sync));
@@ -95,9 +97,11 @@ static int Main_handler() {
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
-    printf("neurox::%s: %d neurons, biological time: %.03f secs, solver time: %.02f secs\n",
-           synchronizer_->GetString(), neurox::neurons_count_,
-           input_params_->tstop_ / 1000, time_elapsed);
+    printf(
+        "neurox::%s: %d neurons, biological time: %.03f secs, solver time: "
+        "%.02f secs\n",
+        synchronizer_->GetString(), neurox::neurons_count_,
+        input_params_->tstop_ / 1000, time_elapsed);
 
 #ifdef NDEBUG
     // output benchmark info
@@ -124,7 +128,9 @@ static int Main_handler() {
   hpx_bcast_rsync(neurox::Clear);
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
-  DebugMessage(string("neurox::total time: " + std::to_string(total_elapsed_time) + " secs\n").c_str());
+  DebugMessage(string("neurox::total time: " +
+                      std::to_string(total_elapsed_time) + " secs\n")
+                   .c_str());
   hpx_exit(0, NULL);
 }
 

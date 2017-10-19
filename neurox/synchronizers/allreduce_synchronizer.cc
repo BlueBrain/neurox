@@ -92,8 +92,8 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::NeuronReduceInterval2(const Branch* b,
-                                          const int allreduces_count) {
+double AllreduceSynchronizer::NeuronReduceInterval2(
+    const Branch* b, const int allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 

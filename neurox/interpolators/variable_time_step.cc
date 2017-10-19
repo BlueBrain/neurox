@@ -89,7 +89,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
-  //perform step-begin operations, eg wait for dependencies
+  // perform step-begin operations, eg wait for dependencies
   synchronizer_->StepBegin(branch);
 
   // Updates internal states of continuous point processes (vecplay)
@@ -565,9 +565,8 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // get tout as time of next undelivered event (if any)
     hpx_lco_sema_p(branch->events_queue_mutex_);
-    if (!branch->events_queue_.empty()) {
+    if (!branch->events_queue_.empty())
       cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
-    }
     hpx_lco_sema_v_sync(branch->events_queue_mutex_);
 
     // call CVODE method: steps until reaching/passing tout, or hitting root;

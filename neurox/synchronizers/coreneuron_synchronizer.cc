@@ -32,7 +32,7 @@ void CoreneuronSynchronizer::NeuronSyncInit(Branch*) { assert(0); }
 void CoreneuronSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) { assert(0); }
 
 double CoreneuronSynchronizer::NeuronSyncInterval(Branch* b) {
-    return b->nt_->_dt;
+  return b->nt_->_dt;
 }
 
 hpx_t CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
