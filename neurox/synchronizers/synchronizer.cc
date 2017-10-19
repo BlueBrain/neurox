@@ -58,7 +58,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
 
   //if we use "last neuron advances first" methodology
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReduceInterval() == -1)
+      synchronizer_->LocalitySyncInterval() == -1)
   {
       //scheduler semaphore (controls how many parallel jobs can run)
       size_t thread_count = hpx_get_num_threads();
@@ -123,7 +123,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   const double tstop = *tstop_ptr;
   const double tstart = tstop - input_params_->tstop_; //for all-benchmark
 
-  const double reduction_dt = synchronizer_->LocalityReduceInterval();
+  const double reduction_dt = synchronizer_->LocalitySyncInterval();
   if (reduction_dt == 0) //no reduction, launch neurons independently
   {
     wrappers::CallLocalNeurons(Synchronizer::RunNeuron, tstop_ptr,
@@ -178,11 +178,11 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   {
    double step_to_time = -1;
     for (double t = tstart; t <= tstop - 0.00001; t += reduction_dt) {
-      synchronizer_->LocalityReduceInit();
+      synchronizer_->LocalitySyncInit();
       step_to_time = t + reduction_dt;
       wrappers::CallLocalNeurons(Synchronizer::RunNeuron, &step_to_time,
                                  sizeof(double));
-      synchronizer_->LocalityReduceEnd();
+      synchronizer_->LocalitySyncEnd();
     }
   }
   NEUROX_MEM_UNPIN;
@@ -195,35 +195,45 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Synchronizer::RunNeuron, tstop_ptr, size);
   const double tstop = *tstop_ptr;
   Interpolator* interpolator = local->interpolator_;
-  const double dt_io = input_params_->dt_io_;
+
+  /* If not soma:
+   * - launch job until tstop;
+   * - Neuron-level reduction only needs to be performed by soma;
+   * - Outgoing spikes handling only needs to be handled by soma;
+   * - This branch will be synchronized with soma during Hines solver;
+   */
+  if (!local->soma_)
+  {
+      interpolator->StepTo(local, tstop);
+      NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+      NEUROX_MEM_UNPIN;
+  }
+
+  /* If soma:
+   * - it handles neuron-level reduction
+   * - it waits for job scheduler (last-neuron first)
+   * - it performs outgoing spikes handling
+   */
   double tpause = -1;
   hpx_t spikes_lco = HPX_NULL;
   hpx_t step_trigger = !local->soma_ ? HPX_NULL : local->soma_->synchronizer_step_trigger_;
-
-  /** TODO
-   * because only soma is waiting for synchronizer
-   * in time-dependency lco, will the sub-branches
-   * continue and not wait until the solver is called?
-   * eg in Time-dependency based LCO.
-   * (does not happen in others as soma synchronizer
-   * on the last step of barrier or all-reduce)
-   */
   double & t = local->nt_->_t;
+  //const double dt_io = input_params_->dt_io_;
 
-  //std use case: step neurons until t_stop
   while (t < tstop - 0.00001) {
 
     //do before-step operations e.g. mark step in all-reduces
-    synchronizer_->NeuronReduceInit(local);
+    synchronizer_->NeuronSyncInit(local);
 
-    //wait for scheduler signal to proceed
+    //if scheduler is active: wait for scheduler signal to proceed
     if (step_trigger)
         hpx_lco_wait_reset(step_trigger);
 
-    tpause = t + synchronizer_->NeuronReduceInterval(local);
+    //step to the next possible reduction interval
+    tpause = t + synchronizer_->NeuronSyncInterval(local);
     tpause = std::min(tpause, tstop);
     spikes_lco = interpolator->StepTo(local, tpause);
-    synchronizer_->NeuronReduceEnd(local, spikes_lco);
+    synchronizer_->NeuronSyncEnd(local, spikes_lco);
     //if (fmod(t, dt_io) == 0) {  /*output*/ }
 
     //decrement schedular semaphor (wake up if necessary)
@@ -248,7 +258,7 @@ int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
   if (input_params_->locality_comm_reduce_ &&
-      synchronizer_->LocalityReduceInterval() == -1)
+      synchronizer_->LocalitySyncInterval() == -1)
   {
       hpx_lco_delete_sync(neurox::locality::neurons_progress_mutex_);
       hpx_lco_delete_sync(neurox::locality::neurons_scheduler_sema_);

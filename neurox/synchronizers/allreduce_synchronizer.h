@@ -16,12 +16,12 @@ class AllreduceSynchronizer : public Synchronizer {
   const char* GetString() override;
   void InitLocality() override;
   void ClearLocality() override;
-  void NeuronReduceInit(Branch*) override;
+  void NeuronSyncInit(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-  double NeuronReduceInterval(Branch*) override;
-  void NeuronReduceEnd(Branch*, hpx_t) override;
-  double LocalityReduceInterval() override;
-  void LocalityReduceInit() override;
+  double NeuronSyncInterval(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
+  double LocalitySyncInterval() override;
+  void LocalitySyncInit() override;
 
   static void SubscribeAllReduces(size_t allreduces_count);
   static void UnsubscribeAllReduces(size_t allreduces_count);

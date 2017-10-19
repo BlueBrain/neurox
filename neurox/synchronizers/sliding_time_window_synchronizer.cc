@@ -23,7 +23,7 @@ void SlidingTimeWindowSynchronizer::ClearLocality() {
   AllreduceSynchronizer::UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::NeuronReduceInit(Branch* b) {
+void SlidingTimeWindowSynchronizer::NeuronSyncInit(Branch* b) {
   AllreduceSynchronizer::NeuronReduce(b, kAllReducesCount);
 }
 
@@ -31,19 +31,19 @@ hpx_t SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return AllreduceSynchronizer::SendSpikes2(n, tt);
 }
 
-double SlidingTimeWindowSynchronizer::NeuronReduceInterval(Branch* b) {
+double SlidingTimeWindowSynchronizer::NeuronSyncInterval(Branch* b) {
   return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double SlidingTimeWindowSynchronizer::LocalityReduceInterval() {
+double SlidingTimeWindowSynchronizer::LocalitySyncInterval() {
   return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::LocalityReduceInit() {
+void SlidingTimeWindowSynchronizer::LocalitySyncInit() {
   AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
       kAllReducesCount);
 }
 
-void SlidingTimeWindowSynchronizer::NeuronReduceEnd(Branch* b, hpx_t spikesLco) {
+void SlidingTimeWindowSynchronizer::NeuronSyncEnd(Branch* b, hpx_t spikesLco) {
   AllreduceSynchronizer::WaitForSpikesDelivery(b, spikesLco);
 }

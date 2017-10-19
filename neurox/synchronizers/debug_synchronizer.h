@@ -17,14 +17,12 @@ class DebugSynchronizer : public Synchronizer {
 
   void InitLocality() override;
   void ClearLocality() override;
+  double LocalitySyncInterval() override;
 
-  void NeuronReduceInit(Branch*) override;
-  void NeuronReduceEnd(Branch*, hpx_t) override;
-  double NeuronReduceInterval(Branch*) override;
+  void NeuronSyncInit(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
+  double NeuronSyncInterval(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-
-  void Launch();
-  void Run(Branch*, const void*);
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:

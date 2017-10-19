@@ -79,6 +79,10 @@ static int Main_handler() {
       run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
   double tstop = input_params_->tstop_;
 
+  printf("neurox::%s::%d neurons::starting...\n",
+         input_params_->synchronizer_==SynchronizerIds::kBenchmarkAll ? "benchmark all" :
+         synchronizer_->GetString(), neurox::neurons_count_);
+
   for (int sync = init_sync; sync < end_sync; sync++) {
     CallAllNeurons(Synchronizer::NeuronInfoConstructor, &sync, sizeof(sync));
     CallAllLocalities(Synchronizer::CallInitLocality, &sync, sizeof(sync));

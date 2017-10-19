@@ -43,10 +43,10 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   }
 }
 
-void TimeDependencySynchronizer::NeuronReduceInit(Branch* b) {
-  if (b->soma_) {
-    TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+void TimeDependencySynchronizer::NeuronSyncInit(Branch* b) {
+  assert(b->soma_);
+  TimeDependencies* time_dependencies =
+      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
     // inform time dependants that must be notified in this step
     time_dependencies->SendSteppingNotification(
@@ -54,19 +54,15 @@ void TimeDependencySynchronizer::NeuronReduceInit(Branch* b) {
     // wait until Im sure I can start and finalize this step at t+dt
     time_dependencies->WaitForTimeDependencyNeurons(b->nt_->_t, b->nt_->_dt,
                                                     b->soma_->gid_);
-  }
 }
 
-double TimeDependencySynchronizer::NeuronReduceInterval(Branch* branch) {
+double TimeDependencySynchronizer::NeuronSyncInterval(Branch* b) {
   // at every step we check for notification intervals
-    /*
-  if (b->soma_) {
+  assert(b->soma_);
     TimeDependencies* time_dependencies =
         (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-    return time_dependencies->GetDependenciesMinTime();
-  }
-  */
-  return branch->nt_->_dt;
+  return time_dependencies->GetDependenciesMinTime();
+  //return branch->nt_->_dt;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(Branch* b, hpx_t target,
@@ -119,7 +115,7 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   return HPX_NULL;
 }
 
-double TimeDependencySynchronizer::LocalityReduceInterval() {
+double TimeDependencySynchronizer::LocalitySyncInterval() {
     return -1; //means advance last neuron first (see synchronizer.h)
 }
 

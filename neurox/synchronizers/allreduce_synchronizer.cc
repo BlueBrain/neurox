@@ -27,7 +27,7 @@ void AllreduceSynchronizer::ClearLocality() {
   UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::NeuronReduceInit(Branch* b) {
+void AllreduceSynchronizer::NeuronSyncInit(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
@@ -35,19 +35,19 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::NeuronReduceInterval(Branch* b) {
+double AllreduceSynchronizer::NeuronSyncInterval(Branch* b) {
   return NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::LocalityReduceInterval() {
+double AllreduceSynchronizer::LocalitySyncInterval() {
   return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::LocalityReduceInit() {
+void AllreduceSynchronizer::LocalitySyncInit() {
   AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::NeuronReduceEnd(Branch* b, hpx_t spikesLco) {
+void AllreduceSynchronizer::NeuronSyncEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
@@ -67,7 +67,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
                                          const int allreduces_count) {
   // if locality-reduction is on, neurons no not participate n reduction
   if (input_params_->locality_comm_reduce_) return;
-  if (!branch->soma_) return;
+  assert(branch->soma_);
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;

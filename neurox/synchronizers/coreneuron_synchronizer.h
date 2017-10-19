@@ -18,9 +18,10 @@ class CoreneuronSynchronizer : public Synchronizer {
   void InitLocality() override;
   void ClearLocality() override;
 
-  void NeuronReduceInit(Branch*) override;
-  void NeuronReduceEnd(Branch*, hpx_t) override;
-  double NeuronReduceInterval(Branch* b) override;
+  void NeuronSyncInit(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
+  double NeuronSyncInterval(Branch* b) override;
+
   hpx_t SendSpikes(Neuron*, double, double) override;
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {

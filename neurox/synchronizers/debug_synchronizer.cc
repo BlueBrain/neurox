@@ -26,35 +26,15 @@ void DebugSynchronizer::InitLocality() {}
 
 void DebugSynchronizer::ClearLocality() {}
 
-void DebugSynchronizer::Launch() {
-  /*
-int comm_step_size = neurox::min_delay_steps_;
-int total_steps = 0;
+double DebugSynchronizer::LocalitySyncInterval()
+{ return neurox::min_synaptic_delay_; }
 
-for (int s = 0; s < total_steps; s += comm_step_size) {
-#ifdef NEUROX_TIME_STEPPING_VERBOSE
-  if (hpx_get_my_rank() == 0)
-    DebugMessage(
-        std::string("-- t=" + std::to_string(inputParams->dt * s) + " ms\n")
-            .c_str());
-#endif
+double DebugSynchronizer::NeuronSyncInterval(Branch *b)
+{ return b->nt_->_dt; }
 
-  // Reduction at locality not implemented (debugging only)
-  wrappers::CallAllNeurons(BackwardEuler::RunOnNeuron, &comm_step_size,
-                                   sizeof(int));
+void DebugSynchronizer::NeuronSyncInit(Branch*) {}
 
-#ifndef NDEBUG
-  if (neurox::ParallelExecution())  // if parallel execution... spike exchange
-    hpx_bcast_rsync(neurox::input::Debugger::NrnSpikeExchange);
-#endif
-}
-input::Debugger::CompareAllBranches();
-*/
-}
-
-void DebugSynchronizer::NeuronReduceInit(Branch*) {}
-
-void DebugSynchronizer::NeuronReduceEnd(Branch* b, hpx_t) {
+void DebugSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
@@ -62,10 +42,6 @@ void DebugSynchronizer::NeuronReduceEnd(Branch* b, hpx_t) {
     if (comm_barrier->all_spikes_lco_ != HPX_NULL)  // was set/used once
       hpx_lco_wait(comm_barrier->all_spikes_lco_);  // wait if needed
   }
-}
-
-double DebugSynchronizer::NeuronReduceInterval(Branch* b) {
-  return b->nt_->_dt;  // single step at a time
 }
 
 hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {

@@ -60,13 +60,13 @@ class Synchronizer {
   virtual void ClearNeuron(Branch*) {}
 
   /// neuron-based reduction: interval between reduction
-  virtual double NeuronReduceInterval(Branch*) = 0;
+  virtual double NeuronSyncInterval(Branch*) = 0;
 
   /// Neuron-based reduction: called at the start of every neuron reduction
-  virtual void NeuronReduceInit(Branch*) {}
+  virtual void NeuronSyncInit(Branch* b) {assert(b->soma_);}
 
   /// Neuron-based reduction: called at the end of every neuron reduction
-  virtual void NeuronReduceEnd(Branch*, hpx_t spikesLco) {}
+  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) {assert(b->soma_);}
 
 
 
@@ -83,13 +83,13 @@ class Synchronizer {
    *  - 0 (default): no reduction, launch neurons independently
    *  - -1 : locality level syncrhonizer, launch last neuron first
    */
-  virtual double LocalityReduceInterval() { return 0; }
+  virtual double LocalitySyncInterval() { return 0; }
 
   /// Locatility-based reduction: called at the start every reduction-interval
-  virtual void LocalityReduceInit() {}
+  virtual void LocalitySyncInit() {}
 
   /// Locatility-based reduction: called at the end of every reduction-interval
-  virtual void LocalityReduceEnd() {}
+  virtual void LocalitySyncEnd() {}
 
 
 
