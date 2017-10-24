@@ -223,9 +223,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
     // step to the next possible time instant or wait for one
     // (while it waits, allow scheduler to start a new job)
-    hpx_lco_sema_p(locality::neurons_progress_mutex_);
+    if (step_trigger) hpx_lco_sema_p(locality::neurons_progress_mutex_);
     tpause = t + synchronizer_->GetNeuronMaxStep(local);
-    hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
+    if (step_trigger) hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
     tpause = std::min(tpause, tstop);
     assert(fabs(t-tpause)>0.000001); //make sure it will step
     spikes_lco = interpolator->StepTo(local, tpause);
