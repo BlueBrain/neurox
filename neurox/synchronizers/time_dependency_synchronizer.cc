@@ -50,8 +50,13 @@ void TimeDependencySynchronizer::StepBegin(Branch* b) {
 
   // inform time dependants that must be notified in this step
   time_dependencies->SendSteppingNotification(b);
+
   // wait until Im sure I can start and finalize this step at t+dt
-  time_dependencies->WaitForTimeDependencyNeurons(b);
+  /* if a scheduler exists, it only allows me to step as far as dependencies
+   * allows, so no need to wait for dependencies (see NeuronSyncInterval)*/
+  bool has_scheduler = b->soma_->synchronizer_step_trigger_;
+  if (!has_scheduler)
+      time_dependencies->WaitForTimeDependencyNeurons(b);
 }
 
 double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
@@ -65,11 +70,13 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   bool has_scheduler = b->soma_->synchronizer_step_trigger_;
   if (has_scheduler)
   {
-    TimeDependencies* time_dependencies =
-      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-    const double dep_min_time = time_dependencies->GetDependenciesMinTime();
-    assert(dep_min_time>=t);
-    return dep_min_time - b->nt_->_t;
+      TimeDependencies* time_dependencies =
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+
+      //get or wait for a time to step to value, that is higher than current time
+      double dep_min_time = time_dependencies->GetUpdatedTimeDependencyUpdate(b);
+      assert(dep_min_time>t+0.00000001);
+      return dep_min_time - b->nt_->_t;
   }
   return input_params_->tstop_;
 }
@@ -157,7 +164,7 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
   // if no dependencies, walk to the end of the simulation
-  // TODO this only owrks if This is the first sync in the benchmarks (tstop?)
+  // TODO this only works if This is the first sync in the benchmarks (tstop?)
   if (dependencies_map_.empty()) return input_params_->tstop_;
 
   return std::min_element(dependencies_map_.begin(), dependencies_map_.end(),
@@ -182,10 +189,9 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
           std::max(dependencies_map_.at(src_gid), dependency_notification_time);
   } else {
     assert(dependencies_map_.find(src_gid) != dependencies_map_.end());
+    //order of msgs is not guaranteed so take only last update (highest time)
     if (dependencies_map_.at(src_gid) <
-        dependency_notification_time)  // order of msgs is not guaranteed so
-                                       // take
-                                       // only last update (highest time value)
+        dependency_notification_time)
     {
       dependencies_map_.at(src_gid) = dependency_notification_time;
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
@@ -205,12 +211,11 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 #endif
     }
 
-    if (dependencies_time_neuron_waits_for_ >
-        0)  // if neuron is waiting for a dependencies time update
+    // if neuron is waiting for a dependencies time update
+    if (dependencies_time_neuron_waits_for_ > 0)
+      // and new min time allows neuron to proceed
       if (GetDependenciesMinTime() >=
-          dependencies_time_neuron_waits_for_)  // and new min time allows
-                                                // neuron to
-                                                // proceed
+          dependencies_time_neuron_waits_for_)
       {
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
         printf(
@@ -219,10 +224,10 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
             my_gid, src_gid, GetDependenciesMinTime(),
             dependencies_time_neuron_waits_for_);
 #endif
-        dependencies_time_neuron_waits_for_ = 0;  // mark neuron as not asleep
-                                                  // anymore
-        libhpx_cond_broadcast(
-            &this->dependencies_wait_condition_);  // wake up neuron
+        // mark neuron as not asleep anymore
+        dependencies_time_neuron_waits_for_ = 0;
+        //wake up neuron
+        libhpx_cond_broadcast(&this->dependencies_wait_condition_);
       }
   }
   libhpx_mutex_unlock(&this->dependencies_lock_);
@@ -240,15 +245,20 @@ void TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
            sizeof(neuron_id_t), &max_time, sizeof(spike_time_t), &init_phase,
            sizeof(bool));
 }
+
+floble_t TimeDependencySynchronizer::TimeDependencies::GetUpdatedTimeDependencyUpdate(Branch *b)
+{
+    WaitForTimeDependencyNeurons(b);
+    libhpx_mutex_lock(&this->dependencies_lock_);
+    double dep_min_time = GetDependenciesMinTime();
+    libhpx_mutex_unlock(&this->dependencies_lock_);
+    return dep_min_time;
+}
+
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b) {
   // if I have no dependencies... I'm free to go!
   if (dependencies_map_.size() == 0) return;
-
-  /* if a scheduler exists, it only allows me to step as far as dependencies
-   * allows, so no need to wait for dependencies (see NeuronSyncInterval)*/
-  bool has_scheduler = b->soma_->synchronizer_step_trigger_;
-  if (has_scheduler) return;
 
   floble_t t = b->nt_->_t;
   floble_t dt = b->nt_->_dt;

@@ -41,6 +41,9 @@ class TimeDependencySynchronizer : public Synchronizer {
     TimeDependencies();
     ~TimeDependencies();
 
+    /// return or wait for a dependency-time larger than branch's time
+    floble_t GetUpdatedTimeDependencyUpdate(Branch *b);
+
     void WaitForTimeDependencyNeurons(Branch* b);
 
     /// inform my outgoing-connection neurons that I stepped
@@ -74,10 +77,14 @@ class TimeDependencySynchronizer : public Synchronizer {
     static constexpr const double kTEps = 1e-8;
 
    private:
+    /// controls sleep and waking of neurons after dependencies time-update
+    libhpx_mutex_t dependencies_lock_;
+
+    /// wait condition that wakes dependencies_lock_
+    libhpx_cond_t dependencies_wait_condition_;
+
     ///> map of actual time per dependency if
     std::map<neuron_id_t, floble_t> dependencies_map_;
-    libhpx_cond_t dependencies_wait_condition_;
-    libhpx_mutex_t dependencies_lock_;
     floble_t dependencies_time_neuron_waits_for_;
   };
 
