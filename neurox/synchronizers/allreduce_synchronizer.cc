@@ -58,7 +58,7 @@ hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, double tt) {
                                   : Branch::AddSpikeEvent;
 
   for (Neuron::Synapse*& s : neuron->synapses_)
-    hpx_call(s->synapse_addr_, spike_action, new_synapses_lco, &neuron->gid_,
+    hpx_call(s->branch_addr_, spike_action, new_synapses_lco, &neuron->gid_,
              sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   return new_synapses_lco;
 }

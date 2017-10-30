@@ -33,11 +33,11 @@ Neuron::~Neuron() {
     hpx_lco_delete_sync(synchronizer_step_trigger_);
 }
 
-Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
-                         hpx_t topBranchAddr, int destinationGid)
-    : synapse_addr_(branchAddr),
-      min_delay_(minDelay),
-      synapse_soma_addr_(topBranchAddr) {
+Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
+                         hpx_t soma_or_locality_addr, int destination_gid)
+    : branch_addr_(branch_addr),
+      min_delay_(min_delay),
+      soma_or_locality_addr_(soma_or_locality_addr) {
   const double& teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
   const double& notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
@@ -48,7 +48,7 @@ Neuron::Synapse::Synapse(hpx_t branchAddr, floble_t minDelay,
       this->previous_spike_lco_, 0,
       NULL);  // starts as set and will be reset when synapses happen
 #ifndef NDEBUG
-  this->destination_gid_ = destinationGid;
+  this->destination_gid_ = destination_gid;
 #endif
 }
 

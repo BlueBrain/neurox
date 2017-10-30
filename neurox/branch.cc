@@ -566,7 +566,8 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   NEUROX_MEM_PIN(Branch);
   const neuron_id_t pre_neuron_id = *(const neuron_id_t *)args[0];
   const spike_time_t spike_time = *(const spike_time_t *)args[1];
-  spike_time_t max_time = nargs == 3 ? *(const spike_time_t *)args[2] : -1;
+  spike_time_t dependency_time =
+      nargs == 3 ? *(const spike_time_t *)args[2] : -1;
 
   assert(local->netcons_.find(pre_neuron_id) != local->netcons_.end());
   auto &netcons = local->netcons_.at(pre_neuron_id);
@@ -578,7 +579,7 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
   synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
-                                    max_time);
+                                    dependency_time);
   NEUROX_MEM_UNPIN;
 }
 

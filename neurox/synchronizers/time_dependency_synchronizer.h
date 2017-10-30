@@ -28,7 +28,7 @@ class TimeDependencySynchronizer : public Synchronizer {
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
-                          spike_time_t max_time) override;
+                          spike_time_t dependency_time) override;
 
   static hpx_action_t UpdateTimeDependency;
   static hpx_action_t UpdateTimeDependencyLocality;
@@ -41,24 +41,15 @@ class TimeDependencySynchronizer : public Synchronizer {
     TimeDependencies();
     ~TimeDependencies();
 
-    /// return or wait for a dependency-time larger than branch's time
-    floble_t GetUpdatedTimeDependencyUpdate(Branch *b);
-
     void WaitForTimeDependencyNeurons(Branch* b);
 
     /// inform my outgoing-connection neurons that I stepped
     void SendSteppingNotification(Branch* b);
 
     /// update time of a given dependency
-    void UpdateTimeDependency(neuron_id_t src_gid,
-                              floble_t dependency_notification_time,
+    void UpdateTimeDependency(neuron_id_t src_gid, floble_t dependency_time,
                               neuron_id_t my_gid = -1,
                               bool initialization = false);
-
-    static void SendTimeUpdateMessage(hpx_t soma_or_locality_addr, hpx_t lco,
-                                      neuron_id_t preneuron_id,
-                                      spike_time_t max_time,
-                                      bool init_phase = false);
 
     /// get smallest time across all dependencies
     floble_t GetDependenciesMinTime();
@@ -76,15 +67,20 @@ class TimeDependencySynchronizer : public Synchronizer {
     /// rounding
     static constexpr const double kTEps = 1e-8;
 
-   private:
     /// controls sleep and waking of neurons after dependencies time-update
     libhpx_mutex_t dependencies_lock_;
 
+   private:
     /// wait condition that wakes dependencies_lock_
     libhpx_cond_t dependencies_wait_condition_;
 
     ///> map of actual time per dependency if
-    std::map<neuron_id_t, floble_t> dependencies_map_;
+    std::map<neuron_id_t, floble_t> dependencies_max_time_allowed_;
+
+    ///> map of synaptic delay per pre-synaptic id
+    std::map<neuron_id_t, floble_t> dependencies_min_delay_;
+
+    /// time that this neuron waits for, before waking up and continuing
     floble_t dependencies_time_neuron_waits_for_;
   };
 
