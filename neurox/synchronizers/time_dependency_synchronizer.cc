@@ -53,7 +53,7 @@ void TimeDependencySynchronizer::StepBegin(Branch* b) {
 
   /* wait until Im sure I can start and finalize this step at t+dt:
    * if a scheduler exists, it only allows me to step as far as dependencies
-   * allows, so no need to wait for dependencies (see NeuronSyncInterval)*/
+   * allows, so no need to wait for dependencies -- see GetNeuronMaxStep()*/
   const bool has_scheduler = b->soma_->synchronizer_step_trigger_;
   if (!has_scheduler) time_dependencies->WaitForTimeDependencyNeurons(b);
 }
