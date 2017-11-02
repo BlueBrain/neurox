@@ -245,6 +245,7 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  //printf("## Neuron %d finished\n", local->soma_->gid_);
   NEUROX_MEM_UNPIN;
 }
 

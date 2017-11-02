@@ -43,13 +43,13 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
   }
 }
 
-void TimeDependencySynchronizer::StepBegin(Branch* b) {
+void TimeDependencySynchronizer::StepSync(Branch* b, const floble_t dt) {
   assert(b->soma_);
   TimeDependencies* time_dependencies =
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
   // inform time dependants that must be notified in this step
-  time_dependencies->SendSteppingNotification(b);
+  time_dependencies->SendSteppingNotification(b, dt);
 
   /* wait until Im sure I can start and finalize this step at t+dt:
    * if a scheduler exists, it only allows me to step as far as dependencies
@@ -155,6 +155,7 @@ TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {
   libhpx_cond_init(&this->dependencies_wait_condition_);
   libhpx_mutex_init(&this->dependencies_lock_);
   this->dependencies_time_neuron_waits_for_ = 0;  // 0 means not waiting
+  this->last_notification_time_ = -1; // <0 so first step is unconfirmed
 }
 
 TimeDependencySynchronizer::TimeDependencies::~TimeDependencies() {
@@ -267,16 +268,20 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
   libhpx_mutex_unlock(&this->dependencies_lock_);
 }
 
+
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
-    Branch* b) {
+    Branch *b)
+{
   // if I have no dependencies... I'm free to go!
   if (dependencies_max_time_allowed_.size() == 0) return;
 
-  floble_t t = b->nt_->_t;
-  floble_t dt = b->nt_->_dt;
-  int gid = b->soma_->gid_;
+  // if this is an "end of execution notification"... no need to wait
+  if (fabs (b->nt_->_t - input_params_->tstop_) < 0.0001 ) return;
+
+  const floble_t t = b->nt_->_t;
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+  const int gid = b->soma_->gid_;
   printf("== %d enters TimeDependencies::waitForTimeDependencyNeurons\n", gid);
 #endif
   libhpx_mutex_lock(&this->dependencies_lock_);
@@ -312,26 +317,43 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
-    Branch* b) {
+    Branch *b)
+{
+    return SendSteppingNotification(b, b->nt_->_dt);
+}
+
+void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
+    Branch* b, const floble_t dt) {
   std::vector<Neuron::Synapse*>& synapses = b->soma_->synapses_;
   if (synapses.empty()) return;
 
-  floble_t t = b->nt_->_t;
-  floble_t dt = b->nt_->_dt;
-  neuron_id_t gid = b->soma_->gid_;
+  const floble_t t = b->nt_->_t;
+  const neuron_id_t gid = b->soma_->gid_;
+
+  //avoid sending repeated notifications
+  if (t == this->last_notification_time_) return;
+
+  //avoid sending messages that are too close
+  //if (t - this->last_notification_time_ < 0.0)
+  this->last_notification_time_ = t;
 
   const hpx_action_t update_time_dep_action =
       input_params_->locality_comm_reduce_
           ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
+  printf("=============== Neuron %d informs step at %.5f\n", gid, t);
+
   for (Neuron::Synapse*& s : synapses) {
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
     if (s->next_notification_time_ - kTEps <= t + dt) {
-      assert(s->next_notification_time_ >= t);
+
       s->next_notification_time_ =
-          t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
+        t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
+
+      //commented: for variable dt, one can jump ahead of notification time
+      //assert(s->next_notification_time_ >= t);
 
       /* wait for previous synapse to be delivered (if any) before telling
        * post-syn neuron that I've reached time 't' */

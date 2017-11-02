@@ -2,6 +2,7 @@
 
 #include "cvodes/cvodes_spgmr.h"
 #include "cvodes/cvodes_spils.h"
+#include "cvodes/cvodes.h"
 
 #include <set>
 
@@ -88,9 +89,6 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   nt->_dt = h == 0 ? 1e-8 : h;
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
-
-  // perform step-begin operations, eg wait for dependencies
-  synchronizer_->StepBegin(branch);
 
   // Updates internal states of continuous point processes (vecplay)
   // e.g. stimulus. vecplay->pd points to a read-only var used by
@@ -569,25 +567,45 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
       cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
     hpx_lco_sema_v_sync(branch->events_queue_mutex_);
 
-    // call CVODE method: steps until reaching/passing tout, or hitting root;
-    flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
-
-    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
+    // call CVODE method: steps until reaching tout, or hitting root;
+    while (nt->_t < cvode_tstop)
     {
-      flag = CVodeGetRootInfo(cvode_mem, roots_found);
-      assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0);  // only root: AP threshold reached
-      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+      //perform several steps until hitting cvode_stop, or spiking
+      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+
+      // CVODE succeeded and roots found
+      if (flag == CV_ROOT_RETURN)
       {
-        // if root found, integrator time is now at time of root
-        hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
-        if (new_spikes_lco) {
-          // make sure only an AP occurred in between
-          assert(!spikes_lco);
-          spikes_lco = new_spikes_lco;
+        flag = CVodeGetRootInfo(cvode_mem, roots_found);
+        assert(flag == CV_SUCCESS);
+        assert(roots_found[0] != 0);  // only root: AP threshold reached
+        if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+        {
+          // if root found, integrator time is now at time of root
+          hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
+          if (new_spikes_lco) {
+            // make sure only an AP occurred in between
+            assert(!spikes_lco);
+            spikes_lco = new_spikes_lco;
+          }
         }
       }
+      // error test failed repeatedly or with |h| = hmin.
+      else if (flag == CV_ERR_FAILURE)
+      {}
+      // convergence test failed too many times, or min-step was reached
+      else if (flag == CV_CONV_FAILURE)
+      {}
+      else
+      {
+          //must have reached end, or we are into an unhandled error
+          assert(fabs(nt->_t - cvode_tstop) < 0.001); // equal
+      }
+
+      //send missed step notification message (if any)
+      synchronizer_->StepSync(branch, 0);
     }
   }
+  assert(fabs(nt->_t - tstop) < 0.001); // equal
   return spikes_lco;
 }

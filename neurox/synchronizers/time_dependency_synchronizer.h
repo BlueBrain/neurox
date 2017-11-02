@@ -24,7 +24,7 @@ class TimeDependencySynchronizer : public Synchronizer {
   hpx_t SendSpikes(Neuron* b, double tt, double t) override;
   double LocalitySyncInterval();
 
-  void StepBegin(Branch*) override;
+  void StepSync(Branch*, const floble_t dt) override;
 
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
@@ -45,6 +45,7 @@ class TimeDependencySynchronizer : public Synchronizer {
 
     /// inform my outgoing-connection neurons that I stepped
     void SendSteppingNotification(Branch* b);
+    void SendSteppingNotification(Branch* b, const floble_t dt);
 
     /// update time of a given dependency
     void UpdateTimeDependency(neuron_id_t src_gid, floble_t dependency_time,
@@ -82,6 +83,10 @@ class TimeDependencySynchronizer : public Synchronizer {
 
     /// time that this neuron waits for, before waking up and continuing
     floble_t dependencies_time_neuron_waits_for_;
+
+    /// time of the last step that is confirmed (useful for var-dt, to avoid
+    /// repetition of notification messages
+    floble_t last_notification_time_;
   };
 
  private:

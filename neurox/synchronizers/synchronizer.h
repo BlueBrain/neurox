@@ -94,7 +94,8 @@ class Synchronizer {
   /*************** Methods specific to individual steps ******************/
 
   /// to be called inside each individual step, after dt being set
-  virtual void StepBegin(Branch* b){};
+  virtual void StepSync(Branch* b, const floble_t dt){};
+  virtual void StepSync(Branch* b){ return StepSync(b, b->nt_->_dt);};
 
   /// spikes handling: how it hadles outgoing spikes after Action-Potential
   virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
