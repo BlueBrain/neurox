@@ -1,5 +1,9 @@
 #pragma once
 
+// Debug flags
+// #define NEUROX_PRINT_TIME_DEPENDENCY
+// #define NDEBUG
+
 #include "hpx/hpx.h"
 
 // typedefs
@@ -48,10 +52,6 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/input/compartment.h"
 #include "neurox/input/data_loader.h"
 #include "neurox/input/debugger.h"
-
-// Debug flags
-// #define NEUROX_PRINT_TIME_DEPENDENCY
-// #define NDEBUG
 
 namespace neurox {
 

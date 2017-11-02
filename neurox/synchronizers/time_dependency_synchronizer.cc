@@ -78,23 +78,24 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
   double step_size = dep_min_time - b->nt_->_t;
 
-  //TODO for parallel execution, we have to set this to
-  //min_delay - time difference to last neuron running
+  // TODO for parallel execution, we have to set this to
+  // min_delay - time difference to last neuron running
   const double min_step_size = neurox::min_synaptic_delay_;
-  while (step_size<min_step_size) //wait for dependencies if no step or step too small
+  while (step_size <
+         min_step_size)  // wait for dependencies if no step or step too small
   {
     // step notification msg was not processed yet, so this branch will
     // (notify scheduler to pick other neuron,) sleep and use idle cores
     // to process arrival of stepping notifications
-    // hpx_lco_sema_p(locality::neurons_progress_mutex_);
+    hpx_lco_sema_p(locality::neurons_progress_mutex_);
     time_dependencies->WaitForTimeDependencyNeurons(b, min_step_size);
     libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
     dep_min_time = time_dependencies->GetDependenciesMinTime();
     libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
     step_size = dep_min_time - b->nt_->_t;
-    // hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
+    hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
   }
-  assert(step_size>0);
+  assert(step_size > 0);
   return step_size;
 }
 
@@ -160,7 +161,7 @@ TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {
   libhpx_cond_init(&this->dependencies_wait_condition_);
   libhpx_mutex_init(&this->dependencies_lock_);
   this->dependencies_time_neuron_waits_for_ = 0;  // 0 means not waiting
-  this->last_notification_time_ = -1; // <0 so first step is unconfirmed
+  this->last_notification_time_ = -1;  // <0 so first step is unconfirmed
 }
 
 TimeDependencySynchronizer::TimeDependencies::~TimeDependencies() {
@@ -274,20 +275,18 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
-    Branch *b)
-{
-    return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
+    Branch* b) {
+  return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
-    Branch *b, const floble_t dt)
-{
+    Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
-  if (dependencies_max_time_allowed_.size() == 0) return;
+  if (dependencies_max_time_allowed_.empty()) return;
 
   // if this is an "end of execution notification"... no need to wait
   const floble_t t = b->nt_->_t;
-  if (fabs (t - input_params_->tstop_) < 0.0001 ) return;
+  if (fabs(t - input_params_->tstop_) < 0.0001) return;
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
   const int gid = b->soma_->gid_;
@@ -326,9 +325,8 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
-    Branch *b)
-{
-    return SendSteppingNotification(b, b->nt_->_dt);
+    Branch* b) {
+  return SendSteppingNotification(b, b->nt_->_dt);
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
@@ -339,11 +337,12 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
   const floble_t t = b->nt_->_t;
   const neuron_id_t gid = b->soma_->gid_;
 
-  //avoid sending repeated notifications (useful on variable dt)
+  // avoid sending repeated notifications (useful on variable dt)
   if (t == this->last_notification_time_) return;
 
-  //TODO: avoid sending messages that are too close
-  //if (t - this->last_notification_time_ < neurox::min_synaptic_delay/2) return;
+  // TODO: avoid sending messages that are too close
+  // if (t - this->last_notification_time_ < neurox::min_synaptic_delay/2)
+  // return;
 
   this->last_notification_time_ = t;
 
@@ -352,21 +351,19 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
-  //printf("=============== Neuron %d informs step at %.5f :", gid, t);
+  // printf("=============== Neuron %d informs step at %.5f :", gid, t);
 
   for (Neuron::Synapse*& s : synapses) {
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
-    //printf("%d (", s->destination_gid_);
+    // printf("%d (", s->destination_gid_);
     if (dt == 0 || s->next_notification_time_ - kTEps <= t + dt) {
-
-      //printf("%f),", s->next_notification_time_);
+      // printf("%f),", s->next_notification_time_);
       s->next_notification_time_ =
-        t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
+          t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
 
-
-      //commented: for variable dt, one can jump ahead of notification time
-      //assert(s->next_notification_time_ >= t);
+      // commented: for variable dt, one can jump ahead of notification time
+      // assert(s->next_notification_time_ >= t);
 
       /* wait for previous synapse to be delivered (if any) before telling
        * post-syn neuron that I've reached time 't' */
@@ -382,7 +379,7 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     }
   }
 
-  //printf("\n");
+  // printf("\n");
 }
 
 hpx_action_t TimeDependencySynchronizer::UpdateTimeDependency = 0;
@@ -392,7 +389,9 @@ int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
   NEUROX_MEM_PIN(Branch);
   assert(nargs == 2 || nargs == 3);
 
-  // auto source = libhpx_parcel_get_source(p);
+  // if ths neurons already finished, discard dependency step notifications
+  if (local->nt_->_t > input_params_->tstop_ - 0.00001) NEUROX_MEM_UNPIN;
+
   const neuron_id_t pre_neuron_id = *(const neuron_id_t*)args[0];
   const spike_time_t dependency_time = *(const spike_time_t*)args[1];
   const bool init_phase = nargs == 3 ? *(const bool*)args[2] : false;

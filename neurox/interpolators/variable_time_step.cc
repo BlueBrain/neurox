@@ -1,8 +1,8 @@
 #include "neurox/interpolators/variable_time_step.h"
 
+#include "cvodes/cvodes.h"
 #include "cvodes/cvodes_spgmr.h"
 #include "cvodes/cvodes_spils.h"
-#include "cvodes/cvodes.h"
 
 #include <set>
 
@@ -568,14 +568,12 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     hpx_lco_sema_v_sync(branch->events_queue_mutex_);
 
     // call CVODE method: steps until reaching tout, or hitting root;
-    while (nt->_t < cvode_tstop)
-    {
-      //perform several steps until hitting cvode_stop, or spiking
+    while (nt->_t < cvode_tstop) {
+      // perform several steps until hitting cvode_stop, or spiking
       flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
 
       // CVODE succeeded and roots found
-      if (flag == CV_ROOT_RETURN)
-      {
+      if (flag == CV_ROOT_RETURN) {
         flag = CVodeGetRootInfo(cvode_mem, roots_found);
         assert(flag == CV_SUCCESS);
         assert(roots_found[0] != 0);  // only root: AP threshold reached
@@ -589,19 +587,16 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
             spikes_lco = new_spikes_lco;
           }
         }
-      }
-      else
-      {
+      } else {
         // error test failed repeatedly or with |h| = hmin.
-        if (flag == CV_ERR_FAILURE)
-        {}
+        if (flag == CV_ERR_FAILURE) {
+        }
         // convergence test failed too many times, or min-step was reached
-        else if (flag == CV_CONV_FAILURE)
-        {}
-        //must have reached end, or we are into an unhandled error
-        else
-        {
-            //success: nt->_t may have reached cvode_tstop or not;
+        else if (flag == CV_CONV_FAILURE) {
+        }
+        // must have reached end, or we are into an unhandled error
+        else {
+          // success: nt->_t may have reached cvode_tstop or not;
         }
       }
     }
@@ -612,6 +607,6 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
    * messages */
   synchronizer_->StepSync(branch, 0);
 
-  assert(fabs(nt->_t - tstop) < 0.001); // equal
+  assert(fabs(nt->_t - tstop) < 0.001);  // equal
   return spikes_lco;
 }

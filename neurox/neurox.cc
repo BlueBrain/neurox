@@ -98,20 +98,20 @@ static int Main_handler() {
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
     printf(
-        "neurox::%s: %d neurons, biological time: %.03f secs, solver time: "
+        "neurox::%s: %d neurons, biological time: %.04f secs, solver time: "
         "%.02f secs\n",
         synchronizer_->GetString(), neurox::neurons_count_,
-        input_params_->tstop_ / 1000, time_elapsed);
+        input_params_->tstop_ / 1000., time_elapsed);
 
 #ifdef NDEBUG
     // output benchmark info
     printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurox::neurons_count_,
            hpx_get_num_ranks(), hpx_get_num_threads(),
            neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-           input_params_->tstop_, sync_synchronizer_->GetType(),
+           input_params_->tstop_, synchronizer_->GetId(),
            input_params_->mechs_parallelism_ ? 1 : 0,
            input_params_->branch_parallelism_depth_,
-           input_params_->allreduce_at_locality_ ? 1 : 0, time_elapsed);
+           input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif
     CallAllNeurons(Synchronizer::CallClearNeuron);
