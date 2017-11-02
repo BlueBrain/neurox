@@ -78,7 +78,9 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
   double step_size = dep_min_time - b->nt_->_t;
 
-  const double min_step_size = 0.025;
+  //TODO for parallel execution, we have to set this to
+  //min_delay - time difference to last neuron running
+  const double min_step_size = neurox::min_synaptic_delay_;
   while (step_size<min_step_size) //wait for dependencies if no step or step too small
   {
     // step notification msg was not processed yet, so this branch will
