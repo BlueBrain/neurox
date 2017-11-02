@@ -1464,7 +1464,7 @@ int DataLoader::InitNetcons_handler() {
   // set of <srcAddr, minDelay> synapses to notify
   std::deque<std::pair<hpx_t, floble_t>> netcons;
 
-  // set of <srcGid, nextNotificationtime> for dependencies
+  // set of <src_gid, syn_min_delay> for dependencies
   std::deque<std::pair<int, spike_time_t>> dependencies;
 
   const floble_t impossibly_large_delay = 99999999;
@@ -1495,11 +1495,7 @@ int DataLoader::InitNetcons_handler() {
         // add this pre-syn neuron as my time-dependency
         if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll ||
             input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
-          spike_time_t notificationTime =
-              input_params_->tstart_ +
-              min_delay * TimeDependencySynchronizer::TimeDependencies::
-                              kNotificationIntervalRatio;
-          dependencies.push_back(make_pair(src_gid, notificationTime));
+          dependencies.push_back(make_pair(src_gid, min_delay));
         }
       }
     }
@@ -1509,29 +1505,30 @@ int DataLoader::InitNetcons_handler() {
   // (repeated entries will be removed by DataLoader::FilterLocalitySynapses)
   hpx_t netcons_lco = hpx_lco_and_new(netcons.size());
   int my_gid = local->soma_ ? local->soma_->gid_ : -1;
-  hpx_t top_branch_addr = HPX_NULL;
-  hpx_t branch_addr = HPX_NULL;
-  if (input_params_->locality_comm_reduce_) {
-    top_branch_addr = HPX_HERE;
-    branch_addr = HPX_HERE;
-  } else {
-    top_branch_addr =
-        local->soma_ ? target : local->branch_tree_->top_branch_addr_;
-    branch_addr = target;
-  }
+  hpx_t top_branch_addr =
+      local->soma_ ? target : local->branch_tree_->top_branch_addr_;
+  hpx_t top_branch_locality_addr =
+      input_params_->locality_comm_reduce_ ? HPX_HERE : top_branch_addr;
+
+  /* inform my pre-syn to add a synapse to the branch with address 'branch_addr'
+   or to this locality addr (for locality-based reduction of communication) */
+  hpx_t branch_addr = input_params_->locality_comm_reduce_ ? HPX_HERE : target;
   for (std::pair<hpx_t, floble_t> &nc : netcons)
     hpx_call(nc.first, DataLoader::AddSynapse, netcons_lco, &branch_addr,
-             sizeof(hpx_t), &nc.second, sizeof(nc.second), &top_branch_addr,
-             sizeof(hpx_t), &my_gid, sizeof(int));
+             sizeof(hpx_t), &nc.second, sizeof(nc.second),
+             &top_branch_locality_addr, sizeof(hpx_t), &my_gid, sizeof(int));
   hpx_lco_wait_reset(netcons_lco);
   hpx_lco_delete_sync(netcons_lco);
 
-  // inform my soma of my time dependencies
+  /* inform my soma of my time dependencies. For locality-based reduction of
+   * communication: when neuron spikes or steps, it will inform locality that
+   * will then inform this soma */
   hpx_t dependencies_lco = hpx_lco_and_new(dependencies.size());
   bool init_phase = true;
   for (std::pair<int, spike_time_t> &dep : dependencies)
-    TimeDependencySynchronizer::TimeDependencies::SendTimeUpdateMessage(
-        top_branch_addr, dependencies_lco, dep.first, dep.second, init_phase);
+    hpx_call(top_branch_addr, TimeDependencySynchronizer::UpdateTimeDependency,
+             dependencies_lco, &dep.first, sizeof(neuron_id_t), &dep.second,
+             sizeof(spike_time_t), &init_phase, sizeof(bool));
   hpx_lco_wait_reset(dependencies_lco);
   hpx_lco_delete_sync(dependencies_lco);
 
@@ -1547,35 +1544,40 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   assert(nargs == 4);
   hpx_t addr = *(const hpx_t *)args[0];
   floble_t min_delay = *(const floble_t *)args[1];
-  hpx_t synapse_soma_addr = *(const hpx_t *)args[2];
+  hpx_t soma_or_locality_addr = *(const hpx_t *)args[2];
   int destination_gid = *(const int *)args[3];
-  Neuron::Synapse *syn =
-      new Neuron::Synapse(addr, min_delay, synapse_soma_addr, destination_gid);
+  Neuron::Synapse *syn = new Neuron::Synapse(
+      addr, min_delay, soma_or_locality_addr, destination_gid);
   local->soma_->AddSynapse(syn);
   NEUROX_MEM_UNPIN
 }
 
-hpx_action_t DataLoader::FilterLocalitySynapses = 0;
-int DataLoader::FilterLocalitySynapses_handler() {
+hpx_action_t DataLoader::FilterRepeatedLocalitySynapses = 0;
+int DataLoader::FilterRepeatedLocalitySynapses_handler() {
   if (!input_params_->locality_comm_reduce_) return HPX_SUCCESS;
 
   NEUROX_MEM_PIN(Branch);
+  /* this methods takes all outgoing synapses as <locality hpx_t, min_delay>,
+   * removes all repeated localities (we have several copies), and uses only
+   * the values of the min_delay per locality */
 
   // initial synapses, several per locality
   std::vector<Neuron::Synapse *> &synapses = local->soma_->synapses_;
+
   // filtered synapses (1 per locality)
   map<hpx_t, Neuron::Synapse *> synapses_loc;
+
   for (Neuron::Synapse *s : synapses) {
-    if (synapses_loc.find(s->synapse_addr_) == synapses_loc.end()) {
-      synapses_loc[s->synapse_addr_] = s;
+    if (synapses_loc.find(s->branch_addr_) == synapses_loc.end()) {
+      synapses_loc[s->branch_addr_] = s;
       continue;
     }
 
     // synapse already exists, use only the one with min syn delay
-    Neuron::Synapse *syn_old = synapses_loc.at(s->synapse_addr_);
-    assert(syn_old->synapse_addr_ == s->synapse_addr_);
+    Neuron::Synapse *syn_old = synapses_loc.at(s->branch_addr_);
+    assert(syn_old->branch_addr_ == s->branch_addr_);
     if (s->min_delay_ < syn_old->min_delay_)
-      synapses_loc.at(s->synapse_addr_) = s;
+      synapses_loc.at(s->branch_addr_) = s;
   }
 
   synapses.clear();
@@ -1585,8 +1587,9 @@ int DataLoader::FilterLocalitySynapses_handler() {
 }
 
 void DataLoader::RegisterHpxActions() {
-  wrappers::RegisterZeroVarAction(DataLoader::FilterLocalitySynapses,
-                                  DataLoader::FilterLocalitySynapses_handler);
+  wrappers::RegisterZeroVarAction(
+      DataLoader::FilterRepeatedLocalitySynapses,
+      DataLoader::FilterRepeatedLocalitySynapses_handler);
   wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
   wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms,
                                   DataLoader::InitMechanisms_handler);

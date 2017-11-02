@@ -27,7 +27,7 @@ void AllreduceSynchronizer::ClearLocality() {
   UnsubscribeAllReduces(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::BeforeSteps(Branch* b) {
+void AllreduceSynchronizer::NeuronSyncInit(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
@@ -35,19 +35,19 @@ hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::GetMaxStep(Branch* b) {
-  return GetMaxStep2(b, kAllReducesCount);
+double AllreduceSynchronizer::GetNeuronMaxStep(Branch* b) {
+  return NeuronReduceInterval2(b, kAllReducesCount);
 }
 
-double AllreduceSynchronizer::GetLocalityReductionInterval() {
-  return AllreduceSynchronizer::GetLocalityReductionInterval2(kAllReducesCount);
+double AllreduceSynchronizer::LocalitySyncInterval() {
+  return AllreduceSynchronizer::LocalityReduceInterval2(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::LocalityReduce() {
+void AllreduceSynchronizer::LocalitySyncInit() {
   AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::AfterSteps(Branch* b, hpx_t spikesLco) {
+void AllreduceSynchronizer::NeuronSyncEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
@@ -58,7 +58,7 @@ hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, double tt) {
                                   : Branch::AddSpikeEvent;
 
   for (Neuron::Synapse*& s : neuron->synapses_)
-    hpx_call(s->synapse_addr_, spike_action, new_synapses_lco, &neuron->gid_,
+    hpx_call(s->branch_addr_, spike_action, new_synapses_lco, &neuron->gid_,
              sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   return new_synapses_lco;
 }
@@ -67,7 +67,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
                                          const int allreduces_count) {
   // if locality-reduction is on, neurons no not participate n reduction
   if (input_params_->locality_comm_reduce_) return;
-  if (!branch->soma_) return;
+  assert(branch->soma_);
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;
@@ -92,12 +92,12 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (++r == allreduces_count) r = 0;
 }
 
-double AllreduceSynchronizer::GetMaxStep2(const Branch* b,
-                                          const int allreduces_count) {
+double AllreduceSynchronizer::NeuronReduceInterval2(
+    const Branch* b, const int allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 
-double AllreduceSynchronizer::GetLocalityReductionInterval2(
+double AllreduceSynchronizer::LocalityReduceInterval2(
     const double allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }

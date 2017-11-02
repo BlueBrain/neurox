@@ -2,6 +2,7 @@
 
 #include "cvodes/cvodes_spgmr.h"
 #include "cvodes/cvodes_spils.h"
+#include "cvodes/cvodes.h"
 
 #include <set>
 
@@ -562,30 +563,55 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // get tout as time of next undelivered event (if any)
     hpx_lco_sema_p(branch->events_queue_mutex_);
-    if (!branch->events_queue_.empty()) {
+    if (!branch->events_queue_.empty())
       cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
-    }
     hpx_lco_sema_v_sync(branch->events_queue_mutex_);
 
-    // call CVODE method: steps until reaching/passing tout, or hitting root;
-    flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
-
-    if (flag == CV_ROOT_RETURN)  // CVODE succeeded and roots found
+    // call CVODE method: steps until reaching tout, or hitting root;
+    while (nt->_t < cvode_tstop)
     {
-      flag = CVodeGetRootInfo(cvode_mem, roots_found);
-      assert(flag == CV_SUCCESS);
-      assert(roots_found[0] != 0);  // only root: AP threshold reached
-      if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+      //perform several steps until hitting cvode_stop, or spiking
+      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+
+      // CVODE succeeded and roots found
+      if (flag == CV_ROOT_RETURN)
       {
-        // if root found, integrator time is now at time of root
-        hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
-        if (new_spikes_lco) {
-          // make sure only an AP occurred in between
-          assert(!spikes_lco);
-          spikes_lco = new_spikes_lco;
+        flag = CVodeGetRootInfo(cvode_mem, roots_found);
+        assert(flag == CV_SUCCESS);
+        assert(roots_found[0] != 0);  // only root: AP threshold reached
+        if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+        {
+          // if root found, integrator time is now at time of root
+          hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
+          if (new_spikes_lco) {
+            // make sure only an AP occurred in between
+            assert(!spikes_lco);
+            spikes_lco = new_spikes_lco;
+          }
+        }
+      }
+      else
+      {
+        // error test failed repeatedly or with |h| = hmin.
+        if (flag == CV_ERR_FAILURE)
+        {}
+        // convergence test failed too many times, or min-step was reached
+        else if (flag == CV_CONV_FAILURE)
+        {}
+        //must have reached end, or we are into an unhandled error
+        else
+        {
+            //success: nt->_t may have reached cvode_tstop or not;
         }
       }
     }
   }
+  /* system deadlocks if neurons cant sent notifications a bit ahead.
+   * They all depend on a step message that noone can send because its
+   * to be send in the future. So now we send notifications for upcoming
+   * messages */
+  synchronizer_->StepSync(branch, 0);
+
+  assert(fabs(nt->_t - tstop) < 0.001); // equal
   return spikes_lco;
 }

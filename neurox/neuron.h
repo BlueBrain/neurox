@@ -42,10 +42,10 @@ class Neuron {
     ~Synapse();
 
     /// address of destination branch or locality
-    hpx_t synapse_addr_;
+    hpx_t branch_addr_;
 
-    /// address of top-branch (soma) of destination neuron
-    hpx_t synapse_soma_addr_;
+    /// address of top-branch (soma) or locality of destination neuron
+    hpx_t soma_or_locality_addr_;
 
 #ifndef NDEBUG
     int destination_gid_;
@@ -54,13 +54,16 @@ class Neuron {
     floble_t next_notification_time_;
 
     /// interval  of notification in case of no spykes (fastest Netcon from
-    /// current neuron to dependant-neuron)
+    /// current neuron to dependant-neuron or dependant-locality)
     floble_t min_delay_;
     hpx_t previous_spike_lco_;  ///>lco controlling spikes delivery
   };
 
   /// fires AP, returns LCO for sent synapses
   hpx_t SendSpikes(floble_t t);
+
+  /// returns whether progress of neuron is handled by a scheduler
+  inline bool HasScheduler() {return synchronizer_step_trigger_ !=HPX_NULL;}
 
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse*);

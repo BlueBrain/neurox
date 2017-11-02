@@ -17,14 +17,12 @@ class DebugSynchronizer : public Synchronizer {
 
   void InitLocality() override;
   void ClearLocality() override;
+  double LocalitySyncInterval() override;
 
-  void BeforeSteps(Branch*) override;
-  void AfterSteps(Branch*, hpx_t) override;
-  double GetMaxStep(Branch*) override;
+  void NeuronSyncInit(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
+  double GetNeuronMaxStep(Branch*) override;
   hpx_t SendSpikes(Neuron*, double, double) override;
-
-  void Launch();
-  void Run(Branch*, const void*);
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:
