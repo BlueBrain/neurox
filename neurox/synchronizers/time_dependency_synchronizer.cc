@@ -276,7 +276,7 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch *b)
 {
-    return SendSteppingNotification(b, b->nt_->_dt);
+    return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
