@@ -590,22 +590,28 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
           }
         }
       }
-      // error test failed repeatedly or with |h| = hmin.
-      else if (flag == CV_ERR_FAILURE)
-      {}
-      // convergence test failed too many times, or min-step was reached
-      else if (flag == CV_CONV_FAILURE)
-      {}
       else
       {
-          //must have reached end, or we are into an unhandled error
-          assert(fabs(nt->_t - cvode_tstop) < 0.001); // equal
+        // error test failed repeatedly or with |h| = hmin.
+        if (flag == CV_ERR_FAILURE)
+        {}
+        // convergence test failed too many times, or min-step was reached
+        else if (flag == CV_CONV_FAILURE)
+        {}
+        //must have reached end, or we are into an unhandled error
+        else
+        {
+            //success: nt->_t may have reached cvode_tstop or not;
+        }
       }
-
-      //send missed step notification message (if any)
-      synchronizer_->StepSync(branch, 0);
     }
   }
+  /* system deadlocks if neurons cant sent notifications a bit ahead.
+   * They all depend on a step message that noone can send because its
+   * to be send in the future. So now we send notifications for upcoming
+   * messages */
+  synchronizer_->StepSync(branch, 0);
+
   assert(fabs(nt->_t - tstop) < 0.001); // equal
   return spikes_lco;
 }

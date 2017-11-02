@@ -42,6 +42,7 @@ class TimeDependencySynchronizer : public Synchronizer {
     ~TimeDependencies();
 
     void WaitForTimeDependencyNeurons(Branch* b);
+    void WaitForTimeDependencyNeurons(Branch* b, const floble_t dt);
 
     /// inform my outgoing-connection neurons that I stepped
     void SendSteppingNotification(Branch* b);
@@ -49,8 +50,7 @@ class TimeDependencySynchronizer : public Synchronizer {
 
     /// update time of a given dependency
     void UpdateTimeDependency(neuron_id_t src_gid, floble_t dependency_time,
-                              neuron_id_t my_gid = -1,
-                              bool initialization = false);
+                              neuron_id_t my_gid = -1, bool init = false);
 
     /// get smallest time across all dependencies
     floble_t GetDependenciesMinTime();

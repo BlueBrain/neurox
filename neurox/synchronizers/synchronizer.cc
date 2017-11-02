@@ -182,6 +182,9 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_UNPIN;
 }
 
+std::set<int> running1;
+std::set<int> running2;
+
 hpx_action_t Synchronizer::RunNeuron = 0;
 int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
                                     const size_t size) {
@@ -221,9 +224,15 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     // if scheduler is active: wait for scheduler signal to proceed
     if (has_scheduler) hpx_lco_wait_reset(step_trigger);
 
+    running1.insert(local->soma_->gid_);
+    running2.insert(local->soma_->gid_);
+
     // step to the next possible time instant or wait for one
+    // if size too small or zero, wait to be awake again
     // (while it waits, allow scheduler to start a new job)
     max_step = synchronizer_->GetNeuronMaxStep(local);
+    assert(max_step >= 0.025);
+
     tpause = std::min(t + max_step, tstop);
     assert(tpause > t + 0.000001);  // make sure it will step
     spikes_lco = interpolator->StepTo(local, tpause);
@@ -235,17 +244,28 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
     // decrement scheduler semaphore (wake up if necessary)
     if (has_scheduler) {
+      running1.erase(local->soma_->gid_);
+
       // increment scheduler counter to allow it to look for next job
       hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
 
+      running2.erase(local->soma_->gid_);
+
       // re-add this job to queue, to be picked up again later
       hpx_lco_sema_p(locality::neurons_progress_mutex_);
+      tpause += 0.00000001; //hack: make it not be picked as 1st job immediately
       locality::neurons_progress_->insert(std::make_pair(tpause, step_trigger));
       hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
     }
+    else
+    {
+        //wait for time dependencies!
+    }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  //printf("## Neuron %d finished\n", local->soma_->gid_);
+#ifndef NDEBUG
+  printf("## Neuron %d finished\n", local->soma_->gid_);
+#endif
   NEUROX_MEM_UNPIN;
 }
 

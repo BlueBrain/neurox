@@ -76,21 +76,24 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
   double dep_min_time = time_dependencies->GetDependenciesMinTime();
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
+  double step_size = dep_min_time - b->nt_->_t;
 
-  while (dep_min_time < b->nt_->_t + b->nt_->_dt)  // if I can't step
+  const double min_step_size = 0.025;
+  while (step_size<min_step_size) //wait for dependencies if no step or step too small
   {
-    /* step notification msg was not processed yet, so this branch will
-     * (notify scheduler to pick other neuron,) sleep and use idle cores
-     * to process arrival of stepping notifications */
+    // step notification msg was not processed yet, so this branch will
+    // (notify scheduler to pick other neuron,) sleep and use idle cores
+    // to process arrival of stepping notifications
     // hpx_lco_sema_p(locality::neurons_progress_mutex_);
-    time_dependencies->WaitForTimeDependencyNeurons(b);
+    time_dependencies->WaitForTimeDependencyNeurons(b, min_step_size);
     libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
     dep_min_time = time_dependencies->GetDependenciesMinTime();
     libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
+    step_size = dep_min_time - b->nt_->_t;
     // hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
   }
-  assert(dep_min_time > t + 0.00000001);
-  return dep_min_time - b->nt_->_t;
+  assert(step_size>0);
+  return step_size;
 }
 
 void TimeDependencySynchronizer::AfterReceiveSpikes(
@@ -268,17 +271,21 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
   libhpx_mutex_unlock(&this->dependencies_lock_);
 }
 
-
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch *b)
 {
-  // if I have no dependencies... I'm free to go!
+    return SendSteppingNotification(b, b->nt_->_dt);
+}
+
+void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
+    Branch *b, const floble_t dt)
+{
+  // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.size() == 0) return;
 
   // if this is an "end of execution notification"... no need to wait
-  if (fabs (b->nt_->_t - input_params_->tstop_) < 0.0001 ) return;
-
   const floble_t t = b->nt_->_t;
+  if (fabs (t - input_params_->tstop_) < 0.0001 ) return;
 
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
   const int gid = b->soma_->gid_;
@@ -330,11 +337,12 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
   const floble_t t = b->nt_->_t;
   const neuron_id_t gid = b->soma_->gid_;
 
-  //avoid sending repeated notifications
+  //avoid sending repeated notifications (useful on variable dt)
   if (t == this->last_notification_time_) return;
 
-  //avoid sending messages that are too close
-  //if (t - this->last_notification_time_ < 0.0)
+  //TODO: avoid sending messages that are too close
+  //if (t - this->last_notification_time_ < neurox::min_synaptic_delay/2) return;
+
   this->last_notification_time_ = t;
 
   const hpx_action_t update_time_dep_action =
@@ -342,15 +350,18 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
-  printf("=============== Neuron %d informs step at %.5f\n", gid, t);
+  //printf("=============== Neuron %d informs step at %.5f :", gid, t);
 
   for (Neuron::Synapse*& s : synapses) {
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
-    if (s->next_notification_time_ - kTEps <= t + dt) {
+    //printf("%d (", s->destination_gid_);
+    if (dt == 0 || s->next_notification_time_ - kTEps <= t + dt) {
 
+      //printf("%f),", s->next_notification_time_);
       s->next_notification_time_ =
         t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
+
 
       //commented: for variable dt, one can jump ahead of notification time
       //assert(s->next_notification_time_ >= t);
@@ -368,6 +379,8 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 #endif
     }
   }
+
+  //printf("\n");
 }
 
 hpx_action_t TimeDependencySynchronizer::UpdateTimeDependency = 0;
