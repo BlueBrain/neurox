@@ -239,7 +239,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler
      && (this->synchronizer_ == SynchronizerIds::kTimeDependency
      || this->synchronizer_ == SynchronizerIds::kBenchmarkAll)
-     && this->locality_comm_reduce_==false);
+     && this->locality_comm_reduce_==false)
     {
         throw TCLAP::ArgException(
             "variable time-step size with time-dependency synchronizer "
