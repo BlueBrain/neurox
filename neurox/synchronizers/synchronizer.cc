@@ -238,19 +238,17 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
     // decrement scheduler semaphore (wake up if necessary)
     if (has_scheduler) {
-
       // increment scheduler counter to allow it to look for next job
       hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
 
       // re-add this job to queue, to be picked up again later
       hpx_lco_sema_p(locality::neurons_progress_mutex_);
-      tpause += 0.00000001; //hack: make it not be picked as 1st job immediately
+      // hack: make it not be picked by scheduler immediately
+      tpause += 0.00000001;
       locality::neurons_progress_->insert(std::make_pair(tpause, step_trigger));
       hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-    }
-    else
-    {
-        //wait for time dependencies!
+    } else {
+      // wait for time dependencies!
     }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;

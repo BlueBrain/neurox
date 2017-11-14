@@ -5,6 +5,7 @@
 
 using namespace neurox::tools;
 using namespace neurox::interpolators;
+using namespace neurox::synchronizers;
 
 CmdLineParser::CmdLineParser()
     :  // from nrnoptarg.cpp::cn_parameters():
@@ -188,14 +189,22 @@ void CmdLineParser::Parse(int argc, char** argv) {
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
     floble_t remainder_tstop_tcomm =
-        fmod(this->tstop_, neurox::min_synaptic_delay_);
+        fmod(this->tstop_ , neurox::min_synaptic_delay_);
 
     if (this->branch_parallelism_depth_ > 0 &&
         this->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 
-    // handling of dt for variable-step interpolations
+    if (!(fabs(remainder_tstop_tcomm) > 0.000000001
+     || fabs(remainder_tstop_tcomm) < neurox::min_synaptic_delay_ - 0.000000001))
+      throw TCLAP::ArgException(
+          "execution time " + to_string(this->tstop_) +
+              "ms should be a multiple of the communication delay " +
+              to_string(neurox::min_synaptic_delay_) + " ms",
+          "tstop");
+
+    // handling of default dt for variable-step interpolations
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler) {
       if (!dt.isSet())  // if not user-provided
       {
@@ -218,14 +227,25 @@ void CmdLineParser::Parse(int argc, char** argv) {
       if (this->dt_ <= 0)
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");
+    }
 
-      if (!(remainder_tstop_tcomm < 0.00001 ||
-            remainder_tstop_tcomm > neurox::min_synaptic_delay_ - 0.00001))
+   /* variable step cannot be run with time-dependency synchronizer
+    * without a scheduler (because WaitForTimeDependencies does not
+    * know the step-size to wait for -- it's decided by CVODE).
+    * The scheduler indicates the step-size as the time of the
+    * dependency which is closest in time, so no need to perform the
+    * call to WaitForTimeDependencies. This condition enforces it.
+    */
+    if (this->interpolator_ != InterpolatorIds::kBackwardEuler
+     && (this->synchronizer_ == SynchronizerIds::kTimeDependency
+     || this->synchronizer_ == SynchronizerIds::kBenchmarkAll)
+     && this->locality_comm_reduce_==false);
+    {
         throw TCLAP::ArgException(
-            "execution time " + to_string(this->tstop_) +
-                "ms should be a multiple of the communication delay " +
-                to_string(neurox::min_synaptic_delay_) + " ms",
-            "tstop");
+            "variable time-step size with time-dependency synchronizer "
+            "requires locality-level communication reduction",
+            "-C or --comm-reduce");
+        this->locality_comm_reduce_=true;
     }
 
   } catch (TCLAP::ArgException& e) {

@@ -149,12 +149,8 @@ void Debugger::StepAfterStepFinitialize(Branch *b, NrnThread *nth) {
 void Debugger::StepAfterStepBackwardEuler(Branch *b, NrnThread *nth,
                                           int secondorder) {
   double dt = b->nt_->_dt;
-  if (b->soma_ &&
-      input_params_->synchronizer_ ==
-          neurox::synchronizers::SynchronizerIds::kTimeDependency) {
-    synchronizer_->StepSync(b);
-  }
   if (b->soma_) {
+    synchronizer_->StepSync(b);
     // Soma waits for AIS to have threshold V value updated
     floble_t thresholdV;
     HinesSolver::SynchronizeThresholdV(b, &thresholdV);

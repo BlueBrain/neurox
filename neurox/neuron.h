@@ -63,7 +63,7 @@ class Neuron {
   hpx_t SendSpikes(floble_t t);
 
   /// returns whether progress of neuron is handled by a scheduler
-  inline bool HasScheduler() {return synchronizer_step_trigger_ !=HPX_NULL;}
+  inline bool HasScheduler() { return synchronizer_step_trigger_ != HPX_NULL; }
 
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse*);
