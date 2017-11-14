@@ -59,7 +59,8 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
          -DENABLE_OPENACC_INFO=OFF \
          -DENABLE_REPORTINGLIB=OFF \
          -DUNIT_TESTS=OFF \
-         -DFUNCTIONAL_TESTS=OFF
+         -DFUNCTIONAL_TESTS=OFF \
+         -DCORENEURON_MAIN=OFF
 ```
 
 ## Execution
