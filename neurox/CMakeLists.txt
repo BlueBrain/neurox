@@ -40,7 +40,7 @@ ELSE()
 ENDIF()
 
 # Include CVODES (Cmake/FindCVODES.cmake)
-find_package(CVODES 2.9.0 REQUIRED)
+find_package(CVODES 3.1.0 REQUIRED)
 include_directories(${CVODES_INCLUDE_DIRS})
 link_directories(${CVODES_LIBRARIES})
 #message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
