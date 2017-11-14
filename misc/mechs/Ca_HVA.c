@@ -88,7 +88,9 @@ extern double hoc_Exp(double);
 #define nrn_jacob_launcher nrn_jacob_Ca_HVA_launcher 
 #define rates rates_Ca_HVA 
 #define states states_Ca_HVA 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__Ca_HVA
+#define _ode_spec1 _nrn_ode_spec1__Ca_HVA
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -216,6 +218,17 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _ca_type;
  
+ void _nrn_ode_state_vars__Ca_HVA(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 2;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 2;
+     (*var_offsets)[1] = 3;
+     (*dv_offsets)[0] = 14;
+     (*dv_offsets)[1] = 15;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -267,7 +280,7 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsproto_);
  
-static int _ode_spec1(_threadargsproto_);
+int _ode_spec1(_threadargsproto_);
 /*static int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_Ca_HVA
@@ -280,14 +293,14 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    rates ( _threadargs_ ) ;
    Dm = ( mInf - m ) / mTau ;
    Dh = ( hInf - h ) / hTau ;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  rates ( _threadargs_ ) ;
  Dm = Dm  / (1. - dt*( ( ( ( - 1.0 ) ) ) / mTau )) ;
  Dh = Dh  / (1. - dt*( ( ( ( - 1.0 ) ) ) / hTau )) ;
@@ -390,7 +403,7 @@ for (;;) { /* help clang-format properly indent */
  //populate offsets arrays //(if parallel processing)
  if (_ml->_shadow_didv_offsets)
  {
-   _ml->_shadow_i_offsets[_iml] = _ppvar[1];
+   _ml->_shadow_i_offsets[_iml] = _ppvar[1*_STRIDE];
    _ml->_shadow_didv_offsets[_iml] = _ppvar[2*_STRIDE];
  }
  }

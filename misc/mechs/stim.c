@@ -86,6 +86,8 @@ extern double hoc_Exp(double);
 #define nrn_state_launcher nrn_state_IClamp_launcher
 #define nrn_cur_launcher nrn_cur_IClamp_launcher
 #define nrn_jacob_launcher nrn_jacob_IClamp_launcher 
+#define _ode_matsol1 _nrn_ode_matsol1__IClamp
+#define _ode_spec1 _nrn_ode_spec1__IClamp
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -227,6 +229,13 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0,
  0};
  
+ void _nrn_ode_state_vars__IClamp(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 0;
+     (*var_offsets) = NULL;
+     (*dv_offsets) = NULL;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -273,6 +282,15 @@ static int error;
 static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
+
+/*CVODE*/
+int _ode_spec1 (_threadargsproto_) {
+    return 0;
+}
+int _ode_matsol1 (_threadargsproto_) {
+    return 0;
+}
+/*END CVODE*/
 
 static void initmodel(_threadargsproto_) {
   int _i; double _save;{

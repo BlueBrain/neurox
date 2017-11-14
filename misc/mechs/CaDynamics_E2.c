@@ -86,6 +86,8 @@ extern double hoc_Exp(double);
 #define nrn_cur_launcher nrn_cur_CaDynamics_E2_launcher
 #define nrn_jacob_launcher nrn_jacob_CaDynamics_E2_launcher 
 #define states states_CaDynamics_E2 
+#define _ode_matsol1 _nrn_ode_matsol1__CaDynamics_E2
+#define _ode_spec1 _nrn_ode_spec1__CaDynamics_E2
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -204,6 +206,15 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _ca_type;
  
+void _nrn_ode_state_vars__CaDynamics_E2(short * count, short** var_offsets, short ** dv_offsets)
+{
+    *count = 1;
+    (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+    (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+    (*var_offsets)[0] = 5;
+    (*dv_offsets)[0] = 6;
+}
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -262,7 +273,7 @@ static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
  
-static int _ode_spec1(_threadargsproto_);
+int _ode_spec1(_threadargsproto_);
 /*static int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_CaDynamics_E2
@@ -275,12 +286,12 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+ int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    Dcai = - ( 10000.0 ) * ( ica * gamma / ( 2.0 * FARADAY * depth ) ) - ( cai - minCai ) / decay ;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+ int _ode_matsol1 (_threadargsproto_) {
  Dcai = Dcai  / (1. - dt*( ( - ( ( 1.0 ) ) / decay ) )) ;
  return 0;
 }

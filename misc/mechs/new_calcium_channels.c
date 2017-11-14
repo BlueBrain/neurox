@@ -91,7 +91,9 @@ extern double hoc_Exp(double);
 #define nrn_jacob_launcher nrn_jacob_cc_launcher 
 #define settables settables_cc 
 #define states states_cc 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__cc
+#define _ode_spec1 _nrn_ode_spec1__cc
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -355,6 +357,26 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  static int _ca_type;
  static int _k_type;
  
+
+ void _nrn_ode_state_vars__cc(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 6;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 10;
+     (*var_offsets)[1] = 11;
+     (*var_offsets)[2] = 12;
+     (*var_offsets)[3] = 13;
+     (*var_offsets)[4] = 14;
+     (*var_offsets)[5] = 15;
+     (*dv_offsets)[0] = 29;
+     (*dv_offsets)[1] = 30;
+     (*dv_offsets)[2] = 31;
+     (*dv_offsets)[3] = 32;
+     (*dv_offsets)[4] = 33;
+     (*dv_offsets)[5] = 34;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -429,8 +451,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int settables(_threadargsprotocomma_ double);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_cc
 int* _slist1;
@@ -442,7 +464,7 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    double _linf , _ltau ;
  settables ( _threadargscomma_ v ) ;
    Dmpcal = ( ( mpcalinf - mpcal ) / mpcaltau ) ;
@@ -458,7 +480,7 @@ int* _dlist1;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  double _linf , _ltau ;
  settables ( _threadargscomma_ v ) ;
  Dmpcal = Dmpcal  / (1. - dt*( ( ( ( ( - 1.0 ) ) ) / mpcaltau ) )) ;

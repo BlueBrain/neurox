@@ -91,6 +91,8 @@ extern double hoc_Exp(double);
 #define nrn_jacob_launcher nrn_jacob_hh_launcher 
 #define rates rates_hh 
 #define states states_hh 
+#define _ode_matsol1 _nrn_ode_matsol1__hh
+#define _ode_spec1 _nrn_ode_spec1__hh
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -265,6 +267,19 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  static int _na_type;
  static int _k_type;
  
+ void _nrn_ode_state_vars__hh(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 3;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 13;
+     (*var_offsets)[1] = 14;
+     (*var_offsets)[2] = 15;
+     (*dv_offsets)[0] = 16;
+     (*dv_offsets)[1] = 17;
+     (*dv_offsets)[2] = 18;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -329,8 +344,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsprotocomma_ double);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_hh
 int* _slist1;
@@ -342,7 +357,7 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    rates ( _threadargscomma_ v ) ;
    Dm = ( minf - m ) / mtau ;
    Dh = ( hinf - h ) / htau ;
@@ -350,7 +365,7 @@ int* _dlist1;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  rates ( _threadargscomma_ v ) ;
  Dm = Dm  / (1. - dt*( ( ( ( - 1.0 ) ) ) / mtau )) ;
  Dh = Dh  / (1. - dt*( ( ( ( - 1.0 ) ) ) / htau )) ;
@@ -358,7 +373,7 @@ int* _dlist1;
  return 0;
 }
  /*END CVODE*/
- static int states (_threadargsproto_) { {
+int states (_threadargsproto_) { {
    rates ( _threadargscomma_ v ) ;
     m = m + (1. - exp(dt*(( ( ( - 1.0 ) ) ) / mtau)))*(- ( ( ( minf ) ) / mtau ) / ( ( ( ( - 1.0) ) ) / mtau ) - m) ;
     h = h + (1. - exp(dt*(( ( ( - 1.0 ) ) ) / htau)))*(- ( ( ( hinf ) ) / htau ) / ( ( ( ( - 1.0) ) ) / htau ) - h) ;

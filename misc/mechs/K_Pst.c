@@ -85,21 +85,23 @@ extern double hoc_Exp(double);
 #define _net_receive _net_receive__K_Pst
 #define nrn_state_launcher nrn_state_K_Pst_launcher
 #define nrn_cur_launcher nrn_cur_K_Pst_launcher
-#define nrn_jacob_launcher nrn_jacob_K_Pst_launcher 
-#define rates rates_K_Pst 
-#define states states_K_Pst 
- 
+#define nrn_jacob_launcher nrn_jacob_K_Pst_launcher
+#define rates rates_K_Pst
+#define states states_K_Pst
+#define _ode_matsol1 _nrn_ode_matsol1__K_Pst
+#define _ode_spec1 _nrn_ode_spec1__K_Pst
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
 #define _threadargsproto_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v
- 	/*SUPPRESS 761*/
-	/*SUPPRESS 762*/
-	/*SUPPRESS 763*/
-	/*SUPPRESS 765*/
-	 extern double *getarg();
+        /*SUPPRESS 761*/
+        /*SUPPRESS 762*/
+        /*SUPPRESS 763*/
+        /*SUPPRESS 765*/
+         extern double *getarg();
  /* Thread safe. No static _p or _ppvar. */
- 
+
 #define t _nt->_t
 #define dt _nt->_dt
 #define gK_Pstbar _p[0*_STRIDE]
@@ -116,7 +118,7 @@ extern double hoc_Exp(double);
 #define Dh _p[11*_STRIDE]
 #define _v_unused _p[12*_STRIDE]
 #define _g_unused _p[13*_STRIDE]
- 
+
 #ifndef NRN_PRCELLSTATE
 #define NRN_PRCELLSTATE 0
 #endif
@@ -130,7 +132,7 @@ extern double hoc_Exp(double);
 #define _ion_ek		_nt_data[_ppvar[0*_STRIDE]]
 #define _ion_ik	_nt_data[_ppvar[1*_STRIDE]]
 #define _ion_dikdv	_nt_data[_ppvar[2*_STRIDE]]
- 
+
 #if MAC
 #if !defined(v)
 #define v _mlhv
@@ -139,14 +141,14 @@ extern double hoc_Exp(double);
 #define h _mlhh
 #endif
 #endif
- 
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
  static int hoc_nrnpointerindex =  -1;
  static ThreadDatum* _extcall_thread;
  /* external NEURON variables */
- 
+
 #if 0 /*BBCORE*/
  /* declaration of user functions */
  static void _hoc_rates(void);
@@ -214,6 +216,17 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _k_type;
  
+ void _nrn_ode_state_vars__K_Pst(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 2;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 3;
+     (*var_offsets)[1] = 4;
+     (*dv_offsets)[0] = 10;
+     (*dv_offsets)[1] = 11;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -265,8 +278,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsproto_);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_K_Pst
 int* _slist1;
@@ -278,14 +291,14 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    rates ( _threadargs_ ) ;
    Dm = ( mInf - m ) / mTau ;
    Dh = ( hInf - h ) / hTau ;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  rates ( _threadargs_ ) ;
  Dm = Dm  / (1. - dt*( ( ( ( - 1.0 ) ) ) / mTau )) ;
  Dh = Dh  / (1. - dt*( ( ( ( - 1.0 ) ) ) / hTau )) ;

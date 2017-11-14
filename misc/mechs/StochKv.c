@@ -94,7 +94,9 @@ extern double hoc_Exp(double);
 #define setRNG setRNG_StochKv 
 #define states states_StochKv 
 #define trates trates_StochKv 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__StochKv
+#define _ode_spec1 _nrn_ode_spec1__StochKv
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -359,6 +361,16 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _k_type;
  
+ void _nrn_ode_state_vars__StochKv(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     assert(0);
+     *count = 1;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 10;
+     (*dv_offsets)[0] = 15;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -433,8 +445,8 @@ static int _f_trates(_threadargsprotocomma_ double);
 static int setRNG(_threadargsproto_);
 static int trates(_threadargsprotocomma_ double);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  static void _n_trates(_threadargsprotocomma_ double _lv);
  
 #define _slist1 _slist1_StochKv
@@ -461,7 +473,7 @@ void* nrn_random_arg(int argpos);
 
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    trates ( _threadargscomma_ v ) ;
    Dn = a - ( a + b ) * n ;
    if ( deterministic  || dt > 1.0 ) {
@@ -481,7 +493,7 @@ void* nrn_random_arg(int argpos);
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  trates ( _threadargscomma_ v ) ;
  Dn = Dn  / (1. - dt*( ( - (( a + b ))*(1.0) ) )) ;
  return 0;

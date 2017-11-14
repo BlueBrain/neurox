@@ -88,7 +88,9 @@ extern double hoc_Exp(double);
 #define nrn_jacob_launcher nrn_jacob_NaTs2_t_launcher 
 #define rates rates_NaTs2_t 
 #define states states_NaTs2_t 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__NaTs2_t
+#define _ode_spec1 _nrn_ode_spec1__NaTs2_t
+
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
 #define _threadargs_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v
@@ -223,6 +225,17 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  static int _na_type;
  static int _ttx_type;
  
+ void _nrn_ode_state_vars__NaTs2_t(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 2;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 3;
+     (*var_offsets)[1] = 4;
+     (*dv_offsets)[0] = 16;
+     (*dv_offsets)[1] = 17;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -282,8 +295,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsproto_);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_NaTs2_t
 int* _slist1;
@@ -295,7 +308,7 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    if ( ttxi  == 0.015625  && ttxo > 1e-12 ) {
      mInf = 0.0 ;
      mTau = 1e-12 ;
@@ -310,7 +323,7 @@ int* _dlist1;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  if ( ttxi  == 0.015625  && ttxo > 1e-12 ) {
    mInf = 0.0 ;
    mTau = 1e-12 ;

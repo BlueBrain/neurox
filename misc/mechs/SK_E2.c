@@ -88,6 +88,8 @@ extern double hoc_Exp(double);
 #define nrn_jacob_launcher nrn_jacob_SK_E2_launcher 
 #define rates rates_SK_E2 
 #define states states_SK_E2 
+#define _ode_matsol1 _nrn_ode_matsol1__SK_E2
+#define _ode_spec1 _nrn_ode_spec1__SK_E2
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -215,7 +217,16 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
  0};
  static int _k_type;
  static int _ca_type;
- 
+
+ void _nrn_ode_state_vars__SK_E2(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 1;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 3;
+     (*dv_offsets)[0] = 7;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -273,8 +284,8 @@ static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int rates(_threadargsprotocomma_ double);
  
-static int _ode_spec1(_threadargsproto_);
-/*static int _ode_matsol1(_threadargsproto_);*/
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
  
 #define _slist1 _slist1_SK_E2
 int* _slist1;
@@ -286,13 +297,13 @@ int* _dlist1;
  static inline int states(_threadargsproto_);
  
 /*CVODE*/
- static int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
    rates ( _threadargscomma_ cai ) ;
    Dz = ( zInf - z ) / zTau ;
    }
  return _reset;
 }
- static int _ode_matsol1 (_threadargsproto_) {
+int _ode_matsol1 (_threadargsproto_) {
  rates ( _threadargscomma_ cai ) ;
  Dz = Dz  / (1. - dt*( ( ( ( - 1.0 ) ) ) / zTau )) ;
  return 0;

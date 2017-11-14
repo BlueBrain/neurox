@@ -7,11 +7,14 @@
 #undef PI
  
 #include "coreneuron/nrnoc/md1redef.h"
-#include "coreneuron/coreneuron.h"
+#include "coreneuron/nrnconf.h"
+#include "coreneuron/nrnoc/multicore.h"
 
 #if defined(_OPENACC) && !defined(DISABLE_OPENACC)
 #include "coreneuron/nrniv/nrn_acc_manager.h"
+
 #endif
+#include "coreneuron/utils/randoms/nrnran123.h"
 
 #include "coreneuron/nrnoc/md2redef.h"
 #if METHOD3
@@ -26,7 +29,7 @@ extern int _method3;
 extern double hoc_Exp(double);
 #endif
  
-#define _thread_present_ /**/ 
+#define _thread_present_ /**/ , _slist1[0:4], _dlist1[0:4] 
  
 #if defined(_OPENACC) && !defined(DISABLE_OPENACC)
 #include <openacc.h>
@@ -99,6 +102,9 @@ static void _net_buf_receive(_NrnThread*);
  
 #define setRNG setRNG_ProbAMPANMDA_EMS 
 #define state state_ProbAMPANMDA_EMS 
+#define _ode_matsol1 _nrn_ode_matsol1__ProbAMPANMDA_EMS
+#define _ode_spec1 _nrn_ode_spec1__ProbAMPANMDA_EMS
+
  
 #define _threadargscomma_ _iml, _cntml_padded, _p, _ppvar, _thread, _nt, v,
 #define _threadargsprotocomma_ int _iml, int _cntml_padded, double* _p, Datum* _ppvar, ThreadDatum* _thread, _NrnThread* _nt, double v,
@@ -187,7 +193,6 @@ extern "C" {
 #if 0 /*BBCORE*/
  /* declaration of user functions */
  static double _hoc_setRNG();
- static double _hoc_state();
  static double _hoc_toggleVerbose();
  static double _hoc_urand();
  
@@ -225,7 +230,6 @@ extern Memb_func* memb_func;
  "has_loc", _hoc_has_loc,
  "get_loc", _hoc_get_loc_pnt,
  "setRNG", _hoc_setRNG,
- "state", _hoc_state,
  "toggleVerbose", _hoc_toggleVerbose,
  "urand", _hoc_urand,
  0, 0
@@ -301,8 +305,6 @@ void nrn_state(_NrnThread*, _Memb_list*, int);
 }
  
 #endif /*BBCORE*/
- 
-static int _ode_count(int);
  /* connect range variables in _p that hoc is supposed to know about */
  static const char *_mechanism[] = {
  "6.2.0",
@@ -344,6 +346,22 @@ static int _ode_count(int);
  "rng",
  0};
  
+
+ void _nrn_ode_state_vars__ProbAMPANMDA_EMS(short * count, short** var_offsets, short ** dv_offsets)
+ {
+     *count = 4;
+     (*var_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*dv_offsets) = (short*) malloc(sizeof(short)* *count);
+     (*var_offsets)[0] = 27;
+     (*var_offsets)[1] = 28;
+     (*var_offsets)[2] = 29;
+     (*var_offsets)[3] = 30;
+     (*dv_offsets)[0] = 34;
+     (*dv_offsets)[1] = 35;
+     (*dv_offsets)[2] = 36;
+     (*dv_offsets)[3] = 37;
+ }
+
 static void nrn_alloc(double* _p, Datum* _ppvar, int _type) {
  
 #if 0 /*BBCORE*/
@@ -414,33 +432,47 @@ static int _ninits = 0;
 static int _match_recurse=1;
 static void _modl_cleanup(){ _match_recurse=1;}
 static int setRNG(_threadargsproto_);
-static int state(_threadargsproto_);
+ 
+int _ode_spec1(_threadargsproto_);
+/*int _ode_matsol1(_threadargsproto_);*/
+ 
+#define _slist1 _slist1_ProbAMPANMDA_EMS
+int* _slist1;
+#pragma acc declare create(_slist1)
+
+#define _dlist1 _dlist1_ProbAMPANMDA_EMS
+int* _dlist1;
+#pragma acc declare create(_dlist1)
+ static inline int state(_threadargsproto_);
  
 /*VERBATIM*/
 #include "nrnran123.h"
  
-static int  state ( _threadargsproto_ ) {
-   A_AMPA = A_AMPA * A_AMPA_step ;
-   B_AMPA = B_AMPA * B_AMPA_step ;
-   A_NMDA = A_NMDA * A_NMDA_step ;
-   B_NMDA = B_NMDA * B_NMDA_step ;
-    return 0; }
- 
-#if 0 /*BBCORE*/
- 
-static double _hoc_state(void* _vptr) {
- double _r;
-   double* _p; Datum* _ppvar; ThreadDatum* _thread; _NrnThread* _nt;
-   _p = ((Point_process*)_vptr)->_prop->param;
-  _ppvar = ((Point_process*)_vptr)->_prop->dparam;
-  _thread = _extcall_thread;
-  _nt = (_NrnThread*)((Point_process*)_vptr)->_vnt;
- _r = 1.;
- state ( _threadargs_ );
- return(_r);
+/*CVODE*/
+int _ode_spec1 (_threadargsproto_) {int _reset = 0; {
+   DA_AMPA = - A_AMPA / tau_r_AMPA ;
+   DB_AMPA = - B_AMPA / tau_d_AMPA ;
+   DA_NMDA = - A_NMDA / tau_r_NMDA ;
+   DB_NMDA = - B_NMDA / tau_d_NMDA ;
+   }
+ return _reset;
 }
- 
-#endif /*BBCORE*/
+int _ode_matsol1 (_threadargsproto_) {
+ DA_AMPA = DA_AMPA  / (1. - dt*( ( - 1.0 ) / tau_r_AMPA )) ;
+ DB_AMPA = DB_AMPA  / (1. - dt*( ( - 1.0 ) / tau_d_AMPA )) ;
+ DA_NMDA = DA_NMDA  / (1. - dt*( ( - 1.0 ) / tau_r_NMDA )) ;
+ DB_NMDA = DB_NMDA  / (1. - dt*( ( - 1.0 ) / tau_d_NMDA )) ;
+ return 0;
+}
+ /*END CVODE*/
+ static int state (_threadargsproto_) { {
+    A_AMPA = A_AMPA + (1. - exp(dt*(( - 1.0 ) / tau_r_AMPA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_r_AMPA ) - A_AMPA) ;
+    B_AMPA = B_AMPA + (1. - exp(dt*(( - 1.0 ) / tau_d_AMPA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_d_AMPA ) - B_AMPA) ;
+    A_NMDA = A_NMDA + (1. - exp(dt*(( - 1.0 ) / tau_r_NMDA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_r_NMDA ) - A_NMDA) ;
+    B_NMDA = B_NMDA + (1. - exp(dt*(( - 1.0 ) / tau_d_NMDA)))*(- ( 0.0 ) / ( ( - 1.0 ) / tau_d_NMDA ) - B_NMDA) ;
+   }
+  return 0;
+}
  
 #if NET_RECEIVE_BUFFERING 
 #undef t
@@ -527,6 +559,7 @@ void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_ind
    _args = _weights + _weight_index;
    _cntml_actual = _ml->_nodecount;
    _cntml_padded = _ml->_nodecount_padded;
+
 #if LAYOUT == 1 /*AoS*/
    _p = _ml->_data + _iml*_psize; _ppvar = _ml->_pdata + _iml*_ppsize;
 #endif
@@ -739,8 +772,6 @@ static double _hoc_toggleVerbose(void* _vptr) {
 }
  
 #endif /*BBCORE*/
- 
-static int _ode_count(int _type){ hoc_execerror("ProbAMPANMDA_EMS", "cannot be used with CVODE"); return 0;}
 
 static void initmodel(_threadargsproto_) {
   int _i; double _save;{
@@ -819,6 +850,13 @@ for (;;) { /* help clang-format properly indent */
  v = _v;
  _PRCELLSTATE_V
  initmodel(_threadargs_);
+
+ //populate offsets arrays //(if parallel processing)
+ if (_ml->_shadow_didv_offsets)
+ {
+   _ml->_shadow_i_offsets[_iml] = _ppvar[1*_STRIDE];
+   _ml->_shadow_didv_offsets[_iml] = _ppvar[2*_STRIDE];
+ }
 }
 }
 
@@ -841,7 +879,6 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_jacob_launcher(_NrnThread*, _Memb_list*, int, int);
   void nrn_cur_launcher(_NrnThread*, _Memb_list*, int, int);
 #endif
-
 
   void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
     nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
@@ -890,8 +927,8 @@ for (;;) { /* help clang-format properly indent */
     _v = _vec_v[_nd_idx];
     _PRCELLSTATE_V
  _g = _nrn_current(_threadargs_, _v + .001);
- 	{ _rhs = _nrn_current(_threadargs_, _v);
- 	}
+        { _rhs = _nrn_current(_threadargs_, _v);
+        }
  _g = (_g - _rhs)/.001;
  double _mfact =  1.e2/(_nd_area);
  _g *=  _mfact;
@@ -949,7 +986,7 @@ for (;;) { /* help clang-format properly indent */
     _PRCELLSTATE_V
  v=_v;
 {
- {  { state(_threadargs_); }
+ {   state(_threadargs_);
   }}}
 
 }
@@ -963,6 +1000,16 @@ static void _initlists(){
  int _cntml_padded=1;
  int _iml=0;
   if (!_first) return;
+ 
+ _slist1 = (int*)malloc(sizeof(int)*4);
+ _dlist1 = (int*)malloc(sizeof(int)*4);
+ _slist1[0] = &(A_AMPA) - _p;  _dlist1[0] = &(DA_AMPA) - _p;
+ _slist1[1] = &(B_AMPA) - _p;  _dlist1[1] = &(DB_AMPA) - _p;
+ _slist1[2] = &(A_NMDA) - _p;  _dlist1[2] = &(DA_NMDA) - _p;
+ _slist1[3] = &(B_NMDA) - _p;  _dlist1[3] = &(DB_NMDA) - _p;
+ #pragma acc enter data copyin(_slist1[0:4])
+ #pragma acc enter data copyin(_dlist1[0:4])
+
 _first = 0;
 }
 
