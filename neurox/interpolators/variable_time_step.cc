@@ -1,7 +1,8 @@
 #include "neurox/interpolators/variable_time_step.h"
 
 #include "cvodes/cvodes.h"
-#include "cvodes/cvodes_spgmr.h"
+#include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver      */
+
 #include "cvodes/cvodes_spils.h"
 
 #include <set>
@@ -173,10 +174,11 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
 }
 
 // jacobian routine: compute J(t,y) = df/dy
-int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
-                                    N_Vector fy, DlsMat J, void *user_data,
+int VariableTimeStep::JacobianDense(realtype t, N_Vector y, N_Vector fy,
+                                    SUNMatrix J, void *user_data,
                                     N_Vector, N_Vector, N_Vector) {
-  realtype **jac = J->cols;
+  _SUNMatrixContent_Dense * content = (_SUNMatrixContent_Dense *) J->content;
+  realtype **jac = content->cols;
   Branch *branch = (Branch *)user_data;
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
@@ -256,7 +258,6 @@ int VariableTimeStep::JacobianDense(long int N, realtype t, N_Vector y,
         dv_offset++;
       }
   }
-  assert(dv_offset == N);
   printf("Jac neuron %d, t%.10f\n", branch->soma_->gid_, t);
   double *y_data = NV_DATA_S(y);
   // for (int i=0; i<N; i++)
@@ -464,12 +465,24 @@ void VariableTimeStep::Init(Branch *branch) {
       cvode_mem->cv_linit = nullptr;
       cvode_mem->cv_lsetup = nullptr;
       cvode_mem->cv_lfree = nullptr;
-      cvode_mem->cv_setupNonNull = FALSE;
+      //cvode_mem->cv_setupNonNull = FALSE;
       cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
     }
-    case InterpolatorIds::kCvodeDenseMatrix:
-      flag = CVDense(cvode_mem, equations_count);
+    case InterpolatorIds::kCvodeDenseMatrix: {
+      /* Create dense SUNMatrix for use in linear solver */
+      SUNMatrix A = SUNDenseMatrix(equations_count, equations_count);
+      assert(A);
+
+      /* Create dense SUNLinearSolver object for use by CVode */
+      SUNLinearSolver LS = SUNDenseLinearSolver(this->y_, A);
+      assert(LS);
+
+      /* Call CVDlsSetLinearSolver to attach the matrix and linear solver to CVode */
+      flag = CVDlsSetLinearSolver(cvode_mem, LS, A);
+      assert(flag);
+
+      flag = CVDlsSetJacFn(cvode_mem, VariableTimeStep::JacobianDense);
       if (flag == CVDLS_MEM_FAIL) {
         throw std::runtime_error(
             "ERROR: can't allocate memory for dense jacobian for gid " +
@@ -477,6 +490,7 @@ void VariableTimeStep::Init(Branch *branch) {
             to_string(equations_count) + " equations.\n");
       }
       break;
+    }
     case InterpolatorIds::kCvodeDiagonalMatrix:
       flag = CVDiag(cvode_mem);
       break;
@@ -490,9 +504,7 @@ void VariableTimeStep::Init(Branch *branch) {
       // flag = CVKLU(cvode_mem, 1, equations_count, nnz);
       // flag = CVSuperLUMT(cvode_mem, 1, equations_count, nnz);
 
-      // if not found, uses a dense matrix with sparse values
-      flag = CVDense(cvode_mem, equations_count);
-      flag = CVDlsSetDenseJacFn(cvode_mem, VariableTimeStep::JacobianDense);
+      // if not found, uses a dense matrix with sparse values (copy from above)
       break;
   }
   assert(flag == CV_SUCCESS);

@@ -11,8 +11,10 @@
 #include <sundials/sundials_sparse.h> /* definitions SlsMat */
 
 // For Dense Matrix resolutions
-#include <cvodes/cvodes_dense.h>     /* prototype for CVDense */
-#include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
+#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
+#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
+#include <cvodes/cvodes_direct.h>      /* access to CVDls interface            */
+#include <sundials/sundials_types.h>   /* defs. of realtype, sunindextype      */
 
 // For Pre-conditioned matrix solvers
 #include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
@@ -110,8 +112,8 @@ class VariableTimeStep : public Interpolator {
                           void *user_data);
 
   /// jacobian function: compute J(t,y) on a dense matrix
-  static int JacobianDense(long int N, floble_t t, N_Vector y_, N_Vector fy,
-                           DlsMat J, void *user_data, N_Vector tmp1,
+  static int JacobianDense(floble_t t, N_Vector y_, N_Vector fy,
+                           SUNMatrix J, void *user_data, N_Vector tmp1,
                            N_Vector tmp2, N_Vector tmp3);
 
   /// Solve-function for Neuron-based diagonal solver
