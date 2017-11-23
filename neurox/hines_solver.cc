@@ -44,8 +44,8 @@ void HinesSolver::SynchronizeThresholdV(const Branch *branch,
       hpx_lco_get_reset(branch->branch_tree_->with_children_lcos_[0][5],
                         sizeof(floble_t), threshold_v);
   } else if (branch->thvar_ptr_)  // if AIS, send value to soma
-    hpx_lco_set_rsync(branch->branch_tree_->with_parent_lco_[5],
-                      sizeof(floble_t), branch->thvar_ptr_);
+    hpx_lco_set(branch->branch_tree_->with_parent_lco_[5],
+                sizeof(floble_t), branch->thvar_ptr_, HPX_NULL, HPX_NULL);
 }
 
 void HinesSolver::ResetArray(const Branch *branch, floble_t *arr) {
