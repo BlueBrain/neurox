@@ -103,6 +103,9 @@ class Branch {
     ///  size of futures arrays (used in Gaussian elimination and AP threshold
     static constexpr size_t kFuturesSize = 7;
 
+    /// value of A[0] of all children
+    floble_t * a_children_;
+
     /// LCO to to communicate variables with parent
     hpx_t with_parent_lco_[kFuturesSize];
 

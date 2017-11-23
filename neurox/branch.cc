@@ -641,7 +641,9 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
     : top_branch_addr_(top_branch_addr),
       branches_(nullptr),
       branches_count_(branches_count),
-      with_children_lcos_(nullptr) {
+      with_children_lcos_(nullptr),
+      a_children_(nullptr)
+{
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
     memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
@@ -651,12 +653,14 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
 Branch::BranchTree::~BranchTree() {
   delete[] branches_;
   delete[] with_children_lcos_;
+  delete[] a_children_;
 }
 
 hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
+  HinesSolver::CommunicateConstants(local);
   local->interpolator_->Init(local);  // Finitialize, Cvodes init, etc
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
