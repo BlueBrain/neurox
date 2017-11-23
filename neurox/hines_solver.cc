@@ -201,8 +201,8 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
       pp = a[0] / d[0];
       // pass 'pp*b[i]' and 'pp*rhs[i]' upwards to parent
       floble_t to_parent_b_rhs[2] = {pp * b[0], pp * rhs[0]};
-      hpx_lco_set_rsync(branch_tree->with_parent_lco_[3], sizeof(floble_t)*2,
-                        &to_parent_b_rhs);
+      hpx_lco_set(branch_tree->with_parent_lco_[3], sizeof(floble_t)*2,
+                  &to_parent_b_rhs, HPX_NULL, HPX_NULL);
   }
 }
 
