@@ -244,8 +244,8 @@ void HinesSolver::ForwardSubstituion(Branch *branch) {
   if (branch_tree != nullptr) {
     floble_t to_children_rhs = rhs[n - 1];  // rhs[i] -= b[i] * rhs[p[i]];
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][4],
-                        sizeof(floble_t), &to_children_rhs);
+      hpx_lco_set(branch_tree->with_children_lcos_[c][4],
+                  sizeof(floble_t), &to_children_rhs, HPX_NULL, HPX_NULL);
   }
 }
 
