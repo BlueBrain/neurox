@@ -101,7 +101,7 @@ class Branch {
     size_t branches_count_;  ///> number of branches (>0)
 
     ///  size of futures arrays (used in Gaussian elimination and AP threshold
-    static constexpr size_t kFuturesSize = 7;
+    static constexpr size_t kFuturesSize = 6;
 
     /// value of A[0] of all children
     floble_t * a_children_;

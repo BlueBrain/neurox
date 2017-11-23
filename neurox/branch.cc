@@ -673,8 +673,14 @@ int Branch::BranchTree::InitLCOs_handler() {
   if (branch_tree) {
     offset_t branches_count = branch_tree->branches_count_;
     for (int i = 0; i < BranchTree::kFuturesSize; i++)
-      branch_tree->with_parent_lco_[i] =
-          local->soma_ ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
+    {
+      branch_tree->with_parent_lco_[i] = HPX_NULL;
+      if (!local->soma_) //create the LCOs
+      {
+        size_t size_buffer = i==3 ? 2 : 1; //third LCO sends two values
+        branch_tree->with_parent_lco_[i] = hpx_lco_future_new(size_buffer*sizeof(floble_t));
+      }
+    }
     branch_tree->with_children_lcos_ =
         branches_count ? new hpx_t[branches_count][BranchTree::kFuturesSize]
                        : nullptr;
@@ -691,7 +697,7 @@ int Branch::BranchTree::InitLCOs_handler() {
         sizes[c] = sizeof(hpx_t) * BranchTree::kFuturesSize;
         hpx_call(branch_tree->branches_[c], Branch::BranchTree::InitLCOs,
                  futures[c], branch_tree->with_parent_lco_,
-                 sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCO down
+                 sizeof(hpx_t) * BranchTree::kFuturesSize); //pass my LCOs down
       }
       hpx_lco_get_all(branches_count, futures, sizes, addrs, NULL);
       hpx_lco_delete_all(branches_count, futures, NULL);
