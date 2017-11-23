@@ -14,6 +14,8 @@ void HinesSolver::CommunicateConstants(const Branch *branch)
    const floble_t *a = branch->nt_->_actual_a;
    Branch::BranchTree *branch_tree = branch->branch_tree_;
 
+   if (!branch_tree) return;
+
    // all branches except top
    if (!branch->soma_)
    {
@@ -22,14 +24,14 @@ void HinesSolver::CommunicateConstants(const Branch *branch)
                         &to_parent_a);
    }
 
-   branch_tree->a_children_ = new floble_t[branch_tree->branches_count_];
+   branch_tree->a_from_children_ = new floble_t[branch_tree->branches_count_];
 
    // all branches with leaves
    if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
      for (offset_t c = 0; c < branch_tree->branches_count_; c++)
      {
        hpx_lco_get_reset(branch_tree->with_children_lcos_[c][2],
-                         sizeof(floble_t), & branch_tree->a_children_[c]);
+                         sizeof(floble_t), & branch_tree->a_from_children_[c]);
      }
    }
 }
@@ -127,9 +129,6 @@ void HinesSolver::SetupMatrixDiagonal(Branch *branch) {
   if (!branch->soma_)  // all branches except top
   {
     d[0] -= b[0];
-    //floble_t to_parent_a = a[0];  // pass 'a[i]' upwards to parent
-    //hpx_lco_set_rsync(branch_tree->with_parent_lco_[2], sizeof(floble_t),
-    //                  &to_parent_a);
   }
 
   // middle compartments
@@ -150,9 +149,7 @@ void HinesSolver::SetupMatrixDiagonal(Branch *branch) {
     for (offset_t c = 0; c < branch_tree->branches_count_;
          c++)  // d[p[i]] -= a[i]
     {
-      //hpx_lco_get_reset(branch_tree->with_children_lcos_[c][2],
-      //                  sizeof(floble_t), &from_children_a);
-      d[n - 1] -= branch_tree->a_children_[c];
+      d[n - 1] -= branch_tree->a_from_children_[c];
     }
   }
 }

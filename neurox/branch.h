@@ -104,7 +104,7 @@ class Branch {
     static constexpr size_t kFuturesSize = 6;
 
     /// value of A[0] of all children
-    floble_t * a_children_;
+    floble_t * a_from_children_;
 
     /// LCO to to communicate variables with parent
     hpx_t with_parent_lco_[kFuturesSize];

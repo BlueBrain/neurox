@@ -642,7 +642,7 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
       branches_(nullptr),
       branches_count_(branches_count),
       with_children_lcos_(nullptr),
-      a_children_(nullptr)
+      a_from_children_(nullptr)
 {
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
@@ -653,7 +653,7 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
 Branch::BranchTree::~BranchTree() {
   delete[] branches_;
   delete[] with_children_lcos_;
-  delete[] a_children_;
+  delete[] a_from_children_;
 }
 
 hpx_action_t Branch::Initialize = 0;
