@@ -77,9 +77,10 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
     dv = from_parent_v - v[0];
     rhs[0] -= b[0] * dv;
 
-    floble_t to_parent_a = a[0] * dv;  // pass 'a[i]*dv' upwards to parent
-    hpx_lco_set_rsync(branch_tree->with_parent_lco_[1], sizeof(floble_t),
-                      &to_parent_a);
+    floble_t to_parent_a = a[0] * dv; // pass 'a[i]*dv' upwards to parent
+    hpx_lco_set(branch_tree->with_parent_lco_[1],
+                sizeof(floble_t), &to_parent_a,
+                HPX_NULL, HPX_NULL); //NOTE: async set
   }
 
   // middle compartments
@@ -100,8 +101,10 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
     floble_t to_children_v = v[n - 1];  // dv = v[p[i]] - v[i]
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][0],
-                        sizeof(floble_t), &to_children_v);
+      hpx_lco_set(branch_tree->with_children_lcos_[c][0],
+                  sizeof(floble_t), &to_children_v,
+                  HPX_NULL, HPX_NULL); //NOTE: async set
+    //TODO: shall these async sets be freed later?!
 
     floble_t from_children_a;  // rhs[p[i]] += a[i]*dv
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
