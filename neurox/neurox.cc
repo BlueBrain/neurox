@@ -110,7 +110,7 @@ static int Main_handler() {
            neurox::neurons_count_ / (double)hpx_get_num_ranks(),
            input_params_->tstop_, synchronizer_->GetId(),
            input_params_->mechs_parallelism_ ? 1 : 0,
-           input_params_->branch_parallelism_depth_,
+           input_params_->branch_parallelism_complexity_,
            input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif

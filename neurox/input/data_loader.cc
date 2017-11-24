@@ -1291,10 +1291,10 @@ hpx_t DataLoader::CreateBranch(
 
   /* Benchmark this subsection, if necessary */
   double time_elapsed = -1;
-  //if (input_params_->load_balancing_ || input_params_->output_statistics_ ||
-  //    input_params_->branch_parallelism_complexity_ > 0) {
-  if (true)
-  {
+  if (input_params_->load_balancing_ || input_params_->output_statistics_ ||
+      input_params_->branch_parallelism_complexity_ > 0) {
+
+    // allocate GAS memory for this temporary branch
     hpx_t temp_branch_addr =
       hpx_gas_alloc_local(1, sizeof(Branch), Vectorizer::kMemoryAlignment);
     bool run_benchmark_and_clear = true;
@@ -1375,8 +1375,6 @@ hpx_t DataLoader::CreateBranch(
       GetSubSectionFromCompartment(sub_section, top_compartment);
     } else {
       // otherwise, it's the top branch, plus all subregions
-
-      // get top branch's subsection
       sub_section.push_back(top_compartment);
       for (bottom_compartment = top_compartment;
            bottom_compartment->branches_.size() == 1;
@@ -1416,9 +1414,9 @@ hpx_t DataLoader::CreateBranch(
     }
 
 #ifndef NDEBUG
-    printf("- %s %d of neuron nrn_id %d, runtime %.6f ms, allocated to rank %d\n",
+    printf("- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to rank %d\n",
            is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "dendrite"),
-           top_compartment->id_, nrn_threadId, time_elapsed, neuron_rank);
+           top_compartment->id_, n, nrn_threadId, time_elapsed, neuron_rank);
 #endif
   }
 
