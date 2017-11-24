@@ -1399,7 +1399,6 @@ hpx_t DataLoader::CreateBranch(
 
   int neuron_rank = hpx_get_my_rank();
   if (input_params_->load_balancing_ || input_params_->output_statistics_) {
-    /*
     if (input_params_->load_balancing_) {
       // ask master rank to query load balancing table and tell me where to
       // allocate this branch
@@ -1415,7 +1414,6 @@ hpx_t DataLoader::CreateBranch(
                     &time_elapsed, sizeof(double),  // input[0]
                     &neuron_rank, sizeof(int));     // input[1]
     }
-*/
 
 #ifndef NDEBUG
     printf("- %s %d of neuron nrn_id %d, runtime %.6f ms, allocated to rank %d\n",
