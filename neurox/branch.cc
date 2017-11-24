@@ -334,7 +334,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   assert(weights_count == weights_offset);
 
   // create data structure that defines branching
-  if (input_params_->branch_parallelism_depth_ > 0)
+  if (input_params_->branch_parallelism_complexity_ > 0)
     this->branch_tree_ =
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
@@ -403,9 +403,10 @@ hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == 17 || nargs == 18);  // 16 for normal init, 17 for benchmark
-                                       // (initializes, benchmarks, and clears
-                                       // memory)
+  // 17 for normal init, 18 for benchmark
+  // (initializes branch, benchmarks, and clears memory)
+  assert(nargs == 17 || nargs == 18);
+
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
       *(int *)args[1],       // nrnThreadId (nt.id)
@@ -642,8 +643,7 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
       branches_(nullptr),
       branches_count_(branches_count),
       with_children_lcos_(nullptr),
-      a_from_children_(nullptr)
-{
+      a_from_children_(nullptr) {
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
     memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
@@ -672,13 +672,13 @@ int Branch::BranchTree::InitLCOs_handler() {
   BranchTree *branch_tree = local->branch_tree_;
   if (branch_tree) {
     offset_t branches_count = branch_tree->branches_count_;
-    for (int i = 0; i < BranchTree::kFuturesSize; i++)
-    {
+    for (int i = 0; i < BranchTree::kFuturesSize; i++) {
       branch_tree->with_parent_lco_[i] = HPX_NULL;
-      if (!local->soma_) //create the LCOs
+      if (!local->soma_)  // create the LCOs
       {
-        size_t size_buffer = i==3 ? 2 : 1; //third LCO sends two values
-        branch_tree->with_parent_lco_[i] = hpx_lco_future_new(size_buffer*sizeof(floble_t));
+        size_t size_buffer = i == 3 ? 2 : 1;  // third LCO sends two values
+        branch_tree->with_parent_lco_[i] =
+            hpx_lco_future_new(size_buffer * sizeof(floble_t));
       }
     }
     branch_tree->with_children_lcos_ =
@@ -695,9 +695,10 @@ int Branch::BranchTree::InitLCOs_handler() {
             hpx_lco_future_new(sizeof(hpx_t) * BranchTree::kFuturesSize);
         addrs[c] = &branch_tree->with_children_lcos_[c];
         sizes[c] = sizeof(hpx_t) * BranchTree::kFuturesSize;
-        hpx_call(branch_tree->branches_[c], Branch::BranchTree::InitLCOs,
-                 futures[c], branch_tree->with_parent_lco_,
-                 sizeof(hpx_t) * BranchTree::kFuturesSize); //pass my LCOs down
+        hpx_call(
+            branch_tree->branches_[c], Branch::BranchTree::InitLCOs, futures[c],
+            branch_tree->with_parent_lco_,
+            sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCOs down
       }
       hpx_lco_get_all(branches_count, futures, sizes, addrs, NULL);
       hpx_lco_delete_all(branches_count, futures, NULL);

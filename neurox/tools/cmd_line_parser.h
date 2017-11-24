@@ -56,7 +56,7 @@ class CmdLineParser {
   bool load_balancing_;
 
   /// depth tree-based parallelism of morphologies
-  int branch_parallelism_depth_;
+  int branch_parallelism_complexity_;
 
   /// neurons sychronization synchronizer
   synchronizers::SynchronizerIds synchronizer_;

@@ -17,12 +17,13 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
    */
   NEUROX_MEM_PIN(uint64_t);
   assert(nargs == 1 || nargs == 2);
-  assert(hpx_get_my_rank() ==
-         0);  // only one loadBalancingTable and only in rank zero
+
+  // only one loadBalancingTable and only in rank zero
+  assert(hpx_get_my_rank() == 0);
   const double elapsed_time = *(const double *)args[0];
 
-  if (nargs ==
-      2)  // this neuron already has a rank allocated, update it's entry
+  // this neuron already has a rank allocated, update it's entry
+  if (nargs == 2)
   {
     const int rank = *(const int *)args[1];
     hpx_lco_sema_p(load_balancing_mutex_);
@@ -42,7 +43,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
     hpx_lco_sema_v_sync(load_balancing_mutex_);
     return wrappers::MemoryUnpin(target, rank);
   }
-  return wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 tools::LoadBalancing::LoadBalancing() {

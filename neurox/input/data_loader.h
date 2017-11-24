@@ -76,10 +76,10 @@ class DataLoader {
   static tools::LoadBalancing *load_balancing_;
 
   static hpx_t CreateBranch(
-      int nrn_thread_id, hpx_t soma_branch_addr,
-      deque<Compartment *> &all_compartments, Compartment *top_compartment,
+      const int nrn_thread_id, hpx_t soma_branch_addr,
+      const deque<Compartment *> &all_compartments, Compartment *top_compartment,
       vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-      int branching_depth, int thvar_index = -1 /*AIS*/,
+      double max_work_per_section, int thvar_index = -1 /*AIS*/,
       floble_t ap_threshold = 0 /*AIS*/);
 
   static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
@@ -87,7 +87,7 @@ class DataLoader {
                                               int &mech_instance);
 
   static int GetBranchData(
-      deque<Compartment *> &compartments, vector<floble_t> &data,
+      const deque<Compartment *> &compartments, vector<floble_t> &data,
       vector<offset_t> &pdata, vector<unsigned char> &vdata,
       vector<offset_t> &p, vector<offset_t> &instances_count,
       vector<offset_t> &nodes_indices, int N,
@@ -95,20 +95,20 @@ class DataLoader {
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetVecPlayBranchData(
-      deque<Compartment *> &compartments, vector<floble_t> &vecplay_t_data,
+      const deque<Compartment *> &compartments, vector<floble_t> &vecplay_t_data,
       vector<floble_t> &vecplay_y_data, vector<PointProcInfo> &vecplay_info,
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetNetConsBranchData(
-      deque<Compartment *> &compartments, vector<NetconX> &branch_netcons,
+      const deque<Compartment *> &compartments, vector<NetconX> &branch_netcons,
       vector<neuron_id_t> &branch_netcons_pre_id,
       vector<floble_t> &branch_netcons_args,
       vector<map<int, int>> *mech_instance_map = NULL);
 
-  static void GetAllChildrenCompartments(deque<Compartment *> &sub_section,
-                                         Compartment *top_compartment);
+  static void GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
+                                           Compartment *top_compartment);
 
-  static void GetMechInstanceMap(deque<Compartment *> &compartments,
+  static void GetMechInstanceMap(const deque<Compartment *> &compartments,
                                  vector<map<int, int>> &mechs_instance_map);
 
   static void SetMechanisms2(const int mechs_count, const int *mechs_ids,

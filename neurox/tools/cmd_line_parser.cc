@@ -66,7 +66,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg load_balancing(
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);
-    TCLAP::ValueArg<int> branch_parallelism_depth(
+    TCLAP::ValueArg<int> branch_parallelism_complexity(
         "B", "branching-depth",
         "Depth of branches parallelism (0: none, default)", false, 0, "int");
     TCLAP::ValueArg<int> synchronizer(
@@ -90,7 +90,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
 
-    cmd.add(branch_parallelism_depth);
+    cmd.add(branch_parallelism_complexity);
     cmd.add(synchronizer);
     cmd.add(interpolator);
 
@@ -173,7 +173,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->mechs_parallelism_ = mechs_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
-    this->branch_parallelism_depth_ = branch_parallelism_depth.getValue();
+    this->branch_parallelism_complexity_ =
+        branch_parallelism_complexity.getValue();
     this->synchronizer_ =
         (synchronizers::SynchronizerIds)synchronizer.getValue();
     neurox::synchronizer_ =
@@ -181,23 +182,24 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
 
-    if (this->branch_parallelism_depth_ < 0)
-      throw TCLAP::ArgException("branch parallism depth should be >= 0",
-                                "branch-parallelism-depth");
+    if (this->branch_parallelism_complexity_ < 0)
+      throw TCLAP::ArgException("branch parallism complexity should be >= 0",
+                                "branch-parallelism-complexity");
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
     floble_t remainder_tstop_tcomm =
-        fmod(this->tstop_ , neurox::min_synaptic_delay_);
+        fmod(this->tstop_, neurox::min_synaptic_delay_);
 
-    if (this->branch_parallelism_depth_ > 0 &&
+    if (this->branch_parallelism_complexity_ > 0 &&
         this->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");
 
-    if (!(fabs(remainder_tstop_tcomm) > 0.000000001
-     || fabs(remainder_tstop_tcomm) < neurox::min_synaptic_delay_ - 0.000000001))
+    if (!(fabs(remainder_tstop_tcomm) > 0.000000001 ||
+          fabs(remainder_tstop_tcomm) <
+              neurox::min_synaptic_delay_ - 0.000000001))
       throw TCLAP::ArgException(
           "execution time " + to_string(this->tstop_) +
               "ms should be a multiple of the communication delay " +
@@ -229,23 +231,22 @@ void CmdLineParser::Parse(int argc, char** argv) {
             "time-step size (ms) should be a positive value", "dt");
     }
 
-   /* variable step cannot be run with time-dependency synchronizer
-    * without a scheduler (because WaitForTimeDependencies does not
-    * know the step-size to wait for -- it's decided by CVODE).
-    * The scheduler indicates the step-size as the time of the
-    * dependency which is closest in time, so no need to perform the
-    * call to WaitForTimeDependencies. This condition enforces it.
-    */
-    if (this->interpolator_ != InterpolatorIds::kBackwardEuler
-     && (this->synchronizer_ == SynchronizerIds::kTimeDependency
-     || this->synchronizer_ == SynchronizerIds::kBenchmarkAll)
-     && this->locality_comm_reduce_==false)
-    {
-        throw TCLAP::ArgException(
-            "variable time-step size with time-dependency synchronizer "
-            "requires locality-level communication reduction",
-            "-C or --comm-reduce");
-        this->locality_comm_reduce_=true;
+    /* variable step cannot be run with time-dependency synchronizer
+     * without a scheduler (because WaitForTimeDependencies does not
+     * know the step-size to wait for -- it's decided by CVODE).
+     * The scheduler indicates the step-size as the time of the
+     * dependency which is closest in time, so no need to perform the
+     * call to WaitForTimeDependencies. This condition enforces it.
+     */
+    if (this->interpolator_ != InterpolatorIds::kBackwardEuler &&
+        (this->synchronizer_ == SynchronizerIds::kTimeDependency ||
+         this->synchronizer_ == SynchronizerIds::kBenchmarkAll) &&
+        this->locality_comm_reduce_ == false) {
+      throw TCLAP::ArgException(
+          "variable time-step size with time-dependency synchronizer "
+          "requires locality-level communication reduction",
+          "-C or --comm-reduce");
+      this->locality_comm_reduce_ = true;
     }
 
   } catch (TCLAP::ArgException& e) {

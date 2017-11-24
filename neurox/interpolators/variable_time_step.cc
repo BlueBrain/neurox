@@ -1,7 +1,7 @@
 #include "neurox/interpolators/variable_time_step.h"
 
-#include "cvodes/cvodes.h"
 #include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver      */
+#include "cvodes/cvodes.h"
 
 #include "cvodes/cvodes_spils.h"
 
@@ -175,9 +175,9 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
 
 // jacobian routine: compute J(t,y) = df/dy
 int VariableTimeStep::JacobianDense(realtype t, N_Vector y, N_Vector fy,
-                                    SUNMatrix J, void *user_data,
-                                    N_Vector, N_Vector, N_Vector) {
-  _SUNMatrixContent_Dense * content = (_SUNMatrixContent_Dense *) J->content;
+                                    SUNMatrix J, void *user_data, N_Vector,
+                                    N_Vector, N_Vector) {
+  _SUNMatrixContent_Dense *content = (_SUNMatrixContent_Dense *)J->content;
   realtype **jac = content->cols;
   Branch *branch = (Branch *)user_data;
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
@@ -465,7 +465,7 @@ void VariableTimeStep::Init(Branch *branch) {
       cvode_mem->cv_linit = nullptr;
       cvode_mem->cv_lsetup = nullptr;
       cvode_mem->cv_lfree = nullptr;
-      //cvode_mem->cv_setupNonNull = FALSE;
+      // cvode_mem->cv_setupNonNull = FALSE;
       cvode_mem->cv_lsolve = PreConditionedDiagonalSolver;
       break;
     }
@@ -478,7 +478,8 @@ void VariableTimeStep::Init(Branch *branch) {
       SUNLinearSolver LS = SUNDenseLinearSolver(this->y_, A);
       assert(LS);
 
-      /* Call CVDlsSetLinearSolver to attach the matrix and linear solver to CVode */
+      /* Call CVDlsSetLinearSolver to attach the matrix and linear solver to
+       * CVode */
       flag = CVDlsSetLinearSolver(cvode_mem, LS, A);
       assert(flag);
 
