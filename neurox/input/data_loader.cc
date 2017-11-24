@@ -929,17 +929,18 @@ int DataLoader::Finalize_handler() {
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-void DataLoader::GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
-                                              Compartment *top_compartment) {
+double DataLoader::GetSubSectionFromCompartment(
+    deque<Compartment *> &sub_section, Compartment *top_comp, double time_acc) {
   // parent added first, to respect solvers logic, of parents' ids first
-  sub_section.push_back(top_compartment);
-  for (int c = 0; c < top_compartment->branches_.size(); c++)
-    GetSubSectionFromCompartment(sub_section, top_compartment->branches_.at(c));
+  sub_section.push_back(top_comp);
+  for (int c = 0; c < top_comp->branches_.size(); c++)
+    time_acc +=
+        GetSubSectionFromCompartment(sub_section, top_comp->branches_.at(c));
+  return top_comp->execution_time_;
 }
 
-void DataLoader::GetMechInstanceMap(
-    const deque<Compartment *> &compartments,
-    vector<map<int, int>> &mech_instances_map) {
+void DataLoader::GetMechInstanceMap(const deque<Compartment *> &compartments,
+                                    vector<map<int, int>> &mech_instances_map) {
   vector<deque<int>> mech_instances_ids(
       neurox::mechanisms_count_);  // mech offset -> list of mech instance id
   for (const Compartment *comp : compartments)
@@ -989,7 +990,7 @@ void DataLoader::GetNetConsBranchData(
     for (NetconX &nc : branch_netcons)
       nc.mech_instance_ =
           (*mech_instances_map)[neurox::mechanisms_map_[nc.mech_type_]]
-                              [nc.mech_instance_];
+                               [nc.mech_instance_];
 }
 
 void DataLoader::GetVecPlayBranchData(
@@ -1009,9 +1010,9 @@ void DataLoader::GetVecPlayBranchData(
 
     for (int p = 0; p < vecplay_info.size(); p++) {
       PointProcInfo &ppi = vecplay_info[p];
-      ppi.mech_instance =
-          (offset_t)(*mech_instances_map)[neurox::mechanisms_map_[ppi.mech_type]]
-                                        [ppi.mech_instance];
+      ppi.mech_instance = (offset_t)(
+          *mech_instances_map)[neurox::mechanisms_map_[ppi.mech_type]]
+                              [ppi.mech_instance];
       ppi.node_id = from_old_to_new_compartment_id[ppi.node_id];
     }
   }
@@ -1257,12 +1258,102 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
   return a->id_ < b->id_;
 }
 
+double DataLoader::BenchmarkSubSection(
+    int N, const deque<Compartment *> &sub_section,
+    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
+  // common vars to all compartments
+  bool run_benchmark_and_clear = true;
+  int dumb_threshold_offset = 0;
+  int nrn_threadId = -1;
+  hpx_t soma_branch_addr = HPX_NULL;
+
+  // timing vars
+  double time_elapsed = -1;
+
+  // serialization of neurons
+  offset_t n;              // number of compartments in branch
+  vector<floble_t> data;   // compartments info (RHS, D, A, B, V, AREA)*n
+  vector<offset_t> pdata;  // pointers to data
+  vector<offset_t> p;      // parent nodes index
+  vector<offset_t> instances_count(mechanisms_count_);
+  vector<offset_t> nodes_indices;
+  vector<unsigned char> vdata;  // Serialized Point Processes and Random123
+  vector<floble_t> vecplay_t;
+  vector<floble_t> vecplay_y;
+  vector<PointProcInfo> vecplay_info;
+  vector<NetconX> branch_netcons;
+  vector<neuron_id_t> branch_netcons_pre_id;
+  vector<floble_t> branch_weights;
+
+  // allocate GAS memory for this temporary branch
+  hpx_t temp_branch_addr =
+      hpx_gas_alloc_local(1, sizeof(Branch), Vectorizer::kMemoryAlignment);
+
+  // mech-offset -> ( map[old instance]->to new instance )
+  vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
+  GetMechInstanceMap(sub_section, mech_instances_map);
+
+  n = GetBranchData(sub_section, data, pdata, vdata, p, instances_count,
+                    nodes_indices, N, ions_instances_info, &mech_instances_map);
+  GetVecPlayBranchData(sub_section, vecplay_t, vecplay_y, vecplay_info,
+                       &mech_instances_map);
+  GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
+                       branch_weights, &mech_instances_map);
+
+  hpx_call_sync(
+      temp_branch_addr, Branch::Init, &time_elapsed,
+      sizeof(time_elapsed),  // output
+      &n, sizeof(offset_t), &nrn_threadId, sizeof(int), &dumb_threshold_offset,
+      sizeof(int), data.size() > 0 ? data.data() : nullptr,
+      sizeof(floble_t) * data.size(), pdata.size() > 0 ? pdata.data() : nullptr,
+      sizeof(offset_t) * pdata.size(), instances_count.data(),
+      instances_count.size() * sizeof(offset_t), nodes_indices.data(),
+      nodes_indices.size() * sizeof(offset_t), &soma_branch_addr, sizeof(hpx_t),
+      nullptr, 0,                             // no branches
+      p.data(), sizeof(offset_t) * p.size(),  // force use of parent index
+      vecplay_t.size() > 0 ? vecplay_t.data() : nullptr,
+      sizeof(floble_t) * vecplay_t.size(),
+      vecplay_y.size() > 0 ? vecplay_y.data() : nullptr,
+      sizeof(floble_t) * vecplay_y.size(),
+      vecplay_info.size() > 0 ? vecplay_info.data() : nullptr,
+      sizeof(PointProcInfo) * vecplay_info.size(),
+      branch_netcons.size() > 0 ? branch_netcons.data() : nullptr,
+      sizeof(NetconX) * branch_netcons.size(),
+      branch_netcons_pre_id.size() > 0 ? branch_netcons_pre_id.data() : nullptr,
+      sizeof(neuron_id_t) * branch_netcons_pre_id.size(),
+      branch_weights.size() > 0 ? branch_weights.data() : nullptr,
+      sizeof(floble_t) * branch_weights.size(),
+      vdata.size() > 0 ? vdata.data() : nullptr,
+      sizeof(unsigned char) * vdata.size(), &run_benchmark_and_clear,
+      sizeof(bool));
+
+  hpx_gas_clear_affinity(temp_branch_addr);
+  return time_elapsed;
+}
+
+double DataLoader::BenchmarkEachCompartment(
+    const deque<Compartment *> &all_compartments,
+    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
+  double total_time_elapsed = 0;
+  int N = all_compartments.size();
+  for (Compartment *comp : all_compartments) {
+    deque<Compartment *> comp_section;
+    comp_section.push_back(comp);
+    comp->execution_time_ =
+        BenchmarkSubSection(N, comp_section, ions_instances_info);
+    total_time_elapsed += comp->execution_time_;
+  }
+  return total_time_elapsed;
+}
+
 hpx_t DataLoader::CreateBranch(
     const int nrn_threadId, hpx_t soma_branch_addr,
     const deque<Compartment *> &all_compartments, Compartment *top_compartment,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
     double max_work_per_section, int thvar_index /*AIS*/,
     floble_t ap_threshold /*AIS*/) {
+  int N = all_compartments.size();
+  bool is_soma = soma_branch_addr == HPX_NULL;
 
   assert(top_compartment != NULL);
   offset_t n;              // number of compartments in branch
@@ -1273,9 +1364,6 @@ hpx_t DataLoader::CreateBranch(
   vector<offset_t> nodes_indices;
   vector<hpx_t> branches;
   vector<unsigned char> vdata;  // Serialized Point Processes and Random123
-  int N = all_compartments.size();
-
-  bool is_soma = soma_branch_addr == HPX_NULL;
 
   // Vector Play instances
   vector<floble_t> vecplay_t;
@@ -1288,100 +1376,52 @@ hpx_t DataLoader::CreateBranch(
   vector<floble_t> branch_weights;
 
   Compartment *bottom_compartment = nullptr;
+  deque<Compartment *> sub_section;
 
-  /* Benchmark this subsection, if necessary */
-  double time_elapsed = -1;
-  if (input_params_->load_balancing_ || input_params_->output_statistics_ ||
-      input_params_->branch_parallelism_complexity_ > 0) {
-
-    // allocate GAS memory for this temporary branch
-    hpx_t temp_branch_addr =
-      hpx_gas_alloc_local(1, sizeof(Branch), Vectorizer::kMemoryAlignment);
-    bool run_benchmark_and_clear = true;
-    int dumb_threshold_offset = 0;
-
-    // Get execution time for the whole subsection
-    deque<Compartment *> whole_sub_section;
-
-    // mech-offset -> ( map[old instance]->to new instance )
-    vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
-    GetMechInstanceMap(whole_sub_section, mech_instances_map);
-
-    GetSubSectionFromCompartment(whole_sub_section, top_compartment);
-    n = GetBranchData(whole_sub_section, data, pdata, vdata, p, instances_count,
-                      nodes_indices, N, ions_instances_info, &mech_instances_map);
-    GetVecPlayBranchData(whole_sub_section, vecplay_t, vecplay_y, vecplay_info,
-                         &mech_instances_map);
-    GetNetConsBranchData(whole_sub_section, branch_netcons, branch_netcons_pre_id,
-                         branch_weights, &mech_instances_map);
-    whole_sub_section.clear();
-
-    // run benchmark //TODO disable mechanism parallelism
-    hpx_call_sync(
-        temp_branch_addr, Branch::Init, &time_elapsed,
-        sizeof(time_elapsed),  // output
-        &n, sizeof(offset_t), &nrn_threadId, sizeof(int),
-        &dumb_threshold_offset, sizeof(int),
-        data.size() > 0 ? data.data() : nullptr, sizeof(floble_t) * data.size(),
-        pdata.size() > 0 ? pdata.data() : nullptr,
-        sizeof(offset_t) * pdata.size(), instances_count.data(),
-        instances_count.size() * sizeof(offset_t), nodes_indices.data(),
-        nodes_indices.size() * sizeof(offset_t), &soma_branch_addr,
-        sizeof(hpx_t), nullptr, 0,              // no branches
-        p.data(), sizeof(offset_t) * p.size(),  // force use of parent index
-        vecplay_t.size() > 0 ? vecplay_t.data() : nullptr,
-        sizeof(floble_t) * vecplay_t.size(),
-        vecplay_y.size() > 0 ? vecplay_y.data() : nullptr,
-        sizeof(floble_t) * vecplay_y.size(),
-        vecplay_info.size() > 0 ? vecplay_info.data() : nullptr,
-        sizeof(PointProcInfo) * vecplay_info.size(),
-        branch_netcons.size() > 0 ? branch_netcons.data() : nullptr,
-        sizeof(NetconX) * branch_netcons.size(),
-        branch_netcons_pre_id.size() > 0 ? branch_netcons_pre_id.data()
-                                         : nullptr,
-        sizeof(neuron_id_t) * branch_netcons_pre_id.size(),
-        branch_weights.size() > 0 ? branch_weights.data() : nullptr,
-        sizeof(floble_t) * branch_weights.size(),
-        vdata.size() > 0 ? vdata.data() : nullptr,
-        sizeof(unsigned char) * vdata.size(),
-        &run_benchmark_and_clear, sizeof(bool));
-    assert(time_elapsed > 0);
-    hpx_gas_clear_affinity(temp_branch_addr);
-  }
-
+  /* No branch-parallelism, a la Coreneuron */
   if (input_params_->branch_parallelism_complexity_ == 0) {
-    // Get information about the whole subsection
     n = GetBranchData(all_compartments, data, pdata, vdata, p, instances_count,
                       nodes_indices, N, ions_instances_info, NULL);
     GetVecPlayBranchData(all_compartments, vecplay_t, vecplay_y, vecplay_info,
                          NULL);
     GetNetConsBranchData(all_compartments, branch_netcons,
                          branch_netcons_pre_id, branch_weights, NULL);
+    sub_section = all_compartments;
+    /* branch - parallelism */
   } else {
-    deque<Compartment *> sub_section;
+    /* Benchmark all compartments on the first run*/
+    if (is_soma) {
+      double neuron_time =
+          BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-    // time_elapsed is the total execution time for this neuron
-    // set max ammout of work (computation time) assigned to each subsection
-    if (is_soma)
+      /* total allowed execution time per subregion */
       max_work_per_section =
-          time_elapsed / (wrappers::NumThreads() *
-                          input_params_->branch_parallelism_complexity_);
+          neuron_time / (wrappers::NumThreads() *
+                         input_params_->branch_parallelism_complexity_);
+    }
 
-    max_work_per_section-=1; //TODO HACK
+    /* get subsection of all leaves until the end of arborization */
+    double exec_time =
+        GetSubSectionFromCompartment(sub_section, top_compartment);
 
-    /*if this subsection does not exceed maximum time allowed per subsection*/
-    if (time_elapsed <= max_work_per_section) {
-      // subsection is the set of all children compartments (recursively)
-      GetSubSectionFromCompartment(sub_section, top_compartment);
-    } else {
-      // otherwise, it's the top branch, plus all subregions
+    /*if this subsection exceeds maximum time allowed per subsection*/
+    if (exec_time > max_work_per_section) {
+      exec_time = 0;
+      sub_section.clear();
+
+      /* iterate until bifurcation or until max time is reached */
       sub_section.push_back(top_compartment);
       for (bottom_compartment = top_compartment;
            bottom_compartment->branches_.size() == 1;
-           bottom_compartment = bottom_compartment->branches_.front())
+           bottom_compartment = bottom_compartment->branches_.front()) {
+        Compartment *&next_comp = bottom_compartment->branches_.front();
+        if (exec_time + next_comp->execution_time_ < max_work_per_section)
+          break;
         sub_section.push_back(bottom_compartment->branches_.front());
+      }
     }
 
+    /* create serialized sub-section from compartments */
     // mech-offset -> ( map[old instance]->to new instance )
     vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
     GetMechInstanceMap(sub_section, mech_instances_map);
@@ -1393,42 +1433,48 @@ hpx_t DataLoader::CreateBranch(
                          &mech_instances_map);
     GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
                          branch_weights, &mech_instances_map);
+
+    // TODO add the removed SORT!!!
   }
 
+  /* We will benchmark the whole subsection as a whole, as time may be diff.
+   * than the sum of execution time of all compartments */
   int neuron_rank = hpx_get_my_rank();
   if (input_params_->load_balancing_ || input_params_->output_statistics_) {
+    double exec_time = BenchmarkSubSection(N, sub_section, ions_instances_info);
     if (input_params_->load_balancing_) {
-      // ask master rank to query load balancing table and tell me where to
-      // allocate this branch
+      /* ask master rank where to allocate this branch */
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
-                    &neuron_rank, sizeof(int),       // output
-                    &time_elapsed, sizeof(double));  // input [0]
-    } else if (input_params_->output_statistics_)    // no load balancing
-    {
-      // compute node already decided, tell master rank to store benchmark info,
-      // to be able to output statistics
+                    &neuron_rank, sizeof(int),    // output
+                    &exec_time, sizeof(double));  // input [0]
+    } else if (input_params_->output_statistics_) {
+      /* no load balancing; subsection hosted locally; tell master rankd to
+       * update info in Least-Processing-Time benchmark table */
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
-                    nullptr, 0,                     // output
-                    &time_elapsed, sizeof(double),  // input[0]
-                    &neuron_rank, sizeof(int));     // input[1]
+                    nullptr, 0,                  // output
+                    &exec_time, sizeof(double),  // input[0]
+                    &neuron_rank, sizeof(int));  // input[1]
     }
 
 #ifndef NDEBUG
-    printf("- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to rank %d\n",
-           is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "dendrite"),
-           top_compartment->id_, n, nrn_threadId, time_elapsed, neuron_rank);
+    printf(
+        "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to rank "
+        "%d\n",
+        is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "dendrite"),
+        top_compartment->id_, n, nrn_threadId, exec_time, neuron_rank);
 #endif
   }
 
-  // allocate and initialize branch on the respective owner
+  /* allocate GAS mem for subsection in the appropriate locality */
   hpx_t branch_addr = hpx_gas_alloc_local_at_sync(
       1, sizeof(Branch), Vectorizer::kMemoryAlignment, HPX_THERE(neuron_rank));
 
   // update hpx address of soma
   soma_branch_addr = is_soma ? branch_addr : soma_branch_addr;
 
-  // allocate children branches recursively (if any)
+  /* allocate children branches recursively (if any) */
   if (bottom_compartment) {
+    // TODO   make sure soma is not split! or this AIS test fails!!!!
     for (size_t c = 0; c < bottom_compartment->branches_.size(); c++)
       branches.push_back(CreateBranch(
           nrn_threadId, soma_branch_addr, all_compartments,
@@ -1439,6 +1485,7 @@ hpx_t DataLoader::CreateBranch(
     if (is_soma) thvar_index = -1;
   }
 
+  /* initialize subsection on the appropriate locality */
   hpx_call_sync(
       branch_addr, Branch::Init, NULL, 0,  // no timing
       &n, sizeof(offset_t), &nrn_threadId, sizeof(int), &thvar_index,
@@ -1466,7 +1513,8 @@ hpx_t DataLoader::CreateBranch(
       vdata.size() > 0 ? vdata.data() : nullptr,
       sizeof(unsigned char) * vdata.size());
 
-  if (is_soma) { // create soma data
+  /* create soma metadata */
+  if (is_soma) {
     int neuron_id = GetNeuronIdFromNrnThreadId(nrn_threadId);
     hpx_call_sync(branch_addr, Branch::InitSoma, NULL, 0, &neuron_id,
                   sizeof(neuron_id_t), &ap_threshold, sizeof(floble_t));

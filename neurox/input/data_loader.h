@@ -75,9 +75,20 @@ class DataLoader {
   /// pointer to load balancing instantiated class (if any)
   static tools::LoadBalancing *load_balancing_;
 
+  /// compute execution time of a given subsection
+  static double BenchmarkSubSection(int N,
+                                    const deque<Compartment *> &sub_section,
+                                    vector<DataLoader::IonInstancesInfo> &);
+
+  /// add benchmark execution time to all compartments
+  static double BenchmarkEachCompartment(
+      const deque<Compartment *> &all_comp,
+      vector<DataLoader::IonInstancesInfo> &);
+
   static hpx_t CreateBranch(
       const int nrn_thread_id, hpx_t soma_branch_addr,
-      const deque<Compartment *> &all_compartments, Compartment *top_compartment,
+      const deque<Compartment *> &all_compartments,
+      Compartment *top_compartment,
       vector<DataLoader::IonInstancesInfo> &ions_instances_info,
       double max_work_per_section, int thvar_index = -1 /*AIS*/,
       floble_t ap_threshold = 0 /*AIS*/);
@@ -95,8 +106,9 @@ class DataLoader {
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetVecPlayBranchData(
-      const deque<Compartment *> &compartments, vector<floble_t> &vecplay_t_data,
-      vector<floble_t> &vecplay_y_data, vector<PointProcInfo> &vecplay_info,
+      const deque<Compartment *> &compartments,
+      vector<floble_t> &vecplay_t_data, vector<floble_t> &vecplay_y_data,
+      vector<PointProcInfo> &vecplay_info,
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetNetConsBranchData(
@@ -105,8 +117,9 @@ class DataLoader {
       vector<floble_t> &branch_netcons_args,
       vector<map<int, int>> *mech_instance_map = NULL);
 
-  static void GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
-                                           Compartment *top_compartment);
+  static double GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
+                                             Compartment *top_compartment,
+                                             double time_elapsed_acc = 0);
 
   static void GetMechInstanceMap(const deque<Compartment *> &compartments,
                                  vector<map<int, int>> &mechs_instance_map);

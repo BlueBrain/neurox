@@ -23,8 +23,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
   const double elapsed_time = *(const double *)args[0];
 
   // this neuron already has a rank allocated, update it's entry
-  if (nargs == 2)
-  {
+  if (nargs == 2) {
     const int rank = *(const int *)args[1];
     hpx_lco_sema_p(load_balancing_mutex_);
     load_balancing_table_[rank] += elapsed_time;
