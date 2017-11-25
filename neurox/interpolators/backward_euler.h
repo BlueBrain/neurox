@@ -29,7 +29,7 @@ class BackwardEuler : public Interpolator {
   void Init(Branch*) override;
   hpx_t StepTo(Branch* branch, const double tstop) override;
 
-  static hpx_t Step(Branch*);
+  static hpx_t Step(Branch*, const bool benchmark = false);
 
   static hpx_action_t Finitialize;
 

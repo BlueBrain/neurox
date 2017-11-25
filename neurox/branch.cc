@@ -445,7 +445,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
     // benchmark execution time of a communication-step time-frame
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
     hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local);
+    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local, true);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     NEUROX_MEM_UNPIN_CONTINUE(time_elapsed);
