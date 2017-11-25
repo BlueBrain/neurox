@@ -27,7 +27,7 @@ class DataLoader {
   ~DataLoader() = delete;
 
   /// branch parallelism multiplier to compute max workload per section
-  static constexpr double kBranchParallelismComplexity = 1.0;
+  static constexpr double kSubSectionsPerComputeUnit = 2;
 
   /// Copies Coreneuron data structs to HPX memory
   static void loadData(int argc, char **argv);

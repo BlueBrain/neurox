@@ -109,10 +109,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // only used for branched neurons, otherwise pointers for padded and
   // non-padded layouts are the same
   std::vector<int> data_offsets(
-      input_params_->branch_parallelism_ ? data_size_padded : 0,
-      -99999);
+      input_params_->branch_parallelism_ ? data_size_padded : 0, -99999);
 
-  if (input_params_->branch_parallelism_ )
+  if (input_params_->branch_parallelism_)
     for (int n = 0; n < N; n++)
       for (int i = 0; i < 6; i++) {
         int offset_padded = Vectorizer::SizeOf(N) * i + n;
@@ -216,7 +215,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         data.push_back(ml->data[offset_padded]);
         assert(ml->data[offset_padded] ==
                nt->_data[data_total_padded_offset + offset_padded]);
-        if (input_params_->branch_parallelism_ )
+        if (input_params_->branch_parallelism_)
           data_offsets[data_total_padded_offset + offset_padded] =
               data_total_offset + offset_non_padded;
 #endif
@@ -235,7 +234,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
         // remove extra space added by padding (for pointer to area or ion mech
         // instance)
-        if (input_params_->branch_parallelism_  &&
+        if (input_params_->branch_parallelism_ &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
           assert(data_offsets.at(pd) != -99999);
           pdata.push_back(data_offsets.at(pd));  // offset to non-padded SoA
@@ -541,8 +540,7 @@ int DataLoader::InitMechanisms_handler() {
   }
 
   // set mechanisms dependencies
-  if (neurox::ParallelExecution() &&
-      input_params_->branch_parallelism_ ) {
+  if (neurox::ParallelExecution() && input_params_->branch_parallelism_) {
     /* broadcast dependencies, most complete dependency graph will be used
      * across the network (this solves issue of localities loading morphologies
      * without all mechanisms, and processing branches of other localities where
@@ -1139,8 +1137,7 @@ int DataLoader::GetBranchData(
     int pdata_offset = 0;
     int vdata_offset = 0;
     // for all instances
-    for (int i = 0; i < nodes_indices_mechs[m].size(); i++)
-    {
+    for (int i = 0; i < nodes_indices_mechs[m].size(); i++) {
       assert(ion_instance_to_data_offset.find(
                  make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
              ion_instance_to_data_offset.end());
@@ -1170,8 +1167,7 @@ int DataLoader::GetBranchData(
       }
 
       // if we need to recalculate offsets or remove padding
-      if (input_params_->branch_parallelism_ )
-      {
+      if (input_params_->branch_parallelism_) {
         for (int p = pdata_offset; p < pdata_offset + mech->pdata_size_; p++) {
           offset_t pd = pdata_mechs.at(m).at(p);
           int ptype = memb_func[mech->type_].dparam_semantics[p - pdata_offset];
@@ -1379,7 +1375,7 @@ hpx_t DataLoader::CreateBranch(
   deque<Compartment *> sub_section;
 
   /* No branch-parallelism, a la Coreneuron */
-  if (!input_params_->branch_parallelism_ ) {
+  if (!input_params_->branch_parallelism_) {
     n = GetBranchData(all_compartments, data, pdata, vdata, p, instances_count,
                       nodes_indices, N, ions_instances_info, NULL);
     GetVecPlayBranchData(all_compartments, vecplay_t, vecplay_y, vecplay_info,
@@ -1390,20 +1386,23 @@ hpx_t DataLoader::CreateBranch(
     /* branch - parallelism */
   } else {
     /* Benchmark all compartments on the first run*/
-    if (is_soma) {
+    if (is_soma)
       neuron_time =
           BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-    }
+    /* total allowed execution time per subregion for this neuron*/
+    // for a single-thread CPU with a single neuron..
+    double max_work_per_section = neuron_time / kSubSectionsPerComputeUnit;
 
-    /* total allowed execution time per subregion */
-    double max_work_per_section =
-        neuron_time / (wrappers::NumThreads() *
-                       DataLoader::kBranchParallelismComplexity);
+    // for a multi-thread CPU with a single neuron...
+    max_work_per_section *= wrappers::NumThreads();
+
+    // for several multi-threads CPUs with several neurons.
+    max_work_per_section *= (neurox::neurons_count_ / wrappers::NumRanks());
 
 #ifndef NDEBUG
     if (is_soma)
-      printf("==== neuron time %.5 ms, max work per subsection %.5 ms\n",
+      printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
              neuron_time, max_work_per_section);
 #endif
 

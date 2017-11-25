@@ -67,8 +67,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);
     TCLAP::SwitchArg branch_parallelism(
-        "B", "branching-depth",
-        "performs branch-level parallelism on neurons", cmd, false);
+        "B", "branching-depth", "performs branch-level parallelism on neurons",
+        cmd, false);
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
         "\
@@ -172,18 +172,13 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->mechs_parallelism_ = mechs_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
-    this->branch_parallelism_ =
-        branch_parallelism.getValue();
+    this->branch_parallelism_ = branch_parallelism.getValue();
     this->synchronizer_ =
         (synchronizers::SynchronizerIds)synchronizer.getValue();
     neurox::synchronizer_ =
         synchronizers::Synchronizer::New(this->synchronizer_);
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
-
-    if (!this->branch_parallelism_ )
-      throw TCLAP::ArgException("branch parallism complexity should be >= 0",
-                                "branch-parallelism-complexity");
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
