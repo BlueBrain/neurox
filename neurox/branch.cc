@@ -443,8 +443,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
     interpolators::BackwardEuler::Finitialize2(local);
 
     // benchmark execution time of a communication-step time-frame
-    hpx_time_t now = hpx_time_now();
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
+    hpx_time_t now = hpx_time_now();
     for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;

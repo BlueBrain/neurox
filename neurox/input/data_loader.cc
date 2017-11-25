@@ -1390,15 +1390,15 @@ hpx_t DataLoader::CreateBranch(
       neuron_time =
           BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-    /* total allowed execution time per subregion for this neuron*/
+    /* estimanted max execution time per subregion for this neuron*/
     // for a single-thread CPU with a single neuron..
     double max_work_per_section = neuron_time / kSubSectionsPerComputeUnit;
 
     // for a multi-thread CPU with a single neuron...
-    max_work_per_section *= wrappers::NumThreads();
+    max_work_per_section /= wrappers::NumThreads();
 
-    // for several multi-threads CPUs with several neurons.
-    max_work_per_section *= (neurox::neurons_count_ / wrappers::NumRanks());
+    // for a multi-thread CPU with several neurons...
+    max_work_per_section *= DataLoader::GetMyNrnThreadsCount();
 
 #ifndef NDEBUG
     if (is_soma)
@@ -1431,9 +1431,9 @@ hpx_t DataLoader::CreateBranch(
       /* let user know, this will be the limiting factor of parallelism */
       if (sum_exec_time > max_work_per_section)
         printf(
-            "Warning: compartment %d, length %d, exec. time %.5f ms exceeds max"
-            "workload per subsection %.5f ms, total neuron time %.5f ms (max "
-            "parallelism $.2fx)\n",
+            "Warning: compartment %d, length %d, nrn_id %d, runtime %.5f ms "
+            "exceeds max workload per subsection %.5f ms. total neuron time "
+            "%.5f ms (max parallelism capped at %.2fx)\n",
             top_compartment->id_, sub_section.size(), sum_exec_time,
             max_work_per_section, neuron_time,
             neuron_time / max_work_per_section);
