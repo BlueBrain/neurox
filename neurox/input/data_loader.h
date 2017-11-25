@@ -90,7 +90,7 @@ class DataLoader {
       const deque<Compartment *> &all_compartments,
       Compartment *top_compartment,
       vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-      double max_work_per_section, int thvar_index = -1 /*AIS*/,
+      double neuron_time, int thvar_index = -1 /*AIS*/,
       floble_t ap_threshold = 0 /*AIS*/);
 
   static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
@@ -118,8 +118,7 @@ class DataLoader {
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static double GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
-                                             Compartment *top_compartment,
-                                             double time_elapsed_acc = 0);
+                                             Compartment *top_compartment);
 
   static void GetMechInstanceMap(const deque<Compartment *> &compartments,
                                  vector<map<int, int>> &mechs_instance_map);

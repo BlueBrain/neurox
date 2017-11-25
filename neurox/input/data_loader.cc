@@ -930,13 +930,14 @@ int DataLoader::Finalize_handler() {
 }
 
 double DataLoader::GetSubSectionFromCompartment(
-    deque<Compartment *> &sub_section, Compartment *top_comp, double time_acc) {
+    deque<Compartment *> &sub_section, Compartment *top_comp) {
   // parent added first, to respect solvers logic, of parents' ids first
   sub_section.push_back(top_comp);
+  double time_acc = top_comp->execution_time_;
   for (int c = 0; c < top_comp->branches_.size(); c++)
     time_acc +=
         GetSubSectionFromCompartment(sub_section, top_comp->branches_.at(c));
-  return top_comp->execution_time_;
+  return time_acc;
 }
 
 void DataLoader::GetMechInstanceMap(const deque<Compartment *> &compartments,
@@ -1350,7 +1351,7 @@ hpx_t DataLoader::CreateBranch(
     const int nrn_threadId, hpx_t soma_branch_addr,
     const deque<Compartment *> &all_compartments, Compartment *top_compartment,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-    double max_work_per_section, int thvar_index /*AIS*/,
+    double neuron_time, int thvar_index /*AIS*/,
     floble_t ap_threshold /*AIS*/) {
   int N = all_compartments.size();
   bool is_soma = soma_branch_addr == HPX_NULL;
@@ -1390,38 +1391,61 @@ hpx_t DataLoader::CreateBranch(
     /* branch - parallelism */
   } else {
     /* Benchmark all compartments on the first run*/
-    if (is_soma) {
-      double neuron_time =
-          BenchmarkEachCompartment(all_compartments, ions_instances_info);
+    if (is_soma)
+    {
+      neuron_time = BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-      /* total allowed execution time per subregion */
-      max_work_per_section =
-          neuron_time / (wrappers::NumThreads() *
-                         input_params_->branch_parallelism_complexity_);
+      /*
+#ifndef NDEBUG
+      printf("==== neuron time %.5 ms, max work per subsection %.5 ms\n",
+             neuron_time, max_work_per_section);
+#endif
+*/
     }
 
+    /* total allowed execution time per subregion */
+    double max_work_per_section =
+        neuron_time / (wrappers::NumThreads() *
+           input_params_->branch_parallelism_complexity_);
+
     /* get subsection of all leaves until the end of arborization */
-    double exec_time =
+    double sum_exec_time =
         GetSubSectionFromCompartment(sub_section, top_compartment);
 
     /*if this subsection exceeds maximum time allowed per subsection*/
-    if (exec_time > max_work_per_section) {
-      exec_time = 0;
-      sub_section.clear();
+    if (sum_exec_time > max_work_per_section) {
 
-      /* iterate until bifurcation or until max time is reached */
+      /* new subsection: iterate until bifurcation or max time is reached */
+      sub_section.clear();
       sub_section.push_back(top_compartment);
+      sum_exec_time = top_compartment->execution_time_;
       for (bottom_compartment = top_compartment;
            bottom_compartment->branches_.size() == 1;
            bottom_compartment = bottom_compartment->branches_.front()) {
         Compartment *&next_comp = bottom_compartment->branches_.front();
-        if (exec_time + next_comp->execution_time_ < max_work_per_section)
+        /* soma cant be split due to AIS and AP threshold communication */
+        if (!is_soma)
+        if (sum_exec_time + next_comp->execution_time_ > max_work_per_section)
           break;
         sub_section.push_back(bottom_compartment->branches_.front());
+        sum_exec_time += bottom_compartment->branches_.front()->execution_time_;
       }
+
+      /* let user know, this will be the limiting factor of parallelism */
+      if (sum_exec_time > max_work_per_section)
+          printf("Warning: compartment %d, length %d, exec. time %.5f ms exceeds max"
+                 "workload per subsection %.5f ms, total neuron time %.5f ms (max parallelism $.2fx)\n",
+                 top_compartment->id_, sub_section.size(), sum_exec_time,
+                 max_work_per_section, neuron_time, neuron_time/max_work_per_section);
     }
 
-    /* create serialized sub-section from compartments */
+#ifndef NDEBUG
+    printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
+           is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "subsection"),
+           top_compartment->id_, sub_section.size(), nrn_threadId, sum_exec_time);
+#endif
+
+    /* create serialized sub-section from compartments in subsection*/
     // mech-offset -> ( map[old instance]->to new instance )
     vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
     GetMechInstanceMap(sub_section, mech_instances_map);
@@ -1460,7 +1484,7 @@ hpx_t DataLoader::CreateBranch(
     printf(
         "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to rank "
         "%d\n",
-        is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "dendrite"),
+        is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "subsection"),
         top_compartment->id_, n, nrn_threadId, exec_time, neuron_rank);
 #endif
   }
@@ -1479,7 +1503,7 @@ hpx_t DataLoader::CreateBranch(
       branches.push_back(CreateBranch(
           nrn_threadId, soma_branch_addr, all_compartments,
           bottom_compartment->branches_[c], ions_instances_info,
-          max_work_per_section, is_soma && c == 0 ? thvar_index - n : -1));
+          neuron_time, is_soma && c == 0 ? thvar_index - n : -1));
     /*offset in AIS = offset in soma - nt->end */
 
     if (is_soma) thvar_index = -1;
