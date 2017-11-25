@@ -109,10 +109,10 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // only used for branched neurons, otherwise pointers for padded and
   // non-padded layouts are the same
   std::vector<int> data_offsets(
-      input_params_->branch_parallelism_complexity_ > 0 ? data_size_padded : 0,
+      input_params_->branch_parallelism_ ? data_size_padded : 0,
       -99999);
 
-  if (input_params_->branch_parallelism_complexity_ > 0)
+  if (input_params_->branch_parallelism_ )
     for (int n = 0; n < N; n++)
       for (int i = 0; i < 6; i++) {
         int offset_padded = Vectorizer::SizeOf(N) * i + n;
@@ -216,7 +216,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         data.push_back(ml->data[offset_padded]);
         assert(ml->data[offset_padded] ==
                nt->_data[data_total_padded_offset + offset_padded]);
-        if (input_params_->branch_parallelism_complexity_ > 0)
+        if (input_params_->branch_parallelism_ )
           data_offsets[data_total_padded_offset + offset_padded] =
               data_total_offset + offset_non_padded;
 #endif
@@ -235,7 +235,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
         // remove extra space added by padding (for pointer to area or ion mech
         // instance)
-        if (input_params_->branch_parallelism_complexity_ > 0 &&
+        if (input_params_->branch_parallelism_  &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
           assert(data_offsets.at(pd) != -99999);
           pdata.push_back(data_offsets.at(pd));  // offset to non-padded SoA
@@ -542,7 +542,7 @@ int DataLoader::InitMechanisms_handler() {
 
   // set mechanisms dependencies
   if (neurox::ParallelExecution() &&
-      input_params_->branch_parallelism_complexity_ > 0) {
+      input_params_->branch_parallelism_ ) {
     /* broadcast dependencies, most complete dependency graph will be used
      * across the network (this solves issue of localities loading morphologies
      * without all mechanisms, and processing branches of other localities where
@@ -1138,15 +1138,14 @@ int DataLoader::GetBranchData(
     int data_offset = 0;
     int pdata_offset = 0;
     int vdata_offset = 0;
-    for (int i = 0; i < nodes_indices_mechs[m].size();
-         i++)  // for all instances
+    // for all instances
+    for (int i = 0; i < nodes_indices_mechs[m].size(); i++)
     {
       assert(ion_instance_to_data_offset.find(
                  make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
              ion_instance_to_data_offset.end());
       if (mech->is_ion_ &&
-          input_params_->branch_parallelism_complexity_ >
-              0)  // for pdata calculation
+          input_params_->branch_parallelism_)  // pdata calculation
         ion_instance_to_data_offset[make_pair(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
       data.insert(data.end(), &data_mechs[m][data_offset],
@@ -1170,8 +1169,8 @@ int DataLoader::GetBranchData(
         vdata_offset += total_vdata_size;
       }
 
-      if (input_params_->branch_parallelism_complexity_ >
-          0)  // if we need to recalculate offsets or remove padding
+      // if we need to recalculate offsets or remove padding
+      if (input_params_->branch_parallelism_ )
       {
         for (int p = pdata_offset; p < pdata_offset + mech->pdata_size_; p++) {
           offset_t pd = pdata_mechs.at(m).at(p);
@@ -1380,7 +1379,7 @@ hpx_t DataLoader::CreateBranch(
   deque<Compartment *> sub_section;
 
   /* No branch-parallelism, a la Coreneuron */
-  if (input_params_->branch_parallelism_complexity_ == 0) {
+  if (!input_params_->branch_parallelism_ ) {
     n = GetBranchData(all_compartments, data, pdata, vdata, p, instances_count,
                       nodes_indices, N, ions_instances_info, NULL);
     GetVecPlayBranchData(all_compartments, vecplay_t, vecplay_y, vecplay_info,
@@ -1391,22 +1390,22 @@ hpx_t DataLoader::CreateBranch(
     /* branch - parallelism */
   } else {
     /* Benchmark all compartments on the first run*/
-    if (is_soma)
-    {
-      neuron_time = BenchmarkEachCompartment(all_compartments, ions_instances_info);
+    if (is_soma) {
+      neuron_time =
+          BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-      /*
-#ifndef NDEBUG
-      printf("==== neuron time %.5 ms, max work per subsection %.5 ms\n",
-             neuron_time, max_work_per_section);
-#endif
-*/
     }
 
     /* total allowed execution time per subregion */
     double max_work_per_section =
         neuron_time / (wrappers::NumThreads() *
-           input_params_->branch_parallelism_complexity_);
+                       DataLoader::kBranchParallelismComplexity);
+
+#ifndef NDEBUG
+    if (is_soma)
+      printf("==== neuron time %.5 ms, max work per subsection %.5 ms\n",
+             neuron_time, max_work_per_section);
+#endif
 
     /* get subsection of all leaves until the end of arborization */
     double sum_exec_time =
@@ -1414,7 +1413,6 @@ hpx_t DataLoader::CreateBranch(
 
     /*if this subsection exceeds maximum time allowed per subsection*/
     if (sum_exec_time > max_work_per_section) {
-
       /* new subsection: iterate until bifurcation or max time is reached */
       sub_section.clear();
       sub_section.push_back(top_compartment);
@@ -1425,24 +1423,28 @@ hpx_t DataLoader::CreateBranch(
         Compartment *&next_comp = bottom_compartment->branches_.front();
         /* soma cant be split due to AIS and AP threshold communication */
         if (!is_soma)
-        if (sum_exec_time + next_comp->execution_time_ > max_work_per_section)
-          break;
+          if (sum_exec_time + next_comp->execution_time_ > max_work_per_section)
+            break;
         sub_section.push_back(bottom_compartment->branches_.front());
         sum_exec_time += bottom_compartment->branches_.front()->execution_time_;
       }
 
       /* let user know, this will be the limiting factor of parallelism */
       if (sum_exec_time > max_work_per_section)
-          printf("Warning: compartment %d, length %d, exec. time %.5f ms exceeds max"
-                 "workload per subsection %.5f ms, total neuron time %.5f ms (max parallelism $.2fx)\n",
-                 top_compartment->id_, sub_section.size(), sum_exec_time,
-                 max_work_per_section, neuron_time, neuron_time/max_work_per_section);
+        printf(
+            "Warning: compartment %d, length %d, exec. time %.5f ms exceeds max"
+            "workload per subsection %.5f ms, total neuron time %.5f ms (max "
+            "parallelism $.2fx)\n",
+            top_compartment->id_, sub_section.size(), sum_exec_time,
+            max_work_per_section, neuron_time,
+            neuron_time / max_work_per_section);
     }
 
 #ifndef NDEBUG
     printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
            is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "subsection"),
-           top_compartment->id_, sub_section.size(), nrn_threadId, sum_exec_time);
+           top_compartment->id_, sub_section.size(), nrn_threadId,
+           sum_exec_time);
 #endif
 
     /* create serialized sub-section from compartments in subsection*/
@@ -1500,10 +1502,10 @@ hpx_t DataLoader::CreateBranch(
   if (bottom_compartment) {
     // TODO   make sure soma is not split! or this AIS test fails!!!!
     for (size_t c = 0; c < bottom_compartment->branches_.size(); c++)
-      branches.push_back(CreateBranch(
-          nrn_threadId, soma_branch_addr, all_compartments,
-          bottom_compartment->branches_[c], ions_instances_info,
-          neuron_time, is_soma && c == 0 ? thvar_index - n : -1));
+      branches.push_back(
+          CreateBranch(nrn_threadId, soma_branch_addr, all_compartments,
+                       bottom_compartment->branches_[c], ions_instances_info,
+                       neuron_time, is_soma && c == 0 ? thvar_index - n : -1));
     /*offset in AIS = offset in soma - nt->end */
 
     if (is_soma) thvar_index = -1;

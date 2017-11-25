@@ -96,7 +96,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
 
         // get correct pdata offset: without branching, offsets are already
         // correct for both LAYOUTs and padding
-        if (input_params_->branch_parallelism_complexity_ > 0) {
+        if (input_params_->branch_parallelism_ ) {
           int ptype = memb_func[mechanisms_[m]->type_].dparam_semantics[i];
           bool is_pointer = ptype == -1 || (ptype > 0 && ptype < 1000);
           if (is_pointer)  // true for pointer to area in nt->data, or ion

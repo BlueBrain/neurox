@@ -66,9 +66,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg load_balancing(
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);
-    TCLAP::ValueArg<int> branch_parallelism_complexity(
+    TCLAP::SwitchArg branch_parallelism(
         "B", "branching-depth",
-        "Depth of branches parallelism (0: none, default)", false, 0, "int");
+        "performs branch-level parallelism on neurons", cmd, false);
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
         "\
@@ -90,7 +90,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
 
-    cmd.add(branch_parallelism_complexity);
     cmd.add(synchronizer);
     cmd.add(interpolator);
 
@@ -173,8 +172,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->mechs_parallelism_ = mechs_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
-    this->branch_parallelism_complexity_ =
-        branch_parallelism_complexity.getValue();
+    this->branch_parallelism_ =
+        branch_parallelism.getValue();
     this->synchronizer_ =
         (synchronizers::SynchronizerIds)synchronizer.getValue();
     neurox::synchronizer_ =
@@ -182,7 +181,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
 
-    if (this->branch_parallelism_complexity_ < 0)
+    if (!this->branch_parallelism_ )
       throw TCLAP::ArgException("branch parallism complexity should be >= 0",
                                 "branch-parallelism-complexity");
 
@@ -192,7 +191,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     floble_t remainder_tstop_tcomm =
         fmod(this->tstop_, neurox::min_synaptic_delay_);
 
-    if (this->branch_parallelism_complexity_ > 0 &&
+    if (this->branch_parallelism_ &&
         this->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler)
       throw TCLAP::ArgException(
           "cant run branch-level parallelism with variable-step methods");

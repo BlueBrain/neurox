@@ -334,7 +334,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   assert(weights_count == weights_offset);
 
   // create data structure that defines branching
-  if (input_params_->branch_parallelism_complexity_ > 0)
+  if (input_params_->branch_parallelism_)
     this->branch_tree_ =
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
