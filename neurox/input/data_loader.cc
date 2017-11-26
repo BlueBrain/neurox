@@ -37,6 +37,10 @@ neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
 }
 
+/* execution time for the slowest branch in this locality
+ * (for the calculus of max parallelism cap on branch-level parallelism) */
+static double slowest_compartment_runtime = 0;
+
 void DataLoader::PrintSubClustersToFile(FILE *file_compartments,
                                         Compartment *top_compartment) {
   if (input_params_->output_compartments_dot_) {
@@ -638,6 +642,11 @@ int DataLoader::InitNeurons_handler() {
   my_neurons_gids_ = new std::vector<int>();
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
+
+#ifndef NDEBUG
+  if (input_params_->branch_parallelism_)
+    printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n", slowest_compartment_runtime);
+#endif
 
   // all neurons created, advertise them
   int my_rank = hpx_get_my_rank();
@@ -1338,6 +1347,10 @@ double DataLoader::BenchmarkEachCompartment(
     comp->execution_time_ =
         BenchmarkSubSection(N, comp_section, ions_instances_info);
     total_time_elapsed += comp->execution_time_;
+
+    hpx_lco_sema_p(locality_mutex_);
+    slowest_compartment_runtime = std::max(slowest_compartment_runtime, comp->execution_time_);
+    hpx_lco_sema_v_sync(locality_mutex_);
   }
   return total_time_elapsed;
 }
