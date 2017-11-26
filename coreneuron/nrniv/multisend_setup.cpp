@@ -141,8 +141,10 @@ static int* newoffset(int* acnt, int size) {
     return aoff;
 }
 
+
 // input scnt, sdispl ; output, newly allocated rcnt, rdispl
 static void all2allv_helper(int* scnt, int*& rcnt, int*& rdispl) {
+#if NRNMPI==1
     int np = nrnmpi_numprocs;
     int* c = newintval(1, np);
     rdispl = newoffset(c, np);
@@ -151,12 +153,14 @@ static void all2allv_helper(int* scnt, int*& rcnt, int*& rdispl) {
     del(c);
     del(rdispl);
     rdispl = newoffset(rcnt, np);
+#endif
 }
 
 #define all2allv_perf 1
 // input s, scnt, sdispl ; output, newly allocated r, rcnt, rdispl
 static void
 all2allv_int(int* s, int* scnt, int* sdispl, int*& r, int*& rcnt, int*& rdispl, const char* dmes) {
+#if NRNMPI==1
 #if all2allv_perf
     double tm = nrn_wtime();
 #endif
@@ -174,6 +178,7 @@ all2allv_int(int* s, int* scnt, int* sdispl, int*& r, int*& rcnt, int*& rdispl, 
         tm = nrn_wtime() - tm;
         printf("all2allv_int %s space=%d total=%g time=%g\n", dmes, nb, nrn_mallinfo(), tm);
     }
+#endif
 #endif
 }
 
@@ -437,6 +442,7 @@ static void fill_multisend_lists(int use_phase2,
 // return is vector and its size. The vector encodes a sequence of
 // gid, target list size, and target list
 static int setup_target_lists(int use_phase2, int** r_return) {
+#if NRNMPI==1
     int *s, *r, *scnt, *rcnt, *sdispl, *rdispl;
     int nhost = nrnmpi_numprocs;
 
@@ -699,4 +705,6 @@ static int setup_target_lists(int use_phase2, int** r_return) {
     del(rdispl);
     *r_return = r;
     return sz;
+#endif
 }
+

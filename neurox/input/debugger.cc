@@ -426,8 +426,10 @@ int Debugger::ThreadTableCheck_handler() {
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
   NEUROX_MEM_PIN(uint64_t);
+#if NRNMPI==1
   if (input_params_->interpolator_ == InterpolatorIds::kBackwardEuler)
     nrn_spike_exchange(nrn_threads);
+#endif
   return neurox::wrappers::MemoryUnpin(target);
 }
 
