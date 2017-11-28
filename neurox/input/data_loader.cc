@@ -645,7 +645,8 @@ int DataLoader::InitNeurons_handler() {
 
 #ifndef NDEBUG
   if (input_params_->branch_parallelism_)
-    printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n", slowest_compartment_runtime);
+    printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
+           slowest_compartment_runtime);
 #endif
 
   // all neurons created, advertise them
@@ -1349,7 +1350,8 @@ double DataLoader::BenchmarkEachCompartment(
     total_time_elapsed += comp->execution_time_;
 
     hpx_lco_sema_p(locality_mutex_);
-    slowest_compartment_runtime = std::max(slowest_compartment_runtime, comp->execution_time_);
+    slowest_compartment_runtime =
+        std::max(slowest_compartment_runtime, comp->execution_time_);
     hpx_lco_sema_v_sync(locality_mutex_);
   }
   return total_time_elapsed;

@@ -219,12 +219,12 @@ void Mechanism::CallModFunction(
         assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.current)  // has a current function
         {
-          if (input_params_->mechs_parallelism_  // parallel execution
-              &&
-              strcmp(this->memb_func_.sym, "CaDynamics_E2") !=
-                  0  // not CaDynamics_E2 (no updates in cur function)
-              && !this->is_ion_)  // not ion (updates in nrn_cur_ion function)
-          {
+          if (/* parallel execution */
+              input_params_->mechs_parallelism_
+              /* not CaDynamics_E2 (no updates in cur function) */
+              && (strcmp(this->memb_func_.sym, "CaDynamics_E2") != 0)
+              /* not ion (updates in nrn_cur_ion function) */
+              && (!this->is_ion_)) {
             if (this->dependencies_count_ > 0)
               memb_func_.current_parallel(
                   nrn_thread, memb_list, type_,
