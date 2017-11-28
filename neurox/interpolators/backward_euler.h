@@ -31,8 +31,6 @@ class BackwardEuler : public Interpolator {
 
   static hpx_t Step(Branch*, const bool benchmark = false);
 
-  static hpx_t StepParallel(Branch*);
-
   static hpx_action_t Finitialize;
 
   static void Finitialize2(Branch*);  ///> finitialize.c::finitialize()
@@ -40,12 +38,8 @@ class BackwardEuler : public Interpolator {
   static int GetTotalSteps();
   static int GetMinSynapticDelaySteps();
 
-  inline static void RunFunction2(hpx_t, const Branch*, const int);
-
-  static hpx_action_t RunFunction;
-  static void RegisterHpxActions();
  private:
-  static int RunFunction_handler(const int, const void* [], const size_t[]);
+  static int Finitialize_handler();
 };
 
 };  // namespace
