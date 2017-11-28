@@ -239,12 +239,6 @@ void Mechanism::CallModFunction(
                   branch->mechs_graph_);
           } else  // regular version
           {
-            if (input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
-              for (int i = 0; i < memb_list->nodecount; i++) {
-                int nd = memb_list->nodeindices[i];
-                // fprintf(stderr, "== current: mech %d, node %d\n",
-                // this->type_, nd);
-              }
             memb_func_.current(nrn_thread, memb_list, type_);
           }
         }
