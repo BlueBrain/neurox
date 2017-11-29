@@ -643,6 +643,7 @@ int DataLoader::InitNeurons_handler() {
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
+//TODO add also slowest subsection runtime?
 #ifndef NDEBUG
   if (input_params_->branch_parallelism_)
     printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
@@ -1416,6 +1417,10 @@ hpx_t DataLoader::CreateBranch(
     // for a multi-thread CPU with several neurons...
     max_work_per_section *= DataLoader::GetMyNrnThreadsCount();
 
+    // if graph parallelism is available, increase the work by a factor of...?
+    if (input_params_->graph_mechs_parallelism_)
+        max_work_per_section *= 10; 
+
 #ifndef NDEBUG
     if (is_soma)
       printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
@@ -1455,12 +1460,12 @@ hpx_t DataLoader::CreateBranch(
             neuron_time / max_work_per_section);
     }
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
     printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
            is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "subsection"),
            top_compartment->id_, sub_section.size(), nrn_threadId,
            sum_exec_time);
-#endif
+//#endif
 
     /* create serialized sub-section from compartments in subsection*/
     // mech-offset -> ( map[old instance]->to new instance )
