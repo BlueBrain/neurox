@@ -30,6 +30,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     : soma_(nullptr),
       nt_(nullptr),
       mechs_instances_(nullptr),
+      mechs_instances_parallel_(nullptr),
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
@@ -110,7 +111,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   offset_t pdata_offset = 0;
   offset_t instances_offset = 0;
   this->mechs_instances_ = new Memb_list[mechanisms_count_];
-
   int max_mech_id = 0;
 
   vector<void *> vdata_ptrs;
@@ -232,7 +232,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   assert(pdata_offset == pdata_count);
   assert(instances_offset == nodes_indices_count);
 
-  // vdata pointers
+  // nt->_vdata pointers
   nt->_nvdata = vdata_ptrs.size();
   nt->_vdata =
       vdata_serialized_count == 0 ? nullptr : new void *[vdata_ptrs.size()];
@@ -339,7 +339,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
   // create data structure that defines the graph of mechanisms
-  if (input_params_->mechs_parallelism_) {
+  if (input_params_->graph_mechs_parallelism_) {
     this->mechs_graph_ = new Branch::MechanismsGraph();
     this->mechs_graph_->InitMechsGraph(branch_hpx_addr);
   }
@@ -347,6 +347,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  if (input_params_->mech_instances_parallelism_)
+    tools::Vectorizer::CreateParallelMechsInstances(this);
 
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
@@ -397,6 +400,7 @@ Branch::~Branch() {
   delete branch_tree_;
   delete mechs_graph_;
   delete interpolator_;
+  delete[] mechs_instances_parallel_;
 }
 
 hpx_action_t Branch::Init = 0;

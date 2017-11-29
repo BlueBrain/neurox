@@ -28,7 +28,7 @@ using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
-  const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
+  const double epsilon = input_params_->graph_mechs_parallelism_ ? 5e-4 : 1e-8;
   // NOTE: current functions for mechs SK_E2 (144) andNap_Et2 (123) depends on
   // V that change opening vars that change V and so on... after few steps this
   // causes high difference in results;

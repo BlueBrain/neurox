@@ -495,7 +495,7 @@ int DataLoader::InitMechanisms_handler() {
     vector<int> dependencies;
     assert(nrn_watch_check[type] == NULL);  // not supported yet
 
-    if (input_params_->mechs_parallelism_) {
+    if (input_params_->graph_mechs_parallelism_) {
       for (auto &tml2 : ordered_mechs) {
         int otherType = tml2->index;
         for (int d = 0; d < nrn_prop_dparam_size_[otherType]; d++) {
@@ -795,7 +795,7 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
 
     // set parent ion index
     for (int m = 0; m < mechs_count; m++) {
-      if (input_params_->mechs_parallelism_) {
+      if (input_params_->graph_mechs_parallelism_) {
         Mechanism *mech = neurox::mechanisms_[m];
         for (int d = 0; d < mech->dependencies_count_; d++) {
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
@@ -826,9 +826,10 @@ int DataLoader::Finalize_handler() {
         fopen(string("mechanisms_" + std::to_string(hpx_get_my_rank()) + ".dot")
                   .c_str(),
               "wt");
-    fprintf(
-        file_mechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
-        !input_params_->mechs_parallelism_ ? "layout=circo; scale=0.23;" : "");
+    fprintf(file_mechs, "digraph G\n{ bgcolor=%s; %s\n", "transparent",
+            !input_params_->graph_mechs_parallelism_
+                ? "layout=circo; scale=0.23;"
+                : "");
     fprintf(file_mechs, "graph [ratio=0.3];\n");
     fprintf(file_mechs, "%s [style=filled, shape=Mdiamond, fillcolor=beige];\n",
             "start");
@@ -836,7 +837,7 @@ int DataLoader::Finalize_handler() {
             "end");
     fprintf(file_mechs, "\"%s (%d)\" [style=filled, fillcolor=beige];\n",
             GetMechanismFromType(CAP)->memb_func_.sym, CAP);
-    if (!input_params_->mechs_parallelism_) {
+    if (!input_params_->graph_mechs_parallelism_) {
       fprintf(file_mechs, "end -> start [color=transparent];\n");
       fprintf(file_mechs, "start -> \"%s (%d)\";\n",
               GetMechanismFromType(CAP)->memb_func_.sym, CAP);
@@ -865,7 +866,7 @@ int DataLoader::Finalize_handler() {
                 successor->type_);
       }
 
-      if (input_params_->mechs_parallelism_)
+      if (input_params_->graph_mechs_parallelism_)
         for (int d = 0; d < mech->dependencies_count_; d++) {
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
           if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&

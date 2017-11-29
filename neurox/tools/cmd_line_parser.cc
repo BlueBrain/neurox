@@ -39,10 +39,11 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // neurox only command line arguments
     //(NOTE: SwitchArg does not require cmd.add())
-
-    TCLAP::SwitchArg mechs_parallelism(
-        "M", "multimex", "activates graph-based parallelism of mechanisms.",
-        cmd, false);
+    TCLAP::SwitchArg graph_mechs_parallelism(
+        "G", "graph", "activates graph-based parallelism of mechanisms.", cmd,
+        false);
+    TCLAP::SwitchArg mech_instances_parallelism(
+        "M", "mechs", "parallelism of mechanisms instances", cmd, false);
     TCLAP::SwitchArg locality_comm_reduce("C", "comm-reduce",
                                           "perform HPX all-reduce operation at "
                                           "locality level instead of neuron "
@@ -169,7 +170,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->output_mechanisms_dot_ = output_mechanisms_dot.getValue();
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot_ = output_compartments_dot.getValue();
-    this->mechs_parallelism_ = mechs_parallelism.getValue();
+    this->graph_mechs_parallelism_ = graph_mechs_parallelism.getValue();
+    this->mech_instances_parallelism_ = mech_instances_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_ = branch_parallelism.getValue();
