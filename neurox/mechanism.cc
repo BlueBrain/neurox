@@ -215,7 +215,7 @@ void Mechanism::CallModFunction(
   assert(memb_list);
 
   // TODO: support parallel mechs for CVODE
-  assert(input_params_->interpolator_ != InterpolatorIds::kBackwardEuler);
+  assert(input_params_->interpolator_ == InterpolatorIds::kBackwardEuler);
 
   /* create argument for thread instances of current and state functions */
   Memb_list *&ml_parallel = branch->mechs_instances_parallel_[mech_offset];

@@ -344,7 +344,7 @@ void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
   std::fill(b->mechs_instances_parallel_count_,
             b->mechs_instances_parallel_count_ + neurox::mechanisms_count_, 0.);
 
-  const int max_size = 1000;
+  int cluster_size = LoadBalancing::kMechInstancesPerCluster;
 
   /* if different instances of same mechanism type can be in the same
    * compartment, then instances-parallelism requires mechs-graph parallism
@@ -354,10 +354,10 @@ void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
       Memb_list* ml = &b->mechs_instances_[m];
       int thread_id = 0;
 
-      for (int n = 0; n < ml->nodecount; n += max_size, thread_id++) {
+      for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
         /* map of compartment index to the thread id it's allocated to */
         std::map<int, int> index_to_thread;
-        for (int i = 0; i < std::min(ml->nodecount - n, max_size); i++) {
+        for (int i = 0; i < std::min(ml->nodecount - n, cluster_size); i++) {
           int index = ml->nodeindices[n + i];
 
           /* if that compartment index can be processed by other thread*/
@@ -377,11 +377,11 @@ void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
     /* only parallelize mechs with more instances than threshold */
     Memb_list* ml = &b->mechs_instances_[m];
 
-    if (ml->nodecount < max_size) continue;
+    if (ml->nodecount < cluster_size) continue;
 
     /* parallel subsets of Memb_list */
     int& ml_parallel_count = b->mechs_instances_parallel_count_[m];
-    ml_parallel_count = std::ceil((double)ml->nodecount / (double)max_size);
+    ml_parallel_count = std::ceil((double)ml->nodecount / (double)cluster_size);
 
     Memb_list*& ml_parallel = b->mechs_instances_parallel_[m];
     ml_parallel = new Memb_list[ml_parallel_count];
@@ -391,7 +391,7 @@ void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
 
     /* create subsets of parallel Memb_list */
     int ml_it = 0;
-    for (int n = 0; n < ml->nodecount; n += max_size, ml_it++) {
+    for (int n = 0; n < ml->nodecount; n += cluster_size, ml_it++) {
       Memb_list* ml_sub = &ml_parallel[ml_it];
       memcpy(ml_sub, ml, sizeof(Memb_list));
       ml_sub->nodeindices = &ml->nodeindices[n];

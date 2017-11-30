@@ -643,7 +643,7 @@ int DataLoader::InitNeurons_handler() {
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
-//TODO add also slowest subsection runtime?
+// TODO add also slowest subsection runtime?
 #ifndef NDEBUG
   if (input_params_->branch_parallelism_)
     printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
@@ -917,7 +917,7 @@ int DataLoader::Finalize_handler() {
 #endif
 
   if (input_params_->output_statistics_)
-    tools::LoadBalancing::LoadBalancing::PrintTable();
+    tools::LoadBalancing::LoadBalancing::PrintLoadBalancingTable();
 
   delete load_balancing_;
   load_balancing_ = nullptr;
@@ -1408,23 +1408,13 @@ hpx_t DataLoader::CreateBranch(
           BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
     /* estimanted max execution time per subregion for this neuron*/
-    // for a single-thread CPU with a single neuron..
-    double max_work_per_section = neuron_time / kSubSectionsPerComputeUnit;
-
-    // for a multi-thread CPU with a single neuron...
-    max_work_per_section /= wrappers::NumThreads();
-
-    // for a multi-thread CPU with several neurons...
-    max_work_per_section *= DataLoader::GetMyNrnThreadsCount();
-
-    // if graph parallelism is available, increase the work by a factor of...?
-    if (input_params_->graph_mechs_parallelism_)
-        max_work_per_section *= 10; 
+    double work_per_section = LoadBalancing::GetWorkPerBranchSubsection(
+        neuron_time, GetMyNrnThreadsCount());
 
 #ifndef NDEBUG
     if (is_soma)
       printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-             neuron_time, max_work_per_section);
+             neuron_time, work_per_section);
 #endif
 
     /* get subsection of all leaves until the end of arborization */
@@ -1432,7 +1422,7 @@ hpx_t DataLoader::CreateBranch(
         GetSubSectionFromCompartment(sub_section, top_compartment);
 
     /*if this subsection exceeds maximum time allowed per subsection*/
-    if (sum_exec_time > max_work_per_section) {
+    if (sum_exec_time > work_per_section) {
       /* new subsection: iterate until bifurcation or max time is reached */
       sub_section.clear();
       sub_section.push_back(top_compartment);
@@ -1443,29 +1433,28 @@ hpx_t DataLoader::CreateBranch(
         Compartment *&next_comp = bottom_compartment->branches_.front();
         /* soma cant be split due to AIS and AP threshold communication */
         if (!is_soma)
-          if (sum_exec_time + next_comp->execution_time_ > max_work_per_section)
+          if (sum_exec_time + next_comp->execution_time_ > work_per_section)
             break;
         sub_section.push_back(bottom_compartment->branches_.front());
         sum_exec_time += bottom_compartment->branches_.front()->execution_time_;
       }
 
       /* let user know, this will be the limiting factor of parallelism */
-      if (sum_exec_time > max_work_per_section)
+      if (sum_exec_time > work_per_section)
         printf(
             "Warning: compartment %d, length %d, nrn_id %d, runtime %.5f ms "
             "exceeds max workload per subsection %.5f ms. total neuron time "
             "%.5f ms (max parallelism capped at %.2fx)\n",
             top_compartment->id_, sub_section.size(), sum_exec_time,
-            max_work_per_section, neuron_time,
-            neuron_time / max_work_per_section);
+            work_per_section, neuron_time, neuron_time / work_per_section);
     }
 
-//#ifndef NDEBUG
+    //#ifndef NDEBUG
     printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
            is_soma ? "soma" : (thvar_index != -1 ? "AIS" : "subsection"),
            top_compartment->id_, sub_section.size(), nrn_threadId,
            sum_exec_time);
-//#endif
+    //#endif
 
     /* create serialized sub-section from compartments in subsection*/
     // mech-offset -> ( map[old instance]->to new instance )

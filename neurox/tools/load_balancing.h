@@ -23,11 +23,24 @@ class LoadBalancing {
 
   static hpx_action_t QueryLoadBalancingTable;
 
-  static void PrintTable();
-  static void RegisterHpxActions();
+  /// Queries/updates load balancing table, for load balancing
   static int QueryLoadBalancingTable_handler(const int nargs,
                                              const void *args[],
                                              const size_t[]);
+  /// Prints load balancing tabl
+  static void PrintLoadBalancingTable();
+
+  /// returns work per branch-subsection, for branch parallelism
+  static double GetWorkPerBranchSubsection(const double neuron_time,
+                                           const int neurons_count);
+
+  /// branch parallelism multiplier to compute max workload per section
+  static constexpr double kSubSectionsPerComputeUnit = 2;
+
+  /// number of instances in cluster, for mechanism type parallelism
+  static const int kMechInstancesPerCluster = 1000;
+
+  static void RegisterHpxActions();
 
  private:
   /// computation (ms) per compute node

@@ -58,13 +58,28 @@ tools::LoadBalancing::~LoadBalancing() {
   delete[] load_balancing_table_;
 }
 
-void tools::LoadBalancing::PrintTable() {
+void tools::LoadBalancing::PrintLoadBalancingTable() {
   if (load_balancing_table_ == nullptr) return;
   if (hpx_get_my_rank() != 0) return;
 
   printf("neurox::tools::LoadBalancing::PrintTable()\n");
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
+}
+
+double tools::LoadBalancing::GetWorkPerBranchSubsection(
+    const double neuron_time, const int neurons_count) {
+  // for a single-thread CPU with a single neuron..
+  double work_per_section = neuron_time / neurons_count;
+
+  // for a multi-thread CPU with a single neuron...
+  work_per_section /= wrappers::NumThreads();
+
+  // for a multi-thread CPU with several neurons...
+  work_per_section *= neurons_count;
+
+  // if graph parallelism is available, increase the work by a factor of...?
+  if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {
