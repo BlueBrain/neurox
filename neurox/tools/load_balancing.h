@@ -38,7 +38,7 @@ class LoadBalancing {
   static constexpr double kSubSectionsPerComputeUnit = 2;
 
   /// number of instances in cluster, for mechanism type parallelism
-  static const int kMechInstancesPerCluster = 1000;
+  static const int kMechInstancesPerCluster = 1024;
 
   static void RegisterHpxActions();
 

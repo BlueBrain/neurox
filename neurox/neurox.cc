@@ -11,9 +11,8 @@ using namespace neurox::wrappers;
 
 namespace neurox {
 
-// TODO compute at runtime
-double min_synaptic_delay_ = 0.1;
-hpx_t *neurons_ = nullptr;  // TODO get rid of replace by hpx_t array
+double min_synaptic_delay_ = 0.1;  // TODO compute at runtimne
+hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
