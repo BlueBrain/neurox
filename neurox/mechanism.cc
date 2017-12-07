@@ -168,7 +168,7 @@ int Mechanism::MembFuncThread(int i, void *args_ptr) {
   if (args->func_id == Mechanism::ModFunctions::kState) {
     args->memb_func->state(args->nt, &args->ml[i], args->type);
   } else if (args->func_id == Mechanism::ModFunctions::kCurrent) {
-    if (args->can_run_graph)  // can run graph-mech parallelism
+    if (args->requires_shadow_vectors)
       args->memb_func->current_parallel(args->nt, &args->ml[i], args->type,
                                         args->acc_rhs_d, args->acc_di_dv,
                                         args->acc_args);
@@ -233,7 +233,7 @@ void Mechanism::CallModFunction(
         ml_parallel_count == 0 ? memb_list : ml_parallel;
     memb_func_thread_args->type = this->type_;
 
-    memb_func_thread_args->can_run_graph =
+    memb_func_thread_args->requires_shadow_vectors =
         /* current function only */
         function_id == ModFunctions::kCurrent
         /* graph-parallelism */
@@ -244,7 +244,7 @@ void Mechanism::CallModFunction(
         && (!this->is_ion_);
 
     /* if graph-parallelism, pass accumulation functions and their argument*/
-    if (memb_func_thread_args->can_run_graph) {
+    if (memb_func_thread_args->requires_shadow_vectors) {
       memb_func_thread_args->acc_args = branch->mechs_graph_;
       memb_func_thread_args->acc_rhs_d =
           Branch::MechanismsGraph::AccumulateRHSandD;

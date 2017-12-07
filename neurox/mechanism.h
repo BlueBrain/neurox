@@ -136,7 +136,7 @@ class Mechanism {
     int type;
 
     // parallel execution of current only:
-    bool can_run_graph;
+    bool requires_shadow_vectors;
     mod_acc_f_t acc_rhs_d;
     mod_acc_f_t acc_di_dv;
     void *acc_args;
