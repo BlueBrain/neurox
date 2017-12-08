@@ -348,9 +348,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
-  if (input_params_->mech_instances_parallelism_)
-    tools::Vectorizer::CreateMechInstancesThreads(this);
-
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
 
@@ -478,6 +475,15 @@ int Branch::Clear_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
   delete local;
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN
+}
+
+hpx_action_t Branch::CreateMechInstancesThreads = 0;
+int Branch::CreateMechInstancesThreads_handler() {
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
+  Vectorizer::CreateMechInstancesThreads(local);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN
 }
@@ -834,6 +840,8 @@ void Branch::RegisterHpxActions() {
                                   BranchTree::InitLCOs_handler);
   wrappers::RegisterZeroVarAction(Branch::Initialize,
                                   Branch::Initialize_handler);
+  wrappers::RegisterZeroVarAction(Branch::CreateMechInstancesThreads,
+                                  Branch::CreateMechInstancesThreads_handler);
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
                                          MechanismsGraph::MechFunction_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(Branch::SetSyncStepTrigger,

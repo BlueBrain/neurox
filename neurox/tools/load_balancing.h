@@ -35,10 +35,10 @@ class LoadBalancing {
                                            const int neurons_count);
 
   /// branch parallelism multiplier to compute max workload per section
-  static constexpr double kSubSectionsPerComputeUnit = 2;
+  static constexpr double kBranchSectionsPerComputeUnit = 2;
 
   /// number of instances in cluster, for mechanism type parallelism
-  static const int kMechInstancesPerCluster = 1024;
+  static constexpr double kMechInstancesPercentagePerComputeUnit = 0.1;
 
   static void RegisterHpxActions();
 

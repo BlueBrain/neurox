@@ -645,9 +645,9 @@ int DataLoader::InitNeurons_handler() {
 
 #ifndef NDEBUG
   if (input_params_->mech_instances_parallelism_) {
-    printf("Mechanisms execution time per instance:\n");
+    printf("Mechanisms execution time per instance (microseconds):\n");
     for (int m = 0; m < neurox::mechanisms_count_; m++)
-      printf("mech type %d (%s): state %.3f ns, current %.3f ns\n",
+      printf("mech type %d (%s): state %.3f us, current %.3f us\n",
              neurox::mechanisms_[m]->type_,
              neurox::mechanisms_[m]->memb_func_.sym,
              neurox::mechanisms_[m]->state_func_runtime_,
@@ -1370,43 +1370,43 @@ double DataLoader::BenchmarkSubSection(
   }
 
   if (run_mechanisms_benchmark) {
-    /* disable any parallel mech-instance set before by Branch::Init*/
-    delete branch->mechs_instances_threads_args;
-    delete[] branch->mechs_instances_threads_args->ml_state;
-    branch->mechs_instances_threads_args = nullptr;
-
     /* disable graph-parallelism variables (offsets are not set yet) */
     delete branch->mechs_graph_;
     branch->mechs_graph_ = nullptr;
 
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
       Mechanism *mech = neurox::mechanisms_[m];
+      Memb_list *ml = &branch->mechs_instances_[m];
 
       /* benchmark state function */
       time_elapsed = 0;
       now = hpx_time_now();
       if (mech->memb_func_.state) {
         mech->CallModFunction(branch, Mechanism::ModFunctions::kState);
-        time_elapsed = hpx_time_elapsed_ns(now);
+        time_elapsed = hpx_time_elapsed_us(now) / ml->nodecount;
       }
       hpx_lco_sema_p(DataLoader::locality_mutex_);
       mech->state_func_runtime_ =
-          std::min(mech->state_func_runtime_,
-                   time_elapsed / branch->mechs_instances_[m].nodecount);
+          mech->state_func_runtime_ == -1 /*if not set */
+              ? time_elapsed
+              : std::min(mech->state_func_runtime_, time_elapsed);
       hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
 
-      /* benchmark current function */
+      /* benchmark current function (capacitance is an exception) */
       time_elapsed = 0;
       now = hpx_time_now();
-      if (mech->type_ != MechanismTypes::kCapacitance &&
-          mech->memb_func_.current) {
+      if (mech->type_ == MechanismTypes::kCapacitance)
+        mech->CallModFunction(branch,
+                              Mechanism::ModFunctions::kCurrentCapacitance);
+      else if (mech->memb_func_.current) {
         mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
-        time_elapsed = hpx_time_elapsed_ns(now);
+        time_elapsed = hpx_time_elapsed_us(now) / ml->nodecount;
       }
       hpx_lco_sema_p(DataLoader::locality_mutex_);
       mech->current_func_runtime_ =
-          std::min(mech->current_func_runtime_,
-                   time_elapsed / branch->mechs_instances_[m].nodecount);
+          mech->current_func_runtime_ == -1 /*if not set */
+              ? time_elapsed
+              : std::min(mech->current_func_runtime_, time_elapsed);
       hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
     }
     hpx_gas_unpin(temp_branch_addr);

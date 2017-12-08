@@ -34,8 +34,8 @@ Mechanism::Mechanism(const int type, const short int data_size,
       ode_spec_(nullptr),
       div_capacity_(nullptr),
       mul_capacity_(nullptr),
-      current_func_runtime_(99999999999),
-      state_func_runtime_(99999999999) {
+      current_func_runtime_(-1),
+      state_func_runtime_(-1) {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -247,11 +247,16 @@ void Mechanism::CallModFunction(
         if (memb_func_.alloc)
           memb_func_.alloc(memb_list->data, memb_list->pdata, type_);
         break;
-      case Mechanism::ModFunctions::kCurrentCapacitance:
+      case Mechanism::ModFunctions::kCurrentCapacitance: {
         assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.current != NULL);
-        memb_func_.current(nt, memb_list, type_);
+        if (threads_count > 0)
+          hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
+                           threads_count, threads_args);
+        else
+          memb_func_.current(nt, memb_list, type_);
         break;
+      }
       case Mechanism::ModFunctions::kCurrent: {
         assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.current) {
