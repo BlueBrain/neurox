@@ -11,9 +11,8 @@ using namespace neurox::wrappers;
 
 namespace neurox {
 
-// TODO compute at runtime
-double min_synaptic_delay_ = 0.1;
-hpx_t *neurons_ = nullptr;  // TODO get rid of replace by hpx_t array
+double min_synaptic_delay_ = 0.1;  // TODO compute at runtimne
+hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
@@ -105,12 +104,13 @@ static int Main_handler() {
 
 #ifdef NDEBUG
     // output benchmark info
-    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%.2f\n", neurox::neurons_count_,
-           hpx_get_num_ranks(), hpx_get_num_threads(),
+    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%d,%.3f\n",
+           neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
            neurox::neurons_count_ / (double)hpx_get_num_ranks(),
            input_params_->tstop_, synchronizer_->GetId(),
-           input_params_->mechs_parallelism_ ? 1 : 0,
-           input_params_->branch_parallelism_depth_,
+           input_params_->graph_mechs_parallelism_ ? 1 : 0,
+           input_params_->mech_instances_parallelism_ ? 1 : 0,
+           input_params_->branch_parallelism_ ? 1 : 0,
            input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif

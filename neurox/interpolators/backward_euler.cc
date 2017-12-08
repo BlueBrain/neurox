@@ -46,29 +46,31 @@ hpx_t BackwardEuler::StepTo(Branch *b, const double tstop) {
 }
 
 // fadvance_core.c::nrn_fixed_step_thread
-hpx_t BackwardEuler::Step(Branch *branch) {
+hpx_t BackwardEuler::Step(Branch *branch, bool benchmark) {
   NrnThread *nt = branch->nt_;
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;
 
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
-  if (branch->soma_) {
-    // perform step-begin operations, eg send updates, wait for dependencies
-    synchronizer_->StepSync(branch);
+  if (!benchmark) {
+    if (branch->soma_) {
+      // perform step-begin operations, eg send updates, wait for dependencies
+      synchronizer_->StepSync(branch);
 
-    // Soma waits for AIS to have threshold V value updated
-    floble_t threshold_v;
-    HinesSolver::SynchronizeThresholdV(branch, &threshold_v);
-    if (branch->soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
-      spikes_lco = branch->soma_->SendSpikes(nt->_t);
-  } else if (branch->thvar_ptr_)
-    // Axon Initial Segment send threshold  V to parent
-    HinesSolver::SynchronizeThresholdV(branch);
+      // Soma waits for AIS to have threshold V value updated
+      floble_t threshold_v;
+      HinesSolver::SynchronizeThresholdV(branch, &threshold_v);
+      if (branch->soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
+        spikes_lco = branch->soma_->SendSpikes(nt->_t);
+    } else if (branch->thvar_ptr_)
+      // Axon Initial Segment send threshold  V to parent
+      HinesSolver::SynchronizeThresholdV(branch);
+  }
 
   // netcvode.cpp::NetCvode::deliver_net_events()
   t += .5 * branch->nt_->_dt;
-  branch->DeliverEvents(t);  // delivers events in the first HALF step
+  if (!benchmark) branch->DeliverEvents(t);  // events in 1st half-step
   branch->FixedPlayContinuous();
   SetupTreeMatrix(branch);
   HinesSolver::SolveTreeMatrix(branch);
@@ -92,7 +94,7 @@ hpx_t BackwardEuler::Step(Branch *branch) {
   branch->CallModFunction(Mechanism::ModFunctions::kState);
   branch->CallModFunction(Mechanism::ModFunctions::kAfterSolve);
   branch->CallModFunction(Mechanism::ModFunctions::kBeforeStep);
-  branch->DeliverEvents(t);  // delivers events in second HALF-step
+  if (!benchmark) branch->DeliverEvents(t);  // events in 2nd half-step
 
   return spikes_lco;
 }

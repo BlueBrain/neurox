@@ -46,13 +46,28 @@ class Branch {
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
+  /// clears a given Memb_list structure
   static void DeleteMembList(Memb_list*&);
 
-  NrnThread* nt_;               ///> compartments metadata
-  Memb_list* mechs_instances_;  ///> Arrays of mechanism instances
-  Neuron* soma_;         ///> if top branch, it's populated, otherwise NULL
-  floble_t* thvar_ptr_;  ///> pointer to var holding AP threshold var,if any
+  /// Compartments, Weights and other Coreneuron data
+  NrnThread* nt_;
 
+  /// Array of mechanisms instances
+  Memb_list* mechs_instances_;
+
+  /// Arrays of subsets of mechanisms instances, when applicable
+  Memb_list** mechs_instances_parallel_;
+
+  /// size of array mechs_instances_parallel_
+  int* mechs_instances_parallel_count_;
+
+  /// if top branch, refers to soma/neuron info, otherwise is NULL
+  Neuron* soma_;
+
+  /// pointer to var holding AP threshold var,if any
+  floble_t* thvar_ptr_;
+
+  //// graph-based execution of mechanisms
   class MechanismsGraph {
    public:
     MechanismsGraph();
@@ -101,7 +116,10 @@ class Branch {
     size_t branches_count_;  ///> number of branches (>0)
 
     ///  size of futures arrays (used in Gaussian elimination and AP threshold
-    static constexpr size_t kFuturesSize = 7;
+    static constexpr size_t kFuturesSize = 6;
+
+    /// value of A[0] of all children
+    floble_t* a_from_children_;
 
     /// LCO to to communicate variables with parent
     hpx_t with_parent_lco_[kFuturesSize];

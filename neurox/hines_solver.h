@@ -17,6 +17,7 @@ class HinesSolver {
   HinesSolver() = delete;
   ~HinesSolver();
 
+  static void CommunicateConstants(const Branch *branch);
   static void SynchronizeThresholdV(const Branch *branch,
                                     floble_t *threshold_v = NULL);
   static void ResetArray(const Branch *branch, floble_t *arr);

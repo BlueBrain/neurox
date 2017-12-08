@@ -160,7 +160,25 @@ Mechanism::~Mechanism() {
   delete[] memb_func_.sym;
   delete[] successors_;
   delete[] dependencies_;
-};
+}
+
+int Mechanism::MembFuncThread(int i, void *args_ptr) {
+  MembFuncArgs *args = (MembFuncArgs *)args_ptr;
+
+  if (args->func_id == Mechanism::ModFunctions::kState) {
+    args->memb_func->state(args->nt, &args->ml[i], args->type);
+  } else if (args->func_id == Mechanism::ModFunctions::kCurrent) {
+    if (args->requires_shadow_vectors)
+      args->memb_func->current_parallel(args->nt, &args->ml[i], args->type,
+                                        args->acc_rhs_d, args->acc_di_dv,
+                                        args->acc_args);
+    else
+      args->memb_func->current(args->nt, &args->ml[i], args->type);
+  } else {
+    assert(0);
+  }
+  return HPX_SUCCESS;
+}
 
 void Mechanism::CallModFunction(
     const void *branch_ptr, const Mechanism::ModFunctions function_id,
@@ -168,10 +186,12 @@ void Mechanism::CallModFunction(
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
     ) {
-  Branch *branch = (Branch *)branch_ptr;
+  const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
-  NrnThread *nrn_thread = branch->nt_;
-  assert(nrn_thread);
+  NrnThread *nt = branch->nt_;
+  MembFuncArgs *memb_func_thread_args = nullptr;
+  assert(nt);
+  const int mech_offset = neurox::mechanisms_map_[this->type_];
 
   if (function_id == Mechanism::ModFunctions::kNetReceive ||
       function_id == Mechanism::ModFunctions::kNetReceiveInit) {
@@ -185,15 +205,57 @@ void Mechanism::CallModFunction(
     assert(memb_list);
     int iml = netcon->mech_instance_;
     int weight_index = netcon->weight_index_;
-    nrn_thread->_t = tt;  // as seen in netcvode.cpp:479 (NetCon::deliver)
-    this->pnt_receive_(nrn_thread, memb_list, iml, weight_index, 0);
+    nt->_t = tt;  // as seen in netcvode.cpp:479 (NetCon::deliver)
+    this->pnt_receive_(nt, memb_list, iml, weight_index, 0);
     return;
   }
 
-  Memb_list *memb_list =
-      other_ml ? &other_ml[mechanisms_map_[this->type_]]
-               : &branch->mechs_instances_[mechanisms_map_[this->type_]];
+  Memb_list *memb_list = other_ml ? &other_ml[mech_offset]
+                                  : &branch->mechs_instances_[mech_offset];
   assert(memb_list);
+
+  // TODO: support parallel mechs for CVODE
+  assert(input_params_->interpolator_ == InterpolatorIds::kBackwardEuler);
+
+  /* create argument for thread instances of current and state functions */
+  Memb_list *&ml_parallel = branch->mechs_instances_parallel_[mech_offset];
+  int ml_parallel_count = 0;
+  if (branch->mechs_instances_parallel_)
+    ml_parallel_count = branch->mechs_instances_parallel_count_[mech_offset];
+
+  if (function_id == ModFunctions::kState ||
+      function_id == ModFunctions::kCurrent) {
+    memb_func_thread_args = new MembFuncArgs;
+    memb_func_thread_args->func_id = function_id;
+    memb_func_thread_args->memb_func = &this->memb_func_;
+    memb_func_thread_args->nt = nt;
+    memb_func_thread_args->ml =
+        ml_parallel_count == 0 ? memb_list : ml_parallel;
+    memb_func_thread_args->type = this->type_;
+
+    memb_func_thread_args->requires_shadow_vectors =
+        /* current function only */
+        function_id == ModFunctions::kCurrent
+        /* graph-parallelism */
+        && branch->mechs_graph_
+        /* not CaDynamics_E2 (no updates in cur function) */
+        && this->type_ != MechanismTypes::kCaDynamics_E2
+        /* not ion (updates in nrn_cur_ion function) */
+        && (!this->is_ion_);
+
+    /* if graph-parallelism, pass accumulation functions and their argument*/
+    if (memb_func_thread_args->requires_shadow_vectors) {
+      memb_func_thread_args->acc_args = branch->mechs_graph_;
+      memb_func_thread_args->acc_rhs_d =
+          Branch::MechanismsGraph::AccumulateRHSandD;
+
+      /* every mech but top-level will update di_dv of parent mech */
+      memb_func_thread_args->acc_di_dv =
+          dependencies_count_ == 0
+              ? NULL
+              : Branch::MechanismsGraph::AccumulateIandDIDV;
+    }
+  }
 
   if (memb_list->nodecount > 0) {
     switch (function_id) {
@@ -203,8 +265,7 @@ void Mechanism::CallModFunction(
       case Mechanism::kAfterSolve:
       case Mechanism::kBeforeStep:
         if (before_after_functions_[(int)function_id])
-          before_after_functions_[(int)function_id](nrn_thread, memb_list,
-                                                    type_);
+          before_after_functions_[(int)function_id](nt, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kAlloc:
         if (memb_func_.alloc)
@@ -213,61 +274,43 @@ void Mechanism::CallModFunction(
       case Mechanism::ModFunctions::kCurrentCapacitance:
         assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.current != NULL);
-        memb_func_.current(nrn_thread, memb_list, type_);
+        memb_func_.current(nt, memb_list, type_);
         break;
-      case Mechanism::ModFunctions::kCurrent:
+      case Mechanism::ModFunctions::kCurrent: {
         assert(type_ != MechanismTypes::kCapacitance);
-        if (memb_func_.current)  // has a current function
-        {
-          if (input_params_->mechs_parallelism_  // parallel execution
-              &&
-              strcmp(this->memb_func_.sym, "CaDynamics_E2") !=
-                  0  // not CaDynamics_E2 (no updates in cur function)
-              && !this->is_ion_)  // not ion (updates in nrn_cur_ion function)
-          {
-            if (this->dependencies_count_ > 0)
-              memb_func_.current_parallel(
-                  nrn_thread, memb_list, type_,
-                  Branch::MechanismsGraph::AccumulateRHSandD,
-                  Branch::MechanismsGraph::AccumulateIandDIDV,
-                  branch->mechs_graph_);
-            else
-              memb_func_.current_parallel(
-                  nrn_thread, memb_list, type_,
-                  Branch::MechanismsGraph::AccumulateRHSandD,
-                  NULL,  // no accummulation of i and di/dv
-                  branch->mechs_graph_);
-          } else  // regular version
-          {
-            if (input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
-              for (int i = 0; i < memb_list->nodecount; i++) {
-                int nd = memb_list->nodeindices[i];
-                // fprintf(stderr, "== current: mech %d, node %d\n",
-                // this->type_, nd);
-              }
-            memb_func_.current(nrn_thread, memb_list, type_);
-          }
+        /* if has a current function */
+        if (memb_func_.current) {
+          if (ml_parallel_count)
+            hpx_par_for_sync(Mechanism::MembFuncThread, 0, ml_parallel_count,
+                             memb_func_thread_args);
+          else
+            Mechanism::MembFuncThread(0, memb_func_thread_args);
         }
-        break;
-      case Mechanism::ModFunctions::kState:
-        if (memb_func_.state) memb_func_.state(nrn_thread, memb_list, type_);
-        break;
+      } break;
+      case Mechanism::ModFunctions::kState: {
+        if (memb_func_.state) {
+          if (ml_parallel_count)
+            hpx_par_for_sync(Mechanism::MembFuncThread, 0, ml_parallel_count,
+                             memb_func_thread_args);
+          else
+            memb_func_.state(nt, memb_list, type_);
+        }
+      } break;
       case Mechanism::ModFunctions::kJacobCapacitance:
         assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.jacob != NULL);
-        nrn_jacob_capacitance(nrn_thread, memb_list, type_);
+        nrn_jacob_capacitance(nt, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kJacob:
         assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.jacob) {
           assert(0);  // No jacob function pointers yet
                       // (get_jacob_function(xxx))
-          memb_func_.jacob(nrn_thread, memb_list, type_);
+          memb_func_.jacob(nt, memb_list, type_);
         }
         break;
       case Mechanism::ModFunctions::kInitialize:
-        if (memb_func_.initialize)
-          memb_func_.initialize(nrn_thread, memb_list, type_);
+        if (memb_func_.initialize) memb_func_.initialize(nt, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kDestructor:
         if (memb_func_.destructor) memb_func_.destructor();
@@ -281,7 +324,7 @@ void Mechanism::CallModFunction(
         if (memb_func_.thread_table_check_)
           memb_func_.thread_table_check_(0, memb_list->nodecount,
                                          memb_list->data, memb_list->pdata,
-                                         memb_list->_thread, nrn_thread, type_);
+                                         memb_list->_thread, nt, type_);
         break;
       case Mechanism::ModFunctions::kThreadCleanup:
         assert(0);  // should only be called by destructor ~Branch(...)
@@ -290,8 +333,8 @@ void Mechanism::CallModFunction(
         break;
       case Mechanism::ModFunctions::kODEMatsol:  // CVODE-specific
         if (this->ode_matsol_ && this->state_vars_->count_ > 0)
-          tools::Vectorizer::CallVecFunction(this->ode_matsol_, nrn_thread,
-                                             memb_list, type_);
+          tools::Vectorizer::CallVecFunction(this->ode_matsol_, nt, memb_list,
+                                             type_);
         break;
       case Mechanism::ModFunctions::kODESpec:  // CVODE-specific
         if (this->ode_spec_ && this->state_vars_->count_ > 0) {
@@ -300,23 +343,24 @@ void Mechanism::CallModFunction(
             // fprintf(stderr, "== odespec: mech %d, node %d\n", this->type_,
             // nd);
           }
-          tools::Vectorizer::CallVecFunction(this->ode_spec_, nrn_thread,
-                                             memb_list, type_);
+          tools::Vectorizer::CallVecFunction(this->ode_spec_, nt, memb_list,
+                                             type_);
         }
         break;
       case Mechanism::ModFunctions::kDivCapacity:  // CVODE-specific
         if (this->div_capacity_) assert(type_ == MechanismTypes::kCapacitance);
         assert(this->div_capacity_ != NULL);
-        nrn_div_capacity(nrn_thread, memb_list, type_);
+        nrn_div_capacity(nt, memb_list, type_);
         break;
       case Mechanism::ModFunctions::kMulCapacity:  // CVODE-specific
         if (this->mul_capacity_) assert(type_ == MechanismTypes::kCapacitance);
         assert(this->div_capacity_ != NULL);
-        nrn_mul_capacity(nrn_thread, memb_list, type_);
+        nrn_mul_capacity(nt, memb_list, type_);
         break;
       default:
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);
     }
   }
+  delete memb_func_thread_args;
 }

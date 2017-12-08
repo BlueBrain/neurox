@@ -28,7 +28,7 @@ using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 bool Debugger::IsEqual(floble_t a, floble_t b, bool roughlyEqual) {
-  const double epsilon = input_params_->mechs_parallelism_ ? 5e-4 : 1e-8;
+  const double epsilon = input_params_->graph_mechs_parallelism_ ? 5e-4 : 1e-8;
   // NOTE: current functions for mechs SK_E2 (144) andNap_Et2 (123) depends on
   // V that change opening vars that change V and so on... after few steps this
   // causes high difference in results;
@@ -245,8 +245,7 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_ ||
+  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return;
 
@@ -427,16 +426,17 @@ int Debugger::ThreadTableCheck_handler() {
 hpx_action_t Debugger::NrnSpikeExchange = 0;
 int Debugger::NrnSpikeExchange_handler() {
   NEUROX_MEM_PIN(uint64_t);
+#if NRNMPI == 1
   if (input_params_->interpolator_ == InterpolatorIds::kBackwardEuler)
     nrn_spike_exchange(nrn_threads);
+#endif
   return neurox::wrappers::MemoryUnpin(target);
 }
 
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_ ||
+  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
@@ -445,8 +445,7 @@ int Debugger::CompareBranch_handler() {
 
 void Debugger::RunCoreneuronAndCompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_ ||
+  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return;
 
@@ -470,8 +469,8 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
 void Debugger::SingleNeuronStepAndCompare(NrnThread *nt, Branch *b,
                                           char secondorder) {
 #if !defined(NDEBUG)
-  if (input_params_->branch_parallelism_depth_ > 0 ||
-      input_params_->load_balancing_ || neurox::ParallelExecution())
+  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
+      neurox::ParallelExecution())
     return;  // can't be compared
 
   input::Debugger::FixedStepMinimal2(nt, secondorder);

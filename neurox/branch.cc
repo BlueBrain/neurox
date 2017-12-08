@@ -30,6 +30,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     : soma_(nullptr),
       nt_(nullptr),
       mechs_instances_(nullptr),
+      mechs_instances_parallel_(nullptr),
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
@@ -110,7 +111,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   offset_t pdata_offset = 0;
   offset_t instances_offset = 0;
   this->mechs_instances_ = new Memb_list[mechanisms_count_];
-
   int max_mech_id = 0;
 
   vector<void *> vdata_ptrs;
@@ -232,7 +232,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   assert(pdata_offset == pdata_count);
   assert(instances_offset == nodes_indices_count);
 
-  // vdata pointers
+  // nt->_vdata pointers
   nt->_nvdata = vdata_ptrs.size();
   nt->_vdata =
       vdata_serialized_count == 0 ? nullptr : new void *[vdata_ptrs.size()];
@@ -334,12 +334,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   assert(weights_count == weights_offset);
 
   // create data structure that defines branching
-  if (input_params_->branch_parallelism_depth_ > 0)
+  if (input_params_->branch_parallelism_)
     this->branch_tree_ =
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
   // create data structure that defines the graph of mechanisms
-  if (input_params_->mechs_parallelism_) {
+  if (input_params_->graph_mechs_parallelism_) {
     this->mechs_graph_ = new Branch::MechanismsGraph();
     this->mechs_graph_->InitMechsGraph(branch_hpx_addr);
   }
@@ -347,6 +347,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  if (input_params_->mech_instances_parallelism_)
+    tools::Vectorizer::CreateParallelMechsInstances(this);
 
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
@@ -397,15 +400,17 @@ Branch::~Branch() {
   delete branch_tree_;
   delete mechs_graph_;
   delete interpolator_;
+  delete[] mechs_instances_parallel_;
 }
 
 hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == 17 || nargs == 18);  // 16 for normal init, 17 for benchmark
-                                       // (initializes, benchmarks, and clears
-                                       // memory)
+  // 17 for normal init, 18 for benchmark
+  // (initializes branch, benchmarks, and clears memory)
+  assert(nargs == 17 || nargs == 18);
+
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
       *(int *)args[1],       // nrnThreadId (nt.id)
@@ -442,9 +447,9 @@ int Branch::Init_handler(const int nargs, const void *args[],
     interpolators::BackwardEuler::Finitialize2(local);
 
     // benchmark execution time of a communication-step time-frame
-    hpx_time_t now = hpx_time_now();
     const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
-    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local);
+    hpx_time_t now = hpx_time_now();
+    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local, true);
     double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
     delete local;
     NEUROX_MEM_UNPIN_CONTINUE(time_elapsed);
@@ -641,7 +646,8 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
     : top_branch_addr_(top_branch_addr),
       branches_(nullptr),
       branches_count_(branches_count),
-      with_children_lcos_(nullptr) {
+      with_children_lcos_(nullptr),
+      a_from_children_(nullptr) {
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
     memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
@@ -651,12 +657,14 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
 Branch::BranchTree::~BranchTree() {
   delete[] branches_;
   delete[] with_children_lcos_;
+  delete[] a_from_children_;
 }
 
 hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
+  HinesSolver::CommunicateConstants(local);
   local->interpolator_->Init(local);  // Finitialize, Cvodes init, etc
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
@@ -668,9 +676,15 @@ int Branch::BranchTree::InitLCOs_handler() {
   BranchTree *branch_tree = local->branch_tree_;
   if (branch_tree) {
     offset_t branches_count = branch_tree->branches_count_;
-    for (int i = 0; i < BranchTree::kFuturesSize; i++)
-      branch_tree->with_parent_lco_[i] =
-          local->soma_ ? HPX_NULL : hpx_lco_future_new(sizeof(floble_t));
+    for (int i = 0; i < BranchTree::kFuturesSize; i++) {
+      branch_tree->with_parent_lco_[i] = HPX_NULL;
+      if (!local->soma_)  // create the LCOs
+      {
+        size_t size_buffer = i == 3 ? 2 : 1;  // third LCO sends two values
+        branch_tree->with_parent_lco_[i] =
+            hpx_lco_future_new(size_buffer * sizeof(floble_t));
+      }
+    }
     branch_tree->with_children_lcos_ =
         branches_count ? new hpx_t[branches_count][BranchTree::kFuturesSize]
                        : nullptr;
@@ -685,9 +699,10 @@ int Branch::BranchTree::InitLCOs_handler() {
             hpx_lco_future_new(sizeof(hpx_t) * BranchTree::kFuturesSize);
         addrs[c] = &branch_tree->with_children_lcos_[c];
         sizes[c] = sizeof(hpx_t) * BranchTree::kFuturesSize;
-        hpx_call(branch_tree->branches_[c], Branch::BranchTree::InitLCOs,
-                 futures[c], branch_tree->with_parent_lco_,
-                 sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCO down
+        hpx_call(
+            branch_tree->branches_[c], Branch::BranchTree::InitLCOs, futures[c],
+            branch_tree->with_parent_lco_,
+            sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCOs down
       }
       hpx_lco_get_all(branches_count, futures, sizes, addrs, NULL);
       hpx_lco_delete_all(branches_count, futures, NULL);

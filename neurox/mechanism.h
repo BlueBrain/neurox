@@ -13,6 +13,7 @@ enum MechanismTypes {
   kCapacitance = 3,
   kIClamp = 7,
   kExpSyn = 9,
+  kCaDynamics_E2 = 32,
   kProbAMPANMDA_EMS = 137,
   kProbGABAAB_EMS = 139,
   kStochKv = 151
@@ -123,6 +124,25 @@ class Mechanism {
       const NetconX *netcon = nullptr,  // net_receive only
       const floble_t tt = 0);           // net_receive only
  private:
-  void RegisterBeforeAfterFunctions();  ///> register Before-After functions
+  /// aux version for threaded version of CallModFunction
+  static inline int MembFuncThread(int i, void *arg_ptr);
+
+  /// argument to previous thread call
+  typedef struct MembFuncArgsStruct {
+    Mechanism::ModFunctions func_id;
+    Memb_func *memb_func;
+    NrnThread *nt;
+    Memb_list *ml;
+    int type;
+
+    // parallel execution of current only:
+    bool requires_shadow_vectors;
+    mod_acc_f_t acc_rhs_d;
+    mod_acc_f_t acc_di_dv;
+    void *acc_args;
+  } MembFuncArgs;
+
+  /// register Before-After functions
+  void RegisterBeforeAfterFunctions();
 };
 };

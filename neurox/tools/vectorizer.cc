@@ -1,5 +1,6 @@
 #include "neurox/neurox.h"
 
+#include <cmath>
 #include <iostream>
 
 using namespace std;
@@ -96,7 +97,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
 
         // get correct pdata offset: without branching, offsets are already
         // correct for both LAYOUTs and padding
-        if (input_params_->branch_parallelism_depth_ > 0) {
+        if (input_params_->branch_parallelism_) {
           int ptype = memb_func[mechanisms_[m]->type_].dparam_semantics[i];
           bool is_pointer = ptype == -1 || (ptype > 0 && ptype < 1000);
           if (is_pointer)  // true for pointer to area in nt->data, or ion
@@ -332,4 +333,86 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     *ml_no_capacitors_ptr = ml_no_capacitors;
   else
     delete[] ml_no_capacitors;
+}
+
+void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
+  // build memb_lists for parallel processing of mechanisms
+  b->mechs_instances_parallel_ = new Memb_list*[mechanisms_count_];
+  b->mechs_instances_parallel_count_ = new int[mechanisms_count_];
+  std::fill(b->mechs_instances_parallel_,
+            b->mechs_instances_parallel_ + neurox::mechanisms_count_, nullptr);
+  std::fill(b->mechs_instances_parallel_count_,
+            b->mechs_instances_parallel_count_ + neurox::mechanisms_count_, 0.);
+
+  int cluster_size = LoadBalancing::kMechInstancesPerCluster;
+
+  /* if different instances of same mechanism type can be in the same
+   * compartment, then instances-parallelism requires mechs-graph parallism
+     so that updates to nt->V and nt->RHS are protected by shadow vector */
+  if (!input_params_->graph_mechs_parallelism_) {
+    for (int m = 0; m < neurox::mechanisms_count_; m++) {
+      Memb_list* ml = &b->mechs_instances_[m];
+      int thread_id = 0;
+
+      for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
+        /* map of compartment index to the thread id it's allocated to */
+        std::map<int, int> index_to_thread;
+        for (int i = 0; i < std::min(ml->nodecount - n, cluster_size); i++) {
+          int index = ml->nodeindices[n + i];
+
+          /* if that compartment index can be processed by other thread*/
+          if (index_to_thread.find(index) != index_to_thread.end() &&
+              index_to_thread.at(index) != thread_id) {
+            throw std::runtime_error(
+                "Several instances of same mechanism type in the same "
+                "compartment. Re-run with mechs-graph parallelism.\n");
+          } else
+            index_to_thread[index] = thread_id;
+        }
+      }
+    }
+  }
+
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    /* only parallelize mechs with more instances than threshold */
+    Memb_list* ml = &b->mechs_instances_[m];
+
+    if (ml->nodecount < cluster_size) continue;
+
+    /* parallel subsets of Memb_list */
+    int& ml_parallel_count = b->mechs_instances_parallel_count_[m];
+    ml_parallel_count = std::ceil((double)ml->nodecount / (double)cluster_size);
+
+    Memb_list*& ml_parallel = b->mechs_instances_parallel_[m];
+    ml_parallel = new Memb_list[ml_parallel_count];
+
+    Mechanism* mech = neurox::mechanisms_[m];
+    (void)mech;  // unused var warning for LAYOUT==0
+
+    /* create subsets of parallel Memb_list */
+    int ml_it = 0;
+    for (int n = 0; n < ml->nodecount; n += cluster_size, ml_it++) {
+      Memb_list* ml_sub = &ml_parallel[ml_it];
+      memcpy(ml_sub, ml, sizeof(Memb_list));
+      ml_sub->nodeindices = &ml->nodeindices[n];
+      ml_sub->nodecount = std::min(1000, ml->nodecount - n);
+      if (input_params_->graph_mechs_parallelism_) {
+        ml_sub->_shadow_d = &ml->_shadow_d[n];
+        ml_sub->_shadow_rhs = &ml->_shadow_rhs[n];
+        ml_sub->_shadow_didv = &ml->_shadow_didv[n];
+        ml_sub->_shadow_didv_offsets = &ml->_shadow_didv_offsets[n];
+        ml_sub->_shadow_i = &ml->_shadow_i[n];
+        ml_sub->_shadow_i_offsets = &ml->_shadow_i_offsets[n];
+      }
+#if LAYOUT == 1
+      int data_offset = n * mech->data_size_;
+      int pdata_offset = n * mech->pdata_size_;
+#else
+      int data_offset = n;
+      int pdata_offset = n;
+#endif
+      ml_sub->data = &ml->data[data_offset];
+      ml_sub->pdata = &ml->pdata[pdata_offset];
+    }
+  }
 }

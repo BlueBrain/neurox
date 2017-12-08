@@ -47,6 +47,9 @@ class Vectorizer {
       std::set<int> *capacitors_ids_ptr = nullptr  // in (optional)
       );
 
+  /// creates branch->
+  static void CreateParallelMechsInstances(Branch *branch);
+
   // C++11 does not support memory-aligned new[]/delete, this is a work around
 
   /// memory-aligned memory allocation
