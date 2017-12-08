@@ -340,20 +340,8 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
   b->mechs_instances_threads_args =
       new Mechanism::MembListThreadArgs[mechanisms_count_];
 
-  // get total runtime spent on this branch
-  double total_branch_runtime = 0;
-  for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    Memb_list* ml = &b->mechs_instances_[m];
-    total_branch_runtime +=
-        mechanisms_[m]->current_func_runtime_ * (double)ml->nodecount;
-    total_branch_runtime +=
-        mechanisms_[m]->state_func_runtime_ * (double)ml->nodecount;
-  }
-
   /* compute mech-instances per thread for state and current funtions */
-  double percent = LoadBalancing::kMechInstancesPercentagePerComputeUnit;
-  assert(percent > 0 && percent <= 1);
-  double max_workload = total_branch_runtime * percent;
+  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesThread();
 
   enum funcs { State = 0, Current = 1, Count = 2 };
   for (int f = 0; f < funcs::Count; f++) {
@@ -381,9 +369,8 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         threads_args->state_thread_count = 0;
         continue;
       }
-      /* cluster size includes all instances that fit in the max workload */
-      double all_instances_runtime = instance_runtime * (double)ml->nodecount;
-      int cluster_size = std::ceil(max_workload / all_instances_runtime);
+      /* cluster size is number if instances that fit in the max workload */
+      int cluster_size = std::ceil(max_workload/instance_runtime);
       assert(cluster_size > 0);
 
       /* if different instances of same mechanism type can be in the same

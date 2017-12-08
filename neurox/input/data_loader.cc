@@ -644,15 +644,6 @@ int DataLoader::InitNeurons_handler() {
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
 #ifndef NDEBUG
-  if (input_params_->mech_instances_parallelism_) {
-    printf("Mechanisms execution time per instance (microseconds):\n");
-    for (int m = 0; m < neurox::mechanisms_count_; m++)
-      printf("mech type %d (%s): state %.3f us, current %.3f us\n",
-             neurox::mechanisms_[m]->type_,
-             neurox::mechanisms_[m]->memb_func_.sym,
-             neurox::mechanisms_[m]->state_func_runtime_,
-             neurox::mechanisms_[m]->current_func_runtime_);
-  }
 
   // TODO add also slowest subsection runtime?
   if (input_params_->branch_parallelism_) {
@@ -827,6 +818,18 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
 hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
+
+#ifndef NDEBUG
+  if (input_params_->mech_instances_parallelism_) {
+    printf("Mechanisms execution time per instance:");
+    for (int m = 0; m < neurox::mechanisms_count_; m++)
+      printf("mech type %d (%s): state %.3f us, current %.3f us\n",
+             neurox::mechanisms_[m]->type_,
+             neurox::mechanisms_[m]->memb_func_.sym,
+             neurox::mechanisms_[m]->state_func_runtime_,
+             neurox::mechanisms_[m]->current_func_runtime_);
+  }
+#endif
 
   if (input_params_->output_netcons_dot) {
     fprintf(file_netcons_, "}\n");
@@ -1383,9 +1386,12 @@ double DataLoader::BenchmarkSubSection(
       now = hpx_time_now();
       if (mech->memb_func_.state) {
         mech->CallModFunction(branch, Mechanism::ModFunctions::kState);
-        time_elapsed = hpx_time_elapsed_us(now) / ml->nodecount;
+        time_elapsed = hpx_time_elapsed_us(now);
       }
+
       hpx_lco_sema_p(DataLoader::locality_mutex_);
+      LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
+      time_elapsed /= ml->nodecount;
       mech->state_func_runtime_ =
           mech->state_func_runtime_ == -1 /*if not set */
               ? time_elapsed
@@ -1400,9 +1406,12 @@ double DataLoader::BenchmarkSubSection(
                               Mechanism::ModFunctions::kCurrentCapacitance);
       else if (mech->memb_func_.current) {
         mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
-        time_elapsed = hpx_time_elapsed_us(now) / ml->nodecount;
+        time_elapsed = hpx_time_elapsed_us(now);
       }
+
       hpx_lco_sema_p(DataLoader::locality_mutex_);
+      LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
+      time_elapsed /= ml->nodecount;
       mech->current_func_runtime_ =
           mech->current_func_runtime_ == -1 /*if not set */
               ? time_elapsed
