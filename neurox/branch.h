@@ -47,7 +47,10 @@ class Branch {
   ~Branch();
 
   /// clears a given Memb_list structure
-  static void DeleteMembList(Memb_list*&);
+  static void ClearMembList(Memb_list*&);
+
+  /// clears a given NrnThread structure
+  static void ClearNrnThread(NrnThread*&);
 
   /// Compartments, Weights and other Coreneuron data
   NrnThread* nt_;
@@ -56,10 +59,7 @@ class Branch {
   Memb_list* mechs_instances_;
 
   /// Arrays of subsets of mechanisms instances, when applicable
-  Memb_list** mechs_instances_parallel_;
-
-  /// size of array mechs_instances_parallel_
-  int* mechs_instances_parallel_count_;
+  Mechanism::MembListThreadArgs* mechs_instances_threads_args;
 
   /// if top branch, refers to soma/neuron info, otherwise is NULL
   Neuron* soma_;

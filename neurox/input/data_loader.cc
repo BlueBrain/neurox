@@ -643,11 +643,22 @@ int DataLoader::InitNeurons_handler() {
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
-// TODO add also slowest subsection runtime?
 #ifndef NDEBUG
-  if (input_params_->branch_parallelism_)
+  if (input_params_->mech_instances_parallelism_) {
+    printf("Mechanisms execution time per instance:\n");
+    for (int m = 0; m < neurox::mechanisms_count_; m++)
+      printf("mech type %d (%s): state %.3f ns, current %.3f ns\n",
+             neurox::mechanisms_[m]->type_,
+             neurox::mechanisms_[m]->memb_func_.sym,
+             neurox::mechanisms_[m]->state_func_runtime_,
+             neurox::mechanisms_[m]->current_func_runtime_);
+  }
+
+  // TODO add also slowest subsection runtime?
+  if (input_params_->branch_parallelism_) {
     printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
            slowest_compartment_runtime);
+  }
 #endif
 
   // all neurons created, advertise them
@@ -1268,15 +1279,16 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 
 double DataLoader::BenchmarkSubSection(
     int N, const deque<Compartment *> &sub_section,
-    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
+    vector<DataLoader::IonInstancesInfo> &ions_instances_info,
+    bool run_single_step_benchmark, bool run_mechanisms_benchmark) {
   // common vars to all compartments
-  bool run_benchmark_and_clear = true;
   int dumb_threshold_offset = 0;
   int nrn_threadId = -1;
   hpx_t soma_branch_addr = HPX_NULL;
 
   // timing vars
-  double time_elapsed = -1;
+  double time_elapsed = 0;
+  hpx_time_t now;
 
   // serialization of neurons
   offset_t n;              // number of compartments in branch
@@ -1308,6 +1320,8 @@ double DataLoader::BenchmarkSubSection(
   GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
                        branch_weights, &mech_instances_map);
 
+  bool benchmark = run_single_step_benchmark || run_mechanisms_benchmark;
+
   hpx_call_sync(
       temp_branch_addr, Branch::Init, &time_elapsed,
       sizeof(time_elapsed),  // output
@@ -1332,9 +1346,73 @@ double DataLoader::BenchmarkSubSection(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size(), &run_benchmark_and_clear,
-      sizeof(bool));
+      sizeof(unsigned char) * vdata.size(), &benchmark, sizeof(bool));
 
+  /* this mem pin works because benchmark neurons are allocated locally*/
+  Branch *branch = NULL;
+  int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
+  assert(err != 0);
+
+  if (run_single_step_benchmark) {
+    // initialize datatypes and graph-parallelism shadow vecs offsets
+    branch->soma_ = new Neuron(-1, 999);
+
+    // initialize datatypes and graph-parallelism shadow vecs offsets
+    interpolators::BackwardEuler::Finitialize2(branch);
+
+    // benchmark execution time of a communication-step time-frame
+    const int comm_steps =
+        interpolators::BackwardEuler::GetMinSynapticDelaySteps();
+    hpx_time_t now = hpx_time_now();
+    for (int i = 0; i < comm_steps; i++)
+      interpolators::BackwardEuler::Step(branch, true);
+    time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
+  }
+
+  if (run_mechanisms_benchmark) {
+    /* disable any parallel mech-instance set before by Branch::Init*/
+    delete branch->mechs_instances_threads_args;
+    delete[] branch->mechs_instances_threads_args->ml_state;
+    branch->mechs_instances_threads_args = nullptr;
+
+    /* disable graph-parallelism variables (offsets are not set yet) */
+    delete branch->mechs_graph_;
+    branch->mechs_graph_ = nullptr;
+
+    for (int m = 0; m < neurox::mechanisms_count_; m++) {
+      Mechanism *mech = neurox::mechanisms_[m];
+
+      /* benchmark state function */
+      time_elapsed = 0;
+      now = hpx_time_now();
+      if (mech->memb_func_.state) {
+        mech->CallModFunction(branch, Mechanism::ModFunctions::kState);
+        time_elapsed = hpx_time_elapsed_ns(now);
+      }
+      hpx_lco_sema_p(DataLoader::locality_mutex_);
+      mech->state_func_runtime_ =
+          std::min(mech->state_func_runtime_,
+                   time_elapsed / branch->mechs_instances_[m].nodecount);
+      hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+
+      /* benchmark current function */
+      time_elapsed = 0;
+      now = hpx_time_now();
+      if (mech->type_ != MechanismTypes::kCapacitance &&
+          mech->memb_func_.current) {
+        mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
+        time_elapsed = hpx_time_elapsed_ns(now);
+      }
+      hpx_lco_sema_p(DataLoader::locality_mutex_);
+      mech->current_func_runtime_ =
+          std::min(mech->current_func_runtime_,
+                   time_elapsed / branch->mechs_instances_[m].nodecount);
+      hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+    }
+    hpx_gas_unpin(temp_branch_addr);
+  }
+
+  hpx_call_sync(temp_branch_addr, Branch::Clear, nullptr, 0);
   hpx_gas_clear_affinity(temp_branch_addr);
   return time_elapsed;
 }
@@ -1391,6 +1469,13 @@ hpx_t DataLoader::CreateBranch(
   Compartment *bottom_compartment = nullptr;
   deque<Compartment *> sub_section;
 
+  /* to calculate computational complexity for the mech-instance parallelism,
+   * benchmark all mechanisms. Only on the first run, and only benchmarks
+   * mechanisms instances, not individual step of neurons */
+  if (is_soma && input_params_->mech_instances_parallelism_) {
+    BenchmarkSubSection(N, all_compartments, ions_instances_info, false, true);
+  }
+
   /* No branch-parallelism, a la Coreneuron */
   if (!input_params_->branch_parallelism_) {
     n = GetBranchData(all_compartments, data, pdata, vdata, p, instances_count,
@@ -1407,7 +1492,7 @@ hpx_t DataLoader::CreateBranch(
       neuron_time =
           BenchmarkEachCompartment(all_compartments, ions_instances_info);
 
-    /* estimanted max execution time per subregion for this neuron*/
+    /* estimated max execution time per subregion for this neuron*/
     double work_per_section = LoadBalancing::GetWorkPerBranchSubsection(
         neuron_time, GetMyNrnThreadsCount());
 

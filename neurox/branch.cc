@@ -30,7 +30,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     : soma_(nullptr),
       nt_(nullptr),
       mechs_instances_(nullptr),
-      mechs_instances_parallel_(nullptr),
+      mechs_instances_threads_args(nullptr),
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
@@ -349,12 +349,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #endif
 
   if (input_params_->mech_instances_parallelism_)
-    tools::Vectorizer::CreateParallelMechsInstances(this);
+    tools::Vectorizer::CreateMechInstancesThreads(this);
 
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
 
-void Branch::DeleteMembList(Memb_list *&mechs_instances) {
+void Branch::ClearMembList(Memb_list *&mechs_instances) {
   for (int m = 0; m < mechanisms_count_; m++) {
     Memb_list &instance = mechs_instances[m];
     if (mechanisms_[m]->memb_func_.thread_cleanup_)
@@ -375,23 +375,24 @@ void Branch::DeleteMembList(Memb_list *&mechs_instances) {
   mechs_instances = nullptr;
 }
 
+void Branch::ClearNrnThread(NrnThread *&nt) {
+  delete[] nt->weights;
+  Vectorizer::Delete(nt->_data);
+  Vectorizer::Delete(nt->_v_parent_index);
+  delete[] nt->_ml_list;
+  delete[] nt->_vdata;
+
+  for (int i = 0; i < nt->n_vecplay; i++)
+    delete (VecplayContinuousX *)nt->_vecplay[i];
+  delete[] nt->_vecplay;
+
+  free(nt);
+}
+
 Branch::~Branch() {
-  delete[] this->nt_->weights;
-  Vectorizer::Delete(this->nt_->_data);
-  Vectorizer::Delete(this->nt_->_v_parent_index);
-  delete[] this->nt_->_ml_list;
-
   hpx_lco_delete_sync(this->events_queue_mutex_);
-  DeleteMembList(mechs_instances_);
-
-  for (int i = 0; i < this->nt_->_nvdata; i++) delete nt_->_vdata[i];
-  delete[] this->nt_->_vdata;  // TODO deleting void* in undefined!
-
-  for (int i = 0; i < this->nt_->n_vecplay; i++)
-    delete (VecplayContinuousX *)nt_->_vecplay[i];
-  delete[] this->nt_->_vecplay;
-
-  free(this->nt_);
+  ClearMembList(this->mechs_instances_);
+  ClearNrnThread(this->nt_);
 
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
@@ -400,16 +401,20 @@ Branch::~Branch() {
   delete branch_tree_;
   delete mechs_graph_;
   delete interpolator_;
-  delete[] mechs_instances_parallel_;
+  if (mechs_instances_threads_args) {
+    delete[] mechs_instances_threads_args->ml_state;
+  }
+  delete[] mechs_instances_threads_args;
 }
 
 hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
   NEUROX_MEM_PIN(Branch);
-  // 17 for normal init, 18 for benchmark
-  // (initializes branch, benchmarks, and clears memory)
+
+  // 17 for normal init, 18 for benchmark_mode
   assert(nargs == 17 || nargs == 18);
+  bool benchmark_mode = nargs == 18 ? *(bool *)args[17] : false;
 
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
@@ -438,22 +443,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (unsigned char *)args[16],
       sizes[16] / sizeof(unsigned char));  // serialized vdata
 
-  bool run_benchmark_and_clear = nargs == 18 ? *(bool *)args[17] : false;
-  if (run_benchmark_and_clear) {
-    // initialize datatypes and graph-parallelism shadow vecs offsets
-    local->soma_ = new Neuron(-1, 999);
-
-    // initialize datatypes and graph-parallelism shadow vecs offsets
-    interpolators::BackwardEuler::Finitialize2(local);
-
-    // benchmark execution time of a communication-step time-frame
-    const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
-    hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < comm_steps; i++) BackwardEuler::Step(local, true);
-    double time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
-    delete local;
-    NEUROX_MEM_UNPIN_CONTINUE(time_elapsed);
-  } else {
+  if (!benchmark_mode) {
     // reconstruct map of locality to branch netcons (if needed)
     if (input_params_->locality_comm_reduce_) {
       const offset_t netcons_count = sizes[13] / sizeof(NetconX);
