@@ -344,7 +344,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     this->mechs_graph_->InitMechsGraph(branch_hpx_addr);
   }
 
+  // create data structures that defines mech-instances parallelism
+  if (input_params_->mech_instances_parallelism_)
+    Vectorizer::CreateMechInstancesThreads(this);
+
 #if LAYOUT == 0
+  // if using vector data structures, convert now
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
@@ -398,10 +403,14 @@ Branch::~Branch() {
   delete branch_tree_;
   delete mechs_graph_;
   delete interpolator_;
+
   if (mechs_instances_threads_args) {
-    delete[] mechs_instances_threads_args->ml_state;
+    for (int m = 0; m < neurox::mechanisms_count_; m++) {
+      delete[] mechs_instances_threads_args[m].ml_state;
+      delete[] mechs_instances_threads_args[m].ml_current;
+    }
+    delete[] mechs_instances_threads_args;
   }
-  delete[] mechs_instances_threads_args;
 }
 
 hpx_action_t Branch::Init = 0;
@@ -475,15 +484,6 @@ int Branch::Clear_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
   delete local;
-  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  NEUROX_MEM_UNPIN
-}
-
-hpx_action_t Branch::CreateMechInstancesThreads = 0;
-int Branch::CreateMechInstancesThreads_handler() {
-  NEUROX_MEM_PIN(Branch);
-  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Clear);
-  Vectorizer::CreateMechInstancesThreads(local);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN
 }
@@ -590,7 +590,7 @@ int Branch::ThreadTableCheck_handler() {
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::ThreadTableCheck);
   local->CallModFunction(Mechanism::ModFunctions::kThreadTableCheck);
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
@@ -712,7 +712,7 @@ int Branch::BranchTree::InitLCOs_handler() {
       return neurox::wrappers::MemoryUnpin(target,
                                            branch_tree->with_parent_lco_);
   }
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 //////////////////// Branch::MechanismsGraph ///////////////////////
@@ -790,7 +790,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
                         ->mechs_lcos_[mechanisms_map_[mech->successors_[c]]],
                     sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
   }
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 void Branch::MechanismsGraph::AccumulateRHSandD(NrnThread *nt, Memb_list *ml,
@@ -840,8 +840,6 @@ void Branch::RegisterHpxActions() {
                                   BranchTree::InitLCOs_handler);
   wrappers::RegisterZeroVarAction(Branch::Initialize,
                                   Branch::Initialize_handler);
-  wrappers::RegisterZeroVarAction(Branch::CreateMechInstancesThreads,
-                                  Branch::CreateMechInstancesThreads_handler);
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,
                                          MechanismsGraph::MechFunction_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(Branch::SetSyncStepTrigger,

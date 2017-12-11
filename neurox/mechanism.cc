@@ -173,11 +173,11 @@ int Mechanism::ModFunctionStateThread(int i, void *args_ptr) {
 int Mechanism::ModFunctionCurrentThread(int i, void *args_ptr) {
   MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
   if (args->requires_shadow_vectors)
-    args->memb_func->current_parallel(args->nt, &args->ml_state[i], args->type,
-                                      args->acc_rhs_d, args->acc_di_dv,
-                                      args->acc_args);
+    args->memb_func->current_parallel(args->nt, &args->ml_current[i],
+                                      args->type, args->acc_rhs_d,
+                                      args->acc_di_dv, args->acc_args);
   else
-    args->memb_func->current(args->nt, &args->ml_state[i], args->type);
+    args->memb_func->current(args->nt, &args->ml_current[i], args->type);
   return 0;
 }
 
@@ -225,7 +225,6 @@ void Mechanism::CallModFunction(
   assert(memb_list);
 
   /* create argument for thread instances of current and state functions */
-  int threads_count = 0;
   MembListThreadArgs *threads_args = nullptr;
 
   if (branch->mechs_instances_threads_args)
@@ -250,9 +249,9 @@ void Mechanism::CallModFunction(
       case Mechanism::ModFunctions::kCurrentCapacitance: {
         assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.current != NULL);
-        if (threads_count > 0)
+        if (threads_args && threads_args->ml_current_count > 1)
           hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
-                           threads_count, threads_args);
+                           threads_args->ml_current_count, threads_args);
         else
           memb_func_.current(nt, memb_list, type_);
         break;
@@ -260,10 +259,10 @@ void Mechanism::CallModFunction(
       case Mechanism::ModFunctions::kCurrent: {
         assert(type_ != MechanismTypes::kCapacitance);
         if (memb_func_.current) {
-          if (threads_count > 0)
+          if (threads_args && threads_args->ml_current_count > 1) {
             hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
-                             threads_count, threads_args);
-          else {
+                             threads_args->ml_current_count, threads_args);
+          } else {
             bool requires_shadow_vectors =
                 /* graph-parallelism */
                 branch->mechs_graph_
@@ -290,11 +289,12 @@ void Mechanism::CallModFunction(
       } break;
       case Mechanism::ModFunctions::kState: {
         if (memb_func_.state) {
-          if (threads_count > 0)
+          if (threads_args && threads_args->ml_state_count > 1) {
             hpx_par_for_sync(Mechanism::ModFunctionStateThread, 0,
-                             threads_count, threads_args);
-          else
+                             threads_args->ml_state_count, threads_args);
+          } else {
             memb_func_.state(nt, memb_list, type_);
+          }
         }
       } break;
       case Mechanism::ModFunctions::kJacobCapacitance:

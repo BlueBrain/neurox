@@ -58,7 +58,8 @@ class Branch {
   /// Array of mechanisms instances
   Memb_list* mechs_instances_;
 
-  /// Arrays of subsets of mechanisms instances, when applicable
+  /** Array of arguments for parallel-threaded execution of
+   * mechanisms instances, or nullptr when not applicable */
   Mechanism::MembListThreadArgs* mechs_instances_threads_args;
 
   /// if top branch, refers to soma/neuron info, otherwise is NULL
@@ -147,7 +148,6 @@ class Branch {
   static hpx_action_t InitSoma;    ///> Initializes soma information
   static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
-  static hpx_action_t CreateMechInstancesThreads;
   static hpx_action_t AddSpikeEvent;          ///>add incoming synapse to queue
   static hpx_action_t AddSpikeEventLocality;  ///>add incoming synapse to queue
   static hpx_action_t SetSyncStepTrigger;
@@ -177,7 +177,6 @@ class Branch {
   static int InitSoma_handler(const int, const void* [], const size_t[]);
   static int Initialize_handler();
   static int Clear_handler();
-  static int CreateMechInstancesThreads_handler();
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
   static int AddSpikeEventLocality_handler(const int, const void* [],
                                            const size_t[]);

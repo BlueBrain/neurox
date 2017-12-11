@@ -336,12 +336,15 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
 }
 
 void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
+  /* compute mech-instances per thread for state and current funtions */
+  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesThread();
+
+  // benchmark of all mechanisns instances has not been performed yet
+  if (max_workload == 0) return;
+
   // build memb_lists for parallel processing of mechanisms
   b->mechs_instances_threads_args =
       new Mechanism::MembListThreadArgs[mechanisms_count_];
-
-  /* compute mech-instances per thread for state and current funtions */
-  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesThread();
 
   enum funcs { State = 0, Current = 1, Count = 2 };
   for (int f = 0; f < funcs::Count; f++) {
@@ -349,29 +352,42 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
       Mechanism* mech = neurox::mechanisms_[m];
       Memb_list* ml = &b->mechs_instances_[m];
 
+      Mechanism::MembListThreadArgs* threads_args =
+          &b->mechs_instances_threads_args[m];
+
       /* compute the number of instances per thread thread */
       double instance_runtime = f == funcs::State ? mech->state_func_runtime_
                                                   : mech->current_func_runtime_;
 
-      if (/*no state/curent function defined for this mech*/
-          instance_runtime == 0
-          /*Runtime not Set, no benchmark ran so far*/
-          || instance_runtime == -1) {
-        Mechanism::MembListThreadArgs* threads_args =
-            &b->mechs_instances_threads_args[m];
-        threads_args->nt = nullptr;
-        threads_args->memb_func = nullptr;
-        threads_args->type = -1;
-        threads_args->acc_rhs_d = nullptr;
-        threads_args->acc_di_dv = nullptr;
-        threads_args->acc_args = nullptr;
-        threads_args->current_thread_count = 0;
-        threads_args->state_thread_count = 0;
-        continue;
+      int cluster_size=0, cluster_count=1;
+      if (instance_runtime>0)
+      {
+          /* cluster size is the number of instances that fit in the max workload */
+          cluster_size = std::ceil(max_workload / instance_runtime);
+
+          /* cluster count is the number of parallel threads to be spawned */
+          cluster_count = std::ceil((double) ml->nodecount /(double) cluster_size);
       }
-      /* cluster size is number if instances that fit in the max workload */
-      int cluster_size = std::ceil(max_workload/instance_runtime);
-      assert(cluster_size > 0);
+
+      /* if runtime==0, then mod-function is not defined */
+      /* if cluster_count==1, does not need threaded execution */
+      if (instance_runtime == 0 || cluster_count==1) {
+        switch (f) {
+          case funcs::State:
+            threads_args->ml_state_count = 0;
+            threads_args->ml_state = nullptr;
+            continue;
+            break;
+          case funcs::Current:
+            threads_args->ml_current_count = 0;
+            threads_args->ml_current = nullptr;
+            continue;
+            break;
+          default:
+            assert(0);
+            break;
+        }
+      }
 
       /* if different instances of same mechanism type can be in the same
        * compartment, then instances-parallelism requires mechs-graph parallism
@@ -398,8 +414,6 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         }
       }
 
-      Mechanism::MembListThreadArgs* threads_args =
-          &b->mechs_instances_threads_args[m];
       threads_args->nt = b->nt_;
       threads_args->memb_func = &mech->memb_func_;
       threads_args->type = mech->type_;
@@ -413,7 +427,8 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           /* not ion (updates in nrn_cur_ion function) */
           && !mech->is_ion_
           /* not capacitance-only current function */
-          && !(mech->type_==MechanismTypes::kCapacitance && f==funcs::Current);
+          &&
+          !(mech->type_ == MechanismTypes::kCapacitance && f == funcs::Current);
 
       /* if graph-parallelism, pass accumulation functions and their argument*/
       if (threads_args->requires_shadow_vectors) {
@@ -433,12 +448,12 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
 
       /* parallel subsets of Memb_list */
       int& ml_thread_count = f == funcs::State
-                                 ? threads_args->state_thread_count
-                                 : threads_args->current_thread_count;
+                                 ? threads_args->ml_state_count
+                                 : threads_args->ml_current_count;
       Memb_list*& ml_threads =
           f == funcs::State ? threads_args->ml_state : threads_args->ml_current;
 
-      ml_thread_count = std::ceil((double)ml->nodecount / (double)cluster_size);
+      ml_thread_count = cluster_count;
       ml_threads = new Memb_list[ml_thread_count];
 
       int thread_id = 0;

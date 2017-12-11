@@ -565,7 +565,7 @@ int DataLoader::InitMechanisms_handler() {
         dependencies_count_serial.data(), dependencies_serial.data(),
         successors_count_serial.data(), successors_serial.data());
   }
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::Init = 0;
@@ -606,7 +606,7 @@ int DataLoader::Init_handler() {
     locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
   }
 
-  return neurox::wrappers::MemoryUnpin(target);
+  NEUROX_MEM_UNPIN;
 }
 
 hpx_action_t DataLoader::InitNeurons = 0;
@@ -1355,6 +1355,9 @@ double DataLoader::BenchmarkSubSection(
   Branch *branch = NULL;
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
+
+  // for benchamark: either type of benchmark, but not both
+  assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
 
   if (run_single_step_benchmark) {
     // initialize datatypes and graph-parallelism shadow vecs offsets

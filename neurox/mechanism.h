@@ -128,15 +128,15 @@ class Mechanism {
       const NetconX *netcon = nullptr,  // net_receive only
       const floble_t tt = 0);           // net_receive only
 
-  /// argument to previous thread call
+  /// argument to mech-instances threaded calls
   typedef struct MembListThreadArgsStruct {
-    Memb_func *memb_func;
-    NrnThread *nt;
-    Memb_list *ml_state;
-    Memb_list *ml_current;
-    int state_thread_count;    //>  size of array *ml_state
-    int current_thread_count;  ///> size of array *ml_current
-    int type;                  ///> mechanis type
+    Memb_func *memb_func;   ///> Pointer to Memb_func in Branch
+    NrnThread *nt;          ///> Pointer to NrnThread in Branch
+    Memb_list *ml_state;    ///> Array of MembList per thread for state func
+    Memb_list *ml_current;  ///> Array of Memblist per phread for current func
+    int ml_state_count;     //>  size of array *ml_state
+    int ml_current_count;   ///> size of array *ml_current
+    int type;               ///> mechanism type
 
     // parallel execution of current only:
     bool requires_shadow_vectors;

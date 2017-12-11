@@ -83,14 +83,12 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
 }
 
-void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime)
-{
-    total_mech_instances_runtime_ += runtime;
+void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
+  total_mech_instances_runtime_ += runtime;
 }
 
-double tools::LoadBalancing::GetWorkloadPerMechInstancesThread()
-{
-    return total_mech_instances_runtime_ * kMechInstancesPercentagePerComputeUnit;
+double tools::LoadBalancing::GetWorkloadPerMechInstancesThread() {
+  return total_mech_instances_runtime_ * kMechInstancesPercentagePerComputeUnit;
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {

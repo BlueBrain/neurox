@@ -44,9 +44,6 @@ static int Main_handler() {
   CallAllLocalities(input::DataLoader::InitMechanisms);
   DebugMessage("neurox::input::DataLoader::InitNeurons...\n");
   CallAllLocalities(input::DataLoader::InitNeurons);
-  DebugMessage("neurox::Branch::CreateMechInstancesThreads...\n");
-  if (input_params_->mech_instances_parallelism_)
-    CallAllNeurons(Branch::CreateMechInstancesThreads);
   DebugMessage("neurox::input::DataLoader::InitNetcons...\n");
   CallAllNeurons(input::DataLoader::InitNetcons);
   DebugMessage("neurox::input::DataLoader::FilterLocalitySynapses...\n");
