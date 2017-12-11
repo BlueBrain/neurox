@@ -432,6 +432,14 @@ for (;;) { /* help clang-format properly indent */
  v = _v;
  _PRCELLSTATE_V
  initmodel(_threadargs_);
+
+ //populate offsets arrays //(if parallel processing)
+ if (_ml->_shadow_didv_offsets)
+ {
+   _ml->_shadow_i_offsets[_iml] = _ppvar[0*_STRIDE];
+   _ml->_shadow_didv_offsets[_iml] = _ppvar[1*_STRIDE];
+ }
+
  }
 }
 
