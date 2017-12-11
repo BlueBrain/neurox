@@ -78,7 +78,9 @@ class DataLoader {
   /// compute execution time of a given subsection
   static double BenchmarkSubSection(int N,
                                     const deque<Compartment *> &sub_section,
-                                    vector<DataLoader::IonInstancesInfo> &);
+                                    vector<DataLoader::IonInstancesInfo> &,
+                                    bool run_single_step_benchmark = true,
+                                    bool run_mechs_benchmark = false);
 
   /// add benchmark execution time to all compartments
   static double BenchmarkEachCompartment(

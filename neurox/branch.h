@@ -32,22 +32,24 @@ class Branch {
   static void* operator new(size_t bytes, void* addr);
   static void operator delete(void* worker);
 
-  Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
-         hpx_t branch_hpx_addr, floble_t* data, size_t data_count,
-         offset_t* pdata, size_t pdata_count, offset_t* instances_count,
-         size_t recv_mechs_count, offset_t* nodes_indices,
-         size_t nodes_indices_count, hpx_t top_branch_addr, hpx_t* branches,
-         size_t branches_count, offset_t* p, size_t p_count,
-         floble_t* vecplay_t, size_t vecplay_t_Count, floble_t* vecplay_y,
-         size_t vecplay_y_count, PointProcInfo* vecplay_ppi,
-         size_t vecplay_ppi_count, NetconX* netcons_, size_t netcons_count,
-         neuron_id_t* netcons_pre_ids, size_t netcons_pre_ids_count,
-         floble_t* weights, size_t weights_count,
+  Branch(offset_t n, int nrn_thread_id, int threshold_v_offset, floble_t* data,
+         size_t data_count, offset_t* pdata, size_t pdata_count,
+         offset_t* instances_count, size_t recv_mechs_count,
+         offset_t* nodes_indices, size_t nodes_indices_count,
+         hpx_t top_branch_addr, hpx_t* branches, size_t branches_count,
+         offset_t* p, size_t p_count, floble_t* vecplay_t,
+         size_t vecplay_t_Count, floble_t* vecplay_y, size_t vecplay_y_count,
+         PointProcInfo* vecplay_ppi, size_t vecplay_ppi_count,
+         NetconX* netcons_, size_t netcons_count, neuron_id_t* netcons_pre_ids,
+         size_t netcons_pre_ids_count, floble_t* weights, size_t weights_count,
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
   /// clears a given Memb_list structure
-  static void DeleteMembList(Memb_list*&);
+  static void ClearMembList(Memb_list*&);
+
+  /// clears a given NrnThread structure
+  static void ClearNrnThread(NrnThread*&);
 
   /// Compartments, Weights and other Coreneuron data
   NrnThread* nt_;
@@ -55,11 +57,9 @@ class Branch {
   /// Array of mechanisms instances
   Memb_list* mechs_instances_;
 
-  /// Arrays of subsets of mechanisms instances, when applicable
-  Memb_list** mechs_instances_parallel_;
-
-  /// size of array mechs_instances_parallel_
-  int* mechs_instances_parallel_count_;
+  /** Array of arguments for parallel-threaded execution of
+   * mechanisms instances, or nullptr when not applicable */
+  Mechanism::MembListThreadArgs* mechs_instances_parallel_;
 
   /// if top branch, refers to soma/neuron info, otherwise is NULL
   Neuron* soma_;
@@ -72,9 +72,6 @@ class Branch {
    public:
     MechanismsGraph();
     ~MechanismsGraph();
-
-    /// Launches HPX-threads for dorment mechs-graph
-    void InitMechsGraph(hpx_t branch_hpx_addr);
 
     hpx_t* mechs_lcos_;  ///> HPX address of the and-gate of each mechanism
     hpx_t end_lco_;      ///> represents the bottom of the graph
@@ -144,7 +141,9 @@ class Branch {
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
-  static hpx_action_t InitSoma;    ///> Initializes soma information
+  static hpx_action_t InitSoma;             ///> Initializes soma information
+  static hpx_action_t InitMechanismsGraph;  ///> Initializes mechanisms graph
+  static hpx_action_t InitMechParallelism;  ///> Initializes M.I.P.
   static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
   static hpx_action_t Clear;  ///> deletes all data in branch and sub-branches
   static hpx_action_t AddSpikeEvent;          ///>add incoming synapse to queue
@@ -174,6 +173,8 @@ class Branch {
  private:
   static int Init_handler(const int, const void* [], const size_t[]);
   static int InitSoma_handler(const int, const void* [], const size_t[]);
+  static int InitMechanismsGraph_handler();
+  static int InitMechParallelism_handler();
   static int Initialize_handler();
   static int Clear_handler();
   static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);

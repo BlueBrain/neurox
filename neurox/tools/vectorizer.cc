@@ -335,84 +335,152 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     delete[] ml_no_capacitors;
 }
 
-void tools::Vectorizer::CreateParallelMechsInstances(Branch* b) {
+void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
+  /* compute mech-instances per thread for state and current funtions */
+  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesThread();
+
+  // benchmark of all mechanisns instances has not been performed yet
+  if (max_workload == 0) return;
+
   // build memb_lists for parallel processing of mechanisms
-  b->mechs_instances_parallel_ = new Memb_list*[mechanisms_count_];
-  b->mechs_instances_parallel_count_ = new int[mechanisms_count_];
-  std::fill(b->mechs_instances_parallel_,
-            b->mechs_instances_parallel_ + neurox::mechanisms_count_, nullptr);
-  std::fill(b->mechs_instances_parallel_count_,
-            b->mechs_instances_parallel_count_ + neurox::mechanisms_count_, 0.);
+  b->mechs_instances_parallel_ =
+      new Mechanism::MembListThreadArgs[mechanisms_count_];
 
-  int cluster_size = LoadBalancing::kMechInstancesPerCluster;
-
-  /* if different instances of same mechanism type can be in the same
-   * compartment, then instances-parallelism requires mechs-graph parallism
-     so that updates to nt->V and nt->RHS are protected by shadow vector */
-  if (!input_params_->graph_mechs_parallelism_) {
+  enum funcs { State = 0, Current = 1, Count = 2 };
+  for (int f = 0; f < funcs::Count; f++) {
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
+      Mechanism* mech = neurox::mechanisms_[m];
       Memb_list* ml = &b->mechs_instances_[m];
-      int thread_id = 0;
 
-      for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
-        /* map of compartment index to the thread id it's allocated to */
-        std::map<int, int> index_to_thread;
-        for (int i = 0; i < std::min(ml->nodecount - n, cluster_size); i++) {
-          int index = ml->nodeindices[n + i];
+      Mechanism::MembListThreadArgs* threads_args =
+          &b->mechs_instances_parallel_[m];
 
-          /* if that compartment index can be processed by other thread*/
-          if (index_to_thread.find(index) != index_to_thread.end() &&
-              index_to_thread.at(index) != thread_id) {
-            throw std::runtime_error(
-                "Several instances of same mechanism type in the same "
-                "compartment. Re-run with mechs-graph parallelism.\n");
-          } else
-            index_to_thread[index] = thread_id;
+      /* compute the number of instances per thread thread */
+      double instance_runtime = f == funcs::State ? mech->state_func_runtime_
+                                                  : mech->current_func_runtime_;
+
+      int cluster_size = 0, cluster_count = 1;
+      /* if instance_runtime==0, then mod-function is not defined */
+      /* if ml->nodecount==0, there is no instances of this mechanism here */
+      if (instance_runtime > 0 && ml->nodecount > 0) {
+        /* cluster size is the number of instances that fits the max workload */
+        cluster_size = std::ceil(max_workload / instance_runtime);
+        assert(cluster_size > 0);
+
+        /* cluster count is the number of parallel threads to be spawned */
+        cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
+        assert(cluster_count > 0);
+      }
+
+      /* if cluster_count==1, does not need threaded execution */
+      if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {
+        switch (f) {
+          case funcs::State:
+            threads_args->ml_state_count = 0;
+            threads_args->ml_state = nullptr;
+            continue;
+            break;
+          case funcs::Current:
+            threads_args->ml_current_count = 0;
+            threads_args->ml_current = nullptr;
+            continue;
+            break;
+          default:
+            assert(0);
+            break;
         }
       }
-    }
-  }
 
-  for (int m = 0; m < neurox::mechanisms_count_; m++) {
-    /* only parallelize mechs with more instances than threshold */
-    Memb_list* ml = &b->mechs_instances_[m];
+      /* if different instances of same mechanism type can be in the same
+       * compartment, then instances-parallelism requires mechs-graph parallism
+         so that updates to nt->V and nt->RHS are protected by shadow vector */
+      if (!input_params_->graph_mechs_parallelism_) {
+        Memb_list* ml = &b->mechs_instances_[m];
+        int thread_id = 0;
 
-    if (ml->nodecount < cluster_size) continue;
+        for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
+          /* map of compartment index to the thread id it's allocated to */
+          std::map<int, int> index_to_thread;
+          for (int i = 0; i < std::min(ml->nodecount - n, cluster_size); i++) {
+            int index = ml->nodeindices[n + i];
 
-    /* parallel subsets of Memb_list */
-    int& ml_parallel_count = b->mechs_instances_parallel_count_[m];
-    ml_parallel_count = std::ceil((double)ml->nodecount / (double)cluster_size);
-
-    Memb_list*& ml_parallel = b->mechs_instances_parallel_[m];
-    ml_parallel = new Memb_list[ml_parallel_count];
-
-    Mechanism* mech = neurox::mechanisms_[m];
-    (void)mech;  // unused var warning for LAYOUT==0
-
-    /* create subsets of parallel Memb_list */
-    int ml_it = 0;
-    for (int n = 0; n < ml->nodecount; n += cluster_size, ml_it++) {
-      Memb_list* ml_sub = &ml_parallel[ml_it];
-      memcpy(ml_sub, ml, sizeof(Memb_list));
-      ml_sub->nodeindices = &ml->nodeindices[n];
-      ml_sub->nodecount = std::min(1000, ml->nodecount - n);
-      if (input_params_->graph_mechs_parallelism_) {
-        ml_sub->_shadow_d = &ml->_shadow_d[n];
-        ml_sub->_shadow_rhs = &ml->_shadow_rhs[n];
-        ml_sub->_shadow_didv = &ml->_shadow_didv[n];
-        ml_sub->_shadow_didv_offsets = &ml->_shadow_didv_offsets[n];
-        ml_sub->_shadow_i = &ml->_shadow_i[n];
-        ml_sub->_shadow_i_offsets = &ml->_shadow_i_offsets[n];
+            /* if that compartment index can be processed by other thread*/
+            if (index_to_thread.find(index) != index_to_thread.end() &&
+                index_to_thread.at(index) != thread_id) {
+              throw std::runtime_error(
+                  "Several instances of same mechanism type in the same "
+                  "compartment. Re-run with mechs-graph parallelism.\n");
+            } else
+              index_to_thread[index] = thread_id;
+          }
+        }
       }
+
+      threads_args->nt = b->nt_;
+      threads_args->memb_func = &mech->memb_func_;
+      threads_args->mech_type = mech->type_;
+
+      // for shadow vectors processing of current
+      threads_args->requires_shadow_vectors =
+          /* graph-parallelism */
+          b->mechs_graph_
+          /* not CaDynamics_E2 (no updates in cur function) */
+          && mech->type_ != MechanismTypes::kCaDynamics_E2
+          /* not ion (updates in nrn_cur_ion function) */
+          && !mech->is_ion_
+          /* not capacitance-only current function */
+          &&
+          !(mech->type_ == MechanismTypes::kCapacitance && f == funcs::Current);
+
+      /* if graph-parallelism, pass accumulation functions and their argument*/
+      if (threads_args->requires_shadow_vectors) {
+        threads_args->acc_args = b->mechs_graph_;
+        threads_args->acc_rhs_d = Branch::MechanismsGraph::AccumulateRHSandD;
+
+        /* every mech with dependencies will update di_dv of parent mech*/
+        threads_args->acc_di_dv =
+            mech->dependencies_count_ == 0
+                ? nullptr
+                : Branch::MechanismsGraph::AccumulateIandDIDV;
+      } else {
+        threads_args->acc_args = nullptr;
+        threads_args->acc_di_dv = nullptr;
+        threads_args->acc_rhs_d = nullptr;
+      }
+
+      /* parallel subsets of Memb_list */
+      int& ml_thread_count = f == funcs::State ? threads_args->ml_state_count
+                                               : threads_args->ml_current_count;
+      Memb_list*& ml_threads =
+          f == funcs::State ? threads_args->ml_state : threads_args->ml_current;
+
+      ml_thread_count = cluster_count;
+      ml_threads = new Memb_list[ml_thread_count];
+
+      int thread_id = 0;
+      for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
+        Memb_list* thread = &ml_threads[thread_id];
+        memcpy(thread, ml, sizeof(Memb_list));
+        thread->nodeindices = &ml->nodeindices[n];
+        thread->nodecount = std::min(cluster_size, ml->nodecount - n);
+        if (input_params_->graph_mechs_parallelism_) {
+          thread->_shadow_d = &ml->_shadow_d[n];
+          thread->_shadow_rhs = &ml->_shadow_rhs[n];
+          thread->_shadow_didv = &ml->_shadow_didv[n];
+          thread->_shadow_didv_offsets = &ml->_shadow_didv_offsets[n];
+          thread->_shadow_i = &ml->_shadow_i[n];
+          thread->_shadow_i_offsets = &ml->_shadow_i_offsets[n];
+        }
 #if LAYOUT == 1
-      int data_offset = n * mech->data_size_;
-      int pdata_offset = n * mech->pdata_size_;
+        int data_offset = n * mech->data_size_;
+        int pdata_offset = n * mech->pdata_size_;
 #else
-      int data_offset = n;
-      int pdata_offset = n;
+        int data_offset = n;
+        int pdata_offset = n;
 #endif
-      ml_sub->data = &ml->data[data_offset];
-      ml_sub->pdata = &ml->pdata[pdata_offset];
+        thread->data = &ml->data[data_offset];
+        thread->pdata = &ml->pdata[pdata_offset];
+      }
     }
   }
 }

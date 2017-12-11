@@ -33,7 +33,9 @@ Mechanism::Mechanism(const int type, const short int data_size,
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
       div_capacity_(nullptr),
-      mul_capacity_(nullptr) {
+      mul_capacity_(nullptr),
+      current_func_runtime_(-1),
+      state_func_runtime_(-1) {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -162,22 +164,21 @@ Mechanism::~Mechanism() {
   delete[] dependencies_;
 }
 
-int Mechanism::MembFuncThread(int i, void *args_ptr) {
-  MembFuncArgs *args = (MembFuncArgs *)args_ptr;
+int Mechanism::ModFunctionStateThread(int i, void *args_ptr) {
+  MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
+  args->memb_func->state(args->nt, &args->ml_state[i], args->mech_type);
+  return 0;
+}
 
-  if (args->func_id == Mechanism::ModFunctions::kState) {
-    args->memb_func->state(args->nt, &args->ml[i], args->type);
-  } else if (args->func_id == Mechanism::ModFunctions::kCurrent) {
-    if (args->requires_shadow_vectors)
-      args->memb_func->current_parallel(args->nt, &args->ml[i], args->type,
-                                        args->acc_rhs_d, args->acc_di_dv,
-                                        args->acc_args);
-    else
-      args->memb_func->current(args->nt, &args->ml[i], args->type);
-  } else {
-    assert(0);
-  }
-  return HPX_SUCCESS;
+int Mechanism::ModFunctionCurrentThread(int i, void *args_ptr) {
+  MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
+  if (args->requires_shadow_vectors)
+    args->memb_func->current_parallel(args->nt, &args->ml_current[i],
+                                      args->mech_type, args->acc_rhs_d,
+                                      args->acc_di_dv, args->acc_args);
+  else
+    args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type);
+  return 0;
 }
 
 void Mechanism::CallModFunction(
@@ -189,10 +190,16 @@ void Mechanism::CallModFunction(
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
-  MembFuncArgs *memb_func_thread_args = nullptr;
   assert(nt);
-  const int mech_offset = neurox::mechanisms_map_[this->type_];
 
+  // TODO: support parallel mechs for CVODE
+  // TODO in Vectorizer we need to support 'other_ml' for threaded execution
+  // TODO instance parallelism for mech_receive?
+  if (other_ml) {
+    assert(input_params_->interpolator_ == InterpolatorIds::kBackwardEuler);
+  }
+
+  /* if net receive, it's a special function type: process now */
   if (function_id == Mechanism::ModFunctions::kNetReceive ||
       function_id == Mechanism::ModFunctions::kNetReceiveInit) {
     assert(function_id != Mechanism::ModFunctions::kNetReceiveInit);  // N/A yet
@@ -205,65 +212,34 @@ void Mechanism::CallModFunction(
     assert(memb_list);
     int iml = netcon->mech_instance_;
     int weight_index = netcon->weight_index_;
-    nt->_t = tt;  // as seen in netcvode.cpp:479 (NetCon::deliver)
+    nt->_t = tt;  // as seen in netcvode.cpp (NetCon::deliver)
     this->pnt_receive_(nt, memb_list, iml, weight_index, 0);
     return;
   }
 
+  /* memb_list to be used is the one with all instances or
+   * an user-provided one (eg CVODE provides non-capacitors memb_list */
+  const int mech_offset = neurox::mechanisms_map_[this->type_];
   Memb_list *memb_list = other_ml ? &other_ml[mech_offset]
                                   : &branch->mechs_instances_[mech_offset];
   assert(memb_list);
 
-  // TODO: support parallel mechs for CVODE
-  assert(input_params_->interpolator_ == InterpolatorIds::kBackwardEuler);
-
   /* create argument for thread instances of current and state functions */
-  Memb_list *&ml_parallel = branch->mechs_instances_parallel_[mech_offset];
-  int ml_parallel_count = 0;
+  MembListThreadArgs *threads_args = nullptr;
+
   if (branch->mechs_instances_parallel_)
-    ml_parallel_count = branch->mechs_instances_parallel_count_[mech_offset];
-
-  if (function_id == ModFunctions::kState ||
-      function_id == ModFunctions::kCurrent) {
-    memb_func_thread_args = new MembFuncArgs;
-    memb_func_thread_args->func_id = function_id;
-    memb_func_thread_args->memb_func = &this->memb_func_;
-    memb_func_thread_args->nt = nt;
-    memb_func_thread_args->ml =
-        ml_parallel_count == 0 ? memb_list : ml_parallel;
-    memb_func_thread_args->type = this->type_;
-
-    memb_func_thread_args->requires_shadow_vectors =
-        /* current function only */
-        function_id == ModFunctions::kCurrent
-        /* graph-parallelism */
-        && branch->mechs_graph_
-        /* not CaDynamics_E2 (no updates in cur function) */
-        && this->type_ != MechanismTypes::kCaDynamics_E2
-        /* not ion (updates in nrn_cur_ion function) */
-        && (!this->is_ion_);
-
-    /* if graph-parallelism, pass accumulation functions and their argument*/
-    if (memb_func_thread_args->requires_shadow_vectors) {
-      memb_func_thread_args->acc_args = branch->mechs_graph_;
-      memb_func_thread_args->acc_rhs_d =
-          Branch::MechanismsGraph::AccumulateRHSandD;
-
-      /* every mech but top-level will update di_dv of parent mech */
-      memb_func_thread_args->acc_di_dv =
-          dependencies_count_ == 0
-              ? NULL
-              : Branch::MechanismsGraph::AccumulateIandDIDV;
-    }
-  }
+    if (function_id == ModFunctions::kState ||
+        function_id == ModFunctions::kCurrent ||
+        function_id == ModFunctions::kCurrentCapacitance)
+      threads_args = &branch->mechs_instances_parallel_[mech_offset];
 
   if (memb_list->nodecount > 0) {
     switch (function_id) {
-      case Mechanism::kBeforeInitialize:
-      case Mechanism::kAfterInitialize:
-      case Mechanism::kBeforeBreakpoint:
-      case Mechanism::kAfterSolve:
-      case Mechanism::kBeforeStep:
+      case Mechanism::ModFunctions::kBeforeInitialize:
+      case Mechanism::ModFunctions::kAfterInitialize:
+      case Mechanism::ModFunctions::kBeforeBreakpoint:
+      case Mechanism::ModFunctions::kAfterSolve:
+      case Mechanism::ModFunctions::kBeforeStep:
         if (before_after_functions_[(int)function_id])
           before_after_functions_[(int)function_id](nt, memb_list, type_);
         break;
@@ -271,29 +247,55 @@ void Mechanism::CallModFunction(
         if (memb_func_.alloc)
           memb_func_.alloc(memb_list->data, memb_list->pdata, type_);
         break;
-      case Mechanism::ModFunctions::kCurrentCapacitance:
+      case Mechanism::ModFunctions::kCurrentCapacitance: {
         assert(type_ == MechanismTypes::kCapacitance);
         assert(memb_func_.current != NULL);
-        memb_func_.current(nt, memb_list, type_);
+        if (threads_args && threads_args->ml_current_count > 1)
+          hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
+                           threads_args->ml_current_count, threads_args);
+        else
+          memb_func_.current(nt, memb_list, type_);
         break;
+      }
       case Mechanism::ModFunctions::kCurrent: {
         assert(type_ != MechanismTypes::kCapacitance);
-        /* if has a current function */
         if (memb_func_.current) {
-          if (ml_parallel_count)
-            hpx_par_for_sync(Mechanism::MembFuncThread, 0, ml_parallel_count,
-                             memb_func_thread_args);
-          else
-            Mechanism::MembFuncThread(0, memb_func_thread_args);
+          if (threads_args && threads_args->ml_current_count > 1) {
+            hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
+                             threads_args->ml_current_count, threads_args);
+          } else {
+            bool requires_shadow_vectors =
+                /* graph-parallelism */
+                branch->mechs_graph_
+                /* not CaDynamics_E2 (no updates in cur function) */
+                && this->type_ != MechanismTypes::kCaDynamics_E2
+                /* not ion (updates in nrn_cur_ion function) */
+                && (!this->is_ion_);
+
+            if (requires_shadow_vectors) {
+              mod_acc_f_t acc_rhs_d =
+                  Branch::MechanismsGraph::AccumulateRHSandD;
+              mod_acc_f_t acc_di_dv =
+                  this->dependencies_count_
+                      ? Branch::MechanismsGraph::AccumulateIandDIDV
+                      : nullptr;
+              void *args = branch->mechs_graph_;
+              memb_func_.current_parallel(nt, memb_list, type_, acc_rhs_d,
+                                          acc_di_dv, args);
+            } else {
+              memb_func_.current(nt, memb_list, type_);
+            }
+          }
         }
       } break;
       case Mechanism::ModFunctions::kState: {
         if (memb_func_.state) {
-          if (ml_parallel_count)
-            hpx_par_for_sync(Mechanism::MembFuncThread, 0, ml_parallel_count,
-                             memb_func_thread_args);
-          else
+          if (threads_args && threads_args->ml_state_count > 1) {
+            hpx_par_for_sync(Mechanism::ModFunctionStateThread, 0,
+                             threads_args->ml_state_count, threads_args);
+          } else {
             memb_func_.state(nt, memb_list, type_);
+          }
         }
       } break;
       case Mechanism::ModFunctions::kJacobCapacitance:
@@ -362,5 +364,4 @@ void Mechanism::CallModFunction(
         exit(1);
     }
   }
-  delete memb_func_thread_args;
 }

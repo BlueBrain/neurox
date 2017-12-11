@@ -61,6 +61,10 @@ class Mechanism {
 
   int dependency_ion_index_;  ///> index of parent ion (if any)
 
+  // Variables for mechanism-instances parallelism
+  double current_func_runtime_;  ///> runtime of current function
+  double state_func_runtime_;    ///> runtime of state function
+
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
@@ -123,24 +127,30 @@ class Mechanism {
       Memb_list *other_ml = nullptr,    // user-provided Memb_list (if any)
       const NetconX *netcon = nullptr,  // net_receive only
       const floble_t tt = 0);           // net_receive only
- private:
-  /// aux version for threaded version of CallModFunction
-  static inline int MembFuncThread(int i, void *arg_ptr);
 
-  /// argument to previous thread call
-  typedef struct MembFuncArgsStruct {
-    Mechanism::ModFunctions func_id;
-    Memb_func *memb_func;
-    NrnThread *nt;
-    Memb_list *ml;
-    int type;
+  /// argument to mech-instances threaded calls
+  typedef struct MembListThreadArgsStruct {
+    Memb_func *memb_func;   ///> Pointer to Memb_func in Branch
+    NrnThread *nt;          ///> Pointer to NrnThread in Branch
+    Memb_list *ml_state;    ///> Array of MembList per thread for state func
+    Memb_list *ml_current;  ///> Array of Memblist per phread for current func
+    int ml_state_count;     //>  size of array *ml_state
+    int ml_current_count;   ///> size of array *ml_current
+    int mech_type;          ///> mechanism type
 
     // parallel execution of current only:
     bool requires_shadow_vectors;
     mod_acc_f_t acc_rhs_d;
     mod_acc_f_t acc_di_dv;
     void *acc_args;
-  } MembFuncArgs;
+  } MembListThreadArgs;
+
+ private:
+  /// thread function for an instance-parallel call of current function
+  static inline int ModFunctionCurrentThread(int i, void *arg_ptr);
+
+  /// thread function for an instance-parallel call of state function
+  static inline int ModFunctionStateThread(int i, void *arg_ptr);
 
   /// register Before-After functions
   void RegisterBeforeAfterFunctions();
