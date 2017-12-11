@@ -166,7 +166,7 @@ Mechanism::~Mechanism() {
 
 int Mechanism::ModFunctionStateThread(int i, void *args_ptr) {
   MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
-  args->memb_func->state(args->nt, &args->ml_state[i], args->type);
+  args->memb_func->state(args->nt, &args->ml_state[i], args->mech_type);
   return 0;
 }
 
@@ -174,10 +174,10 @@ int Mechanism::ModFunctionCurrentThread(int i, void *args_ptr) {
   MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
   if (args->requires_shadow_vectors)
     args->memb_func->current_parallel(args->nt, &args->ml_current[i],
-                                      args->type, args->acc_rhs_d,
+                                      args->mech_type, args->acc_rhs_d,
                                       args->acc_di_dv, args->acc_args);
   else
-    args->memb_func->current(args->nt, &args->ml_current[i], args->type);
+    args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type);
   return 0;
 }
 

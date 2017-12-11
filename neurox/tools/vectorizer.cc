@@ -359,19 +359,19 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
       double instance_runtime = f == funcs::State ? mech->state_func_runtime_
                                                   : mech->current_func_runtime_;
 
-      int cluster_size=0, cluster_count=1;
-      if (instance_runtime>0)
-      {
-          /* cluster size is the number of instances that fit in the max workload */
-          cluster_size = std::ceil(max_workload / instance_runtime);
+      int cluster_size = 0, cluster_count = 1;
+      if (instance_runtime > 0) {
+        /* cluster size is the number of instances that fit in the max workload
+         */
+        cluster_size = std::ceil(max_workload / instance_runtime);
 
-          /* cluster count is the number of parallel threads to be spawned */
-          cluster_count = std::ceil((double) ml->nodecount /(double) cluster_size);
+        /* cluster count is the number of parallel threads to be spawned */
+        cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
       }
 
       /* if runtime==0, then mod-function is not defined */
       /* if cluster_count==1, does not need threaded execution */
-      if (instance_runtime == 0 || cluster_count==1) {
+      if (instance_runtime == 0 || cluster_count == 1) {
         switch (f) {
           case funcs::State:
             threads_args->ml_state_count = 0;
@@ -416,7 +416,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
 
       threads_args->nt = b->nt_;
       threads_args->memb_func = &mech->memb_func_;
-      threads_args->type = mech->type_;
+      threads_args->mech_type = mech->type_;
 
       // for shadow vectors processing of current
       threads_args->requires_shadow_vectors =
@@ -447,9 +447,8 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
       }
 
       /* parallel subsets of Memb_list */
-      int& ml_thread_count = f == funcs::State
-                                 ? threads_args->ml_state_count
-                                 : threads_args->ml_current_count;
+      int& ml_thread_count = f == funcs::State ? threads_args->ml_state_count
+                                               : threads_args->ml_current_count;
       Memb_list*& ml_threads =
           f == funcs::State ? threads_args->ml_state : threads_args->ml_current;
 
@@ -458,17 +457,17 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
 
       int thread_id = 0;
       for (int n = 0; n < ml->nodecount; n += cluster_size, thread_id++) {
-        Memb_list* thread_ml = &ml_threads[thread_id];
-        memcpy(thread_ml, ml, sizeof(Memb_list));
-        thread_ml->nodeindices = &ml->nodeindices[n];
-        thread_ml->nodecount = std::min(cluster_size, ml->nodecount - n);
+        Memb_list* thread = &ml_threads[thread_id];
+        memcpy(thread, ml, sizeof(Memb_list));
+        thread->nodeindices = &ml->nodeindices[n];
+        thread->nodecount = std::min(cluster_size, ml->nodecount - n);
         if (input_params_->graph_mechs_parallelism_) {
-          thread_ml->_shadow_d = &ml->_shadow_d[n];
-          thread_ml->_shadow_rhs = &ml->_shadow_rhs[n];
-          thread_ml->_shadow_didv = &ml->_shadow_didv[n];
-          thread_ml->_shadow_didv_offsets = &ml->_shadow_didv_offsets[n];
-          thread_ml->_shadow_i = &ml->_shadow_i[n];
-          thread_ml->_shadow_i_offsets = &ml->_shadow_i_offsets[n];
+          thread->_shadow_d = &ml->_shadow_d[n];
+          thread->_shadow_rhs = &ml->_shadow_rhs[n];
+          thread->_shadow_didv = &ml->_shadow_didv[n];
+          thread->_shadow_didv_offsets = &ml->_shadow_didv_offsets[n];
+          thread->_shadow_i = &ml->_shadow_i[n];
+          thread->_shadow_i_offsets = &ml->_shadow_i_offsets[n];
         }
 #if LAYOUT == 1
         int data_offset = n * mech->data_size_;
@@ -477,8 +476,8 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         int data_offset = n;
         int pdata_offset = n;
 #endif
-        thread_ml->data = &ml->data[data_offset];
-        thread_ml->pdata = &ml->pdata[pdata_offset];
+        thread->data = &ml->data[data_offset];
+        thread->pdata = &ml->pdata[pdata_offset];
       }
     }
   }

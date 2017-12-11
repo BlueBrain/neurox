@@ -136,7 +136,7 @@ class Mechanism {
     Memb_list *ml_current;  ///> Array of Memblist per phread for current func
     int ml_state_count;     //>  size of array *ml_state
     int ml_current_count;   ///> size of array *ml_current
-    int type;               ///> mechanism type
+    int mech_type;          ///> mechanism type
 
     // parallel execution of current only:
     bool requires_shadow_vectors;

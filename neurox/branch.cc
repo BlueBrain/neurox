@@ -344,14 +344,15 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     this->mechs_graph_->InitMechsGraph(branch_hpx_addr);
   }
 
-  // create data structures that defines mech-instances parallelism
-  if (input_params_->mech_instances_parallelism_)
-    Vectorizer::CreateMechInstancesThreads(this);
-
 #if LAYOUT == 0
   // if using vector data structures, convert now
   tools::Vectorizer::ConvertToSOA(this);
 #endif
+
+  // creates data structures that defines mech-instances parallelism
+  // (requires data structures to be final, so it's run as last)
+  if (input_params_->mech_instances_parallelism_)
+    Vectorizer::CreateMechInstancesThreads(this);
 
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
