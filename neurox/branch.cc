@@ -15,8 +15,8 @@ void *Branch::operator new(size_t bytes, void *addr) { return addr; }
 void Branch::operator delete(void *worker) {}
 
 Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
-               hpx_t branch_hpx_addr, floble_t *data, size_t data_count,
-               offset_t *pdata, size_t pdata_count, offset_t *instances_count,
+               floble_t *data, size_t data_count, offset_t *pdata,
+               size_t pdata_count, offset_t *instances_count,
                size_t recv_mechs_count, offset_t *nodes_indices,
                size_t nodes_indices_count, hpx_t top_branch_addr,
                hpx_t *branches, size_t branches_count, offset_t *p,
@@ -30,7 +30,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     : soma_(nullptr),
       nt_(nullptr),
       mechs_instances_(nullptr),
-      mechs_instances_threads_args(nullptr),
+      mechs_instances_parallel_(nullptr),
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
@@ -338,21 +338,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     this->branch_tree_ =
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
-  // create data structure that defines the graph of mechanisms
-  if (input_params_->graph_mechs_parallelism_) {
-    this->mechs_graph_ = new Branch::MechanismsGraph();
-    this->mechs_graph_->InitMechsGraph(branch_hpx_addr);
-  }
-
 #if LAYOUT == 0
   // if using vector data structures, convert now
   tools::Vectorizer::ConvertToSOA(this);
 #endif
-
-  // creates data structures that defines mech-instances parallelism
-  // (requires data structures to be final, so it's run as last)
-  if (input_params_->mech_instances_parallelism_)
-    Vectorizer::CreateMechInstancesThreads(this);
 
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
@@ -405,12 +394,12 @@ Branch::~Branch() {
   delete mechs_graph_;
   delete interpolator_;
 
-  if (mechs_instances_threads_args) {
+  if (mechs_instances_parallel_) {
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
-      delete[] mechs_instances_threads_args[m].ml_state;
-      delete[] mechs_instances_threads_args[m].ml_current;
+      delete[] mechs_instances_parallel_[m].ml_state;
+      delete[] mechs_instances_parallel_[m].ml_current;
     }
-    delete[] mechs_instances_threads_args;
+    delete[] mechs_instances_parallel_;
   }
 }
 
@@ -427,10 +416,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
       *(offset_t *)args[0],  // number of compartments
       *(int *)args[1],       // nrnThreadId (nt.id)
       *(int *)args[2],       // offset  AP voltage threshold (-1 if none)
-      target,                // current branch HPX address
       (floble_t *)args[3],
-      sizes[3] /
-          sizeof(floble_t),  // data (RHS, D, A, V, B, area, and mechs...)
+      sizes[3] / sizeof(floble_t),  // data: RHS, D, A, V, B, area, mechs
       (offset_t *)args[4],
       sizes[4] / sizeof(offset_t),  // pdata
       (offset_t *)args[5],
@@ -657,6 +644,36 @@ Branch::BranchTree::~BranchTree() {
   delete[] a_from_children_;
 }
 
+hpx_action_t Branch::InitMechanismsGraph = 0;
+int Branch::InitMechanismsGraph_handler() {
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::InitMechanismsGraph);
+  // create data structure that defines the graph of mechanisms
+  if (input_params_->graph_mechs_parallelism_) {
+    local->mechs_graph_ = new Branch::MechanismsGraph();
+    for (size_t m = 0; m < mechanisms_count_; m++) {
+      if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
+      hpx_call(target, MechanismsGraph::MechFunction,
+               local->mechs_graph_->graph_lco_, &mechanisms_[m]->type_,
+               sizeof(int));
+    }
+  }
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
+};
+
+hpx_action_t Branch::InitMechParallelism = 0;
+int Branch::InitMechParallelism_handler() {
+  NEUROX_MEM_PIN(Branch);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::InitMechParallelism);
+  // creates data structures that defines mech-instances parallelism
+  // (requires data structures to be final, so it's run as last)
+  if (input_params_->mech_instances_parallelism_)
+    Vectorizer::CreateMechInstancesThreads(local);
+  NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
+  NEUROX_MEM_UNPIN;
+};
+
 hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
@@ -742,14 +759,6 @@ Branch::MechanismsGraph::MechanismsGraph() {
     this->i_didv_mutex_[i] = hpx_lco_sema_new(1);
 }
 
-void Branch::MechanismsGraph::InitMechsGraph(hpx_t branch_hpx_addr) {
-  for (size_t m = 0; m < mechanisms_count_; m++) {
-    if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
-    hpx_call(branch_hpx_addr, Branch::MechanismsGraph::MechFunction,
-             this->graph_lco_, &mechanisms_[m]->type_, sizeof(int));
-  }
-}
-
 Branch::MechanismsGraph::~MechanismsGraph() {
   hpx_lco_delete_sync(end_lco_);
   hpx_lco_delete_sync(graph_lco_);
@@ -769,6 +778,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
   NEUROX_MEM_PIN(Branch);
   int type = *mech_type_ptr;
   assert(type != CAP);  // capacitance should be outside mechanisms graph
+  assert(local->mechs_graph_);
   assert(local->mechs_graph_->mechs_lcos_[mechanisms_map_[type]] != HPX_NULL);
   Mechanism *mech = GetMechanismFromType(type);
 
@@ -839,6 +849,10 @@ void Branch::RegisterHpxActions() {
                                   Branch::ThreadTableCheck_handler);
   wrappers::RegisterZeroVarAction(BranchTree::InitLCOs,
                                   BranchTree::InitLCOs_handler);
+  wrappers::RegisterZeroVarAction(Branch::InitMechanismsGraph,
+                                  Branch::InitMechanismsGraph_handler);
+  wrappers::RegisterZeroVarAction(Branch::InitMechParallelism,
+                                  Branch::InitMechParallelism_handler);
   wrappers::RegisterZeroVarAction(Branch::Initialize,
                                   Branch::Initialize_handler);
   wrappers::RegisterSingleVarAction<int>(MechanismsGraph::MechFunction,

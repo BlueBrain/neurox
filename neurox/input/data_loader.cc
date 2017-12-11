@@ -1356,8 +1356,13 @@ double DataLoader::BenchmarkSubSection(
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  // for benchamark: either type of benchmark, but not both
-  assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
+  if (benchmark)
+  {
+      // for benchamark: either type of benchmark, but not both
+      assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
+      assert(branch->mechs_graph_ == nullptr);
+      assert(branch->mechs_instances_parallel_ == nullptr);
+  }
 
   if (run_single_step_benchmark) {
     // initialize datatypes and graph-parallelism shadow vecs offsets
@@ -1376,9 +1381,6 @@ double DataLoader::BenchmarkSubSection(
   }
 
   if (run_mechanisms_benchmark) {
-    /* disable graph-parallelism variables (offsets are not set yet) */
-    delete branch->mechs_graph_;
-    branch->mechs_graph_ = nullptr;
 
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
       Mechanism *mech = neurox::mechanisms_[m];
