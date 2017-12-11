@@ -407,10 +407,7 @@ hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
   NEUROX_MEM_PIN(Branch);
-
-  // 17 for normal init, 18 for benchmark_mode
-  assert(nargs == 17 || nargs == 18);
-  bool benchmark_mode = nargs == 18 ? *(bool *)args[17] : false;
+  assert(nargs == 17);
 
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
@@ -436,23 +433,6 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (floble_t *)args[15], sizes[15] / sizeof(floble_t),  // netcons weights
       (unsigned char *)args[16],
       sizes[16] / sizeof(unsigned char));  // serialized vdata
-
-  if (!benchmark_mode) {
-    // reconstruct map of locality to branch netcons (if needed)
-    if (input_params_->locality_comm_reduce_) {
-      const offset_t netcons_count = sizes[13] / sizeof(NetconX);
-      const neuron_id_t *netcons_pre_ids = (neuron_id_t *)args[14];
-      const hpx_t soma_addr = *(hpx_t *)args[7];
-      hpx_lco_sema_p(input::DataLoader::locality_mutex_);
-      for (offset_t nc = 0; nc < netcons_count; nc++) {
-        const neuron_id_t pre_neuron_id = netcons_pre_ids[nc];
-        (*locality::netcons_branches_)[pre_neuron_id].push_back(target);
-        (*locality::netcons_somas_)[pre_neuron_id].push_back(soma_addr);
-        // duplicates will be deleted in DataLoader::Finalize
-      }
-      hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
-    }
-  }
   NEUROX_MEM_UNPIN
 }
 

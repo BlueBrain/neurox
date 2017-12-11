@@ -1323,8 +1323,6 @@ double DataLoader::BenchmarkSubSection(
   GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
                        branch_weights, &mech_instances_map);
 
-  bool benchmark = run_single_step_benchmark || run_mechanisms_benchmark;
-
   hpx_call_sync(
       temp_branch_addr, Branch::Init, &time_elapsed,
       sizeof(time_elapsed),  // output
@@ -1349,19 +1347,18 @@ double DataLoader::BenchmarkSubSection(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size(), &benchmark, sizeof(bool));
+      sizeof(unsigned char) * vdata.size());
 
   /* this mem pin works because benchmark neurons are allocated locally*/
   Branch *branch = NULL;
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  if (benchmark)
-  {
-      // for benchamark: either type of benchmark, but not both
-      assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
-      assert(branch->mechs_graph_ == nullptr);
-      assert(branch->mechs_instances_parallel_ == nullptr);
+  if (run_single_step_benchmark || run_mechanisms_benchmark) {
+    // for benchamark: either type of benchmark, but not both
+    assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
+    assert(branch->mechs_graph_ == nullptr);
+    assert(branch->mechs_instances_parallel_ == nullptr);
   }
 
   if (run_single_step_benchmark) {
@@ -1381,7 +1378,6 @@ double DataLoader::BenchmarkSubSection(
   }
 
   if (run_mechanisms_benchmark) {
-
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
       Mechanism *mech = neurox::mechanisms_[m];
       Memb_list *ml = &branch->mechs_instances_[m];
@@ -1667,6 +1663,20 @@ int DataLoader::InitNetcons_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(DataLoader::InitNetcons);
 
+  // reconstruct map of locality to branch netcons (if needed)
+  hpx_t top_branch_addr =
+      local->soma_ ? target : local->branch_tree_->top_branch_addr_;
+  if (input_params_->locality_comm_reduce_) {
+    hpx_lco_sema_p(input::DataLoader::locality_mutex_);
+    for (auto &nc : local->netcons_) {
+      const neuron_id_t pre_neuron_id = nc.first;
+      (*locality::netcons_branches_)[pre_neuron_id].push_back(target);
+      (*locality::netcons_somas_)[pre_neuron_id].push_back(top_branch_addr);
+      // duplicates will be deleted in DataLoader::Finalize
+    }
+    hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
+  }
+
   // TODO the fastest synaptic delay variable should be set here!
   if (local->soma_ && input_params_->output_netcons_dot)
     fprintf(file_netcons_, "%d [style=filled, shape=ellipse];\n",
@@ -1716,8 +1726,6 @@ int DataLoader::InitNetcons_handler() {
   // (repeated entries will be removed by DataLoader::FilterLocalitySynapses)
   hpx_t netcons_lco = hpx_lco_and_new(netcons.size());
   int my_gid = local->soma_ ? local->soma_->gid_ : -1;
-  hpx_t top_branch_addr =
-      local->soma_ ? target : local->branch_tree_->top_branch_addr_;
   hpx_t top_branch_locality_addr =
       input_params_->locality_comm_reduce_ ? HPX_HERE : top_branch_addr;
 
