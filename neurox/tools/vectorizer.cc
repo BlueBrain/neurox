@@ -360,18 +360,20 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
                                                   : mech->current_func_runtime_;
 
       int cluster_size = 0, cluster_count = 1;
-      if (instance_runtime > 0) {
-        /* cluster size is the number of instances that fit in the max workload
-         */
+      /* if instance_runtime==0, then mod-function is not defined */
+      /* if ml->nodecount==0, there is no instances of this mechanism here */
+      if (instance_runtime > 0 && ml->nodecount>0) {
+        /* cluster size is the number of instances that fits the max workload */
         cluster_size = std::ceil(max_workload / instance_runtime);
+        assert(cluster_size > 0);
 
         /* cluster count is the number of parallel threads to be spawned */
         cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
+        assert(cluster_count > 0);
       }
 
-      /* if runtime==0, then mod-function is not defined */
       /* if cluster_count==1, does not need threaded execution */
-      if (instance_runtime == 0 || cluster_count == 1) {
+      if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount==0) {
         switch (f) {
           case funcs::State:
             threads_args->ml_state_count = 0;

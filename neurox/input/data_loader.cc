@@ -1385,46 +1385,47 @@ double DataLoader::BenchmarkSubSection(
       Memb_list *ml = &branch->mechs_instances_[m];
 
       /* benchmark state function */
-      time_elapsed = 0;
       now = hpx_time_now();
       if (mech->memb_func_.state) {
         mech->CallModFunction(branch, Mechanism::ModFunctions::kState);
         time_elapsed = hpx_time_elapsed_us(now);
-      }
 
-      hpx_lco_sema_p(DataLoader::locality_mutex_);
-      LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
-      time_elapsed /= ml->nodecount;
-      mech->state_func_runtime_ =
-          mech->state_func_runtime_ == -1 /*if not set */
-              ? time_elapsed
-              : std::min(mech->state_func_runtime_, time_elapsed);
-      hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+        hpx_lco_sema_p(DataLoader::locality_mutex_);
+        LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
+        time_elapsed /= ml->nodecount;
+        mech->state_func_runtime_ =
+            mech->state_func_runtime_ == -1 /*if not set */
+                ? time_elapsed
+                : std::min(mech->state_func_runtime_, time_elapsed);
+        hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+      }
 
       /* benchmark current function (capacitance is an exception) */
       time_elapsed = 0;
       now = hpx_time_now();
-      if (mech->type_ == MechanismTypes::kCapacitance)
-        mech->CallModFunction(branch,
-                              Mechanism::ModFunctions::kCurrentCapacitance);
-      else if (mech->memb_func_.current) {
-        mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
+      if (mech->type_ == MechanismTypes::kCapacitance ||
+          mech->memb_func_.current) {
+        if (mech->type_ == MechanismTypes::kCapacitance)
+          mech->CallModFunction(branch,
+                                Mechanism::ModFunctions::kCurrentCapacitance);
+        else
+          mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
         time_elapsed = hpx_time_elapsed_us(now);
-      }
 
-      hpx_lco_sema_p(DataLoader::locality_mutex_);
-      LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
-      time_elapsed /= ml->nodecount;
-      mech->current_func_runtime_ =
-          mech->current_func_runtime_ == -1 /*if not set */
-              ? time_elapsed
-              : std::min(mech->current_func_runtime_, time_elapsed);
-      hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+        hpx_lco_sema_p(DataLoader::locality_mutex_);
+        LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
+        time_elapsed /= ml->nodecount;
+        mech->current_func_runtime_ =
+            mech->current_func_runtime_ == -1 /*if not set */
+                ? time_elapsed
+                : std::min(mech->current_func_runtime_, time_elapsed);
+        hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
+      }
     }
-    hpx_gas_unpin(temp_branch_addr);
   }
 
   hpx_call_sync(temp_branch_addr, Branch::Clear, nullptr, 0);
+  hpx_gas_unpin(temp_branch_addr);
   hpx_gas_clear_affinity(temp_branch_addr);
   return time_elapsed;
 }

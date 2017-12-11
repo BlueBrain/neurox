@@ -84,6 +84,7 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
 }
 
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
+  assert(runtime > 0);
   total_mech_instances_runtime_ += runtime;
 }
 

@@ -229,7 +229,8 @@ void Mechanism::CallModFunction(
 
   if (branch->mechs_instances_threads_args)
     if (function_id == ModFunctions::kState ||
-        function_id == ModFunctions::kCurrent)
+        function_id == ModFunctions::kCurrent ||
+        function_id == ModFunctions::kCurrentCapacitance)
       threads_args = &branch->mechs_instances_threads_args[mech_offset];
 
   if (memb_list->nodecount > 0) {
