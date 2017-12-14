@@ -611,10 +611,10 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
       branches_(nullptr),
       branches_count_(branches_count),
       with_children_lcos_(nullptr),
-      a_from_children_(nullptr),
-      b_from_children_(nullptr),
-      a_from_parent(-1),
-      b_from_parent(-1) {
+      children_a_(nullptr),
+      children_b_(nullptr),
+      parent_a_(-1),
+      parent_b_(-1) {
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
     memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
@@ -624,7 +624,7 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
 Branch::BranchTree::~BranchTree() {
   delete[] branches_;
   delete[] with_children_lcos_;
-  delete[] a_from_children_;
+  delete[] children_a_;
 }
 
 hpx_action_t Branch::InitMechanismsGraph = 0;
@@ -677,7 +677,7 @@ int Branch::BranchTree::InitLCOs_handler() {
       branch_tree->with_parent_lco_[i] = HPX_NULL;
       if (!local->soma_)  // create the LCOs
       {
-        size_t size_buffer = (i == 3 || i == 6) ? 2 : 1;
+        size_t size_buffer = i >=3 ? 2 : 1;
         branch_tree->with_parent_lco_[i] =
             hpx_lco_future_new(size_buffer * sizeof(floble_t));
       }
