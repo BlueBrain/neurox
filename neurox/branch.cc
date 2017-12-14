@@ -677,7 +677,7 @@ int Branch::BranchTree::InitLCOs_handler() {
       branch_tree->with_parent_lco_[i] = HPX_NULL;
       if (!local->soma_)  // create the LCOs
       {
-        size_t size_buffer = (i == 3 || i==6) ? 2 : 1;
+        size_t size_buffer = (i == 3 || i == 6) ? 2 : 1;
         branch_tree->with_parent_lco_[i] =
             hpx_lco_future_new(size_buffer * sizeof(floble_t));
       }

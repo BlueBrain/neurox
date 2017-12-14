@@ -11,7 +11,7 @@ HinesSolver::~HinesSolver() {}
 
 void HinesSolver::CommunicateConstants(const Branch *branch) {
   const floble_t *a = branch->nt_->_actual_a;
-  const floble_t *b = branch->nt_->_actual_a;
+  const floble_t *b = branch->nt_->_actual_b;
   const int n = branch->nt_->end;
   Branch::BranchTree *branch_tree = branch->branch_tree_;
 
@@ -19,33 +19,29 @@ void HinesSolver::CommunicateConstants(const Branch *branch) {
 
   // all branches except top
   if (!branch->soma_) {
-    floble_t to_parent_a = a[0];
-    floble_t to_parent_b = b[0];
-    hpx_lco_set_rsync(branch_tree->with_parent_lco_[1], sizeof(floble_t),
-                      &to_parent_a);
-    hpx_lco_set_rsync(branch_tree->with_parent_lco_[2], sizeof(floble_t),
-                      &to_parent_b);
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[4], sizeof(floble_t),
-                      &branch_tree->a_from_parent);
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[5], sizeof(floble_t),
-                      &branch_tree->b_from_parent);
+    floble_t to_parent_a_b[2] = {a[0], b[0]};
+    floble_t from_parent_a_b[2];
+    hpx_lco_set_rsync(branch_tree->with_parent_lco_[3], sizeof(floble_t) * 2,
+                      &to_parent_a_b);
+    hpx_lco_get_reset(branch_tree->with_parent_lco_[6], sizeof(floble_t) * 2,
+                      &from_parent_a_b);
+    branch_tree->a_from_parent = from_parent_a_b[0];
+    branch_tree->b_from_parent = from_parent_a_b[1];
   }
 
   // all branches with leaves
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
     branch_tree->a_from_children_ = new floble_t[branch_tree->branches_count_];
     branch_tree->b_from_children_ = new floble_t[branch_tree->branches_count_];
-    floble_t to_children_a = a[n - 1];
-    floble_t to_children_b = b[n - 1];
+    floble_t to_children_a_b[2] = {a[n - 1], b[n - 1]};
+    floble_t from_child_a_b[2];
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][1],
-                        sizeof(floble_t), &branch_tree->a_from_children_[c]);
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][2],
-                        sizeof(floble_t), &branch_tree->b_from_children_[c]);
-      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][4],
-                        sizeof(floble_t), &to_children_a);
-      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][5],
-                        sizeof(floble_t), &to_children_b);
+      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][3],
+                        sizeof(floble_t) * 2, &from_child_a_b);
+      branch_tree->a_from_children_[c] = from_child_a_b[0];
+      branch_tree->b_from_children_[c] = from_child_a_b[1];
+      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][6],
+                        sizeof(floble_t) * 2, &to_children_a_b);
     }
   }
 }
@@ -117,7 +113,7 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
     floble_t to_children_v = v[n - 1];  // dv = v[p[i]] - v[i]
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
       hpx_lco_set(branch_tree->with_children_lcos_[c][0], sizeof(floble_t),
-                  &to_children_v, HPX_NULL, HPX_NULL);  // NOTE: async set
+                  &to_children_v, HPX_NULL, HPX_NULL);
     // TODO: shall these async sets be freed later?!
 
     floble_t from_children_a;  // rhs[p[i]] += a[i]*dv
@@ -173,26 +169,25 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
   floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *d = branch->nt_->_actual_d;
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
-  const floble_t * children_a = branch_tree->a_from_children_;
-  const floble_t * children_b = branch_tree->b_from_children_;
+  const floble_t *children_a = branch_tree->a_from_children_;
+  const floble_t *children_b = branch_tree->b_from_children_;
 
   floble_t pp;
 
   /* bottom compartment, get D and RHS from children */
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
-    floble_t from_children_d_rhs[2];
+    floble_t from_child_d_rhs[2];
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
       hpx_lco_get_reset(branch_tree->with_children_lcos_[c][3],
-                        sizeof(floble_t) * 2, &from_children_d_rhs);
-      d[n - 1] -= from_children_d_rhs[0];
-      rhs[n - 1] -= from_children_d_rhs[1];
-      /*
-      floble_t & child_d = from_children_d_rhs[0];
-      floble_t & child_rhs = from_children_d_rhs[1];
+                        sizeof(floble_t) * 2, &from_child_d_rhs);
+      //    d[n - 1] -= from_child_d_rhs[0];
+      //    rhs[n - 1] -= from_child_d_rhs[1];
+
+      floble_t &child_d = from_child_d_rhs[0];
+      floble_t &child_rhs = from_child_d_rhs[1];
       pp = children_a[c] / child_d;
       d[n - 1] -= pp * children_b[c];
       rhs[n - 1] -= pp * child_rhs;
-      */
     }
   }
 
@@ -212,9 +207,8 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
 
   /* top compartment, send to parent D and RHS */
   if (!branch->soma_) {
-    floble_t pp = a[0] / d[0];
-    floble_t to_parent_d_rhs[2] = {pp * b[0], pp * rhs[0]};
-    //floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
+    // floble_t to_parent_d_rhs[2] = {a[0]/d[0]*b[0], a[0]/d[0]*rhs[0]};
+    floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
     hpx_lco_set(branch_tree->with_parent_lco_[3], sizeof(floble_t) * 2,
                 &to_parent_d_rhs, HPX_NULL, HPX_NULL);
   }
@@ -277,8 +271,8 @@ void HinesSolver::ForwardTriangulationLinearCable(Branch *branch) {
     hpx_lco_get_reset(branch_tree->with_parent_lco_[3], sizeof(floble_t) * 2,
                       &from_parent_d_rhs);
 
-    floble_t & from_parent_d = from_parent_d_rhs[0];
-    floble_t & from_parent_rhs = from_parent_d_rhs[1];
+    floble_t &from_parent_d = from_parent_d_rhs[0];
+    floble_t &from_parent_rhs = from_parent_d_rhs[1];
 
     pp = branch_tree->b_from_parent / from_parent_d;
     d[0] -= pp * branch_tree->a_from_parent;
@@ -315,7 +309,7 @@ void HinesSolver::BackwardSubstitutionLinearCable(Branch *branch) {
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
       hpx_lco_get_reset(branch_tree->with_children_lcos_[c][3],
                         sizeof(floble_t) * 2, &from_children_d_rhs);
-      floble_t & from_child_rhs = from_children_d_rhs[1];
+      floble_t &from_child_rhs = from_children_d_rhs[1];
       rhs[n - 1] -= a[n - 1] * from_child_rhs;
     }
   }
@@ -378,9 +372,9 @@ void HinesSolver::ForwardSubstitutionBottomSubsection(Branch *branch) {
   /* top compartment: get D and RHS from parent */
   if (!branch->soma_) {
     floble_t from_parent_d_rhs[2];
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[3], sizeof(floble_t)*2,
+    hpx_lco_get_reset(branch_tree->with_parent_lco_[3], sizeof(floble_t) * 2,
                       &from_parent_d_rhs);
-    floble_t & from_parent_rhs = from_parent_d_rhs[1];
+    floble_t &from_parent_rhs = from_parent_d_rhs[1];
     rhs[0] -= b[0] * from_parent_rhs;
   }
 
@@ -398,16 +392,16 @@ void HinesSolver::SolveTreeMatrix(Branch *branch) {
    * tree, or a branched subsection at the bottom of the tree otherwise.
    * Two-way Gaussian Elimination allows for parallelism of subsections. */
   if (branch->branch_tree_) {
-    //if (branch->branch_tree_->branches_count_ > 0) {
-      /* Regular Gaussian Elimination for tridiagonal matrix (linear cable) */
+    // if (branch->branch_tree_->branches_count_ > 0) {
+    /* Regular Gaussian Elimination for tridiagonal matrix (linear cable) */
     //  HinesSolver::ForwardTriangulationLinearCable(branch);
     //  HinesSolver::BackwardSubstitutionLinearCable(branch);
     //} else {
-      /* Inverted Gaussian Elimination for branched subsection */
+    /* Inverted Gaussian Elimination for branched subsection */
     //  HinesSolver::BackwardTriangulationBottomSubsection(branch);
     //  HinesSolver::ForwardSubstitutionBottomSubsection(branch);
     //}
-    //return;
+    // return;
   }
 
   /* Inverted Gaussian Elimination: from leaves to root
