@@ -43,13 +43,9 @@ class HinesSolver {
   /// applied to Linear Cables / pure tri-diagonal matrices only
   static void ForwardTriangulationLinearCable(Branch *branch);
 
-  static void BackwardTriangulationBottomSubsection(Branch *branch);
-
   /// The Backward Substitution step in regular Gaussian Elimination
   /// applied to Linear Cables / pure tri-diagonal matrices only
   static void BackwardSubstitutionLinearCable(Branch *branch);
-
-  static void ForwardSubstitutionBottomSubsection(Branch *branch);
 
   /// Calls Triangulation and Substitution methods
   static void SolveTreeMatrix(Branch *branch);
