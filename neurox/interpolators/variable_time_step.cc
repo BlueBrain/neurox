@@ -167,7 +167,7 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
   HinesSolver::ResetRHSNoCapacitors(branch);
   HinesSolver::BackwardTriangulation(branch);
-  HinesSolver::ForwardSubstituion(branch);
+  HinesSolver::ForwardSubstitution(branch);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
   GatherYdot(branch, b);
   return CV_SUCCESS;
