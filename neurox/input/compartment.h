@@ -47,7 +47,7 @@ class Compartment {
   vector<neuron_id_t> netcons_pre_syn_ids_;
 
   // execution time for benchmark or load balancing purposes
-  double execution_time_;
+  double runtime_;
 
  private:
 };

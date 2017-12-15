@@ -8,41 +8,45 @@ hpx_t tools::LoadBalancing::load_balancing_mutex_ = HPX_NULL;
 double tools::LoadBalancing::total_mech_instances_runtime_ = 0;
 
 hpx_action_t tools::LoadBalancing::QueryLoadBalancingTable = 0;
-int tools::LoadBalancing::QueryLoadBalancingTable_handler(const int nargs,
-                                                          const void *args[],
-                                                          const size_t[]) {
+int tools::LoadBalancing::QueryLoadBalancingTable_handler() {
+  NEUROX_MEM_PIN(uint64_t);
+
+  // only one loadBalancingTable and only in rank zero
+  assert(hpx_get_my_rank() == 0);
+  double min_elapsed_time = 99999999999;
+  int rank = -1;
+  hpx_lco_sema_p(load_balancing_mutex_);
+  for (int r = 0; r < hpx_get_num_ranks(); r++)
+    if (load_balancing_table_[r] < min_elapsed_time) {
+      min_elapsed_time = load_balancing_table_[r];
+      rank = r;
+    }
+  hpx_lco_sema_v_sync(load_balancing_mutex_);
+  NEUROX_MEM_UNPIN(rank);
+}
+
+hpx_action_t tools::LoadBalancing::UpdateLoadBalancingTable = 0;
+int tools::LoadBalancing::UpdateLoadBalancingTable_handler(const int nargs,
+                                                           const void *args[],
+                                                           const size_t[]) {
   /**
-   * nargs=1 or 2 where
-   * args[0] = elapsedTime
-   * args[1] = rank (if any)
+   * nargs=2 where
+   * args[0] = elapsed_time
+   * args[1] = rank
    */
   NEUROX_MEM_PIN(uint64_t);
-  assert(nargs == 1 || nargs == 2);
+  assert(nargs == 2);
 
   // only one loadBalancingTable and only in rank zero
   assert(hpx_get_my_rank() == 0);
   const double elapsed_time = *(const double *)args[0];
 
   // this neuron already has a rank allocated, update it's entry
-  if (nargs == 2) {
-    const int rank = *(const int *)args[1];
-    hpx_lco_sema_p(load_balancing_mutex_);
-    load_balancing_table_[rank] += elapsed_time;
-    hpx_lco_sema_v_sync(load_balancing_mutex_);
-    return wrappers::MemoryUnpin(target);
-  } else {
-    double min_elapsed_time = 99999999999;
-    int rank = -1;
-    hpx_lco_sema_p(load_balancing_mutex_);
-    for (int r = 0; r < hpx_get_num_ranks(); r++)
-      if (load_balancing_table_[r] < min_elapsed_time) {
-        min_elapsed_time = load_balancing_table_[r];
-        rank = r;
-      }
-    load_balancing_table_[rank] += elapsed_time;
-    hpx_lco_sema_v_sync(load_balancing_mutex_);
-    return wrappers::MemoryUnpin(target, rank);
-  }
+  const int rank = *(const int *)args[1];
+  hpx_lco_sema_p(load_balancing_mutex_);
+  load_balancing_table_[rank] += elapsed_time;
+  hpx_lco_sema_v_sync(load_balancing_mutex_);
+  return wrappers::MemoryUnpin(target);
   NEUROX_MEM_UNPIN;
 }
 
@@ -83,6 +87,11 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
 }
 
+double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
+                                                const int neurons_count) {
+  double work_per_section =
+      GetWorkPerBranchSubsection(neuron_time, neurons_count);
+}
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
   assert(runtime > 0);
   total_mech_instances_runtime_ += runtime;
@@ -93,6 +102,8 @@ double tools::LoadBalancing::GetWorkloadPerMechInstancesThread() {
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {
-  wrappers::RegisterMultipleVarAction(QueryLoadBalancingTable,
-                                      QueryLoadBalancingTable_handler);
+  wrappers::RegisterZeroVarAction(QueryLoadBalancingTable,
+                                  QueryLoadBalancingTable_handler);
+  wrappers::RegisterMultipleVarAction(UpdateLoadBalancingTable,
+                                      UpdateLoadBalancingTable_handler);
 }

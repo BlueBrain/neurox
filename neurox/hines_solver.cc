@@ -183,8 +183,6 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
       hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel],
                         sizeof(floble_t) * 2, &from_child_d_rhs);
-      //    d[n - 1] -= from_child_d_rhs[0];
-      //    rhs[n - 1] -= from_child_d_rhs[1];
 
       floble_t &child_d = from_child_d_rhs[0];
       floble_t &child_rhs = from_child_d_rhs[1];
@@ -210,7 +208,6 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
 
   /* top compartment, send to parent D and RHS */
   if (!branch->soma_) {
-    // floble_t to_parent_d_rhs[2] = {a[0]/d[0]*b[0], a[0]/d[0]*rhs[0]};
     floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
     hpx_lco_set(branch_tree->with_parent_lco_[channel], sizeof(floble_t) * 2,
                 &to_parent_d_rhs, HPX_NULL, HPX_NULL);
@@ -226,6 +223,7 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
 
   const int channel = 4;
+  //TODO we only need to communicate one double, not two
 
   /* top compartment: get RHS from parent */
   if (!branch->soma_) {
@@ -309,8 +307,10 @@ void HinesSolver::BackwardSubstitutionLinearCable(Branch *branch) {
   const floble_t *a = branch->nt_->_actual_a;
   floble_t *rhs = branch->nt_->_actual_rhs;
   floble_t *d = branch->nt_->_actual_d;
+  const offset_t *p = branch->nt_->_v_parent_index;
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
 
+  assert(p == nullptr);  // make sure there is no branching
   const int channel = 3;
 
   /* bottom compartment: get D and RHS from children */
@@ -335,7 +335,7 @@ void HinesSolver::BackwardSubstitutionLinearCable(Branch *branch) {
   /* top compartment, send to parent rhs[0] */
   if (!branch->soma_) {
     floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
-    hpx_lco_set(branch_tree->with_parent_lco_[channel], sizeof(floble_t)*2,
+    hpx_lco_set(branch_tree->with_parent_lco_[channel], sizeof(floble_t) * 2,
                 &to_parent_d_rhs, HPX_NULL, HPX_NULL);
   }
 }
@@ -344,18 +344,18 @@ void HinesSolver::SolveTreeMatrix(Branch *branch) {
   /* Multisplit: neuron split into trees of linear cable if not a leaf of the
    * tree, or a branched subsection at the bottom of the tree otherwise.
    * Two-way Gaussian Elimination allows for parallelism of subsections. */
-  if (branch->branch_tree_) {
-    if (branch->branch_tree_->branches_count_ > 0) {
-      /* Regular Gaussian Elimination for tridiagonal matrix (linear cable) */
-      HinesSolver::ForwardTriangulationLinearCable(branch);
-      HinesSolver::BackwardSubstitutionLinearCable(branch);
-    } else {
-      /* Inverted Gaussian Elimination for branched subsection */
-      HinesSolver::BackwardTriangulation(branch);
-      HinesSolver::ForwardSubstitution(branch);
-    }
-    return;
-  }
+  // if (branch->branch_tree_) {
+  //  if (branch->branch_tree_->branches_count_ > 0) {
+  /* Regular Gaussian Elimination for tridiagonal matrix (linear cable) */
+  //    HinesSolver::ForwardTriangulationLinearCable(branch);
+  //    HinesSolver::BackwardSubstitutionLinearCable(branch);
+  //  } else {
+  /* Inverted Gaussian Elimination for branched subsection */
+  //    HinesSolver::BackwardTriangulation(branch);
+  //    HinesSolver::ForwardSubstitution(branch);
+  //  }
+  //  return;
+  //}
 
   /* Inverted Gaussian Elimination: from leaves to root */
   HinesSolver::BackwardTriangulation(branch);

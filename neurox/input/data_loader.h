@@ -87,13 +87,17 @@ class DataLoader {
       const deque<Compartment *> &all_comp,
       vector<DataLoader::IonInstancesInfo> &);
 
+  /// return sum of runtimes of all compartments in sub-section
+  static double GetSumOfCompartmentsRunTime(
+      const deque<Compartment *> &sub_section);
+
   static hpx_t CreateBranch(
       const int nrn_thread_id, hpx_t soma_branch_addr,
       const deque<Compartment *> &all_compartments,
       Compartment *top_compartment,
       vector<DataLoader::IonInstancesInfo> &ions_instances_info,
       double neuron_time, int thvar_index = -1 /*AIS*/,
-      floble_t ap_threshold = 0 /*AIS*/);
+      floble_t ap_threshold = 0 /*AIS*/, int assigned_locality = -1);
 
   static neuron_id_t GetNeuronIdFromNrnThreadId(int nrn_id);
   static void getMechTypeAndInstanceForBranch(int &mech_type,
