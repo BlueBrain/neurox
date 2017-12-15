@@ -73,24 +73,31 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
 }
 
 double tools::LoadBalancing::GetWorkPerBranchSubsection(
-    const double neuron_time, const int neurons_count) {
+    const double neuron_time, const int my_neurons_count) {
   // for a single-thread CPU with a single neuron..
-  double work_per_section = neuron_time / neurons_count;
+  double work_per_section = neuron_time / my_neurons_count;
 
   // for a multi-thread CPU with a single neuron...
   work_per_section /= wrappers::NumThreads();
 
   // for a multi-thread CPU with several neurons...
-  work_per_section *= neurons_count;
+  work_per_section *= my_neurons_count;
 
   // if graph parallelism is available, increase the work by a factor of...?
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
+
+  return work_per_section;
 }
 
 double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
-                                                const int neurons_count) {
-  double work_per_section =
-      GetWorkPerBranchSubsection(neuron_time, neurons_count);
+                                                const int my_neurons_count) {
+  // get an estimation of total workload in this locality
+  double total_work = neuron_time * (double) my_neurons_count;
+
+  // average the total work in this locality by all localityes
+  double avg_locality_work = total_work / (double) wrappers::NumRanks();
+
+  return avg_locality_work;
 }
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
   assert(runtime > 0);

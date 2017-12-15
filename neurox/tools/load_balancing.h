@@ -37,11 +37,11 @@ class LoadBalancing {
 
   /// returns work per branch-subsection, for branch parallelism
   static double GetWorkPerBranchSubsection(const double neuron_time,
-                                           const int neurons_count);
+                                           const int my_neurons_count);
 
   /// returns max work per locality, for branch parallelism
   static double GetWorkPerLocality(const double neuron_time,
-                                   const int neurons_count);
+                                   const int my_neurons_count);
 
   /// sums given runtime to variable total_mech_instances_runtime_
   static void AddToTotalMechInstancesRuntime(double);
