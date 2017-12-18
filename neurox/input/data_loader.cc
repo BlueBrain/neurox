@@ -1575,8 +1575,8 @@ hpx_t DataLoader::CreateBranch(
     }
 
     /*if this subsection exceeds maximum time allowed per subsection*/
-    // if (is_soma) { /*split at soma level */
-    if (subsection_runtime > max_work_per_section) {
+    if (is_soma) { /*split at soma level */
+                   // if (subsection_runtime > max_work_per_section) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
       subsection.push_back(top_compartment);

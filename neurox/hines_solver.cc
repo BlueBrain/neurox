@@ -9,39 +9,41 @@ using namespace neurox::interpolators;
 
 HinesSolver::~HinesSolver() {}
 
-void HinesSolver::CommunicateConstants(const Branch *branch) {
+// TODO: shall these async sets be freed later?!
+
+void HinesSolver::InitializeBranchConstants(const Branch *branch) {
   const floble_t *a = branch->nt_->_actual_a;
   const floble_t *b = branch->nt_->_actual_b;
-  const int n = branch->nt_->end;
-  Branch::BranchTree *branch_tree = branch->branch_tree_;
+  Branch::BranchTree *bt = branch->branch_tree_;
 
-  if (!branch_tree) return;
+  if (!bt) return;
+
+  const int channel = 1;
 
   // all branches except top
   if (!branch->soma_) {
     floble_t to_parent_a_b[2] = {a[0], b[0]};
-    floble_t from_parent_a_b[2];
-    hpx_lco_set_rsync(branch_tree->with_parent_lco_[3], sizeof(floble_t) * 2,
+    assert(bt->with_children_lcos_[channel]!=HPX_NULL);
+    hpx_lco_set_rsync(bt->with_parent_lco_[channel], sizeof(floble_t) * 2,
                       &to_parent_a_b);
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[4], sizeof(floble_t) * 2,
-                      &from_parent_a_b);
-    branch_tree->parent_a_ = from_parent_a_b[0];
-    branch_tree->parent_b_ = from_parent_a_b[1];
+    bt->parent_v_ = input_params_->voltage_;
   }
 
   // all branches with leaves
-  if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
-    branch_tree->children_a_ = new floble_t[branch_tree->branches_count_];
-    branch_tree->children_b_ = new floble_t[branch_tree->branches_count_];
-    floble_t to_children_a_b[2] = {a[n - 1], b[n - 1]};
+  if (bt != nullptr && bt->branches_count_ > 0) {
+    bt->children_a_ = new floble_t[bt->branches_count_];
+    bt->children_b_ = new floble_t[bt->branches_count_];
+    bt->children_rhs_ = new floble_t[bt->branches_count_];
+    bt->children_v_ = new floble_t[bt->branches_count_];
     floble_t from_child_a_b[2];
-    for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][3],
+    for (offset_t c = 0; c < bt->branches_count_; c++) {
+      assert(bt->with_children_lcos_[c][channel]!= HPX_NULL);
+      hpx_lco_get_reset(bt->with_children_lcos_[c][channel],
                         sizeof(floble_t) * 2, &from_child_a_b);
-      branch_tree->children_a_[c] = from_child_a_b[0];
-      branch_tree->children_b_[c] = from_child_a_b[1];
-      hpx_lco_set_rsync(branch_tree->with_children_lcos_[c][4],
-                        sizeof(floble_t) * 2, &to_children_a_b);
+      bt->children_a_[c] = from_child_a_b[0];
+      bt->children_b_[c] = from_child_a_b[1];
+      bt->children_v_[c] = input_params_->voltage_;
+      bt->children_rhs_[c] = -1;  // set by UpdateVoltagesWithRHS
     }
   }
 }
@@ -76,6 +78,8 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
   const offset_t *p = branch->nt_->_v_parent_index;
   floble_t *rhs = branch->nt_->_actual_rhs;
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
+  const floble_t *children_a = branch_tree->children_a_;
+  const floble_t *children_v = branch_tree->children_v_;
 
   /* now the internal axial currents.
     The extracellular mechanism contribution is already done.
@@ -86,16 +90,8 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
   // first local future for downwards V, second for upwards A*dv
   if (!branch->soma_)  // all top compartments except soma
   {
-    floble_t from_parent_v;  // get 'v[p[i]]' from parent
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[1], sizeof(floble_t),
-                      &from_parent_v);
-
-    dv = from_parent_v - v[0];
+    dv = branch_tree->parent_v_ - v[0];
     rhs[0] -= b[0] * dv;
-
-    floble_t to_parent_a = a[0] * dv;  // pass 'a[i]*dv' upwards to parent
-    hpx_lco_set(branch_tree->with_parent_lco_[2], sizeof(floble_t),
-                &to_parent_a, HPX_NULL, HPX_NULL);  // NOTE: async set
   }
 
   // middle compartments
@@ -114,17 +110,9 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
 
   // bottom compartment (when there is branching)
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
-    floble_t to_children_v = v[n - 1];  // dv = v[p[i]] - v[i]
-    for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_set(branch_tree->with_children_lcos_[c][1], sizeof(floble_t),
-                  &to_children_v, HPX_NULL, HPX_NULL);
-    // TODO: shall these async sets be freed later?!
-
-    floble_t from_children_a;  // rhs[p[i]] += a[i]*dv
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][2],
-                        sizeof(floble_t), &from_children_a);
-      rhs[n - 1] += from_children_a;
+      dv = v[n - 1] - children_v[c];
+      rhs[n - 1] += children_a[c] * dv;
     }
   }
 }
@@ -173,7 +161,7 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
 
   floble_t pp;
-  const int channel = 3;
+  const int channel = 1;
 
   /* bottom compartment, get D and RHS from children */
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
@@ -220,22 +208,29 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
   const floble_t *d = branch->nt_->_actual_d;
   const offset_t *p = branch->nt_->_v_parent_index;
   floble_t *rhs = branch->nt_->_actual_rhs;
-  const Branch::BranchTree *branch_tree = branch->branch_tree_;
+  Branch::BranchTree *branch_tree = branch->branch_tree_;
+  floble_t *children_rhs = branch_tree->children_rhs_;
 
-  const int channel = 4;
-  // TODO we only need to communicate one double, not two
+  const int channel_triang_rhs = 2;
+  const int channel_final_rhs = 3;
 
-  /* top compartment: get RHS from parent */
+  /* top compartment: */
   if (!branch->soma_) {
-    floble_t from_parent_d_rhs[2];
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[channel],
-                      sizeof(floble_t) * 2, &from_parent_d_rhs);
-    // floble_t & parent_d = from_parent_d_rhs[0];
-    floble_t &parent_rhs = from_parent_d_rhs[1];
-    rhs[0] -= b[0] * parent_rhs;
-  }
+    /* get RHS from parent */
+    floble_t &from_parent_rhs = branch_tree->parent_rhs_;
+    hpx_lco_get_reset(branch_tree->with_parent_lco_[channel_triang_rhs],
+                      sizeof(floble_t), &from_parent_rhs);
 
-  rhs[0] /= d[0];  //(Coreneuron base case)
+    rhs[0] -= b[0] * from_parent_rhs;
+    rhs[0] /= d[0];
+
+    /* pass final RHS to parent, will be needed for UpdateVoltagesWithRHS */
+    floble_t &to_parent_rhs = rhs[0];
+    hpx_lco_set(branch_tree->with_parent_lco_[channel_final_rhs],
+                sizeof(floble_t), &to_parent_rhs, HPX_NULL, HPX_NULL);
+  } else {
+    rhs[0] /= d[0];  //(Coreneuron base case)
+  }
 
   /* middle compartments */
   if (p)  // may have bifurcations (Coreneuron base case)
@@ -249,114 +244,22 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
       rhs[i] /= d[i];
     }
 
-  /* bottom compartment, send to children RHS[n-1] */
+  /* bottom compartment, send to children RHS[n-1] for their substitution,
+     and get RHS[n-1] from children after they substituted */
   if (branch_tree != nullptr) {
-    floble_t to_children_d_rhs[2] = {d[n - 1], rhs[n - 1]};
+    floble_t &to_children_rhs = rhs[n - 1];
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_set(branch_tree->with_children_lcos_[c][channel],
-                  sizeof(floble_t) * 2, &to_children_d_rhs, HPX_NULL, HPX_NULL);
-  }
-}
+      hpx_lco_set(branch_tree->with_children_lcos_[c][channel_triang_rhs],
+                  sizeof(floble_t), &to_children_rhs, HPX_NULL, HPX_NULL);
 
-void HinesSolver::ForwardTriangulationLinearCable(Branch *branch) {
-  const offset_t n = branch->nt_->end;
-  const floble_t *a = branch->nt_->_actual_a;
-  const floble_t *b = branch->nt_->_actual_b;
-  const offset_t *p = branch->nt_->_v_parent_index;
-  floble_t *rhs = branch->nt_->_actual_rhs;
-  floble_t *d = branch->nt_->_actual_d;
-  const Branch::BranchTree *branch_tree = branch->branch_tree_;
-
-  floble_t pp;
-  assert(p == nullptr);  // make sure there is no branching
-
-  const int channel = 4;
-
-  /* top compartment, get from parent D and RHS */
-  if (!branch->soma_) {
-    floble_t from_parent_d_rhs[2];
-    hpx_lco_get_reset(branch_tree->with_parent_lco_[channel],
-                      sizeof(floble_t) * 2, &from_parent_d_rhs);
-
-    floble_t &parent_d = from_parent_d_rhs[0];
-    floble_t &parent_rhs = from_parent_d_rhs[1];
-
-    pp = branch_tree->parent_b_ / parent_d;
-    d[0] -= pp * branch_tree->parent_a_;
-    rhs[0] -= pp * parent_rhs;
-  }
-
-  /* middle compartments, linear use case only */
-  for (offset_t i = 0; i < n - 1; i++) {
-    pp = b[i] / d[i];
-    d[i + 1] -= pp * a[i];
-    rhs[i + 1] -= pp * rhs[i];
-  }
-
-  /* bottom compartment, send to children D and RHS */
-  if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
-    floble_t to_children_d_rhs[2] = {d[n - 1], rhs[n - 1]};
+    // TODO move this to UpdateVoltagesWithRHS (when it's needed)
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_set(branch_tree->with_children_lcos_[c][channel],
-                  sizeof(floble_t) * 2, &to_children_d_rhs, HPX_NULL, HPX_NULL);
-  }
-}
-
-void HinesSolver::BackwardSubstitutionLinearCable(Branch *branch) {
-  const offset_t n = branch->nt_->end;
-  const floble_t *a = branch->nt_->_actual_a;
-  floble_t *rhs = branch->nt_->_actual_rhs;
-  floble_t *d = branch->nt_->_actual_d;
-  const offset_t *p = branch->nt_->_v_parent_index;
-  const Branch::BranchTree *branch_tree = branch->branch_tree_;
-
-  assert(p == nullptr);  // make sure there is no branching
-  const int channel = 3;
-
-  /* bottom compartment: get D and RHS from children */
-  if (branch_tree != nullptr) {
-    floble_t from_children_d_rhs[2];
-    for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel],
-                        sizeof(floble_t) * 2, &from_children_d_rhs);
-      floble_t &from_child_rhs = from_children_d_rhs[1];
-      rhs[n - 1] -= a[n - 1] * from_child_rhs;
-    }
-  }
-
-  rhs[n - 1] /= d[n - 1];  //(Coreneuron base case)
-
-  /* middle compartments, linear use case only */
-  for (offset_t i = n - 2; i >= 0; i--) {
-    rhs[i] -= a[i] * rhs[i + 1];
-    rhs[i] /= d[i];
-  }
-
-  /* top compartment, send to parent rhs[0] */
-  if (!branch->soma_) {
-    floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
-    hpx_lco_set(branch_tree->with_parent_lco_[channel], sizeof(floble_t) * 2,
-                &to_parent_d_rhs, HPX_NULL, HPX_NULL);
+      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel_final_rhs],
+                        sizeof(floble_t), &children_rhs[c]);
   }
 }
 
 void HinesSolver::SolveTreeMatrix(Branch *branch) {
-  /* Multisplit: neuron split into trees of linear cable if not a leaf of the
-   * tree, or a branched subsection at the bottom of the tree otherwise.
-   * Two-way Gaussian Elimination allows for parallelism of subsections. */
-  // if (branch->branch_tree_) {
-  //  if (branch->branch_tree_->branches_count_ > 0) {
-  /* Regular Gaussian Elimination for tridiagonal matrix (linear cable) */
-  //    HinesSolver::ForwardTriangulationLinearCable(branch);
-  //    HinesSolver::BackwardSubstitutionLinearCable(branch);
-  //  } else {
-  /* Inverted Gaussian Elimination for branched subsection */
-  //    HinesSolver::BackwardTriangulation(branch);
-  //    HinesSolver::ForwardSubstitution(branch);
-  //  }
-  //  return;
-  //}
-
   /* Inverted Gaussian Elimination: from leaves to root */
   HinesSolver::BackwardTriangulation(branch);
   HinesSolver::ForwardSubstitution(branch);
@@ -370,6 +273,17 @@ void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
   const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
   for (int i = 0; i < branch->nt_->end; i++)
     v[i] += second_order_multiplier * rhs[i];
+
+  // update branch-parallelism use case
+  Branch::BranchTree *bt = branch->branch_tree_;
+  if (bt != nullptr) {
+    if (!branch->soma_)
+      bt->parent_v_ += second_order_multiplier * bt->parent_rhs_;
+
+    for (offset_t c = 0; c < bt->branches_count_; c++) {
+      bt->children_v_[c] += second_order_multiplier * bt->children_rhs_[c];
+    }
+  }
 }
 
 void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch) {

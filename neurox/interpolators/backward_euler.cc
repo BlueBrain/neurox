@@ -111,6 +111,7 @@ void BackwardEuler::Finitialize2(Branch *branch) {
 
   // set up by finitialize.c:nrn_finitialize(): if (setv)
   for (int n = 0; n < branch->nt_->end; n++) v[n] = input_params_->voltage_;
+  if (branch->branch_tree_) HinesSolver::InitializeBranchConstants(branch);
 
   // the INITIAL blocks are ordered so that mechanisms that write
   // concentrations are after ions and before mechanisms that read

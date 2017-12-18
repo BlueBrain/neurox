@@ -18,7 +18,7 @@ class HinesSolver {
   ~HinesSolver();
 
   /// Communicates A and B elements between branch subsections
-  static void CommunicateConstants(const Branch *branch);
+  static void InitializeBranchConstants(const Branch *branch);
 
   /// Communicates voltage between soma and Axon Initial Segment
   static void SynchronizeThresholdV(const Branch *branch,
@@ -38,14 +38,6 @@ class HinesSolver {
 
   /// The Forward Substitution step in inverted Gaussian Elimination
   static void ForwardSubstitution(Branch *branch);
-
-  /// The Forward Triangulation step in regular Gaussian Elimination
-  /// applied to Linear Cables / pure tri-diagonal matrices only
-  static void ForwardTriangulationLinearCable(Branch *branch);
-
-  /// The Backward Substitution step in regular Gaussian Elimination
-  /// applied to Linear Cables / pure tri-diagonal matrices only
-  static void BackwardSubstitutionLinearCable(Branch *branch);
 
   /// Calls Triangulation and Substitution methods
   static void SolveTreeMatrix(Branch *branch);
