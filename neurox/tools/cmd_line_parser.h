@@ -43,7 +43,6 @@ class CmdLineParser {
   char pattern_stim_[512];  ///> patternStim file path (the filename of an
                             /// output_spikes.h format raster file.)
 
-  // TODO make const?
   // neurox specific options
   bool output_statistics_;           ///> outputs statistics file
   bool output_mechanisms_dot_;       ///> outputs mechanisms.dot file

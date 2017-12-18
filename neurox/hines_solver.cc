@@ -223,7 +223,7 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
 
   const int channel = 4;
-  //TODO we only need to communicate one double, not two
+  // TODO we only need to communicate one double, not two
 
   /* top compartment: get RHS from parent */
   if (!branch->soma_) {

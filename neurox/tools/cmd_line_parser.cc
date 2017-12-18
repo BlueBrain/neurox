@@ -53,17 +53,17 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
         cmd, false);
-    TCLAP::SwitchArg output_mechanisms_dot(
-        "1", "output-mechs",
-        "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
-    TCLAP::SwitchArg output_netcons_dot(
-        "2", "output-netcons",
-        "outputs netcons.dot with netcons information across neurons.", cmd,
-        false);
     TCLAP::SwitchArg output_compartments_dot(
         "3", "output-compartments",
         "outputs compartments_*.dot files displaying neurons morpholgies.", cmd,
         false);
+    TCLAP::SwitchArg output_netcons_dot(
+        "2", "output-netcons",
+        "outputs netcons.dot with netcons information across neurons.", cmd,
+        false);
+    TCLAP::SwitchArg output_mechanisms_dot(
+        "1", "output-mechs",
+        "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
     TCLAP::SwitchArg load_balancing(
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);

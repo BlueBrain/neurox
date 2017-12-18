@@ -92,13 +92,14 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
 double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
                                                 const int my_neurons_count) {
   // get an estimation of total workload in this locality
-  double total_work = neuron_time * (double) my_neurons_count;
+  double total_work = neuron_time * (double)my_neurons_count;
 
   // average the total work in this locality by all localityes
-  double avg_locality_work = total_work / (double) wrappers::NumRanks();
+  double avg_locality_work = total_work / (double)wrappers::NumRanks();
 
   return avg_locality_work;
 }
+
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
   assert(runtime > 0);
   total_mech_instances_runtime_ += runtime;

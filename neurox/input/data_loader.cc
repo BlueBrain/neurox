@@ -1492,8 +1492,7 @@ hpx_t DataLoader::CreateBranch(
   double subsection_runtime = -1;
 
   /* defult value (-1) means use this locality */
-  if (assigned_locality<0)
-      assigned_locality= hpx_get_my_rank();
+  if (assigned_locality < 0) assigned_locality = hpx_get_my_rank();
 
   /* to calculate computational complexity for the mech-instance parallelism,
    * benchmark all mechanisms. Only on the first run, and only benchmarks
@@ -1542,27 +1541,23 @@ hpx_t DataLoader::CreateBranch(
         neuron_runtime, GetMyNrnThreadsCount());
 
 #ifndef NDEBUG
-      if (is_soma)
-        printf(
-            "==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-            neuron_runtime, max_work_per_section);
+    if (is_soma)
+      printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
+             neuron_runtime, max_work_per_section);
 #endif
 
     if (!input_params_->load_balancing_) {
       /* assign branch locally*/
       assigned_locality = hpx_get_my_rank();
     } else {
-
-
       /* estimated max executiom time allowed per locality */
       double max_work_per_locality = LoadBalancing::GetWorkPerLocality(
           neuron_runtime, GetMyNrnThreadsCount());
 
 #ifndef NDEBUG
       if (is_soma)
-        printf(
-            "==== neuron time %.5f ms, max work per locality %.5fms\n",
-            neuron_runtime, max_work_per_locality);
+        printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
+               neuron_runtime, max_work_per_locality);
 #endif
 
       /* assign remaining arborization to different locality if it fits in the
@@ -1632,28 +1627,26 @@ hpx_t DataLoader::CreateBranch(
     // TODO add the removed SORT!!!
   }
 
+  if (input_params_->output_statistics_ || input_params_->load_balancing_) {
+    /* for the LPT table and statistics, we use the final data struct runtime*/
+    subsection_runtime =
+        BenchmarkSubSection(N, subsection, ions_instances_info);
+    subsection = all_compartments;
 
-  if (input_params_->output_statistics_ || input_params_->load_balancing_)
-  {
-      /* for the LPT table and statistics, we use the final data struct runtime*/
-      subsection_runtime =
-          BenchmarkSubSection(N, subsection, ions_instances_info);
-      subsection = all_compartments;
-
-      /* tell master rank to update entry in Least-Processing-Time table */
-      hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::UpdateLoadBalancingTable,
-                    nullptr, 0,                           // output
-                    &subsection_runtime, sizeof(double),  // input[0]
-                    &assigned_locality, sizeof(int));     // input[1]
+    /* tell master rank to update entry in Least-Processing-Time table */
+    hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::UpdateLoadBalancingTable,
+                  nullptr, 0,                           // output
+                  &subsection_runtime, sizeof(double),  // input[0]
+                  &assigned_locality, sizeof(int));     // input[1]
 
 #ifndef NDEBUG
-  printf(
-      "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to %s rank "
-      "%d\n",
-      is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"), top_compartment->id_,
-      n, nrn_threadId, subsection_runtime,
-      assigned_locality == hpx_get_my_rank() ? "local" : "remote",
-      assigned_locality);
+    printf(
+        "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to %s rank "
+        "%d\n",
+        is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
+        top_compartment->id_, n, nrn_threadId, subsection_runtime,
+        assigned_locality == hpx_get_my_rank() ? "local" : "remote",
+        assigned_locality);
 #endif
   }
 
