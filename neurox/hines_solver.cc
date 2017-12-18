@@ -23,10 +23,11 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
   // all branches except top
   if (!branch->soma_) {
     floble_t to_parent_a_b[2] = {a[0], b[0]};
-    assert(bt->with_children_lcos_[channel]!=HPX_NULL);
+    assert(bt->with_children_lcos_[channel] != HPX_NULL);
     hpx_lco_set_rsync(bt->with_parent_lco_[channel], sizeof(floble_t) * 2,
                       &to_parent_a_b);
     bt->parent_v_ = input_params_->voltage_;
+    bt->parent_rhs_ = -1;  // set by UpdateVoltagesWithRHS
   }
 
   // all branches with leaves
@@ -37,7 +38,7 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
     bt->children_v_ = new floble_t[bt->branches_count_];
     floble_t from_child_a_b[2];
     for (offset_t c = 0; c < bt->branches_count_; c++) {
-      assert(bt->with_children_lcos_[c][channel]!= HPX_NULL);
+      assert(bt->with_children_lcos_[c][channel] != HPX_NULL);
       hpx_lco_get_reset(bt->with_children_lcos_[c][channel],
                         sizeof(floble_t) * 2, &from_child_a_b);
       bt->children_a_[c] = from_child_a_b[0];
@@ -209,7 +210,6 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
   const offset_t *p = branch->nt_->_v_parent_index;
   floble_t *rhs = branch->nt_->_actual_rhs;
   Branch::BranchTree *branch_tree = branch->branch_tree_;
-  floble_t *children_rhs = branch_tree->children_rhs_;
 
   const int channel_triang_rhs = 2;
   const int channel_final_rhs = 3;
@@ -224,7 +224,7 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
     rhs[0] -= b[0] * from_parent_rhs;
     rhs[0] /= d[0];
 
-    /* pass final RHS to parent, will be needed for UpdateVoltagesWithRHS */
+    /* pass final RHS to parent, will be needed by UpdateVoltagesWithRHS */
     floble_t &to_parent_rhs = rhs[0];
     hpx_lco_set(branch_tree->with_parent_lco_[channel_final_rhs],
                 sizeof(floble_t), &to_parent_rhs, HPX_NULL, HPX_NULL);
@@ -252,10 +252,10 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
       hpx_lco_set(branch_tree->with_children_lcos_[c][channel_triang_rhs],
                   sizeof(floble_t), &to_children_rhs, HPX_NULL, HPX_NULL);
 
-    // TODO move this to UpdateVoltagesWithRHS (when it's needed)
+    /* final RHS value from each children, after ForwardSubstitution */
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
       hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel_final_rhs],
-                        sizeof(floble_t), &children_rhs[c]);
+                  sizeof(floble_t), &branch_tree->children_rhs_[c]);
   }
 }
 
