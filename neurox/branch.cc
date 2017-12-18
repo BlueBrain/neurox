@@ -711,7 +711,7 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma_)  // send my LCO to parent
-      NEUROX_MEM_UNPIN(branch_tree->with_parent_lco_);
+      NEUROX_MEM_UNPIN_CONTINUE(branch_tree->with_parent_lco_);
   }
   NEUROX_MEM_UNPIN;
 }
