@@ -45,6 +45,9 @@ class HinesSolver {
   /// Update Voltage contributions from the Right-Hand Side
   static void UpdateVoltagesWithRHS(Branch *branch);
 
+  /// Update Voltage contributions from branching points
+  static void UpdateBranchVoltagesWithRHS(Branch *branch);
+
   // CVODE-specific methods
   static void ResetRHSandDNoCapacitors(Branch *);
   static void ResetRHSNoCapacitors(Branch *);

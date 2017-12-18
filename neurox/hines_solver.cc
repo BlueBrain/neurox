@@ -18,13 +18,13 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
 
   if (!bt) return;
 
-  const int channel = 1;
+  const int channel_double = 1;
 
   // all branches except top
   if (!branch->soma_) {
     floble_t to_parent_a_b[2] = {a[0], b[0]};
-    assert(bt->with_children_lcos_[channel] != HPX_NULL);
-    hpx_lco_set_rsync(bt->with_parent_lco_[channel], sizeof(floble_t) * 2,
+    assert(bt->with_children_lcos_[channel_double] != HPX_NULL);
+    hpx_lco_set_rsync(bt->with_parent_lco_[channel_double], sizeof(floble_t) * 2,
                       &to_parent_a_b);
     bt->parent_v_ = input_params_->voltage_;
     bt->parent_rhs_ = -1;  // set by UpdateVoltagesWithRHS
@@ -38,8 +38,8 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
     bt->children_v_ = new floble_t[bt->branches_count_];
     floble_t from_child_a_b[2];
     for (offset_t c = 0; c < bt->branches_count_; c++) {
-      assert(bt->with_children_lcos_[c][channel] != HPX_NULL);
-      hpx_lco_get_reset(bt->with_children_lcos_[c][channel],
+      assert(bt->with_children_lcos_[c][channel_double] != HPX_NULL);
+      hpx_lco_get_reset(bt->with_children_lcos_[c][channel_double],
                         sizeof(floble_t) * 2, &from_child_a_b);
       bt->children_a_[c] = from_child_a_b[0];
       bt->children_b_[c] = from_child_a_b[1];
@@ -51,7 +51,7 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
 
 void HinesSolver::SynchronizeThresholdV(const Branch *branch,
                                         floble_t *threshold_v) {
-  const int channel = 0;
+  const int channel_ap_voltage = 0;
   const int ais_branch = 0;
 
   if (branch->soma_) {
@@ -60,10 +60,10 @@ void HinesSolver::SynchronizeThresholdV(const Branch *branch,
     else
       // If not, wait for the value to be updated by AIS
       hpx_lco_get_reset(
-          branch->branch_tree_->with_children_lcos_[ais_branch][channel],
+          branch->branch_tree_->with_children_lcos_[ais_branch][channel_ap_voltage],
           sizeof(floble_t), threshold_v);
   } else if (branch->thvar_ptr_)  // if AIS, send value to soma
-    hpx_lco_set(branch->branch_tree_->with_parent_lco_[channel],
+    hpx_lco_set(branch->branch_tree_->with_parent_lco_[channel_ap_voltage],
                 sizeof(floble_t), branch->thvar_ptr_, HPX_NULL, HPX_NULL);
 }
 
@@ -162,7 +162,7 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
 
   floble_t pp;
-  const int channel = 1;
+  const int channel_d_rhs = 1;
 
   /* bottom compartment, get D and RHS from children */
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
@@ -170,7 +170,7 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
     const floble_t *children_b = branch_tree->children_b_;
     floble_t from_child_d_rhs[2];
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel],
+      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel_d_rhs],
                         sizeof(floble_t) * 2, &from_child_d_rhs);
 
       floble_t &child_d = from_child_d_rhs[0];
@@ -198,7 +198,7 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
   /* top compartment, send to parent D and RHS */
   if (!branch->soma_) {
     floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
-    hpx_lco_set(branch_tree->with_parent_lco_[channel], sizeof(floble_t) * 2,
+    hpx_lco_set(branch_tree->with_parent_lco_[channel_d_rhs], sizeof(floble_t) * 2,
                 &to_parent_d_rhs, HPX_NULL, HPX_NULL);
   }
 }
@@ -251,11 +251,6 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
     for (offset_t c = 0; c < branch_tree->branches_count_; c++)
       hpx_lco_set(branch_tree->with_children_lcos_[c][channel_triang_rhs],
                   sizeof(floble_t), &to_children_rhs, HPX_NULL, HPX_NULL);
-
-    /* final RHS value from each children, after ForwardSubstitution */
-    for (offset_t c = 0; c < branch_tree->branches_count_; c++)
-      hpx_lco_get_reset(branch_tree->with_children_lcos_[c][channel_final_rhs],
-                  sizeof(floble_t), &branch_tree->children_rhs_[c]);
   }
 }
 
@@ -265,25 +260,39 @@ void HinesSolver::SolveTreeMatrix(Branch *branch) {
   HinesSolver::ForwardSubstitution(branch);
 }
 
-void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
-  const floble_t *rhs = branch->nt_->_actual_rhs;
-  floble_t *v = branch->nt_->_actual_v;
+void HinesSolver::UpdateBranchVoltagesWithRHS(Branch *branch) {
 
-  // Reminder: after Gaussian Elimination, RHS is dV/dt (?)
-  const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
-  for (int i = 0; i < branch->nt_->end; i++)
-    v[i] += second_order_multiplier * rhs[i];
+  /*These update voltages based on RHS of previous step, set by
+   * HinesSolver::SolveTreeMatrix. So we ignore first step */
+  bool first_step = branch->nt_->_t < branch->nt_->_dt;
+  if (first_step) return;
+
+  const int channel_final_rhs = 3;
 
   // update branch-parallelism use case
   Branch::BranchTree *bt = branch->branch_tree_;
   if (bt != nullptr) {
+    const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
     if (!branch->soma_)
       bt->parent_v_ += second_order_multiplier * bt->parent_rhs_;
 
+    /* final RHS value from each children, after ForwardSubstitution */
     for (offset_t c = 0; c < bt->branches_count_; c++) {
+      hpx_lco_get_reset(bt->with_children_lcos_[c][channel_final_rhs],
+                        sizeof(floble_t), &bt->children_rhs_[c]);
       bt->children_v_[c] += second_order_multiplier * bt->children_rhs_[c];
     }
   }
+}
+
+void HinesSolver::UpdateVoltagesWithRHS(Branch *branch) {
+  const floble_t *rhs = branch->nt_->_actual_rhs;
+  floble_t *v = branch->nt_->_actual_v;
+
+  // Reminder: after Gaussian Elimination, RHS is dV/dt
+  const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
+  for (int i = 0; i < branch->nt_->end; i++)
+    v[i] += second_order_multiplier * rhs[i];
 }
 
 void HinesSolver::ResetRHSandDNoCapacitors(Branch *branch) {

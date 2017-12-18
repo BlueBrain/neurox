@@ -134,6 +134,7 @@ void BackwardEuler::SetupTreeMatrix(Branch *branch) {
 
   branch->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
+  HinesSolver::UpdateBranchVoltagesWithRHS(branch);
   HinesSolver::SetupMatrixRHS(branch);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector
