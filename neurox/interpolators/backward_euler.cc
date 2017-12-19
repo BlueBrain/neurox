@@ -51,6 +51,9 @@ hpx_t BackwardEuler::Step(Branch *branch, bool benchmark) {
   double &t = nt->_t;
   hpx_t spikes_lco = HPX_NULL;
 
+  // get previous-step voltages for branching bifurcation
+  HinesSolver::UpdateBranchVoltagesWithRHS(branch);
+
   // cvodestb.cpp::deliver_net_events()
   // netcvode.cpp::NetCvode::check_thresh(NrnThread*)
   if (!benchmark) {
@@ -59,13 +62,10 @@ hpx_t BackwardEuler::Step(Branch *branch, bool benchmark) {
       synchronizer_->StepSync(branch);
 
       // Soma waits for AIS to have threshold V value updated
-      floble_t threshold_v;
-      HinesSolver::SynchronizeThresholdV(branch, &threshold_v);
+      floble_t threshold_v = HinesSolver::GetAxonInitialSegmentVoltage(branch);
       if (branch->soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
         spikes_lco = branch->soma_->SendSpikes(nt->_t);
-    } else if (branch->thvar_ptr_)
-      // Axon Initial Segment send threshold  V to parent
-      HinesSolver::SynchronizeThresholdV(branch);
+    }
   }
 
   // netcvode.cpp::NetCvode::deliver_net_events()
@@ -134,7 +134,6 @@ void BackwardEuler::SetupTreeMatrix(Branch *branch) {
 
   branch->CallModFunction(Mechanism::ModFunctions::kBeforeBreakpoint);
   branch->CallModFunction(Mechanism::ModFunctions::kCurrent);
-  HinesSolver::UpdateBranchVoltagesWithRHS(branch);
   HinesSolver::SetupMatrixRHS(branch);
 
   // treeset_core.c::nrn_lhs: Set up Left-Hand-Side of Matrix-Vector

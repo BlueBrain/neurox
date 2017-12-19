@@ -113,11 +113,10 @@ class Branch {
     size_t branches_count_;  ///> number of branches (>0)
 
     /// size of futures arrays (used in Gaussian elimination and AP threshold
-    /// channel 0: AP threshold voltage
-    /// channel 1: previous step final RHS from children (SetupMatrixRHS)
-    /// channel 2: D+RHS from children (BackwardTriangulation)
-    /// channel 3: RHS from parent (ForwardSubstitution)
-    static constexpr size_t kFuturesSize = 4;
+    /// channel 0: previous-step RHS from children (after ForwardSubstitution)
+    /// channel 1: D+RHS from children (BackwardTriangulation)
+    /// channel 2: RHS from parent (after ForwardSubstitution)
+    static constexpr size_t kFuturesSize = 3;
 
     /// value of A[0] of all children
     floble_t* children_a_;

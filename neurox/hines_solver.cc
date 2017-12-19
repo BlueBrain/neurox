@@ -24,8 +24,8 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
   if (!branch->soma_) {
     floble_t to_parent_a_b[2] = {a[0], b[0]};
     assert(bt->with_children_lcos_[channel_double] != HPX_NULL);
-    hpx_lco_set_rsync(bt->with_parent_lco_[channel_double], sizeof(floble_t) * 2,
-                      &to_parent_a_b);
+    hpx_lco_set_rsync(bt->with_parent_lco_[channel_double],
+                      sizeof(floble_t) * 2, &to_parent_a_b);
     bt->parent_v_ = input_params_->voltage_;
     bt->parent_rhs_ = -1;  // set by UpdateVoltagesWithRHS
   }
@@ -49,22 +49,15 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
   }
 }
 
-void HinesSolver::SynchronizeThresholdV(const Branch *branch,
-                                        floble_t *threshold_v) {
-  const int channel_ap_voltage = 0;
+double HinesSolver::GetAxonInitialSegmentVoltage(const Branch *branch) {
   const int ais_branch = 0;
 
-  if (branch->soma_) {
-    if (branch->thvar_ptr_)  // if I hold the value (Coreneuron base case)
-      *threshold_v = *branch->thvar_ptr_;
-    else
-      // If not, wait for the value to be updated by AIS
-      hpx_lco_get_reset(
-          branch->branch_tree_->with_children_lcos_[ais_branch][channel_ap_voltage],
-          sizeof(floble_t), threshold_v);
-  } else if (branch->thvar_ptr_)  // if AIS, send value to soma
-    hpx_lco_set(branch->branch_tree_->with_parent_lco_[channel_ap_voltage],
-                sizeof(floble_t), branch->thvar_ptr_, HPX_NULL, HPX_NULL);
+  /* If value is accessible by this branch (Coreneuron base case) */
+  if (branch->thvar_ptr_) return *branch->thvar_ptr_;
+
+  /* Soma and AIS are in different branches, get AIS voltage from branching */
+  assert(branch->branch_tree_);
+  return branch->branch_tree_->children_v_[ais_branch];
 }
 
 void HinesSolver::ResetArray(const Branch *branch, floble_t *arr) {
@@ -79,8 +72,6 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
   const offset_t *p = branch->nt_->_v_parent_index;
   floble_t *rhs = branch->nt_->_actual_rhs;
   const Branch::BranchTree *branch_tree = branch->branch_tree_;
-  const floble_t *children_a = branch_tree->children_a_;
-  const floble_t *children_v = branch_tree->children_v_;
 
   /* now the internal axial currents.
     The extracellular mechanism contribution is already done.
@@ -88,7 +79,6 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
   */
 
   floble_t dv = 0;
-  // first local future for downwards V, second for upwards A*dv
   if (!branch->soma_)  // all top compartments except soma
   {
     dv = branch_tree->parent_v_ - v[0];
@@ -111,6 +101,8 @@ void HinesSolver::SetupMatrixRHS(Branch *branch) {
 
   // bottom compartment (when there is branching)
   if (branch_tree != nullptr && branch_tree->branches_count_ > 0) {
+    const floble_t *children_a = branch_tree->children_a_;
+    const floble_t *children_v = branch_tree->children_v_;
     for (offset_t c = 0; c < branch_tree->branches_count_; c++) {
       dv = v[n - 1] - children_v[c];
       rhs[n - 1] += children_a[c] * dv;
@@ -198,8 +190,8 @@ void HinesSolver::BackwardTriangulation(Branch *branch) {
   /* top compartment, send to parent D and RHS */
   if (!branch->soma_) {
     floble_t to_parent_d_rhs[2] = {d[0], rhs[0]};
-    hpx_lco_set(branch_tree->with_parent_lco_[channel_d_rhs], sizeof(floble_t) * 2,
-                &to_parent_d_rhs, HPX_NULL, HPX_NULL);
+    hpx_lco_set(branch_tree->with_parent_lco_[channel_d_rhs],
+                sizeof(floble_t) * 2, &to_parent_d_rhs, HPX_NULL, HPX_NULL);
   }
 }
 
@@ -212,7 +204,7 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
   Branch::BranchTree *branch_tree = branch->branch_tree_;
 
   const int channel_triang_rhs = 2;
-  const int channel_final_rhs = 3;
+  const int channel_final_rhs = 0;
 
   /* top compartment: */
   if (!branch->soma_) {
@@ -261,18 +253,18 @@ void HinesSolver::SolveTreeMatrix(Branch *branch) {
 }
 
 void HinesSolver::UpdateBranchVoltagesWithRHS(Branch *branch) {
-
   /*These update voltages based on RHS of previous step, set by
    * HinesSolver::SolveTreeMatrix. So we ignore first step */
   bool first_step = branch->nt_->_t < branch->nt_->_dt;
   if (first_step) return;
 
-  const int channel_final_rhs = 3;
+  const int channel_final_rhs = 0;
 
   // update branch-parallelism use case
   Branch::BranchTree *bt = branch->branch_tree_;
   if (bt != nullptr) {
-    const floble_t second_order_multiplier = input_params_->second_order_ ? 2 : 1;
+    const floble_t second_order_multiplier =
+        input_params_->second_order_ ? 2 : 1;
     if (!branch->soma_)
       bt->parent_v_ += second_order_multiplier * bt->parent_rhs_;
 

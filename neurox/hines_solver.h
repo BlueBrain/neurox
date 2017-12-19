@@ -21,8 +21,7 @@ class HinesSolver {
   static void InitializeBranchConstants(const Branch *branch);
 
   /// Communicates voltage between soma and Axon Initial Segment
-  static void SynchronizeThresholdV(const Branch *branch,
-                                    floble_t *threshold_v = NULL);
+  static double GetAxonInitialSegmentVoltage(const Branch *branch);
 
   /// Zeros an array @arr for the given branch @branch
   static void ResetArray(const Branch *branch, floble_t *arr);
