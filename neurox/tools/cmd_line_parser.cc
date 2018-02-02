@@ -53,23 +53,34 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
         cmd, false);
-    TCLAP::SwitchArg output_mechanisms_dot(
-        "1", "output-mechs",
-        "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
-    TCLAP::SwitchArg output_netcons_dot(
-        "2", "output-netcons",
-        "outputs netcons.dot with netcons information across neurons.", cmd,
-        false);
     TCLAP::SwitchArg output_compartments_dot(
         "3", "output-compartments",
         "outputs compartments_*.dot files displaying neurons morpholgies.", cmd,
         false);
+    TCLAP::SwitchArg output_netcons_dot(
+        "2", "output-netcons",
+        "outputs netcons.dot with netcons information across neurons.", cmd,
+        false);
+    TCLAP::SwitchArg output_mechanisms_dot(
+        "1", "output-mechs",
+        "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
     TCLAP::SwitchArg load_balancing(
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);
     TCLAP::SwitchArg branch_parallelism(
         "B", "branching-depth", "performs branch-level parallelism on neurons",
         cmd, false);
+
+    TCLAP::ValueArg<floble_t> k_subsection_complexity(
+                "K", "k_constant",
+                "scale constant to subsection complexity (for branch parallelism)",
+                false, 0.7, "floble_t");
+
+    TCLAP::ValueArg<floble_t> k_group_of_subsections_complexity(
+                "Z", "k_prime_constant",
+                "scale constant to groups of subsection complexity (for branch parallelism on multiple localities)",
+                false, 1, "floble_t");
+
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
         "\
@@ -91,6 +102,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
 
+    cmd.add(k_subsection_complexity);
+    cmd.add(k_group_of_subsections_complexity);
     cmd.add(synchronizer);
     cmd.add(interpolator);
 

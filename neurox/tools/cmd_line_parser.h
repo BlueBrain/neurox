@@ -43,7 +43,6 @@ class CmdLineParser {
   char pattern_stim_[512];  ///> patternStim file path (the filename of an
                             /// output_spikes.h format raster file.)
 
-  // TODO make const?
   // neurox specific options
   bool output_statistics_;           ///> outputs statistics file
   bool output_mechanisms_dot_;       ///> outputs mechanisms.dot file
@@ -58,6 +57,14 @@ class CmdLineParser {
 
   /// depth tree-based parallelism of morphologies
   bool branch_parallelism_;
+
+  /// constant k for scaling subsections
+  /// (for branch-parallelism)
+  floble_t k_subsection_complexity;
+
+  /// constant k' for scaling group of subsections
+  /// (for branch-parallelism in multipe localities)
+  floble_t k_group_of_subsections_complexity;
 
   /// neurons sychronization synchronizer
   synchronizers::SynchronizerIds synchronizer_;

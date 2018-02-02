@@ -768,11 +768,16 @@ double urand ( _threadargsproto_ ) {
     double value;
     if( usingR123 ) {
         value = nrnran123_dblpick((nrnran123_State*)_p_rng);
-    } else if (_p_rng) {
+    } else
+    /*
+    //TODO commented because value was never being set!
+    if (_p_rng) {
 #if !defined(CORENEURON_BUILD)
         value = nrn_random_pick(_p_rng);
 #endif
-    } else {
+    } else
+    */
+    {
         value = 0.5;
     }
     _lurand = value;

@@ -112,11 +112,29 @@ class Branch {
     hpx_t* branches_;        ///> hpx address of children branches
     size_t branches_count_;  ///> number of branches (>0)
 
-    ///  size of futures arrays (used in Gaussian elimination and AP threshold
-    static constexpr size_t kFuturesSize = 6;
+    /// size of futures arrays (used in Gaussian elimination and AP threshold
+    /// channel 0: previous-step RHS from children (after ForwardSubstitution)
+    /// channel 1: D+RHS from children (BackwardTriangulation)
+    /// channel 2: RHS from parent (after ForwardSubstitution)
+    static constexpr size_t kFuturesSize = 3;
 
     /// value of A[0] of all children
-    floble_t* a_from_children_;
+    floble_t* children_a_;
+
+    /// value of B[0] of all children
+    floble_t* children_b_;
+
+    /// value of V[0] of all children
+    floble_t* children_v_;
+
+    /// value of RHS[0] of all children
+    floble_t* children_rhs_;
+
+    /// value of V[n-1] from parent
+    floble_t parent_v_;
+
+    /// value of RHS[n-1] from parent
+    floble_t parent_rhs_;
 
     /// LCO to to communicate variables with parent
     hpx_t with_parent_lco_[kFuturesSize];

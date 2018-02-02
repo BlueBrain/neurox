@@ -611,7 +611,12 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
       branches_(nullptr),
       branches_count_(branches_count),
       with_children_lcos_(nullptr),
-      a_from_children_(nullptr) {
+      children_a_(nullptr),
+      children_b_(nullptr),
+      children_v_(nullptr),
+      children_rhs_(nullptr),
+      parent_v_(-1),
+      parent_rhs_(-1) {
   if (branches_count > 0) {
     this->branches_ = new hpx_t[branches_count];
     memcpy(this->branches_, branches, branches_count * sizeof(hpx_t));
@@ -621,7 +626,7 @@ Branch::BranchTree::BranchTree(hpx_t top_branch_addr, hpx_t *branches,
 Branch::BranchTree::~BranchTree() {
   delete[] branches_;
   delete[] with_children_lcos_;
-  delete[] a_from_children_;
+  delete[] children_a_;
 }
 
 hpx_action_t Branch::InitMechanismsGraph = 0;
@@ -658,7 +663,6 @@ hpx_action_t Branch::Initialize = 0;
 int Branch::Initialize_handler() {
   NEUROX_MEM_PIN(Branch);
   NEUROX_RECURSIVE_BRANCH_ASYNC_CALL(Branch::Initialize);
-  HinesSolver::CommunicateConstants(local);
   local->interpolator_->Init(local);  // Finitialize, Cvodes init, etc
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;
@@ -674,7 +678,7 @@ int Branch::BranchTree::InitLCOs_handler() {
       branch_tree->with_parent_lco_[i] = HPX_NULL;
       if (!local->soma_)  // create the LCOs
       {
-        size_t size_buffer = i == 3 ? 2 : 1;  // third LCO sends two values
+        size_t size_buffer = i == 1 ? 2 : 1; /* channel 1 allows 2 flobles */
         branch_tree->with_parent_lco_[i] =
             hpx_lco_future_new(size_buffer * sizeof(floble_t));
       }
@@ -698,8 +702,8 @@ int Branch::BranchTree::InitLCOs_handler() {
             branch_tree->with_parent_lco_,
             sizeof(hpx_t) * BranchTree::kFuturesSize);  // pass my LCOs down
       }
-      hpx_lco_get_all(branches_count, futures, sizes, addrs, NULL);
-      hpx_lco_delete_all(branches_count, futures, NULL);
+      hpx_lco_get_all(branches_count, futures, sizes, addrs, nullptr);
+      hpx_lco_delete_all(branches_count, futures, HPX_NULL);
 
       delete[] futures;
       delete[] addrs;
@@ -707,8 +711,7 @@ int Branch::BranchTree::InitLCOs_handler() {
     }
 
     if (!local->soma_)  // send my LCO to parent
-      return neurox::wrappers::MemoryUnpin(target,
-                                           branch_tree->with_parent_lco_);
+      NEUROX_MEM_UNPIN_CONTINUE(branch_tree->with_parent_lco_);
   }
   NEUROX_MEM_UNPIN;
 }
