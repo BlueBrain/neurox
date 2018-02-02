@@ -72,16 +72,21 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
     printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
 }
 
+//TODO should be avg_neuron_time, not neuron_time (same in next func)!
 double tools::LoadBalancing::GetWorkPerBranchSubsection(
     const double neuron_time, const int my_neurons_count) {
+
   // for a single-thread CPU with a single neuron..
-  double work_per_section = neuron_time / my_neurons_count;
+  double work_per_section = neuron_time;
 
   // for a multi-thread CPU with a single neuron...
   work_per_section /= wrappers::NumThreads();
 
   // for a multi-thread CPU with several neurons...
   work_per_section *= my_neurons_count;
+
+  // scale by constant 1/K (see paper)
+  work_per_section /= input_params_->k_subsection_complexity;
 
   // if graph parallelism is available, increase the work by a factor of...?
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
@@ -96,6 +101,9 @@ double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
 
   // average the total work in this locality by all localityes
   double avg_locality_work = total_work / (double)wrappers::NumRanks();
+
+  // scale to constant k' (see paper)
+  avg_locality_work *= input_params_->k_group_of_subsections_complexity;
 
   return avg_locality_work;
 }

@@ -49,9 +49,6 @@ class LoadBalancing {
   /// returns the workload assigned to each cluster of mech instances
   static double GetWorkloadPerMechInstancesThread();
 
-  /// branch parallelism multiplier to compute max workload per section
-  static constexpr double kBranchSectionsPerComputeUnit = 2;
-
   /// number of instances in cluster, for mechanism type parallelism
   static constexpr double kMechInstancesPercentagePerComputeUnit = 0.1;
 

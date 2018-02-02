@@ -58,6 +58,14 @@ class CmdLineParser {
   /// depth tree-based parallelism of morphologies
   bool branch_parallelism_;
 
+  /// constant k for scaling subsections
+  /// (for branch-parallelism)
+  floble_t k_subsection_complexity;
+
+  /// constant k' for scaling group of subsections
+  /// (for branch-parallelism in multipe localities)
+  floble_t k_group_of_subsections_complexity;
+
   /// neurons sychronization synchronizer
   synchronizers::SynchronizerIds synchronizer_;
 
