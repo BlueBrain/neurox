@@ -195,6 +195,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
 
+    this->k_subsection_complexity = k_subsection_complexity.getValue();
+    this->k_group_of_subsections_complexity = k_group_of_subsections_complexity.getValue();
+
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
           "execution time (ms) should be a positive value", "tstop");
