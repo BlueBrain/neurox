@@ -513,7 +513,9 @@ void determine_inputpresyn() {
     // with gid to InputPreSyn and PreSyn maps we can setup the multisend
     // target lists.
     if (use_multisend_) {
+#if NRN_MULTISEND
         nrn_multisend_setup();
+#endif
     }
 
     // fill the netcon_in_presyn_order and recompute nc_cnt_
@@ -936,7 +938,9 @@ void nrn_cleanup(bool clean_ion_global_map) {
         free(nt->_ml_list);
     }
 
+#if NRN_MULTISEND
     nrn_multisend_cleanup();
+#endif
 
     netcon_in_presyn_order_.clear();
 
@@ -1550,7 +1554,11 @@ for (int i=0; i < nt.end; ++i) {
     for (int i = 0; i < nnetcon; ++i) {
         NetCon& nc = nt.netcons[i];
         nc.u.weight_index_ = iw;
-        iw += pnt_receive_size[pnttype[i]];
+        if (pnttype[i] != 0) {
+            iw += pnt_receive_size[pnttype[i]];
+        } else {
+            iw += 1;
+        }
     }
     assert(iw == nweight);
     delete[] pnttype;

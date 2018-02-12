@@ -10,11 +10,18 @@ If you are a new user and would like to use CoreNEURON, [this tutorial](https://
 CoreNEURON supports limited features provided by [NEURON](https://www.neuron.yale.edu/neuron/). Contact Michael Hines for detailed information.
 
 # Dependencies
-* [CMake 2.8.12+](https://cmake.org)
+* [CMake 3.0.12+](https://cmake.org)
 * [MOD2C](http://github.com/BlueBrain/mod2c)
 * [MPI 2.0+](http://mpich.org) [Optional]
 * [PGI OpenACC Compiler >=16.3](https://www.pgroup.com/resources/accel.htm) [Optional, for GPU systems]
 * [CUDA Toolkit >=6.0](https://developer.nvidia.com/cuda-toolkit-60) [Optional, for GPU systems]
+
+##### Mod2c build
+MOD2C is actually downloaded and built automatically if you have used `--recursive` option to clone this repository.
+otherwise you need to execute the following git command (you need git version 1.8.2+) :
+```bash
+git submodule update --init --remote
+```
 
 # Installation
 
@@ -204,11 +211,10 @@ Note that celsius and dt, if not specified, will get their values from the model
 
 # Results
 
-Currently CoreNEURON only outputs spike data. When running the simulation, each MPI rank writes spike information
-into a file `out.#mpi_rank`. These files should be combined and sorted to compare with NEURON spike output.
+Currently CoreNEURON only outputs spike data. Spike output file need to be sorted to compare with NEURON:
 
 ```
-cat out[0-9]*.dat | sort -k 1n,1n -k 2n,2n > out.spk
+sort -k 1n,1n -k 2n,2n out.dat > out.spk
 ```
 
 # Running tests
@@ -246,3 +252,7 @@ The `.clang-format` file in the source repository is compatible with version 3.9
 To facilitate the future distributions of the software the Blue Brain Project wishes to remain the sole
 owner of the copyright. Therefore we will ask contributors to not modify the existing copyright.
 Contributors will however be gratefully acknowledged in the corresponding CREDIT.txt file.
+
+## Funding
+
+This work has been partially funded by the European Union Seventh Framework Program (FP7/2007­2013) under grant agreement no. 604102 (HBP).

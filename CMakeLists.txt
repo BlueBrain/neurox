@@ -36,9 +36,8 @@
 
 # Initial Setup
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0.0)
 PROJECT(coreneuron)
-
 set(CORENEURON_DESCRIPTION "BBP CoreNeuron simulator")
 
 set(VERSION_MAJOR "1")
@@ -60,6 +59,10 @@ option(ENABLE_SPLAYTREE_QUEUING "Enable use of Splay tree for spike queuing" OFF
 option(ENABLE_CUDA_MODULES "Enable modules like Random123 written in CUDA" ON)
 option(ENABLE_NET_RECEIVE_BUFFERING "Enable event buffering in net_receive function" ON)
 option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" OFF)
+
+
+set(FRONTEND_C_COMPILER gcc CACHE FILEPATH "C compiler for building mod2c [frontend executable]")
+set(FRONTEND_CXX_COMPILER g++ CACHE FILEPATH "C++ compiler for building mod2c [frontend executable]")
 
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
@@ -86,7 +89,7 @@ include(CrayPortability)
 include(BlueGenePortability)
 include(DefineInstallationPaths)
 include(SetRpath)
-
+include(DeclareMod2CSubModule)
 include(FindPkgConfig)
 include(CTest)
 
@@ -97,6 +100,7 @@ if (ENABLE_MPI)
 else()
     message(STATUS "Use of MPI disabled by user-provided option")
     add_definitions("-DNRNMPI=0")
+    add_definitions("-DNRN_MULTISEND=0")
 endif()
 
 #Memory layout transformation: 0 for SoA and 1 for AoS
@@ -126,7 +130,6 @@ if (NOT ENABLE_NET_RECEIVE_BUFFERING)
     add_definitions("-DNET_RECEIVE_BUFFERING=0")
 endif()
 
-find_package(mod2c 2.0.0  REQUIRED)
 find_package(Boost 1.41.0 QUIET COMPONENTS filesystem system atomic unit_test_framework)
 
 # Threading
@@ -164,12 +167,14 @@ add_definitions(-DNRN_PRCELLSTATE=1)
 option (ENABLE_SELECTIVE_GPU_PROFILING "Enable GPU profiling only for Solver" ON)
 option (ENABLE_OPENACC "Enable use of OpenACC" OFF)
 
+set(CLANG_FORMAT_MIN_VERSION "4.0")
+set(CLANG_FORMAT_MAX_VERSION "4.9")
 find_package(ClangFormat)
 
 if(CLANG_FORMAT_FOUND)
     message("clang-format : ${CLANG_FORMAT_EXECUTABLE} : ${CLANG_FORMAT_VERSION}")
 else()
-    message("clang-format executable not found")
+  message("clang-format executable with appropriate version (min: ${CLANG_FORMAT_MIN_VERSION}, max: ${CLANG_FORMAT_MAX_VERSION}) not found")
 endif()
 
 if(CLANG_FORMAT_FOUND)
@@ -257,6 +262,8 @@ endif(CORENEURON_MAIN)
 # Tests
 if(Boost_FOUND)
     add_subdirectory(tests)
+else()
+    message(STATUS "Boost not found, disabling tests")
 endif(Boost_FOUND)
 
 

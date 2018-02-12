@@ -43,11 +43,11 @@ of spikes sent is equal to the number of spikes sent.
 // and communication.
 
 int use_multisend_;
-
-int n_multisend_interval = 2;
 int use_phase2_;
+int n_multisend_interval = 2;
 
-#if NRNMPI==1
+#if NRN_MULTISEND
+
 static int n_xtra_cons_check_;
 #define MAXNCONS 10
 #if MAXNCONS
@@ -100,7 +100,6 @@ class Multisend_ReceiveBuffer {
     int phase2_head_;
     int phase2_tail_;
     int phase2_nsend_cell_, phase2_nsend_;
-
     Phase2Buffer* phase2_buffer_;
 };
 
@@ -316,10 +315,7 @@ static int max_ntarget_host;
 // ntarget_hosts_phase1 and ntarget_hosts_phase2.
 static int max_multisend_targets;
 
-#endif //NRNMPI==1 
-
 void nrn_multisend_init() {
-#if NRNMPI==1
     for (int i = 0; i < n_multisend_interval; ++i) {
         multisend_receive_buffer[i]->init(i);
     }
@@ -334,10 +330,8 @@ void nrn_multisend_init() {
         xtra_cons_hist_[i] = 0;
     }
 #endif  // MAXNCONS
-#endif //NRNMPI==1 
 }
 
-#if NRNMPI==1
 static int multisend_advance() {
     NRNMPI_Spike spk;
     int i = 0;
@@ -355,24 +349,18 @@ static int multisend_advance() {
     return i;
 }
 
-#endif //if NRNMPI==1
-
-void nrn_multisend_advance() {
-#if NRNMPI==1
 #if NRN_MULTISEND
+void nrn_multisend_advance() {
     if (use_multisend_ == 1) {
         multisend_advance();
 #if ENQUEUE == 2
         multisend_receive_buffer[current_rbuf]->enqueue();
 #endif
     }
-#endif
-#endif
 }
-
+#endif
 
 void nrn_multisend_receive(NrnThread* nt) {
-#if NRNMPI==1
     //	nrn_spike_exchange();
     assert(nt == nrn_threads);
     //	double w1, w2;
@@ -430,11 +418,9 @@ void nrn_multisend_receive(NrnThread* nt) {
         next_rbuf = ((next_rbuf + 1) & 1);
     }
 #endif
-#endif //NRMMPI
 }
 
 void nrn_multisend_cleanup() {
-#if NRNMPI==1
     if (targets_phase1_) {
         delete[] targets_phase1_;
         targets_phase1_ = NULL;
@@ -446,11 +432,9 @@ void nrn_multisend_cleanup() {
     }
 
     // cleanup MultisendReceiveBuffer here as well
-#endif
 }
 
 void nrn_multisend_setup() {
-#if NRNMPI==1
     nrn_multisend_cleanup();
     if (use_multisend_ == 0) {
         return;
@@ -480,6 +464,6 @@ void nrn_multisend_setup() {
         multisend_receive_buffer[1] = new Multisend_ReceiveBuffer();
     }
 #endif
-#endif
 }
 
+#endif  // NRN_MULTISEND

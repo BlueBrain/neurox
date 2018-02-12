@@ -218,12 +218,12 @@ void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init)
             if (is_init)
                 sprintf(prcellname, "%s_gpu_init", prprefix);
             else
-                sprintf(prcellname, "%s_gpu_t%g", prprefix, t);
+                sprintf(prcellname, "%s_gpu_t%f", prprefix, t);
         } else {
             if (is_init)
                 strcpy(prcellname, "cpu_init");
             else
-                sprintf(prcellname, "cpu_t%g", t);
+                sprintf(prcellname, "cpu_t%f", t);
         }
         update_nrnthreads_on_host(nrn_threads, nrn_nthread);
         prcellstate(prcellgid, prcellname);
@@ -259,8 +259,8 @@ int main1(int argc, char** argv, char** env) {
                     printf(
                         "\n WARNING! : Can't enable reports with model duplications feature! \n");
             } else {
-                r = new ReportGenerator(nrnopt_get_int("--report"), nrnopt_get_int("--tstart"),
-                                        nrnopt_get_dbl("--tstop"), nrnopt_get_int("--dt"),
+                r = new ReportGenerator(nrnopt_get_int("--report"), nrnopt_get_dbl("--tstart"),
+                                        nrnopt_get_dbl("--tstop"), nrnopt_get_dbl("--dt"),
                                         nrnopt_get_dbl("--mindelay"), nrnopt_get_dbl("--dt_report"),
                                         nrnopt_get_str("--outpath"));
                 r->register_report();
