@@ -60,11 +60,15 @@ class CmdLineParser {
 
   /// constant k for scaling subsections
   /// (for branch-parallelism)
-  floble_t k_subsection_complexity;
+  floble_t subsection_complexity;
 
   /// constant k' for scaling group of subsections
   /// (for branch-parallelism in multipe localities)
-  floble_t k_group_of_subsections_complexity;
+  floble_t group_of_subsections_complexity;
+
+  /// maximum workload assigned to a block of instances
+  /// (for mech-instances parallelism)
+  floble_t mech_instance_percent_per_block;
 
   /// neurons sychronization synchronizer
   synchronizers::SynchronizerIds synchronizer_;

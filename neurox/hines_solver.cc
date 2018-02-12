@@ -259,7 +259,7 @@ void HinesSolver::SolveTreeMatrix(Branch *branch) {
 void HinesSolver::UpdateBranchVoltagesWithRHS(Branch *branch) {
   /*These update voltages based on RHS of previous step, set by
    * HinesSolver::SolveTreeMatrix. So we ignore first step */
-  bool first_step = branch->nt_->_t < branch->nt_->_dt;
+  bool first_step = branch->nt_->_t == input_params_->tstart_;
   if (first_step) return;
 
   const int channel_final_rhs = 0;

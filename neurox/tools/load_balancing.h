@@ -47,11 +47,9 @@ class LoadBalancing {
   static void AddToTotalMechInstancesRuntime(double);
 
   /// returns the workload assigned to each cluster of mech instances
-  static double GetWorkloadPerMechInstancesThread();
+  static double GetWorkloadPerMechInstancesBlock();
 
-  /// number of instances in cluster, for mechanism type parallelism
-  static constexpr double kMechInstancesPercentagePerComputeUnit = 0.1;
-
+  /// register all HPX actions related to this class;
   static void RegisterHpxActions();
 
  private:

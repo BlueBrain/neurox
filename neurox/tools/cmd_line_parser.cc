@@ -71,15 +71,23 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "B", "branching-depth", "performs branch-level parallelism on neurons",
         cmd, false);
 
-    TCLAP::ValueArg<floble_t> k_subsection_complexity(
-                "K", "k_constant",
-                "scale constant to subsection complexity (for branch parallelism)",
+    TCLAP::ValueArg<floble_t> subsection_complexity(
+                "X", "subsection-complexity",
+                "scale constant to subsection complexity (constant k for branch parallelism)",
                 false, 0.7, "floble_t");
+    cmd.add(subsection_complexity);
 
-    TCLAP::ValueArg<floble_t> k_group_of_subsections_complexity(
-                "Z", "k_prime_constant",
-                "scale constant to groups of subsection complexity (for branch parallelism on multiple localities)",
+    TCLAP::ValueArg<floble_t> group_of_subsections_complexity(
+                "Y", "group-of-subsections-complexity",
+                "scale constant to groups of subsection complexity (constant k' for branch parallelism on multiple localities)",
                 false, 1, "floble_t");
+    cmd.add(group_of_subsections_complexity);
+
+    TCLAP::ValueArg<floble_t> mech_instance_percent_per_block(
+                "Z", "mech-instance-percent-per-block",
+                "percentage of total workload assigned to each mechanism instances block (for mech-instance parallelism)",
+                false, 0.1, "floble_t");
+    cmd.add(mech_instance_percent_per_block);
 
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
@@ -91,6 +99,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[8] Sequential Single-step Barrier (debug  only)\
 \n[9] All methods sequentially (NOTE: neurons data does not reset)",
         false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");
+    cmd.add(synchronizer);
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
@@ -101,10 +110,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[3] CVODES with Sparse Jacobian\
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
-
-    cmd.add(k_subsection_complexity);
-    cmd.add(k_group_of_subsections_complexity);
-    cmd.add(synchronizer);
     cmd.add(interpolator);
 
     // coreneuron command line parameters
@@ -112,10 +117,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "s", "tstart", "Execution start time (msecs). The default value is 0",
         false, 0, "floble_t");
     cmd.add(tstart);
+
     TCLAP::ValueArg<floble_t> tstop(
         "e", "tstop", "Execution stop time (msecs). The default value is 10",
         false, 10, "floble_t");
     cmd.add(tstop);
+
     TCLAP::ValueArg<floble_t> dt(
         "t", "dt",
         "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
@@ -126,25 +133,30 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n - Backward Euler: default 0.025",
         false, DEF_dt, "floble_t");
     cmd.add(dt);
+
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
         0.1, "floble_t");
     cmd.add(dt_io);
+
     TCLAP::ValueArg<floble_t> celsius(
         "l", "celsius",
         "System temperatura (celsius degrees). The default value is 34", false,
         34.0, "floble_t");
     cmd.add(celsius);
+
     TCLAP::ValueArg<floble_t> forwardskip(
         "k", "forwardskip",
         "Set forwardskip time step (msecs). The default value is 0", false, 0,
         "floble_t");
     cmd.add(forwardskip);
+
     TCLAP::ValueArg<neuron_id_t> prcellgid(
         "g", "prcellgid",
         "Output prcellstate information for given gid. The default value is -1",
         false, -1, "neuron_id_t");
     cmd.add(prcellgid);
+
     TCLAP::ValueArg<std::string> pattern_stim(
         "p", "pattern",
         "Apply patternstim with the spike file. No default value", false, "",
@@ -194,6 +206,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
         synchronizers::Synchronizer::New(this->synchronizer_);
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
+
+    this->subsection_complexity = subsection_complexity.getValue();
+    this->group_of_subsections_complexity = group_of_subsections_complexity.getValue();
+    this->mech_instance_percent_per_block = mech_instance_percent_per_block.getValue();
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
