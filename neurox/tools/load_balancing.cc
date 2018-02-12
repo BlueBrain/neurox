@@ -86,7 +86,7 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
   work_per_section *= my_neurons_count;
 
   // scale by constant 1/K (see paper)
-  work_per_section /= input_params_->k_subsection_complexity;
+  work_per_section /= input_params_->subsection_complexity;
 
   // if graph parallelism is available, increase the work by a factor of...?
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
@@ -103,7 +103,7 @@ double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
   double avg_locality_work = total_work / (double)wrappers::NumRanks();
 
   // scale to constant k' (see paper)
-  avg_locality_work *= input_params_->k_group_of_subsections_complexity;
+  avg_locality_work *= input_params_->group_of_subsections_complexity;
 
   return avg_locality_work;
 }
@@ -113,8 +113,8 @@ void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
   total_mech_instances_runtime_ += runtime;
 }
 
-double tools::LoadBalancing::GetWorkloadPerMechInstancesThread() {
-  return total_mech_instances_runtime_ * kMechInstancesPercentagePerComputeUnit;
+double tools::LoadBalancing::GetWorkloadPerMechInstancesBlock() {
+  return total_mech_instances_runtime_ * input_params_->mech_instance_percent_per_block;
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {

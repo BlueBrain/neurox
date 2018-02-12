@@ -337,7 +337,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
 
 void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
   /* compute mech-instances per thread for state and current funtions */
-  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesThread();
+  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock();
 
   // benchmark of all mechanisns instances has not been performed yet
   if (max_workload == 0) return;
