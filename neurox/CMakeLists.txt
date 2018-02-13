@@ -60,6 +60,9 @@ FILE(GLOB_RECURSE neurox_all_headers   "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 FILE(GLOB_RECURSE neurox_all_templates "${CMAKE_CURRENT_SOURCE_DIR}/*.ipp")
 FILE(GLOB_RECURSE neurox_all_c_files   "${CMAKE_CURRENT_SOURCE_DIR}/*.c*")
 
+#Fix UINT64_C undefined error in bbpviz1.cscs.ch
+add_compile_options("-D__STDC_CONSTANT_MACROS")
+
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 
 target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODES_LIBRARIES})
