@@ -39,16 +39,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // neurox only command line arguments
     //(NOTE: SwitchArg does not require cmd.add())
-    TCLAP::SwitchArg graph_mechs_parallelism(
-        "G", "graph", "activates graph-based parallelism of mechanisms.", cmd,
-        false);
-    TCLAP::SwitchArg mech_instances_parallelism(
-        "M", "mechs", "parallelism of mechanisms instances", cmd, false);
-    TCLAP::SwitchArg locality_comm_reduce("C", "comm-reduce",
-                                          "perform HPX all-reduce operation at "
-                                          "locality level instead of neuron "
-                                          "level (better for small cluster).",
-                                          cmd, false);
     TCLAP::SwitchArg output_statistics(
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
@@ -64,30 +54,47 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::SwitchArg output_mechanisms_dot(
         "1", "output-mechs",
         "outputs mechanisms.dot with mechanisms dependencies.", cmd, false);
-    TCLAP::SwitchArg load_balancing(
-        "L", "load-balancing",
-        "performs dynamic load balancing of neurons and branches.", cmd, false);
-    TCLAP::SwitchArg branch_parallelism(
-        "B", "branching-depth", "performs branch-level parallelism on neurons",
-        cmd, false);
 
-    TCLAP::ValueArg<floble_t> subsection_complexity(
-                "X", "subsection-complexity",
-                "scale constant to subsection complexity (constant k for branch parallelism)",
-                false, 0.7, "floble_t");
-    cmd.add(subsection_complexity);
+    TCLAP::SwitchArg locality_comm_reduce("C", "comm-reduce",
+                                          "perform HPX all-reduce operation at "
+                                          "locality level instead of neuron "
+                                          "level (better for small cluster).",
+                                          cmd, false);
+
+    TCLAP::SwitchArg graph_mechs_parallelism(
+        "G", "graph-parallelism", "activates graph-based parallelism of mechanisms.", cmd,
+        false);
 
     TCLAP::ValueArg<floble_t> group_of_subsections_complexity(
-                "Y", "group-of-subsections-complexity",
+                //"Y", "group-of-subsections-complexity",
+                "", "L",
                 "scale constant to groups of subsection complexity (constant k' for branch parallelism on multiple localities)",
                 false, 1, "floble_t");
     cmd.add(group_of_subsections_complexity);
 
+    TCLAP::SwitchArg load_balancing(
+        "L", "load-balancing",
+        "performs dynamic load balancing of neurons and branches.", cmd, false);
+
+    TCLAP::ValueArg<floble_t> subsection_complexity(
+                //"X", "subsection-complexity",
+                "", "B",
+                "scale constant to subsection complexity (constant k for branch parallelism)",
+                false, 0.7, "floble_t");
+    cmd.add(subsection_complexity);
+
+    TCLAP::SwitchArg branch_parallelism(
+        "B", "branch-parallelism", "performs branch-level parallelism on neurons",
+        cmd, false);
+
     TCLAP::ValueArg<floble_t> mech_instance_percent_per_block(
-                "Z", "mech-instance-percent-per-block",
+                "", "M",
                 "percentage of total workload assigned to each mechanism instances block (for mech-instance parallelism)",
                 false, 0.1, "floble_t");
     cmd.add(mech_instance_percent_per_block);
+
+    TCLAP::SwitchArg mech_instances_parallelism(
+        "M", "mech-parallelism", "parallelism of mechanisms instances", cmd, false);
 
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
