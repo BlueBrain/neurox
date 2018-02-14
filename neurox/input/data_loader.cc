@@ -1540,11 +1540,11 @@ hpx_t DataLoader::CreateBranch(
     double max_work_per_section = LoadBalancing::GetWorkPerBranchSubsection(
         neuron_runtime, GetMyNrnThreadsCount());
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
     if (is_soma)
       printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
              neuron_runtime, max_work_per_section);
-#endif
+//#endif
 
     if (!input_params_->load_balancing_) {
       /* assign branch locally*/
@@ -1554,18 +1554,20 @@ hpx_t DataLoader::CreateBranch(
       double max_work_per_locality = LoadBalancing::GetWorkPerLocality(
           neuron_runtime, GetMyNrnThreadsCount());
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
       if (is_soma)
         printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
                neuron_runtime, max_work_per_locality);
-#endif
+//#endif
 
       /* assign remaining arborization to different locality if it fits in the
        * max workload per locality and is not too small (to reduce number of
        * remote small branches)*/
+      //TODO if its assinged to my locality will it continue querying ?
       if (assigned_locality == hpx_get_my_rank() &&
-          subsection_runtime < max_work_per_locality &&
-          subsection_runtime > max_work_per_section * 0.6) {
+          subsection_runtime < max_work_per_locality) {
+          //subsection_runtime < max_work_per_locality &&
+          //subsection_runtime > max_work_per_locality * 0.5) {
         /* ask master rank where to allocate this arborization, update LPT
          * table*/
         hpx_call_sync(HPX_THERE(0),
@@ -1641,7 +1643,7 @@ hpx_t DataLoader::CreateBranch(
 
 //#ifndef NDEBUG
     printf(
-        "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to %s rank "
+        "- %s %d, length %d, nrn_id %d, actual runtime %.6f ms, allocated to %s rank "
         "%d\n",
         is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
         top_compartment->id_, n, nrn_threadId, subsection_runtime,
