@@ -69,6 +69,9 @@ static int Main_handler() {
     // hpx_exit(0,NULL);
   }
 
+  if (neurox::input_params_->load_balancing_)
+    tools::LoadBalancing::PrintLoadBalancingTable();
+
   // call init action on each neuron (e.g. Finitialize, Cvodes init)
   DebugMessage("neurox::Branch::Initialize...\n");
   CallAllNeurons(Branch::Initialize);

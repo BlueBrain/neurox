@@ -16,13 +16,15 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler() {
   double min_elapsed_time = 99999999999;
   int rank = -1;
   hpx_lco_sema_p(load_balancing_mutex_);
+
+  //return rank of least busy locality
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     if (load_balancing_table_[r] < min_elapsed_time) {
       min_elapsed_time = load_balancing_table_[r];
       rank = r;
     }
   hpx_lco_sema_v_sync(load_balancing_mutex_);
-  NEUROX_MEM_UNPIN(rank);
+  NEUROX_MEM_UNPIN_CONTINUE(rank);
 }
 
 hpx_action_t tools::LoadBalancing::UpdateLoadBalancingTable = 0;
@@ -67,7 +69,7 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
   if (load_balancing_table_ == nullptr) return;
   if (hpx_get_my_rank() != 0) return;
 
-  printf("neurox::tools::LoadBalancing::PrintTable()\n");
+  printf("neurox::tools::LoadBalancing::PrintLoadBalancingTable:\n");
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
 }

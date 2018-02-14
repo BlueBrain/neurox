@@ -1569,8 +1569,8 @@ hpx_t DataLoader::CreateBranch(
         /* ask master rank where to allocate this arborization, update LPT
          * table*/
         hpx_call_sync(HPX_THERE(0),
-                      tools::LoadBalancing::QueryLoadBalancingTable, /**/
-                      &assigned_locality, sizeof(int));              // output
+                      tools::LoadBalancing::QueryLoadBalancingTable,   /*action*/
+                      &assigned_locality, sizeof(assigned_locality));  /*output*/
       }
     }
 
@@ -1639,7 +1639,7 @@ hpx_t DataLoader::CreateBranch(
                   &subsection_runtime, sizeof(double),  // input[0]
                   &assigned_locality, sizeof(int));     // input[1]
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
     printf(
         "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to %s rank "
         "%d\n",
@@ -1647,7 +1647,7 @@ hpx_t DataLoader::CreateBranch(
         top_compartment->id_, n, nrn_threadId, subsection_runtime,
         assigned_locality == hpx_get_my_rank() ? "local" : "remote",
         assigned_locality);
-#endif
+//#endif
   }
 
   /* allocate GAS mem for subsection in the appropriate locality */
