@@ -819,9 +819,9 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
   if (input_params_->mech_instances_parallelism_) {
-    printf("Mechanisms execution time per instance:");
+    printf("Mechanisms execution time per instance:\n");
     for (int m = 0; m < neurox::mechanisms_count_; m++)
       printf("mech type %d (%s): state %.3f us, current %.3f us\n",
              neurox::mechanisms_[m]->type_,
@@ -829,7 +829,7 @@ int DataLoader::Finalize_handler() {
              neurox::mechanisms_[m]->state_func_runtime_,
              neurox::mechanisms_[m]->current_func_runtime_);
   }
-#endif
+//#endif
 
   if (input_params_->output_netcons_dot) {
     fprintf(file_netcons_, "}\n");
