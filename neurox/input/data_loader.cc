@@ -1536,13 +1536,13 @@ hpx_t DataLoader::CreateBranch(
         GetSubSectionFromCompartment(subsection, top_compartment);
 
     /* estimated max execution time per subregion for this neuron*/
-    double max_work_per_section = LoadBalancing::GetWorkPerBranchSubsection(
+    double max_work_per_subtree = LoadBalancing::GetMaxWorkPerBranchSubTree(
         neuron_runtime, GetMyNrnThreadsCount());
 
 //#ifndef NDEBUG
     if (is_soma)
       printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-             neuron_runtime, max_work_per_section);
+             neuron_runtime, max_work_per_subtree);
 //#endif
 
     if (!input_params_->load_balancing_) {
@@ -1550,25 +1550,25 @@ hpx_t DataLoader::CreateBranch(
       assigned_locality = hpx_get_my_rank();
     } else {
       /* estimated max executiom time allowed per locality */
-      double max_work_per_locality = LoadBalancing::GetWorkPerLocality(
+      double max_work_per_subsection = LoadBalancing::GetMaxWorkPerBranchSubSection(
           neuron_runtime, GetMyNrnThreadsCount());
 
 //#ifndef NDEBUG
       if (is_soma)
         printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
-               neuron_runtime, max_work_per_locality);
+               neuron_runtime, max_work_per_subsection);
 //#endif
 
       /* if subsection_complexity == 0, keep all subtrees in the
        * same locality (get rank if soma, or use previously assigned
        * assigned_locality otherwise) */
-      if (  (max_work_per_locality == 0 && is_soma)
+      if (  (max_work_per_subsection == 0 && is_soma)
          /* assign remaining arborization to different locality if it fits in the
          * max workload per locality and is not too small (to reduce number of
           * remote small branches)*/
-         || (max_work_per_locality >0 &&
+         || (max_work_per_subsection >0 &&
              assigned_locality == hpx_get_my_rank() &&
-             subsection_runtime < max_work_per_locality)) {
+             subsection_runtime < max_work_per_subsection)) {
           //subsection_runtime < max_work_per_locality &&
           //subsection_runtime > max_work_per_locality * 0.5) {
         /* ask master rank where to allocate this arborization, update table*/
@@ -1578,8 +1578,8 @@ hpx_t DataLoader::CreateBranch(
       }
     }
 
-    /*if this subsection exceeds maximum time allowed per subsection*/
-    if (subsection_runtime > max_work_per_section) {
+    /*if this subsection exceeds maximum time allowed per subtree*/
+    if (subsection_runtime > max_work_per_subtree) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
       subsection.push_back(top_compartment);
@@ -1590,21 +1590,21 @@ hpx_t DataLoader::CreateBranch(
         Compartment *&next_comp = bottom_compartment->branches_.front();
         /* soma and AIS cant be split due to AP threshold communication */
         if (!is_soma && !is_AIS)
-          if (subsection_runtime + next_comp->runtime_ > max_work_per_section)
+          if (subsection_runtime + next_comp->runtime_ > max_work_per_subtree)
             break;
         subsection.push_back(bottom_compartment->branches_.front());
         subsection_runtime += bottom_compartment->branches_.front()->runtime_;
       }
 
       /* let user know, this will be the limiting factor of parallelism */
-      if (subsection_runtime > max_work_per_section)
+      if (subsection_runtime > max_work_per_subtree)
         printf(
-            "Warning: compartment %d, length %d, nrn_id %d, runtime %.5f ms "
+            "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
             "exceeds max workload per subsection %.5f ms. total neuron time "
             "%.5f ms (max parallelism capped at %.2fx)\n",
             top_compartment->id_, subsection.size(), subsection_runtime,
-            max_work_per_section, neuron_runtime,
-            neuron_runtime / max_work_per_section);
+            max_work_per_subtree, neuron_runtime,
+            neuron_runtime / max_work_per_subtree);
     }
 
     //#ifndef NDEBUG

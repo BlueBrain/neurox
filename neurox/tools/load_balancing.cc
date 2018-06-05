@@ -75,7 +75,7 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
 }
 
 //TODO should be avg_neuron_time, not neuron_time (same in next func)!
-double tools::LoadBalancing::GetWorkPerBranchSubsection(
+double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
     const double neuron_time, const int my_neurons_count) {
 
   // for a single-thread CPU with a single neuron..
@@ -96,7 +96,7 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
   return work_per_section;
 }
 
-double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
+double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(const double neuron_time,
                                                 const int my_neurons_count) {
   if (input_params_->subsection_complexity == 0)
       return 0; //0 means "keep it as single subsection"
