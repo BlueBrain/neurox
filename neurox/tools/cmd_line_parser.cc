@@ -65,23 +65,23 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "G", "graph-parallelism", "activates graph-based parallelism of mechanisms.", cmd,
         false);
 
-    TCLAP::ValueArg<floble_t> group_of_subsections_complexity(
+    TCLAP::ValueArg<floble_t> subsection_complexity(
                 //"Y", "group-of-subsections-complexity",
                 "", "L",
                 "scale constant to groups of subsection complexity (constant k' for branch parallelism on multiple localities)",
                 false, 1, "floble_t");
-    cmd.add(group_of_subsections_complexity);
+    cmd.add(subsection_complexity);
 
     TCLAP::SwitchArg load_balancing(
         "L", "load-balancing",
         "performs dynamic load balancing of neurons and branches.", cmd, false);
 
-    TCLAP::ValueArg<floble_t> subsection_complexity(
+    TCLAP::ValueArg<floble_t> subtree_complexity(
                 //"X", "subsection-complexity",
                 "", "B",
                 "scale constant to subsection complexity (constant k for branch parallelism)",
                 false, 0.7, "floble_t");
-    cmd.add(subsection_complexity);
+    cmd.add(subtree_complexity);
 
     TCLAP::SwitchArg branch_parallelism(
         "B", "branch-parallelism", "performs branch-level parallelism on neurons",
@@ -214,8 +214,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->interpolator_ =
         (interpolators::InterpolatorIds)interpolator.getValue();
 
+    this->subtree_complexity = subtree_complexity.getValue();
     this->subsection_complexity = subsection_complexity.getValue();
-    this->group_of_subsections_complexity = group_of_subsections_complexity.getValue();
     this->mech_instance_percent_per_block = mech_instance_percent_per_block.getValue();
 
     if (this->tstop_ <= 0)

@@ -88,7 +88,7 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
   work_per_section *= my_neurons_count;
 
   // scale by constant 1/K (see paper)
-  work_per_section /= input_params_->subsection_complexity;
+  work_per_section /= input_params_->subtree_complexity;
 
   // if graph parallelism is available, increase the work by a factor of...?
   if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
@@ -98,16 +98,17 @@ double tools::LoadBalancing::GetWorkPerBranchSubsection(
 
 double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
                                                 const int my_neurons_count) {
+  if (input_params_->subsection_complexity == 0)
+      return 0; //0 means "keep it as single subsection"
+
   // get an estimation of total workload in this locality
   double total_work = neuron_time * (double)my_neurons_count;
 
   // average the total work in this locality by all localityes
   double avg_locality_work = total_work / (double)wrappers::NumRanks();
 
-  // scale to constant k' (see paper)
-  avg_locality_work *= input_params_->group_of_subsections_complexity;
-
-  return avg_locality_work;
+  // scale to constant 1/k' (see paper)
+  return avg_locality_work / input_params_->subsection_complexity;
 }
 
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {

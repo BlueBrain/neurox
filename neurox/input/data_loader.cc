@@ -1527,8 +1527,7 @@ hpx_t DataLoader::CreateBranch(
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &assigned_locality, sizeof(int));  // output
     }
-
-    /* branch - parallelism */
+  /* branch - parallelism */
   } else {
     /* get subsection of all leaves until the end of arborization */
     /* for load-balancing and branch-parallelism, we use the approximated
@@ -1560,16 +1559,19 @@ hpx_t DataLoader::CreateBranch(
                neuron_runtime, max_work_per_locality);
 //#endif
 
-      /* assign remaining arborization to different locality if it fits in the
-       * max workload per locality and is not too small (to reduce number of
-       * remote small branches)*/
-      //TODO if its assinged to my locality will it continue querying ?
-      if (assigned_locality == hpx_get_my_rank() &&
-          subsection_runtime < max_work_per_locality) {
+      /* if subsection_complexity == 0, keep all subtrees in the
+       * same locality (get rank if soma, or use previously assigned
+       * assigned_locality otherwise) */
+      if (  (max_work_per_locality == 0 && is_soma)
+         /* assign remaining arborization to different locality if it fits in the
+         * max workload per locality and is not too small (to reduce number of
+          * remote small branches)*/
+         || (max_work_per_locality >0 &&
+             assigned_locality == hpx_get_my_rank() &&
+             subsection_runtime < max_work_per_locality)) {
           //subsection_runtime < max_work_per_locality &&
           //subsection_runtime > max_work_per_locality * 0.5) {
-        /* ask master rank where to allocate this arborization, update LPT
-         * table*/
+        /* ask master rank where to allocate this arborization, update table*/
         hpx_call_sync(HPX_THERE(0),
                       tools::LoadBalancing::QueryLoadBalancingTable,   /*action*/
                       &assigned_locality, sizeof(assigned_locality));  /*output*/
@@ -1577,7 +1579,6 @@ hpx_t DataLoader::CreateBranch(
     }
 
     /*if this subsection exceeds maximum time allowed per subsection*/
-    // if (is_soma) { /*split at soma level */
     if (subsection_runtime > max_work_per_section) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
