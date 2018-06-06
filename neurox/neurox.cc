@@ -128,7 +128,7 @@ static int Main_handler() {
            input_params_->branch_parallelism_ ? 1 : 0,
            input_params_->subtree_complexity,
            input_params_->load_balancing_ ? 1 : 0,
-           input_params_->subsection_complexity_complexity,
+           input_params_->subsection_complexity,
            input_params_->locality_comm_reduce_ ? 1 : 0,
            time_elapsed);
     fflush(stdout);
