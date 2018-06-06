@@ -115,14 +115,22 @@ static int Main_handler() {
 
 #ifdef NDEBUG
     // output benchmark info
-    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%d,%d,%.3f\n",
-           neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
+    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f\n",
+           neurox::neurons_count_,
+           hpx_get_num_ranks(),
+           hpx_get_num_threads(),
            neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-           input_params_->tstop_, synchronizer_->GetId(),
+           input_params_->tstop_,
+           synchronizer_->GetId(),
            input_params_->graph_mechs_parallelism_ ? 1 : 0,
            input_params_->mech_instances_parallelism_ ? 1 : 0,
+           input_params_->mech_instance_percent_per_block,
            input_params_->branch_parallelism_ ? 1 : 0,
-           input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
+           input_params_->subtree_complexity,
+           input_params_->load_balancing_ ? 1 : 0,
+           input_params_->subsection_complexity_complexity,
+           input_params_->locality_comm_reduce_ ? 1 : 0,
+           time_elapsed);
     fflush(stdout);
 #endif
     CallAllNeurons(Synchronizer::CallClearNeuron);

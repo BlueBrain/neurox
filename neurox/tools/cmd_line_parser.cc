@@ -66,10 +66,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false);
 
     TCLAP::ValueArg<floble_t> subsection_complexity(
-                //"Y", "group-of-subsections-complexity",
                 "", "L",
                 "scale constant to groups of subsection complexity (constant k' for branch parallelism on multiple localities)",
-                false, 1, "floble_t");
+                false, 0, "floble_t");
     cmd.add(subsection_complexity);
 
     TCLAP::SwitchArg load_balancing(
@@ -77,7 +76,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "performs dynamic load balancing of neurons and branches.", cmd, false);
 
     TCLAP::ValueArg<floble_t> subtree_complexity(
-                //"X", "subsection-complexity",
                 "", "B",
                 "scale constant to subsection complexity (constant k for branch parallelism)",
                 false, 0.7, "floble_t");
