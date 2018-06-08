@@ -1536,13 +1536,13 @@ hpx_t DataLoader::CreateBranch(
         GetSubSectionFromCompartment(subsection, top_compartment);
 
     /* estimated max execution time per subregion for this neuron*/
-    double min_work_per_subtree = LoadBalancing::GetMinWorkPerBranchSubTree(
+    double max_work_per_subtree = LoadBalancing::GetMaxWorkPerBranchSubTree(
         neuron_runtime, GetMyNrnThreadsCount());
 
 //#ifndef NDEBUG
     if (is_soma)
       printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-             neuron_runtime, min_work_per_subtree);
+             neuron_runtime, max_work_per_subtree);
 //#endif
 
     if (!input_params_->load_balancing_) {
@@ -1579,7 +1579,7 @@ hpx_t DataLoader::CreateBranch(
     }
 
     /*if this subsection exceeds maximum time allowed per subtree*/
-    if (subsection_runtime > min_work_per_subtree) {
+    if (subsection_runtime > max_work_per_subtree) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
       subsection.push_back(top_compartment);
@@ -1588,24 +1588,25 @@ hpx_t DataLoader::CreateBranch(
            bottom_compartment->branches_.size() == 1;
            bottom_compartment = bottom_compartment->branches_.front()) {
         Compartment *&next_comp = bottom_compartment->branches_.front();
-        subsection.push_back(bottom_compartment->branches_.front());
-        subsection_runtime += bottom_compartment->branches_.front()->runtime_;
 
         /* soma and AIS cant be split due to AP threshold communication */
         if (!is_soma && !is_AIS)
-          if (subsection_runtime + next_comp->runtime_ > min_work_per_subtree)
+          if (subsection_runtime + next_comp->runtime_ > max_work_per_subtree)
             break;
+
+        subsection.push_back(bottom_compartment->branches_.front());
+        subsection_runtime += bottom_compartment->branches_.front()->runtime_;
       }
 
       /* let user know, this will be the limiting factor of parallelism */
-      if (subsection_runtime < min_work_per_subtree)
+      if (subsection_runtime < max_work_per_subtree*0.5)
         printf(
             "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
-            "is smaller than min workload per subtree %.5f ms. total neuron time "
+            "is smaller than half max workload per subtree %.5f ms. total neuron time "
             "%.5f ms (max parallelism capped at %.2fx)\n",
             top_compartment->id_, subsection.size(), subsection_runtime,
-            min_work_per_subtree, neuron_runtime,
-            neuron_runtime / min_work_per_subtree);
+            max_work_per_subtree, neuron_runtime,
+            neuron_runtime / max_work_per_subtree);
     }
 
     //#ifndef NDEBUG
