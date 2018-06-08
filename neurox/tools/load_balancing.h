@@ -36,7 +36,7 @@ class LoadBalancing {
   static void PrintLoadBalancingTable();
 
   /// returns work per branch-subsection, for branch parallelism
-  static double GetMaxWorkPerBranchSubTree(const double neuron_time,
+  static double GetMinWorkPerBranchSubTree(const double neuron_time,
                                            const int my_neurons_count);
 
   /// returns max work per locality, for branch parallelism

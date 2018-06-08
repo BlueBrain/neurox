@@ -75,7 +75,7 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
 }
 
 //TODO should be avg_neuron_time, not neuron_time (same in next func)!
-double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
+double tools::LoadBalancing::GetMinWorkPerBranchSubTree(
     const double neuron_time, const int my_neurons_count) {
 
   // for a single-thread CPU with a single neuron..
