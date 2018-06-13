@@ -28,11 +28,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
 #include <math.h>
-#include "coreneuron/nrnconf.h"
 #include "coreneuron/utils/randoms/nrnran123.h"
+#include "coreneuron/nrnconf.h"
 #include "coreneuron/utils/randoms/Random123/philox.h"
 #include "coreneuron/nrniv/nrnmutdec.h"
-
+namespace coreneuron {
 static const double SHIFT32 = 1.0 / 4294967297.0; /* 1/(2^32 + 1) */
 
 static philox4x32_key_t k = {{0}};
@@ -42,21 +42,15 @@ size_t nrnran123_instance_count() {
     return instance_count_;
 }
 
-/* now this is declated in nrnran123.h so that its available for prototype declaration
-
-struct nrnran123_State {
-        philox4x32_ctr_t c;
-        philox4x32_ctr_t r;
-        unsigned char which_;
-};
-*/
-
 size_t nrnran123_state_size() {
     return sizeof(nrnran123_State);
 }
 
 void nrnran123_set_globalindex(uint32_t gix) {
     k.v[0] = gix;
+#if (defined(__CUDACC__) || defined(_OPENACC))
+    nrnran123_set_gpu_globalindex(gix);
+#endif
 }
 
 /* if one sets the global, one should reset all the stream sequences. */
@@ -164,3 +158,4 @@ double nrnran123_uint2dbl(uint32_t u) {
     /* min 2.3283064e-10 to max (1 - 2.3283064e-10) */
     return ((double)u + 1.0) * SHIFT32;
 }
+}  // namespace coreneuron

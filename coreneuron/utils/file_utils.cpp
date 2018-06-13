@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Blue Brain Project
+Copyright (c) 2017, Blue Brain Project
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -25,18 +25,45 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#include <stdio.h>
 #include <string.h>
-#include "coreneuron/nrnconf.h"
-#include "coreneuron/nrnomp/nrnomp.h"
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <errno.h>
 
-#if defined(_OPENMP)
-#include <omp.h>
-#endif  // _OPENMP
+/* adapted from : gist@jonathonreinhart/mkdir_p.c */
+int mkdir_p(const char* path) {
+    const int path_len = strlen(path);
+    if (path_len == 0) {
+        printf("Warning: Empty path for creating directory");
+        return -1;
+    }
 
-int nrnomp_get_numthreads() {
-#if defined(_OPENMP)
-    return (omp_get_max_threads());
-#else
-    return 1;
-#endif
+    char* dirpath = new char[path_len + 1];
+    strcpy(dirpath, path);
+    errno = 0;
+
+    char* p;
+    /* iterate from outer upto inner dir */
+    for (p = dirpath + 1; *p; p++) {
+        if (*p == '/') {
+            /* temporarily truncate to sub-dir */
+            *p = '\0';
+            if (mkdir(dirpath, S_IRWXU) != 0) {
+                if (errno != EEXIST)
+                    return -1;
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(dirpath, S_IRWXU) != 0) {
+        if (errno != EEXIST) {
+            return -1;
+        }
+    }
+
+    delete[] dirpath;
+    return 0;
 }

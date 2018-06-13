@@ -4,6 +4,8 @@
 
 #include <vector>
 
+using namespace coreneuron;
+
 namespace neurox {
 
 class NetconX;
@@ -43,7 +45,7 @@ class Mechanism {
   Mechanism(const int type_, const short int data_size,
             const short int pdata_size, const char is_artificial, char pnt_map,
             const char is_ion, const short int sym_length, const char *sym,
-            Memb_func &memb_func_, const short int dependencies_count = 0,
+            coreneuron::Memb_func &memb_func_, const short int dependencies_count = 0,
             const int *dependencies_ = nullptr,
             const short int successors_count = 0,
             const int *successors_ = nullptr);

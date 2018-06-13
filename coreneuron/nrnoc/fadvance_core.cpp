@@ -26,16 +26,18 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "coreneuron/coreneuron.h"
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrniv/nrn_acc_manager.h"
-#include "coreneuron/coreneuron.h"
+#include "coreneuron/utils/reports/nrnreport.h"
+#include "coreneuron/utils/progressbar/progressbar.h"
+namespace coreneuron {
 
 static void* nrn_fixed_step_thread(NrnThread*);
 static void* nrn_fixed_step_group_thread(NrnThread*);
-extern void nrn_flush_reports(double);
 
 void dt2thread(double adt) { /* copied from nrnoc/fadvance.c */
     if (adt != nrn_threads[0]._dt) {
@@ -59,7 +61,6 @@ void nrn_fixed_step_minimal() { /* not so minimal anymore with gap junctions */
     } else {
         dt2thread(dt);
     }
-    /*printf("nrn_fixed_step_minimal t=%g\n", t);*/
     nrn_thread_table_check();
     nrn_multithread_job(nrn_fixed_step_thread);
     if (nrn_have_gaps) {
@@ -80,6 +81,26 @@ integration interval before joining
 static int step_group_n;
 static int step_group_begin;
 static int step_group_end;
+static progressbar* progress;
+
+void initialize_progress_bar(int nstep) {
+    if (nrnmpi_myid == 0) {
+        printf("\n");
+        progress = progressbar_new(" psolve", nstep);
+    }
+}
+
+void update_progress_bar(int step, double time) {
+    if (nrnmpi_myid == 0) {
+        progressbar_update(progress, step, time);
+    }
+}
+
+void finalize_progress_bar() {
+    if (nrnmpi_myid == 0) {
+        progressbar_finish(progress);
+    }
+}
 
 void nrn_fixed_step_group_minimal(int n) {
     static int step = 0;
@@ -88,6 +109,8 @@ void nrn_fixed_step_group_minimal(int n) {
     step_group_n = n;
     step_group_begin = 0;
     step_group_end = 0;
+    initialize_progress_bar(step_group_n);
+
     while (step_group_end < step_group_n) {
         nrn_multithread_job(nrn_fixed_step_group_thread);
 #if NRNMPI
@@ -100,17 +123,12 @@ void nrn_fixed_step_group_minimal(int n) {
         if (stoprun) {
             break;
         }
-        step_group_begin = step_group_end;
         step++;
-
-        //@TODO: flush/optimize/better way
-        if (nrnmpi_myid == 0) {
-            float completed = (((float)step_group_end / step_group_n) * 100.0);
-            printf(" Completed %.2f, t = %lf\r", completed, nrn_threads[0]._t);
-            fflush(stdout);
-        }
+        step_group_begin = step_group_end;
+        update_progress_bar(step_group_end, nrn_threads[0]._t);
     }
     t = nrn_threads[0]._t;
+    finalize_progress_bar();
 }
 
 static void* nrn_fixed_step_group_thread(NrnThread* nth) {
@@ -203,7 +221,6 @@ void nrn_ba(NrnThread* nt, int bat) {
 static void* nrn_fixed_step_thread(NrnThread* nth) {
     /* check thresholds and deliver all (including binqueue)
        events up to t+dt/2 */
-    extern int secondorder;
     deliver_net_events(nth);
     nth->_t += .5 * nth->_dt;
 
@@ -251,3 +268,4 @@ void* nrn_fixed_step_lastpart(NrnThread* nth) {
     nrn_deliver_events(nth); /* up to but not past texit */
     return (void*)0;
 }
+}  // namespace coreneuron

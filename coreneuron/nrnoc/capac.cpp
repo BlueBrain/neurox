@@ -53,6 +53,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define _STRIDE _cntml_padded + _iml
 #endif
 
+namespace coreneuron {
+
 static const char* mechanism[] = {"0", "capacitance", "cm", 0, "i_cap", 0, 0};
 void nrn_alloc_capacitance(double*, Datum*, int);
 void nrn_init_capacitance(NrnThread*, Memb_list*, int);
@@ -121,6 +123,11 @@ void nrn_init_capacitance(NrnThread* _nt, Memb_list* ml, int type) {
     (void)_nt;
     (void)type;
     (void)_cntml_padded; /* unused */
+
+    // skip initialization if restoring from checkpoint
+    if (_nrn_skip_initmodel == 1) {
+        return;
+    }
 
 #if LAYOUT == 1 /*AoS*/
     for (_iml = 0; _iml < _cntml_actual; _iml++) {
@@ -237,3 +244,4 @@ void nrn_mul_capacity(NrnThread* _nt, Memb_list* ml, int type)
         VEC_RHS(ni[_iml]) *= cfac*cm;
     }
 }
+}  // namespace coreneuron

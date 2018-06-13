@@ -33,7 +33,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnoc/membdef.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
+#include "coreneuron/nrnoc/mech_mapping.hpp"
+#include "coreneuron/nrnoc/membfunc.h"
 
+namespace coreneuron {
 int secondorder = 0;
 double t, dt, celsius;
 #if defined(PG_ACC_BUGS)
@@ -84,17 +87,24 @@ static int** ion_write_depend_;
 static void ion_write_depend(int type, int etype);
 
 bbcore_read_t* nrn_bbcore_read_;
+bbcore_write_t* nrn_bbcore_write_;
 void hoc_reg_bbcore_read(int type, bbcore_read_t f) {
-    if (type == -1)
+    if (type == -1) {
         return;
-
+    }
     nrn_bbcore_read_[type] = f;
+}
+void hoc_reg_bbcore_write(int type, bbcore_write_t f) {
+    if (type == -1) {
+        return;
+    }
+    nrn_bbcore_write_[type] = f;
 }
 
 void add_nrn_has_net_event(int type) {
-    if (type == -1)
+    if (type == -1) {
         return;
-
+    }
     ++nrn_has_net_event_cnt_;
     nrn_has_net_event_ = (int*)erealloc(nrn_has_net_event_, nrn_has_net_event_cnt_ * sizeof(int));
     nrn_has_net_event_[nrn_has_net_event_cnt_ - 1] = type;
@@ -119,7 +129,6 @@ void add_nrn_fornetcons(int type, int indx) {
 }
 
 /* array is parallel to memb_func. All are 0 except 1 for ARTIFICIAL_CELL */
-short* nrn_is_artificial_;
 short* nrn_artcell_qindex_;
 
 void add_nrn_artcell(int type, int qi) {
@@ -156,6 +165,7 @@ void alloc_mech(int n) {
     nrn_dparam_ptr_start_ = (int*)ecalloc(memb_func_size_, sizeof(int));
     nrn_dparam_ptr_end_ = (int*)ecalloc(memb_func_size_, sizeof(int));
     nrn_bbcore_read_ = (bbcore_read_t*)ecalloc(memb_func_size_, sizeof(bbcore_read_t));
+    nrn_bbcore_write_ = (bbcore_write_t*)ecalloc(memb_func_size_, sizeof(bbcore_write_t));
     bamech_ = (BAMech**)ecalloc(BEFORE_AFTER_SIZE, sizeof(BAMech*));
 }
 
@@ -207,15 +217,16 @@ int register_mech(const char** m,
 #if VECTORIZE
     memb_func[type].vectorized = vectorized ? 1 : 0;
     memb_func[type].thread_size_ = vectorized ? (vectorized - 1) : 0;
-    memb_func[type].thread_mem_init_ = (void*)0;
-    memb_func[type].thread_cleanup_ = (void*)0;
-    memb_func[type].thread_table_check_ = (void*)0;
+    memb_func[type].thread_mem_init_ = NULL;
+    memb_func[type].thread_cleanup_ = NULL;
+    memb_func[type].thread_table_check_ = NULL;
     memb_func[type].is_point = 0;
-    memb_func[type].setdata_ = (void*)0;
+    memb_func[type].setdata_ = NULL;
     memb_func[type].dparam_semantics = (int*)0;
     memb_list[type].nodecount = 0;
     memb_list[type]._thread = (ThreadDatum*)0;
 #endif
+    register_all_variables_offsets(type, &m[2]);
     return type;
 }
 
@@ -490,7 +501,8 @@ void _nrn_thread_reg1(int i, void (*f)(ThreadDatum*)) {
     memb_func[i].thread_mem_init_ = f;
 }
 
-void _nrn_thread_table_reg(int i, void (*f)(int, int, double*, Datum*, ThreadDatum*, void*, int)) {
+void _nrn_thread_table_reg(int i,
+                           void (*f)(int, int, double*, Datum*, ThreadDatum*, NrnThread*, int)) {
     if (i == -1)
         return;
 
@@ -503,3 +515,4 @@ void _nrn_setdata_reg(int i, void (*call)(double*, Datum*)) {
 
     memb_func[i].setdata_ = call;
 }
+}  // namespace coreneuron

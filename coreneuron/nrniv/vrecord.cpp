@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/ivocvect.h"
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/vrecitem.h"
-
+namespace coreneuron {
 extern NetCvode* net_cvode_instance;
 
 PlayRecordEvent::PlayRecordEvent() {
@@ -116,6 +116,9 @@ void VecPlayContinuous::deliver(double tt, NetCvode* ns) {
     NrnThread* nt = nrn_threads + ith_;
     // printf("deliver %g\n", tt);
     last_index_ = ubound_index_;
+// clang-format off
+    #pragma acc update device(last_index_) if (nt->compute_gpu)
+    // clang-format on
     if (discon_indices_) {
         if (discon_index_ < discon_indices_->size()) {
             ubound_index_ = (int)(*discon_indices_)[discon_index_++];
@@ -130,11 +133,20 @@ void VecPlayContinuous::deliver(double tt, NetCvode* ns) {
             e_->send((*t_)[ubound_index_], ns, nt);
         }
     }
+// clang-format off
+    #pragma acc update device(ubound_index_) if (nt->compute_gpu)
+    // clang-format on
     continuous(tt);
 }
 
 void VecPlayContinuous::continuous(double tt) {
-    *pd_ = interpolate(tt);
+    NrnThread* nt = nrn_threads + ith_;
+// clang-format off
+    #pragma acc kernels present(this) if(nt->compute_gpu)
+    {
+        *pd_ = interpolate(tt);
+    }
+    // clang-format on
 }
 
 double VecPlayContinuous::interpolate(double tt) {
@@ -176,5 +188,6 @@ void VecPlayContinuous::search(double tt) {
 
 void VecPlayContinuous::pr() {
     printf("VecPlayContinuous ");
-    //	printf("%s.x[%d]\n", hoc_object_name(y_->obj_), last_index_);
+    // printf("%s.x[%d]\n", hoc_object_name(y_->obj_), last_index_);
 }
+}  // namespace coreneuron

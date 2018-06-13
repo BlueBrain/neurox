@@ -41,8 +41,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/partrans.h"
-
-extern std::vector<int> spikevec_gid;
+#include "coreneuron/nrniv/output_spikes.h"
+namespace coreneuron {
 extern NetCvode* net_cvode_instance;
 
 const int NUM_STATS = 12;
@@ -212,3 +212,4 @@ void report_cell_stats(void) {
     if (nrnmpi_myid == 0)
         printf("\n\n");
 }
+}  // namespace coreneuron

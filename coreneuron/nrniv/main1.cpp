@@ -32,6 +32,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
  * @brief File containing main driver routine for CoreNeuron
  */
 
+#include <vector>
+#include <string.h>
+#include "coreneuron/engine.h"
 #include "coreneuron/utils/randoms/nrnran123.h"
 #include "coreneuron/nrnconf.h"
 #include "coreneuron/nrnoc/multicore.h"
@@ -39,6 +42,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
 #include "coreneuron/nrniv/output_spikes.h"
+#include "coreneuron/nrniv/nrn_checkpoint.h"
 #include "coreneuron/utils/endianness.h"
 #include "coreneuron/utils/memory_utils.h"
 #include "coreneuron/nrniv/nrnoptarg.h"
@@ -49,7 +53,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/profiler_interface.h"
 #include "coreneuron/nrniv/partrans.h"
 #include "coreneuron/nrniv/multisend.h"
+#include "coreneuron/utils/file_utils.h"
 #include <string.h>
+#include <climits>
 
 #if 0
 #include <fenv.h>
@@ -60,11 +66,11 @@ int nrn_feenableexcept() {
   return result;
 }
 #endif
-
-int main1(int argc, char* argv[], char** env);
+namespace coreneuron {
 void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init);
 void nrn_init_and_load_data(int argc,
                             char* argv[],
+                            bool is_mapping_needed = false,
                             bool nrnmpi_under_nrncontrol = true,
                             bool run_setup_cleanup = true) {
 #if defined(NRN_FEEXCEPT)
@@ -89,13 +95,9 @@ void nrn_init_and_load_data(int argc,
     // create mutex for nrn123, protect instance_count_
     nrnran123_mutconstruct();
 
-    // read command line parameters and parameter config files
-    nrnopt_parse(argc, (const char**)argv);
-
     // set global variables
     // precedence is: set by user, globals.dat, 34.0
     celsius = nrnopt_get_dbl("--celsius");
-    t = celsius;  // later will read globals.dat and compare with this.
 
 #if _OPENACC
     if (!nrnopt_get_flag("--gpu") && nrnopt_get_int("--cell-permute") == 2) {
@@ -125,7 +127,8 @@ void nrn_init_and_load_data(int argc,
     report_mem_usage("After mk_mech");
 
     // set global variables for start time, timestep and temperature
-    t = nrnopt_get_dbl("--tstart");
+    std::string restore_path = nrnopt_get_str("--restore");
+    t = restore_time(restore_path.c_str());
 
     if (nrnopt_get_dbl("--dt") != -1000.) {  // command line arg highest precedence
         dt = nrnopt_get_dbl("--dt");
@@ -157,6 +160,11 @@ void nrn_init_and_load_data(int argc,
     use_interleave_permute = nrnopt_get_int("--cell-permute");
     cellorder_nwarp = nrnopt_get_int("--nwarp");
     use_solve_interleave = nrnopt_get_int("--cell-permute");
+#if LAYOUT == 1
+    // permuting not allowed for AoS
+    use_interleave_permute = 0;
+    use_solve_interleave = 0;
+#endif
 
     // pass by flag so existing tests do not need a changed nrn_setup prototype.
     nrn_setup_multiple = nrnopt_get_int("--multiple");
@@ -168,7 +176,7 @@ void nrn_init_and_load_data(int argc,
     use_phase2_ = (nrnopt_get_int("--ms-phases") == 2) ? 1 : 0;
 
     // reading *.dat files and setting up the data structures, setting mindelay
-    nrn_setup(filesdat.c_str(), nrn_need_byteswap, run_setup_cleanup);
+    nrn_setup(filesdat.c_str(), is_mapping_needed, nrn_need_byteswap, run_setup_cleanup);
 
     // Allgather spike compression and  bin queuing.
     nrn_use_bin_queue_ = nrnopt_get_flag("--binqueue");
@@ -187,6 +195,9 @@ void nrn_init_and_load_data(int argc,
 
     // show all configuration parameters for current run
     nrnopt_show();
+    if (nrnmpi_myid == 0) {
+        std::cout << " Start time (t) = " << t << std::endl << std::endl;
+    }
 
     // allocate buffer for mpi communication
     mk_spikevec_buffer(nrnopt_get_int("--spikebuf"));
@@ -230,94 +241,6 @@ void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init)
     }
 }
 
-int main1(int argc, char** argv, char** env) {
-    (void)env; /* unused */
-
-    // initializationa and loading functions moved to separate
-    nrn_init_and_load_data(argc, argv);
-    // nrnopt_get... still available until call nrnopt_delete()
-
-    bool compute_gpu = nrnopt_get_flag("-gpu");
-// clang-format off
-    #pragma acc data copyin(celsius, secondorder) if (compute_gpu)
-    // clang-format on
-    {
-        double v = nrnopt_get_dbl("--voltage");
-        nrn_finitialize(v != 1000., v);
-
-        report_mem_usage("After nrn_finitialize");
-
-#ifdef ENABLE_REPORTING
-        ReportGenerator* r = NULL;
-#endif
-
-        // if reports are enabled using ReportingLib
-        if (nrnopt_get_flag("--report")) {
-#ifdef ENABLE_REPORTING
-            if (nrnopt_get_int("--multiple") > 1) {
-                if (nrnmpi_myid == 0)
-                    printf(
-                        "\n WARNING! : Can't enable reports with model duplications feature! \n");
-            } else {
-                r = new ReportGenerator(nrnopt_get_int("--report"), nrnopt_get_dbl("--tstart"),
-                                        nrnopt_get_dbl("--tstop"), nrnopt_get_dbl("--dt"),
-                                        nrnopt_get_dbl("--mindelay"), nrnopt_get_dbl("--dt_report"),
-                                        nrnopt_get_str("--outpath"));
-                r->register_report();
-            }
-#else
-            if (nrnmpi_myid == 0)
-                printf("\n WARNING! : Can't enable reports, recompile with ReportingLib! \n");
-#endif
-        }
-
-        // call prcellstate for prcellgid
-        call_prcellstate_for_prcellgid(nrnopt_get_int("--prcellgid"), compute_gpu, 0);
-
-        // handle forwardskip
-        if (nrnopt_get_dbl("--forwardskip") > 0.0) {
-            handle_forward_skip(nrnopt_get_dbl("--forwardskip"), nrnopt_get_int("--prcellgid"));
-        }
-
-#ifdef ENABLE_SELECTIVE_PROFILING
-        start_profile();
-#endif
-
-        /// Solver execution
-        BBS_netpar_solve(nrnopt_get_dbl("--tstop"));
-
-        // Report global cell statistics
-        report_cell_stats();
-
-#ifdef ENABLE_SELECTIVE_PROFILING
-        stop_profile();
-#endif
-
-        // prcellstate after end of solver
-        call_prcellstate_for_prcellgid(nrnopt_get_int("--prcellgid"), compute_gpu, 0);
-
-#ifdef ENABLE_REPORTING
-        if (nrnopt_get_int("--report") && r)
-            delete r;
-#endif
-    }
-
-    // write spike information to outpath
-    output_spikes(nrnopt_get_str("--outpath").c_str());
-
-    // Cleaning the memory
-    nrn_cleanup();
-
-// mpi finalize
-#if NRNMPI
-    nrnmpi_finalize();
-#endif
-
-    finalize_data_on_device();
-
-    return 0;
-}
-
 /* perform forwardskip and call prcellstate for prcellgid */
 void handle_forward_skip(double forwardskip, int prcellgid) {
     double savedt = dt;
@@ -341,4 +264,129 @@ void handle_forward_skip(double forwardskip, int prcellgid) {
 
 const char* nrn_version(int) {
     return "version id unimplemented";
+}
+}  // namespace coreneuron
+
+using namespace coreneuron;
+extern "C" int solve_core(int argc, char** argv) {
+#if NRNMPI
+    nrnmpi_init(1, &argc, &argv);
+#endif
+
+    // read command line parameters and parameter config files
+    nrnopt_parse(argc, (const char**)argv);
+    std::vector<ReportConfiguration> configs;
+    bool reports_needs_finalize = false;
+
+    if (nrnopt_get_str("--report-conf").size()) {
+        if (nrnopt_get_int("--multiple") > 1) {
+            if (nrnmpi_myid == 0)
+                printf("\n WARNING! : Can't enable reports with model duplications feature! \n");
+        } else {
+            configs = create_report_configurations(nrnopt_get_str("--report-conf").c_str(),
+                                                   nrnopt_get_str("--outpath").c_str());
+            reports_needs_finalize = configs.size();
+        }
+    }
+
+    // initializationa and loading functions moved to separate
+    nrn_init_and_load_data(argc, argv, configs.size() > 0);
+    std::string checkpoint_path = nrnopt_get_str("--checkpoint");
+    if (strlen(checkpoint_path.c_str())) {
+        nrn_checkpoint_arg_exists = true;
+    }
+    std::string output_dir = nrnopt_get_str("--outpath");
+
+    if (nrnmpi_myid == 0) {
+        mkdir_p(output_dir.c_str());
+    }
+#if NRNMPI
+    nrnmpi_barrier();
+#endif
+    bool compute_gpu = nrnopt_get_flag("-gpu");
+    bool skip_mpi_finalize = nrnopt_get_flag("--skip-mpi-finalize");
+
+// clang-format off
+    #pragma acc data copyin(celsius, secondorder) if (compute_gpu)
+    // clang-format on
+    {
+        double v = nrnopt_get_dbl("--voltage");
+
+        // TODO : if some ranks are empty then restore will go in deadlock
+        // phase (as some ranks won't have restored anything and hence return
+        // false in checkpoint_initialize
+        if (!checkpoint_initialize()) {
+            nrn_finitialize(v != 1000., v);
+        }
+
+        report_mem_usage("After nrn_finitialize");
+        double dt = nrnopt_get_dbl("--dt");
+        double delay = nrnopt_get_dbl("--mindelay");
+        double tstop = nrnopt_get_dbl("--tstop");
+
+        if (tstop < t && nrnmpi_myid == 0) {
+            printf("Error: Stop time (%lf) < Start time (%lf), restoring from checkpoint? \n",
+                   tstop, t);
+            abort();
+        }
+
+        // register all reports into reportinglib
+        double min_report_dt = INT_MAX;
+        for (int i = 0; i < configs.size(); i++) {
+            register_report(dt, tstop, delay, configs[i]);
+            if (configs[i].report_dt < min_report_dt) {
+                min_report_dt = configs[i].report_dt;
+            }
+        }
+        setup_report_engine(min_report_dt, delay);
+        configs.clear();
+
+        // call prcellstate for prcellgid
+        call_prcellstate_for_prcellgid(nrnopt_get_int("--prcellgid"), compute_gpu, 0);
+
+        // handle forwardskip
+        if (nrnopt_get_dbl("--forwardskip") > 0.0) {
+            handle_forward_skip(nrnopt_get_dbl("--forwardskip"), nrnopt_get_int("--prcellgid"));
+        }
+
+#ifdef ENABLE_SELECTIVE_PROFILING
+        start_profile();
+#endif
+
+        /// Solver execution
+        BBS_netpar_solve(nrnopt_get_dbl("--tstop"));
+        // Report global cell statistics
+        report_cell_stats();
+
+        // prcellstate after end of solver
+        call_prcellstate_for_prcellgid(nrnopt_get_int("--prcellgid"), compute_gpu, 0);
+    }
+
+    // write spike information to outpath
+    output_spikes(output_dir.c_str());
+
+    write_checkpoint(nrn_threads, nrn_nthread, checkpoint_path.c_str(), nrn_need_byteswap);
+
+#ifdef ENABLE_SELECTIVE_PROFILING
+    stop_profile();
+#endif
+
+    // must be done after checkpoint (to avoid deleting events)
+    if (reports_needs_finalize) {
+        finalize_report();
+    }
+
+    // Cleaning the memory
+    nrn_cleanup();
+
+// mpi finalize
+#if NRNMPI
+    if (!skip_mpi_finalize) {
+        nrnmpi_finalize();
+    }
+#endif
+
+    finalize_data_on_device();
+
+    return 0;
 }

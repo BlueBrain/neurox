@@ -29,7 +29,7 @@ include_directories(utils/randoms)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${MPI_INCLUDE_PATH})
 
-FILE(GLOB_RECURSE coreneuron_all_headers "*.h")
+FILE(GLOB_RECURSE coreneuron_all_headers "*.h*")
 FILE(GLOB_RECURSE coreneuron_all_templates "*.ipp")
 FILE(GLOB_RECURSE coreneuron_all_c_files "*.c*")
 file(GLOB_RECURSE coreneuron_cuda_files "*.cu")
@@ -55,7 +55,7 @@ set(MOD2C env "MODLUNIT=${MOD2C_UNITS}" ${MOD2C})
 macro(mod2c_target name input)
     get_filename_component(mod2c_source_ ${input} ABSOLUTE)
     get_filename_component(mod2c_modname_ ${input} NAME)
-    string(REGEX REPLACE "\\.mod$" ".c" mod2c_cname_ "${mod2c_modname_}")
+    string(REGEX REPLACE "\\.mod$" ".cpp" mod2c_cname_ "${mod2c_modname_}")
 
     set(mod2c_output_ "${CMAKE_CURRENT_BINARY_DIR}/${mod2c_cname_}")
     list(APPEND MOD2C_${name}_OUTPUTS "${mod2c_output_}")
@@ -192,7 +192,7 @@ mod2c_from_file(OPTMECH "${ADDITIONAL_MECHS}" "${ADDITIONAL_MECHPATH}")
 
 # For 'non-standard' mod files, need to generate registering function in mod_func.c
 
-set(MOD_FUNC_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func.c")
+set(MOD_FUNC_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func.cpp")
 set(MOD_FUNC_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func.c.pl")
 
 # ... pass as argument to the perl script the list of mod file names;
@@ -221,7 +221,7 @@ add_custom_command(OUTPUT "${KINDERIV_H}"
 
 if (EXPORT_MECHS_FUNCTIONS)
   # Create C file with all "get function pointers" methods
-  set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.c")
+  set(MOD_FUNC_PTRS_C    "${CMAKE_CURRENT_BINARY_DIR}/mod_func_ptrs.cpp")
   set(MOD_FUNC_PTRS_C_PL "${CMAKE_CURRENT_SOURCE_DIR}/mech/mod_func_ptrs.c.pl")
 
   # ... pass as argument to the perl script the list of mods full paths;
@@ -235,7 +235,13 @@ endif()
 set(GENERATED_MECH_C_FILES ${MOD_FUNC_C} ${MOD_FUNC_PTRS_C} ${MOD2C_STDMECH_OUTPUTS} ${MOD2C_OPTMECH_OUTPUTS})
 
 # artificial cells must be on cpu, defaul nrnran123.c is for cpu, nrn_setup.cpp uses nrnran123 for only memory calculation purpose which should use cpu version of nrnran123
-set(NOACC_MECH_C_FILES ${CMAKE_CURRENT_BINARY_DIR}/netstim.c ${CMAKE_CURRENT_BINARY_DIR}/netstim_inhpoisson.c ${CMAKE_CURRENT_BINARY_DIR}/pattern.c ${CMAKE_CURRENT_SOURCE_DIR}/utils/randoms/nrnran123.c ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/nrn_setup.cpp)
+set(NOACC_MECH_C_FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/netstim.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/netstim_inhpoisson.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/pattern.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/randoms/nrnran123.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/nrn_setup.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nrniv/global_vars.cpp)
 
 if(ENABLE_OPENACC)
     set_source_files_properties(${GENERATED_MECH_C_FILES} PROPERTIES COMPILE_FLAGS "")
@@ -285,6 +291,7 @@ set_target_properties(coreneuron PROPERTIES
 install(TARGETS coreneuron
              LIBRARY DESTINATION ${LIB_INSTALL_DIR}
              ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+         install(FILES "engine.h" DESTINATION include/coreneuron)
 
 if(ENABLE_DEV_FILES_INSTALLATION)
     install(DIRECTORY .

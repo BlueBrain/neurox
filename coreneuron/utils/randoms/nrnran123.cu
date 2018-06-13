@@ -30,7 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <math.h>
 #include "coreneuron/utils/randoms/nrnran123.h"
-
+namespace coreneuron {
 /* global data structure per process */
 __device__ static const double SHIFT32 = 1.0 / 4294967297.0; /* 1/(2^32 + 1) */
 __device__ static philox4x32_key_t k = {{0}};
@@ -43,7 +43,7 @@ __device__ size_t nrnran123_state_size() {
     return sizeof(nrnran123_State);
 }
 
-__device__ void nrnran123_set_globalindex(uint32_t gix) {
+__global__ void nrnran123_set_globalindex(uint32_t gix) {
     k.v[0] = gix;
 }
 
@@ -149,7 +149,7 @@ nrnran123_State* nrnran123_newstream3(uint32_t id1, uint32_t id2, uint32_t id3) 
     nrnran123_State* s;
 
     cudaMalloc((void**)&s, sizeof(nrnran123_State));
-    cudaMemset((void**)&s, 0, sizeof(nrnran123_State));
+    cudaMemset((void*)s, 0, sizeof(nrnran123_State));
 
     nrnran123_setup_cuda_newstream<<<1, 1>>>(s, id1, id2, id3);
     cudaDeviceSynchronize();
@@ -164,3 +164,11 @@ void nrnran123_deletestream(nrnran123_State* s) {
 
     cudaFree(s);
 }
+
+/* set global index for random123 stream on gpu */
+void nrnran123_set_gpu_globalindex(uint32_t gix) {
+    nrnran123_set_globalindex<<<1,1>>>(gix);
+    cudaDeviceSynchronize();
+}
+
+} //namespace coreneuron

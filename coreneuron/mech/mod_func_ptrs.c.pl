@@ -33,6 +33,7 @@ print <<"__eof";
 #include <string.h>
 #include <stdlib.h>
 #include "coreneuron/coreneuron.h"
+namespace coreneuron {
 __eof
 
 #Get the correct SUFFIX from each mod file for each mechanism
@@ -104,7 +105,7 @@ __eof
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_net_receive2__${_}(Point_process*, int, double)"} @suffixes_with_net_receive]};
+extern void \n  @{[join ",\n  ", map {"_net_receive2__${_}(NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag)"} @suffixes_with_net_receive]};
 
 pnt_receive2_t get_net_receive_function(const char * sym)
 {
@@ -119,7 +120,7 @@ __eof
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_cur_parallel__${_}(NrnThread*, Memb_list*, int)"} @suffixes_with_cur]};
+extern void \n  @{[join ",\n  ", map {"_nrn_cur_parallel__${_}(NrnThread*, Memb_list*, int, mod_acc_f_t, mod_acc_f_t, void * args)"} @suffixes_with_cur]};
 
 mod_parallel_f_t get_cur_parallel_function(const char * sym)
 {
@@ -136,7 +137,6 @@ mod_f_t get_BA_function(const char * sym, int BA_func_id)
 {
   return NULL;
 }
-
 __eof
 
 #output jacob functions (TODO not available yet)
@@ -162,7 +162,7 @@ state_vars_f_t get_ode_state_vars_function(const char * sym)
 }
 
 
-extern void \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_cur]};
+extern int \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_cur]};
 
 cvode_f_t get_ode_matsol_function(const char * sym)
 {
@@ -171,7 +171,7 @@ cvode_f_t get_ode_matsol_function(const char * sym)
 }
 
 
-extern void \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_cur]};
+extern int \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_cur]};
 
 cvode_f_t get_ode_spec_function(const char * sym)
 {
@@ -179,5 +179,6 @@ cvode_f_t get_ode_spec_function(const char * sym)
   return NULL;
 }
 
+} //namespace coreneuron
 __eof
 

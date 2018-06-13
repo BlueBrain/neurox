@@ -34,7 +34,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/netcon.h"
 #include "coreneuron/utils/endianness.h"
 #include "coreneuron/nrniv/nrnoptarg.h"
-
+namespace coreneuron {
+extern int cvode_active_;
 /// Vector of maps for negative presyns
 extern std::vector<std::map<int, PreSyn*> > neg_gid2out;
 /// Maps for ouput and input presyns
@@ -50,7 +51,10 @@ extern void mk_mech(const char* path);
 extern void set_globals(const char* path);
 extern void mk_netcvode(void);
 extern void nrn_p_construct(void);
-extern void nrn_setup(const char* filesdat, int byte_swap, bool run_setup_cleanup = true);
+extern void nrn_setup(const char* filesdat,
+                      bool is_mapping_needed,
+                      int byte_swap,
+                      bool run_setup_cleanup = true);
 extern int nrn_setup_multiple;
 extern int nrn_setup_extracon;
 extern void nrn_cleanup(bool clean_ion_global_map = true);
@@ -69,6 +73,7 @@ extern void ncs2nrn_integrate(double tstop);
 extern void handle_forward_skip(double forwardskip, int prcellgid);
 
 extern int nrn_set_timeout(int);
+extern void nrn_fake_fire(int gid, double spiketime, int fake_out);
 
 extern void netpar_tid_gid2ps(int tid, int gid, PreSyn** ps, InputPreSyn** psi);
 extern double set_mindelay(double maxdelay);
@@ -77,5 +82,5 @@ extern int nrn_soa_padded_size(int cnt, int layout);
 
 extern int use_interleave_permute;
 extern int cellorder_nwarp;
-
+}  // namespace coreneuron
 #endif

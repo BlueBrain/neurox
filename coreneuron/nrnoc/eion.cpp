@@ -31,7 +31,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "coreneuron/coreneuron.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
-
+#include "coreneuron/nrnmpi/nrnmpi.h"
+#include "coreneuron/nrnoc/membfunc.h"
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
 #define LAYOUT 1
@@ -67,7 +68,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define _PRAGMA_FOR_SEC_ORDER_CUR_ACC_LOOP_ _Pragma("")
 #endif
 
-extern void hoc_register_prop_size(int, int, int);
+namespace coreneuron {
 
 #define nparm 5
 static char* mechanism[] = {/*just a template*/
@@ -180,7 +181,6 @@ the USEION statement of any model using this ion\n",
 #define FARADAY 96485.309
 #define ktf (1000. * 8.3134 * (celsius + 273.15) / FARADAY)
 
-#pragma acc routine seq
 double nrn_nernst(double ci, double co, double z, double celsius) {
     /*printf("nrn_nernst %g %g %g\n", ci, co, z);*/
     if (z == 0) {
@@ -195,7 +195,6 @@ double nrn_nernst(double ci, double co, double z, double celsius) {
     }
 }
 
-#pragma acc routine seq
 void nrn_wrote_conc(int type,
                     double* p1,
                     int p2,
@@ -205,7 +204,6 @@ void nrn_wrote_conc(int type,
                     int _cntml_padded) {
 #ifndef _OPENACC
     static int flag = 1;
-    extern int nrnmpi_myid;
     if (flag && nrnmpi_myid == 0) {
         /** need to check this as this kernel was failing */
         //printf("\n WARNING: nrn_nrn_wrote_conc support on GPU need to validate!\n");
@@ -334,6 +332,12 @@ void nrn_init_ion(NrnThread* nt, Memb_list* ml, int type) {
     double* pd;
     Datum* ppd;
     (void)nt; /* unused */
+
+    // skip initialization if restoring from checkpoint
+    if (_nrn_skip_initmodel == 1) {
+        return;
+    }
+
 /*printf("ion_init %s\n", memb_func[type].sym->name);*/
 #if LAYOUT == 1 /*AoS*/
     for (_iml = 0; _iml < _cntml_actual; ++_iml) {
@@ -399,5 +403,5 @@ void second_order_cur(NrnThread* _nt, int secondorder) {
             }
     }
 }
-
+}  // namespace coreneuron
 #endif

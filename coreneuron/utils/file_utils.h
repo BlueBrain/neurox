@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, Blue Brain Project
+Copyright (c) 2017, Blue Brain Project
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -26,8 +26,19 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-extern int main1(int argc, char** argv, char** env);
+/**
+ * @file file_utils.h
+ * @brief Utility functions for file/directory management
+ *
+ */
 
-int main(int argc, char** argv, char** env) {
-    return main1(argc, argv, env);
-}
+#ifndef NRN_FILE_UTILS
+#define NRN_FILE_UTILS
+
+/** @brief Creates directory if doesn't exisit (similar to mkdir -p)
+ *  @param Directory path
+ *  @return Status
+ */
+int mkdir_p(const char* path);
+
+#endif /* ifndef NRN_FILE_UTILS */

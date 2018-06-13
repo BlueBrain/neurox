@@ -32,7 +32,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrniv/nrnoptarg.h"
 #include "coreneuron/utils/ezoption/ezOptionParser.hpp"
-
+namespace coreneuron {
 struct param_int {
     const char* names; /* space separated (includes - or --) */
     int dflt, low, high;
@@ -66,8 +66,6 @@ static param_int param_int_args[] = {
     {"--nwarp -W", 0, 0, 1000000, "Number of warps to balance. (0)"},
     {"--ms-subintervals", 2, 1, 2, "Number of multisend subintervals, 1 or 2. (2)"},
     {"--ms-phases", 2, 1, 2, "Number of multisend phases, 1 or 2. (2)"},
-    {"--report -r", 0, 0, 2,
-     "Enable voltage report (0 for disable, 1 for soma, 2 for full compartment)."},
     {"--multiple -z", 1, 1, 10000000,
      "Model duplication factor. Model size is normal size * (int)."},
     {"--extracon -x", 0, 0, 10000000,
@@ -75,7 +73,6 @@ static param_int param_int_args[] = {
     {NULL, 0, 0, 0, NULL}};
 
 static param_dbl param_dbl_args[] = {
-    {"--tstart -s", 0., -1e9, 1e9, "Start time (ms). (0)"},
     {"--tstop -e", 100.0, 0.0, 1e9, "Stop time (ms). (100)"},
     {"--dt -dt", -1000., -1000., 1e9,
      "Fixed time step. The default value is set by defaults.dat or is 0.025."},
@@ -85,7 +82,6 @@ static param_dbl param_dbl_args[] = {
     {"--celsius -l", -1000., -1000., 1000.,
      "Temperature in degC. The default value is set in defaults.dat or else is 34.0."},
     {"--forwardskip -k", 0., 0., 1e9, "Forwardskip to TIME"},
-    {"--dt_report -w", 0.1, 0.0, 1e9, "Dt for soma reports (using ReportingLib). (0.1)"},
     {"--mindelay", 10., 0., 1e9,
      "Maximum integration interval (likely reduced by minimum NetCon delay). (10)"},
     {NULL, 0., 0., 0., NULL}};
@@ -99,15 +95,19 @@ static param_flag param_flag_args[] = {
     {"--show", "Print args."},
     {"--multisend", "Use Multisend spike exchange instead of Allgather."},
     {"--binqueue", "Use bin queue."},
+    {"--skip-mpi-finalize", "Do not call mpi finalize."},
     {NULL, NULL}};
 
 static param_str param_str_args[] = {
     {"--pattern -p", "", "Apply patternstim using the specified spike file."},
     {"--datpath -d", ".", "Path containing CoreNeuron data files. (.)"},
+    {"--checkpoint", "", "Enable checkpoint and specify directory to store related files."},
+    {"--restore", "", "Restore simulation from provided checkpoint directory."},
     {"--filesdat -f", "files.dat", "Name for the distribution file. (files.dat)"},
     {"--outpath -o", ".", "Path to place output data files. (.)"},
     {"--write-config", "", "Write configuration file filename."},
     {"--read-config", "", "Read configuration file filename."},
+    {"--report-conf", "", "reports configuration file"},
     {NULL, NULL, NULL}};
 
 static void graceful_exit(int);
@@ -369,26 +369,4 @@ static void graceful_exit(int err) {
 #endif
     exit(nrnmpi_myid == 0 ? err : 0);
 }
-
-#if defined(nrnoptargtest)
-// for testing, compile with: g++ -g -I../.. nrnoptarg.cpp
-
-int nrnmpi_myid;
-
-int main(int argc, const char* argv[]) {
-    nrnopt_parse(argc, argv);
-
-    printf("prcellgid = %d\n", nrnopt_get_int("--prcellgid"));
-    printf("outpath = %s\n", nrnopt_get_str("--outpath").c_str());
-
-    printf("before modify dt = %g\n", nrnopt_get_dbl("--dt"));
-    nrnopt_modify_dbl("--dt", 18.1);
-    printf("after modify to 18.1, dt = %g\n", nrnopt_get_dbl("--dt"));
-
-    nrnopt_show();
-
-    nrnopt_delete();
-    return 0;
-}
-
-#endif  // test
+}  // namespace coreneuron

@@ -63,7 +63,6 @@ option(ENABLE_OMP_RUNTIME_SCHEDULE "Use runtime schedule for OpenMP" OFF)
 
 set(FRONTEND_C_COMPILER gcc CACHE FILEPATH "C compiler for building mod2c [frontend executable]")
 set(FRONTEND_CXX_COMPILER g++ CACHE FILEPATH "C++ compiler for building mod2c [frontend executable]")
-
 ## mech / mod options
 set(ADDITIONAL_MECHPATH "" CACHE PATH "Search path for optional additional mechanism MOD files")
 set(ADDITIONAL_MECHS "" CACHE FILEPATH "File containing list of additional mechanism MOD files")
@@ -189,7 +188,17 @@ if(CLANG_FORMAT_FOUND)
 
     # exclude ezoption header file
     list(REMOVE_ITEM SRC_FILES_FOR_CLANG_FORMAT
-        "${PROJECT_SOURCE_DIR}/coreneuron/utils/ezoption/ezOptionParser.hpp")
+        ${PROJECT_SOURCE_DIR}/coreneuron/utils/ezoption/ezOptionParser.hpp
+        ${PROJECT_SOURCE_DIR}/coreneuron/utils/endianness.h
+        ${PROJECT_SOURCE_DIR}/coreneuron/utils/swap_endian.h)
+
+    # exclude random123 files
+    file (GLOB_RECURSE RANDOM123_FILES
+        ${PROJECT_SOURCE_DIR}/coreneuron/utils/randoms/Random123/*.cpp
+        ${PROJECT_SOURCE_DIR}/coreneuron/utils/randoms/Random123/*.h)
+    foreach (R123_PATH ${RANDOM123_FILES})
+        list (REMOVE_ITEM SRC_FILES_FOR_CLANG_FORMAT ${R123_PATH})
+    endforeach(R123_PATH)
 
     add_custom_target(formatsource COMMAND ${CMAKE_COMMAND}
         -DSOURCE_FILES:STRING="${SRC_FILES_FOR_CLANG_FORMAT}"
@@ -210,8 +219,8 @@ if(ENABLE_OPENACC)
         if (ENABLE_OPENACC_INFO)
             set(ACC_FLAGS "${ACC_FLAGS} -Minfo=acc")
         endif()
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ACC_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ACC_FLAGS}")
+        set(CMAKE_C_FLAGS "${ACC_FLAGS} ${CMAKE_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${ACC_FLAGS} ${CMAKE_CXX_FLAGS}")
     else()
         message(WARNING "OpenACC implementation is only supported and tested using only PGI")
         message(WARNING "Add required compiler flags to enabled OpenACC")

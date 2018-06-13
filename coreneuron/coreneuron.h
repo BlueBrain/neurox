@@ -39,16 +39,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <math.h>
 
+#include "coreneuron/utils/randoms/nrnran123.h"      //Random Number Generator
 #include "coreneuron/scopmath_core/newton_struct.h"  //Newton Struct
 #include "coreneuron/nrnoc/membdef.h"                //static definitions
 #include "coreneuron/nrnoc/nrnoc_ml.h"               //Memb_list and mechs info
-#include "coreneuron/utils/randoms/nrnran123.h"      //Random Number Generator
 
-#if defined(__cplusplus)
 #include "coreneuron/nrniv/memory.h"  //Memory alignments and padding
 
-extern "C" {
-#endif
+namespace coreneuron {
 
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c
@@ -66,22 +64,20 @@ extern cvode_f_t get_ode_spec_function(const char * sym);
 #endif
 
 // from nrnoc/capac.c
-extern void nrn_init_capacitance(struct NrnThread*, struct Memb_list*, int);
-extern void nrn_cur_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_init_capacitance(NrnThread*, Memb_list*, int);
+extern void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type);
 extern void nrn_cur_parallel_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type,
                                          const  mod_acc_f_t, const mod_acc_f_t, void*);
 extern void nrn_alloc_capacitance(double* data, Datum* pdata, int type);
 
 // from nrnoc/eion.c
-extern void nrn_init_ion(struct NrnThread*, struct Memb_list*, int);
-extern void nrn_cur_ion(struct NrnThread* _nt, struct Memb_list* ml, int type);
+extern void nrn_init_ion(NrnThread*, Memb_list*, int);
+extern void nrn_cur_ion(NrnThread* _nt, Memb_list* ml, int type);
 extern void nrn_cur_parallel_ion(struct NrnThread* _nt, struct Memb_list* ml, int type,
                                  const mod_acc_f_t, const mod_acc_f_t, void*);
 extern void nrn_alloc_ion(double* data, Datum* pdata, int type);
 extern void second_order_cur(NrnThread* _nt, int secondorder);
 
-#if defined(__cplusplus)
-}
-#endif
+}  // namespace coreneuron
 
 #endif

@@ -4,9 +4,7 @@
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnoc/nrnoc_ml.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+namespace coreneuron {
 
 #if !defined(LAYOUT)
 /* 1 means AoS, >1 means AoSoA, <= 0 means SOA */
@@ -104,6 +102,13 @@ typedef struct SparseObj {  /* all the state information */
 } SparseObj;
 
 #pragma acc routine seq
+extern double* _nrn_thread_getelm(SparseObj* so, int row, int col, int _iml);
+
+extern void* nrn_cons_sparseobj(SPFUN, int, Memb_list*, _threadargsproto_);
+
+extern void _nrn_destroy_sparseobj_thread(SparseObj* so);
+
+#pragma acc routine seq
 extern int nrn_kinetic_steer(int, SparseObj*, double*, _threadargsproto_);
 #define spfun(arg1, arg2, arg3) nrn_kinetic_steer(arg1, arg2, arg3, _threadargs_);
 
@@ -134,8 +139,6 @@ extern void _modl_set_dt_thread(double, NrnThread*);
 
 void nrn_sparseobj_copyto_device(SparseObj* so);
 
-#if defined(__cplusplus)
-}
-#endif
+}  // namespace coreneuron
 
 #endif

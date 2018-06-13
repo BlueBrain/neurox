@@ -31,10 +31,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "coreneuron/nrniv/netcon.h"
 #include "coreneuron/nrniv/ivocvect.h"
-
+namespace coreneuron {
 class PlayRecord;
 
 #define VecPlayContinuousType 4
+#define PlayRecordEventType 21
 
 // used by PlayRecord subclasses that utilize discrete events
 class PlayRecordEvent : public DiscreteEvent {
@@ -47,6 +48,9 @@ class PlayRecordEvent : public DiscreteEvent {
     PlayRecord* plr_;
     static unsigned long playrecord_send_;
     static unsigned long playrecord_deliver_;
+    virtual int type() {
+        return PlayRecordEventType;
+    }
 };
 
 // common interface for Play and Record for all integration methods.
@@ -104,5 +108,5 @@ class VecPlayContinuous : public PlayRecord {
 
     PlayRecordEvent* e_;
 };
-
+}  // namespace coreneuron
 #endif

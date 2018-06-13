@@ -34,9 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrnmpi/nrnmpi.h"
 #include "coreneuron/nrnoc/nrnoc_decl.h"
-
-class PreSyn;
-class InputPreSyn;
+#include "coreneuron/nrnmpi/nrnmpidec.h"
 
 #include "coreneuron/nrniv/netcon.h"
 #include "coreneuron/nrniv/netcvode.h"
@@ -44,27 +42,27 @@ class InputPreSyn;
 #include "coreneuron/nrniv/ivocvect.h"
 #include "coreneuron/nrniv/multisend.h"
 #include "coreneuron/nrniv/nrn_assert.h"
+#if NRNMPI
+#include "coreneuron/nrnmpi/mpispike.h"
+#endif
+
+namespace coreneuron {
+
+class PreSyn;
+class InputPreSyn;
 
 static double t_exchange_;
 static double dt1_;  // 1/dt
 
-extern "C" {
-extern double t, dt;
-extern void nrn_fake_fire(int gid, double firetime, int fake_out);
 void nrn_spike_exchange_init();
-}
 
 #if NRNMPI
 
-#include "coreneuron/nrnmpi/mpispike.h"
-
-extern "C" {
 void nrn_timeout(int);
 void nrn_spike_exchange(NrnThread*);
 extern int nrnmpi_int_allmax(int);
 extern void nrnmpi_int_allgather(int*, int*, int);
 void nrn2ncs_outputevent(int netcon_output_index, double firetime);
-}
 
 // for compressed gid info during spike exchange
 bool nrn_use_localgid_;
@@ -86,6 +84,7 @@ static bool use_compress_;
 static int spfixout_capacity_;
 static int idxout_;
 static void nrn_spike_exchange_compressed(NrnThread*);
+
 #endif  // NRNMPI
 
 static int active_;
@@ -802,15 +801,14 @@ double set_mindelay(double maxdelay) {
 
     // printf("%d netpar_mindelay local %g now calling nrnmpi_mindelay\n", nrnmpi_myid, mindelay);
     //	double st = time();
-    mindelay_ = nrnmpi_mindelay(mindelay);
+    mindelay_ = nrnmpi_dbl_allmin(mindelay);
     //	add_wait_time(st);
     // printf("%d local min=%g  global min=%g\n", nrnmpi_myid, mindelay, mindelay_);
     errno = 0;
-    return mindelay;
 #else
     mindelay_ = mindelay;
-    return mindelay;
 #endif  // NRNMPI
+    return mindelay_;
 }
 
 void BBS_netpar_spanning_statistics(int* nsend, int* nsendmax, int* nrecv, int* nrecv_useful) {
@@ -916,3 +914,4 @@ int nrnmpi_spike_compress(int nspike, bool gid_compress, int xchng_meth) {
     return 0;
 #endif
 }
+}  // namespace coreneuron

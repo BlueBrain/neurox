@@ -37,6 +37,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #if NRNMPI
 #include <mpi.h>
 
+namespace coreneuron {
 static int np;
 static int* displs;
 static int* byteovfl; /* for the compressed transfer method */
@@ -107,8 +108,14 @@ static void make_spikebuf_type() {
 }
 #endif
 
+void wait_before_spike_exchange() {
+    MPI_Barrier(nrnmpi_comm);
+}
+
 int nrnmpi_spike_exchange() {
     int i, n;
+    wait_before_spike_exchange();
+
 #if nrn_spikebuf_size > 0
     int n1, novfl;
 #endif
@@ -239,15 +246,6 @@ int nrnmpi_spike_exchange_compressed() {
     }
     ovfl_ = novfl;
     return ntot;
-}
-
-double nrnmpi_mindelay(double m) {
-    double result;
-    if (!nrnmpi_use) {
-        return m;
-    }
-    MPI_Allreduce(&m, &result, 1, MPI_DOUBLE, MPI_MIN, nrnmpi_comm);
-    return result;
 }
 
 int nrnmpi_int_allmax(int x) {
@@ -526,7 +524,7 @@ static MPI_Comm multisend_comm;
 
 void nrnmpi_multisend_comm() {
     if (!multisend_comm) {
-        MPI_Comm_dup(&nrnmpi_world_comm, &multisend_comm);
+        MPI_Comm_dup(MPI_COMM_WORLD, &multisend_comm);
     }
 }
 
@@ -558,5 +556,5 @@ int nrnmpi_multisend_conserve(int nsend, int nrecv) {
 }
 
 #endif /*NRN_MULTISEND*/
-
+}  // namespace coreneuron
 #endif /*NRNMPI*/

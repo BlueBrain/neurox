@@ -36,14 +36,16 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrniv/netcvode.h"
 #include "coreneuron/nrniv/ivocvect.h"
 #include "coreneuron/nrniv/nrniv_decl.h"
+#include "coreneuron/nrnoc/nrnoc_decl.h"
 #include "coreneuron/nrniv/output_spikes.h"
 #include "coreneuron/nrniv/nrn_assert.h"
 #include "coreneuron/nrniv/nrn_acc_manager.h"
 #include "coreneuron/nrniv/multisend.h"
+#include "coreneuron/nrnoc/membfunc.h"
 #ifdef _OPENACC
 #include <openacc.h>
 #endif
-
+namespace coreneuron {
 #define PP2NT(pp) (nrn_threads + (pp)->_tid)
 #define PP2t(pp) (PP2NT(pp)->_t)
 #define POINT_RECEIVE(type, tar, w, f) (*pnt_receive[type])(tar, w, f)
@@ -63,22 +65,6 @@ void mk_netcvode() {
     }
 }
 
-extern void nrn_outputevent(unsigned char, double);
-extern "C" {
-extern pnt_receive_t* pnt_receive;
-extern pnt_receive_t* pnt_receive_init;
-extern short* nrn_artcell_qindex_;
-extern bool nrn_use_localgid_;
-extern void nrn2ncs_outputevent(int netcon_output_index, double firetime);
-void net_send(void**, int, Point_process*, double, double);
-void net_event(Point_process* pnt, double time);
-void net_move(void**, Point_process*, double);
-void net_sem_from_gpu(int sendtype, int i_vdata, int, int ith, int ipnt, double, double);
-void artcell_net_send(void**, int, Point_process*, double, double);
-void artcell_net_move(void**, Point_process*, double);
-extern void nrn_fixed_step_minimal();
-extern void nrn_fixed_step_group_minimal(int);
-
 #ifdef DEBUG
 // temporary
 static int nrn_errno_check(int type) {
@@ -88,7 +74,6 @@ static int nrn_errno_check(int type) {
     return 1;
 }
 #endif
-}
 
 // for _OPENACC and/or NET_RECEIVE_BUFFERING
 // sem 0:3 send event move
@@ -825,3 +810,4 @@ tryagain:
         (*net_buf_receive_[i])(nt);
     }
 }
+}  // namespace coreneuron
