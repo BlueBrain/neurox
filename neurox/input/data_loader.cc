@@ -1588,19 +1588,21 @@ hpx_t DataLoader::CreateBranch(
            bottom_compartment->branches_.size() == 1;
            bottom_compartment = bottom_compartment->branches_.front()) {
         Compartment *&next_comp = bottom_compartment->branches_.front();
+
         /* soma and AIS cant be split due to AP threshold communication */
         if (!is_soma && !is_AIS)
           if (subsection_runtime + next_comp->runtime_ > max_work_per_subtree)
             break;
+
         subsection.push_back(bottom_compartment->branches_.front());
         subsection_runtime += bottom_compartment->branches_.front()->runtime_;
       }
 
       /* let user know, this will be the limiting factor of parallelism */
-      if (subsection_runtime > max_work_per_subtree)
+      if (subsection_runtime < max_work_per_subtree*0.5)
         printf(
             "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
-            "exceeds max workload per subsection %.5f ms. total neuron time "
+            "is smaller than half max workload per subtree %.5f ms. total neuron time "
             "%.5f ms (max parallelism capped at %.2fx)\n",
             top_compartment->id_, subsection.size(), subsection_runtime,
             max_work_per_subtree, neuron_runtime,

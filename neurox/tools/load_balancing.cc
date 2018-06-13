@@ -85,13 +85,13 @@ double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
   work_per_section /= wrappers::NumThreads();
 
   // for a multi-thread CPU with several neurons...
-  work_per_section *= my_neurons_count;
+  //work_per_section *= my_neurons_count;
 
   // scale by constant 1/K (see paper)
-  work_per_section /= input_params_->subtree_complexity;
+  work_per_section *= input_params_->subtree_complexity;
 
   // if graph parallelism is available, increase the work by a factor of...?
-  if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
+  //if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
 
   return work_per_section;
 }
