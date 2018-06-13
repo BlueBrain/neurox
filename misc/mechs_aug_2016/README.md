@@ -1,6 +1,5 @@
-These are the C-generated files from neurodamus branch `origin/sandbox/king/saveupdate_v6support_mask`, commit `db02c01cac318a153b1cc62e006a9e6c23b51169` from Tue Jun 12 12:23:57 2018.
+These are the C-generated files from neurodamus branch `coreneuronsetup`, commit `16859cd29b78a5d251a0ab2c23dbff43d423a773` from 10 Aug 2016.
 Few minor changes
 - Added initialization of shadow rhs and shadow didv on `nrn_init` methods
 - added `nrn_current_parallel` methods
-- added net_receive2
 - StochKv only: added `#define usingR123 0` to disable Random123 generation, to fix crash
