@@ -407,18 +407,16 @@ void _net_receive (Point_process* _pnt, int _weight_index, double _lflag)
 }
 
 #if NET_RECEIVE_BUFFERING
-void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_index, double _lflag, double _nrb_t)
+void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag, double _nrb_t)
 #else
-void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_index, double _lflag)
+void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag)
 #endif
 {
    double* _p; Datum* _ppvar;  double v; int _cntml_padded, _cntml_actual; double* _args;
    double *_weights = _nt->_weights;
    _args = _weights + _weight_index;
-   _ml = _nt->_ml_list[_pnt->_type];
    _cntml_actual = _ml->_nodecount;
    _cntml_padded = _ml->_nodecount_padded;
-   _iml = _pnt->_i_instance;
 #if LAYOUT == 1 /*AoS*/
    _p = _ml->_data + _iml*_psize; _ppvar = _ml->_pdata + _iml*_ppsize;
 #endif
@@ -510,16 +508,20 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 #endif
 
 
-  void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
-    nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
-  }
 
-  void nrn_cur_parallel(_NrnThread* _nt, _Memb_list* _ml, int _type,
-                        const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
-  {
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
+
+void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
+  nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
+}
+
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
+{
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
-    _ni = _ml->_nodeindices;
+_ni = _ml->_nodeindices;
 _cntml_actual = _ml->_nodecount;
 _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;

@@ -378,6 +378,7 @@ for (;;) { /* help clang-format properly indent */
  }
   }
 }
+}
 
 static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v;{ {
    gSKv3_1 = gSKv3_1bar * m ;
@@ -394,6 +395,9 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(NrnThread*, Memb_list*, int, int);
 #endif
 
+
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
 
 void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
   nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
@@ -443,6 +447,9 @@ for (;;) { /* help clang-format properly indent */
     _PRCELLSTATE_V
   ek = _ion_ek;
  _g = _nrn_current(_threadargs_, _v + .001);
+ _rhs = _nrn_current(_threadargs_, _v);
+ double _dik;
+ _dik = ik;
  if (acc_i_didv)
  {
      _vec_shadow_i[_iml] = +ik;
@@ -464,7 +471,6 @@ else
     _vec_rhs[_nd_idx] -= _rhs;
     _vec_d[_nd_idx] += _g;
 }
- 
 }
 
 //accumulation of individual contributions (for parallel executions)

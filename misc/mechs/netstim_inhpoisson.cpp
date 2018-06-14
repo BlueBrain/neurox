@@ -645,11 +645,11 @@ static double _hoc_update_time(void* _vptr) {
  
 #endif /*BBCORE*/
  
-void _net_receive2 (NnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
+void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
 static void _net_receive (Point_process* _pnt, int _weight_index, double _lflag) 
-{   _Memb_list* _ml;  int _iml;
+{   Memb_list* _ml;  int _iml;
 
-   _NrnThread* _nt;
+   NrnThread* _nt;
    int _tid = _pnt->_tid;
    _nt = nrn_threads + _tid;
 
@@ -664,7 +664,12 @@ void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index
    assert(0); //BRUNO ADDED THIS (need to solve ref to Point_Process * _pnt first
    Point_process* _pnt = NULL;
 
-   double* _p; Datum* _ppvar;  double v; int _cntml_padded, _cntml_actual; double* _args;
+   double* _p; Datum* _ppvar; ThreadDatum* _thread; double v;
+   int _cntml_padded, _cntml_actual; double* _args;
+
+   int _tid = _pnt->_tid;
+   _nt = nrn_threads + _tid;
+   _thread = (ThreadDatum*)0;
    double *_weights = _nt->_weights;
    _args = _weights + _weight_index;
    _ml = _nt->_ml_list[_pnt->_type];

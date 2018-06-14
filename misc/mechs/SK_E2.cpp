@@ -393,6 +393,7 @@ for (;;) { /* help clang-format properly indent */
  }
   }
 }
+}
 
 static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v;{ {
    gSK_E2 = gSK_E2bar * z ;
@@ -408,6 +409,9 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_jacob_launcher(NrnThread*, Memb_list*, int, int);
   void nrn_cur_launcher(NrnThread*, Memb_list*, int, int);
 #endif
+
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
 
 void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
   nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
@@ -458,6 +462,9 @@ for (;;) { /* help clang-format properly indent */
   ek = _ion_ek;
   cai = _ion_cai;
  _g = _nrn_current(_threadargs_, _v + .001);
+ double _dik;
+ _dik = ik;
+_rhs = _nrn_current(_threadargs_, _v);
  if (acc_i_didv)
  {
      _vec_shadow_i[_iml] = +ik;

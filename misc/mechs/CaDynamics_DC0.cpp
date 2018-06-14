@@ -86,8 +86,10 @@
 #define nrn_state_launcher nrn_state_CaDynamics_DC0_launcher
 #define nrn_cur_launcher nrn_cur_CaDynamics_DC0_launcher
 #define nrn_jacob_launcher nrn_jacob_CaDynamics_DC0_launcher 
-#define states states_CaDynamics_DC0 
- 
+#define states states_CaDynamics_DC0
+#define _ode_matsol1 _nrn_ode_matsol1__CaDynamics_DC0
+#define _ode_spec1 _nrn_ode_spec1__CaDynamics_DC0
+
 #undef _threadargscomma_
 #undef _threadargsprotocomma_
 #undef _threadargs_

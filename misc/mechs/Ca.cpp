@@ -405,6 +405,7 @@ for (;;) { /* help clang-format properly indent */
  }
   }
 }
+}
 
 static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v;{ {
    gCa = gCabar * m * m * h ;
@@ -422,7 +423,10 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
 #endif
 
 
-void nrn_cur(_NrnThread* _nt, _Memb_list* _ml, int _type) {
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
+
+void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
   nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
 }
 
@@ -470,10 +474,9 @@ for (;;) { /* help clang-format properly indent */
     _PRCELLSTATE_V
   eca = _ion_eca;
  _g = _nrn_current(_threadargs_, _v + .001);
- 	{ double _dica;
+  double _dica;
   _dica = ica;
  _rhs = _nrn_current(_threadargs_, _v);
- 	}
  _g = (_g - _rhs)/.001;
  if (acc_i_didv)
  {

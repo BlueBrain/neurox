@@ -94,7 +94,9 @@
 #define setRNG setRNG_StochKv3 
 #define states states_StochKv3 
 #define trates trates_StochKv3 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__StochKv3
+#define _ode_spec1 _nrn_ode_spec1__StochKv3
+
 #undef _threadargscomma_
 #undef _threadargsprotocomma_
 #undef _threadargs_

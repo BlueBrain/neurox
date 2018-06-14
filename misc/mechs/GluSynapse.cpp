@@ -102,7 +102,9 @@ static void _net_buf_receive(NrnThread*);
 #define _nrn_watch_check _nrn_watch_check__GluSynapse 
 #define setRNG setRNG_GluSynapse 
 #define state state_GluSynapse 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__GluSynapse
+#define _ode_spec1 _nrn_ode_spec1__GluSynapse
+
 #undef _threadargscomma_
 #undef _threadargsprotocomma_
 #undef _threadargs_

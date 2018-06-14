@@ -88,7 +88,9 @@
 #define nrn_jacob_launcher nrn_jacob_NaTa_t_launcher 
 #define rates rates_NaTa_t 
 #define states states_NaTa_t 
- 
+#define _ode_matsol1 _nrn_ode_matsol1__NaTa_t
+#define _ode_spec1 _nrn_ode_spec1__NaTa_t
+
 #undef _threadargscomma_
 #undef _threadargsprotocomma_
 #undef _threadargs_

@@ -512,7 +512,7 @@ static void _net_buf_receive(NrnThread* _nt) {
  
 void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag, double _nrb_t);
 void _net_receive (Point_process* _pnt, int _weight_index, double _lflag) {
-  _NrnThread* _nt = nrn_threads + _pnt->_tid;
+  NrnThread* _nt = nrn_threads + _pnt->_tid;
   NetReceiveBuffer_t* _nrb = _nt->_ml_list[_mechtype]->_net_receive_buffer;
   if (_nrb->_cnt >= _nrb->_size){
     realloc_net_receive_buffer(_nt, _nt->_ml_list[_mechtype]);
@@ -531,9 +531,9 @@ void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index
 void _net_receive (Point_process* _pnt, int _weight_index, double _lflag)
 #endif
 
-{   _Memb_list* _ml;  int _iml;
+{   Memb_list* _ml;  int _iml;
 
-   _NrnThread* _nt;
+   NrnThread* _nt;
    int _tid = _pnt->_tid;
    _nt = nrn_threads + _tid;
 
@@ -547,9 +547,9 @@ void _net_receive (Point_process* _pnt, int _weight_index, double _lflag)
 }
 
 #if NET_RECEIVE_BUFFERING
-void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_index, double _lflag, double _nrb_t)
+void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag, double _nrb_t)
 #else
-void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_index, double _lflag)
+void _net_receive2 (NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag)
 #endif
 {
    double* _p; Datum* _ppvar;  double v; int _cntml_padded, _cntml_actual; double* _args;
@@ -570,69 +570,69 @@ void _net_receive2 (_NrnThread * _nt, _Memb_list* _ml, int _iml, int _weight_ind
 #if LAYOUT > 1 /*AoSoA*/
 #error AoSoA not implemented.
 #endif
-  #if !defined(_OPENACC) 
- assert(_tsav <= t); 
- #endif 
- _tsav = t; {
-   double _lresult ;
- _args[1] = _args[0] ;
-   _args[2] = _args[0] * NMDA_ratio ;
-   if (  ! ( _args[0] > 0.0 ) ) {
-     
-/*VERBATIM*/
-        return;
- }
-   if ( Fac > 0.0 ) {
-     u = u * exp ( - ( t - tsyn ) / Fac ) ;
-     }
-   else {
-     u = Use ;
-     }
-   if ( Fac > 0.0 ) {
-     u = u + Use * ( 1.0 - u ) ;
-     }
-   {int  _lcounter ;for ( _lcounter = 0 ; _lcounter <= ( ((int) unoccupied ) - 1 ) ; _lcounter ++ ) {
-     _args[3] = exp ( - ( t - tsyn ) / Dep ) ;
-     _lresult = urand ( _threadargs_ ) ;
-     if ( _lresult > _args[3] ) {
-       occupied = occupied + 1.0 ;
+  #if !defined(_OPENACC)
+ assert(_tsav <= t);
+ #endif
+   _tsav = t; {
+     double _lresult , _lves , _loccu ;
+   _args[1] = _args[0] ;
+     _args[2] = _args[0] * NMDA_ratio ;
+     if (  ! ( _args[0] > 0.0 ) ) {
+
+  /*VERBATIM*/
+          return;
+   }
+     if ( Fac > 0.0 ) {
+       u = u * exp ( - ( t - tsyn ) / Fac ) ;
+       }
+     else {
+       u = Use ;
+       }
+     if ( Fac > 0.0 ) {
+       u = u + Use * ( 1.0 - u ) ;
+       }
+     {int  _lcounter ;for ( _lcounter = 0 ; _lcounter <= ( ((int) unoccupied ) - 1 ) ; _lcounter ++ ) {
+       _args[3] = exp ( - ( t - tsyn ) / Dep ) ;
+       _lresult = urand ( _threadargs_ ) ;
+       if ( _lresult > _args[3] ) {
+         occupied = occupied + 1.0 ;
+         if ( verboseLevel > 0.0 ) {
+            printf ( "Recovered! %f at time %g: Psurv = %g, urand=%g\n" , synapseID , t , _args[3] , _lresult ) ;
+            }
+         }
+       } }
+     _lves = 0.0 ;
+     _loccu = occupied - 1.0 ;
+     {int  _lcounter ;for ( _lcounter = 0 ; _lcounter <= ((int) _loccu ) ; _lcounter ++ ) {
+       _lresult = urand ( _threadargs_ ) ;
+       if ( _lresult < u ) {
+         occupied = occupied - 1.0 ;
+         _lves = _lves + 1.0 ;
+         }
+       } }
+     unoccupied = Nrrp - occupied ;
+     tsyn = t ;
+     if ( _lves > 0.0 ) {
+       A_AMPA = A_AMPA + _lves / Nrrp * _args[1] * factor_AMPA ;
+       B_AMPA = B_AMPA + _lves / Nrrp * _args[1] * factor_AMPA ;
+       A_NMDA = A_NMDA + _lves / Nrrp * _args[2] * factor_NMDA ;
+       B_NMDA = B_NMDA + _lves / Nrrp * _args[2] * factor_NMDA ;
        if ( verboseLevel > 0.0 ) {
-          printf ( "Recovered! %f at time %g: Psurv = %g, urand=%g\n" , synapseID , t , _args[3] , _lresult ) ;
+          printf ( "Release! %f at time %g: vals %g %g %g %g\n" , synapseID , t , A_AMPA , _args[1] , factor_AMPA , _args[0] ) ;
           }
        }
-     } }
-   _lves = 0.0 ;
-   _loccu = occupied - 1.0 ;
-   {int  _lcounter ;for ( _lcounter = 0 ; _lcounter <= ((int) _loccu ) ; _lcounter ++ ) {
-     _lresult = urand ( _threadargs_ ) ;
-     if ( _lresult < u ) {
-       occupied = occupied - 1.0 ;
-       _lves = _lves + 1.0 ;
+     else {
+       if ( verboseLevel > 0.0 ) {
+          printf ( " || SYN_ID: %f, release failure || " , synapseID ) ;
+          }
        }
-     } }
-   unoccupied = Nrrp - occupied ;
-   tsyn = t ;
-   if ( _lves > 0.0 ) {
-     A_AMPA = A_AMPA + _lves / Nrrp * _args[1] * factor_AMPA ;
-     B_AMPA = B_AMPA + _lves / Nrrp * _args[1] * factor_AMPA ;
-     A_NMDA = A_NMDA + _lves / Nrrp * _args[2] * factor_NMDA ;
-     B_NMDA = B_NMDA + _lves / Nrrp * _args[2] * factor_NMDA ;
-     if ( verboseLevel > 0.0 ) {
-        printf ( "Release! %f at time %g: vals %g %g %g %g\n" , synapseID , t , A_AMPA , _args[1] , factor_AMPA , _args[0] ) ;
-        }
      }
-   else {
-     if ( verboseLevel > 0.0 ) {
-        printf ( " || SYN_ID: %f, release failure || " , synapseID ) ;
-        }
-     }
-   } 
-#if NET_RECEIVE_BUFFERING
-#undef t
-#define t _nt->_t
-#endif
- }
- 
+  #if NET_RECEIVE_BUFFERING
+  #undef t
+  #define t _nt->_t
+  #endif
+}
+
 static void _net_init(Point_process* _pnt, int _weight_index, double _lflag) {
    
    double* _p; Datum* _ppvar; ThreadDatum* _thread; 
@@ -965,13 +965,16 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(NrnThread*, Memb_list*, int, int);
 #endif
 
-  void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
-    nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
-  }
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
 
-  void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
-                        const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
-  {
+void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
+  nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
+}
+
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                      const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
+{
 double* _p; Datum* _ppvar; ThreadDatum* _thread;
 int* _ni; double _rhs, _g, _v, v; int _iml, _cntml_padded, _cntml_actual;
     _ni = _ml->_nodeindices;

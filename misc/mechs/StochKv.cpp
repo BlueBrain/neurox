@@ -1106,6 +1106,7 @@ for (;;) { /* help clang-format properly indent */
  }
   }
 }
+}
 
 static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v;{ {
    gk = ( strap ( _threadargscomma_ N1 ) * scale_dens * tadj ) ;
@@ -1122,6 +1123,9 @@ static double _nrn_current(_threadargsproto_, double _v){double _current=0.;v=_v
   void nrn_cur_launcher(NrnThread*, Memb_list*, int, int);
 #endif
 
+
+void nrn_cur_parallel(NrnThread* _nt, Memb_list* _ml, int _type,
+                        const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args);
 
 void nrn_cur(NrnThread* _nt, Memb_list* _ml, int _type) {
     nrn_cur_parallel(_nt, _ml, _type, NULL, NULL, NULL);
@@ -1142,7 +1146,6 @@ double * _vec_shadow_rhs = _ml->_shadow_rhs;
 double * _vec_shadow_d = _ml->_shadow_d;
 double * _vec_shadow_i = _ml->_shadow_i;
 double * _vec_shadow_didv = _ml->_shadow_didv;
-
 
 #if defined(ENABLE_CUDA_INTERFACE) && defined(_OPENACC) && !defined(DISABLE_OPENACC)
   NrnThread* d_nt = acc_deviceptr(_nt);
