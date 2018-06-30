@@ -95,7 +95,10 @@
 #define _net_receive2 _net_receive2__ProbAMPANMDA_EMS
 #define nrn_state_launcher nrn_state_ProbAMPANMDA_EMS_launcher
 #define nrn_cur_launcher nrn_cur_ProbAMPANMDA_EMS_launcher
-#define nrn_jacob_launcher nrn_jacob_ProbAMPANMDA_EMS_launcher 
+#define nrn_jacob_launcher nrn_jacob_ProbAMPANMDA_EMS_launcher
+#define _ode_matsol1 _nrn_ode_matsol1__ProbAMPANMDA_EMS
+#define _ode_spec1 _nrn_ode_spec1__ProbAMPANMDA_EMS
+ 
 #if NET_RECEIVE_BUFFERING
 #define _net_buf_receive _net_buf_receive_ProbAMPANMDA_EMS
 static void _net_buf_receive(NrnThread*);
@@ -103,9 +106,7 @@ static void _net_buf_receive(NrnThread*);
  
 #define setRNG setRNG_ProbAMPANMDA_EMS 
 #define state state_ProbAMPANMDA_EMS 
-#define _ode_matsol1 _nrn_ode_matsol1__ProbAMPANMDA_EMS
-#define _ode_spec1 _nrn_ode_spec1__ProbAMPANMDA_EMS
-
+ 
 #undef _threadargscomma_
 #undef _threadargsprotocomma_
 #undef _threadargs_

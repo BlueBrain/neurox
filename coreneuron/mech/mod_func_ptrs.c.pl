@@ -1,22 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2014 EPFL-BBP, All rights reserved.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT
-# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-# Constructs the getters for mechanisms function pointers;
-
+# Author: Bruno Magalhaes
 # Usage: mod_func_ptrs.c.pl [PATH-MECH1.mod PATH-MECH2.mod ...]
 
 @mods=@ARGV;
@@ -39,6 +23,7 @@ __eof
 #Get the correct SUFFIX from each mod file for each mechanism
 @suffixes_all=();
 @suffixes_with_cur=(); #with cur function (BREAKPOINT block in mod)
+@suffixes_with_state_vars=(); # with state vars i.e. STATE block in mod
 @suffixes_with_net_receive=(); #with NET_RECEIVE function in mod
 
 for $m(@mods) {
@@ -69,6 +54,12 @@ for $m(@mods) {
     push(@suffixes_with_cur, $suffix);
   }
 
+  #add only those with nrn_cur function definition
+  my @breakpointlines = grep /STATE/, @content;
+  if (scalar @breakpointlines == 1) {
+    push(@suffixes_with_state_vars, $suffix);
+  }
+
   #add only those with net_receive function definition
   my @breakpointlines = grep /NET_RECEIVE/, @content;
   if (scalar @breakpointlines == 1) {
@@ -83,6 +74,9 @@ for $f(@funcs) {
 @suffixes_with_this_func=();
 if ($f eq "cur"){
   @suffixes_with_this_func = @suffixes_with_cur;
+}
+elsif ($f eq "state_vars"){
+  @suffixes_with_this_func = @suffixes_with_state_vars;
 }
 else {
   @suffixes_with_this_func = @suffixes_all;
@@ -153,29 +147,29 @@ __eof
 # CVODES-specifc methods
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_ode_state_vars__${_}(short*, short**, short**)"} @suffixes_with_cur]};
+extern void \n  @{[join ",\n  ", map {"_nrn_ode_state_vars__${_}(int*, int**, int**)"} @suffixes_with_state_vars]};
 
 state_vars_f_t get_ode_state_vars_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_state_vars__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_state_vars__${_};"} @suffixes_with_state_vars]}
   return NULL;
 }
 
 
-extern int \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_cur]};
+extern int \n  @{[join ",\n  ", map {"_nrn_ode_matsol1__${_}(threadargsproto)"} @suffixes_with_state_vars]};
 
 cvode_f_t get_ode_matsol_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_matsol1__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_matsol1__${_};"} @suffixes_with_state_vars]}
   return NULL;
 }
 
 
-extern int \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_cur]};
+extern int \n  @{[join ",\n  ", map {"_nrn_ode_spec1__${_}(threadargsproto)"} @suffixes_with_state_vars]};
 
 cvode_f_t get_ode_spec_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_spec1__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_ode_spec1__${_};"} @suffixes_with_state_vars]}
   return NULL;
 }
 

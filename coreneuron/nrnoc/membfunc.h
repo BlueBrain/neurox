@@ -48,8 +48,8 @@ typedef void (*mod_parallel_f_t)(NrnThread*, Memb_list*, int, //same as mod_f_t
                          void * args); //last argument passed to all acc functions
 
 //CVODES-specific functions
-#define threadargsproto int, int, double*, int*, ThreadDatum*, struct NrnThread*, double
-typedef void (*state_vars_f_t)(short*, short**, short**);
+#define threadargsproto int, int, double*, Datum*, ThreadDatum*, struct NrnThread*, double
+typedef void (*state_vars_f_t)(int*, int**, int**);
 typedef int (*cvode_f_t)(threadargsproto);
 
 /*

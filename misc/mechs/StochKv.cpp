@@ -1141,7 +1141,7 @@ _cntml_actual = _ml->_nodecount;
 _cntml_padded = _ml->_nodecount_padded;
 _thread = _ml->_thread;
 double * _vec_rhs = _nt->_actual_rhs;
-double * _vec_d =   _nt->_actual_d;
+double * _vec_d = _nt->_actual_d;
 double * _vec_shadow_rhs = _ml->_shadow_rhs;
 double * _vec_shadow_d = _ml->_shadow_d;
 double * _vec_shadow_i = _ml->_shadow_i;
@@ -1185,13 +1185,11 @@ for (;;) { /* help clang-format properly indent */
  _PRCELLSTATE_G
  if (acc_rhs_d)
  {
-    _vec_shadow_rhs[_iml] = -_rhs;
-    _vec_shadow_d[_iml] = +_g;
- }
- else
- {
-    _vec_rhs[_nd_idx] -= _rhs;
-    _vec_d[_nd_idx] += _g;
+  _vec_shadow_rhs[_iml] = -_rhs;
+  _vec_shadow_d[_iml] = +_g;
+ } else {
+  _vec_rhs[_nd_idx] -= _rhs;
+  _vec_d[_nd_idx] += _g;
  }
 }
 //accumulation of individual contributions (for parallel executions)

@@ -128,7 +128,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
 Mechanism::StateVars::StateVars()
     : count_(0), var_offsets_(nullptr), dv_offsets_(nullptr) {}
 
-Mechanism::StateVars::StateVars(short count, short *offsets, short *dv_offsets)
+Mechanism::StateVars::StateVars(int count, int *offsets, int *dv_offsets)
     : count_(count), var_offsets_(offsets), dv_offsets_(dv_offsets) {}
 
 Mechanism::StateVars::~StateVars() {

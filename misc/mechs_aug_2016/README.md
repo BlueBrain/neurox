@@ -3,3 +3,5 @@ Few minor changes
 - Added initialization of shadow rhs and shadow didv on `nrn_init` methods
 - added `nrn_current_parallel` methods
 - StochKv only: added `#define usingR123 0` to disable Random123 generation, to fix crash
+- added net_receive2
+- added cvode functions
