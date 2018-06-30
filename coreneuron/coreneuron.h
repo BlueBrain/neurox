@@ -51,12 +51,11 @@ namespace coreneuron {
 #ifdef EXPORT_MECHS_FUNCTIONS
 // from (auto-generated) mod_func_ptrs.c
 extern mod_f_t get_init_function(const char* sym);
-extern mod_f_t get_cur_function(const char* sym);
+extern mod_cur_f_t get_cur_function(const char* sym);
 extern mod_f_t get_state_function(const char* sym);
 extern mod_f_t get_jacob_function(const char* sym);
 extern mod_f_t get_BA_function(const char* sym, int BA_func_id);
-extern pnt_receive2_t get_net_receive_function(const char* sym);
-extern mod_parallel_f_t get_cur_parallel_function(const char* sym);
+extern pnt_receive_t get_net_receive_function(const char* sym);
 //CVODES-specific methods
 extern state_vars_f_t get_ode_state_vars_function(const char * sym);
 extern cvode_f_t get_ode_matsol_function(const char * sym);
@@ -65,16 +64,14 @@ extern cvode_f_t get_ode_spec_function(const char * sym);
 
 // from nrnoc/capac.c
 extern void nrn_init_capacitance(NrnThread*, Memb_list*, int);
-extern void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type);
-extern void nrn_cur_parallel_capacitance(struct NrnThread* _nt, struct Memb_list* ml, int type,
-                                         const  mod_acc_f_t, const mod_acc_f_t, void*);
+extern void nrn_cur_capacitance(NrnThread* _nt, Memb_list* ml, int type,
+                                mod_acc_f_t = NULL, mod_acc_f_t = NULL, void* = NULL);
 extern void nrn_alloc_capacitance(double* data, Datum* pdata, int type);
 
 // from nrnoc/eion.c
 extern void nrn_init_ion(NrnThread*, Memb_list*, int);
-extern void nrn_cur_ion(NrnThread* _nt, Memb_list* ml, int type);
-extern void nrn_cur_parallel_ion(struct NrnThread* _nt, struct Memb_list* ml, int type,
-                                 const mod_acc_f_t, const mod_acc_f_t, void*);
+extern void nrn_cur_ion(NrnThread* _nt, Memb_list* ml, int type,
+                        mod_acc_f_t = NULL, mod_acc_f_t = NULL, void* = NULL);
 extern void nrn_alloc_ion(double* data, Datum* pdata, int type);
 extern void second_order_cur(NrnThread* _nt, int secondorder);
 

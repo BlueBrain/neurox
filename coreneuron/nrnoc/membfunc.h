@@ -38,14 +38,13 @@ struct NrnThread;
 
 typedef void (*mod_alloc_t)(double*, Datum*, int);
 typedef void (*mod_f_t)(NrnThread*, Memb_list*, int);
-typedef void (*pnt_receive_t)(Point_process*, int, double);
-typedef void (*pnt_receive2_t)(NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag);
+typedef void (*pnt_receive_t)(NrnThread *, Memb_list*, int, int, double);
 
 //for locked calls to `current` functions:
 typedef void (*mod_acc_f_t) (NrnThread*, Memb_list *, int, void*); //type of function to accumulate RHS and D
-typedef void (*mod_parallel_f_t)(NrnThread*, Memb_list*, int, //same as mod_f_t
-                         mod_acc_f_t, mod_acc_f_t, //functions to accumulate RHS+D+I and dIdV
-                         void * args); //last argument passed to all acc functions
+typedef void (*mod_cur_f_t)(NrnThread*, Memb_list*, int, //same as mod_f_t
+                            mod_acc_f_t, mod_acc_f_t, //functions to accumulate RHS+D+I and dIdV
+                            void * args); //last argument passed to all acc functions
 
 //CVODES-specific functions
 #define threadargsproto int, int, double*, Datum*, ThreadDatum*, struct NrnThread*, double
@@ -57,8 +56,7 @@ typedef int (*cvode_f_t)(threadargsproto);
  */
 struct Memb_func {
     mod_alloc_t alloc;
-    mod_f_t current;
-    mod_parallel_f_t current_parallel;
+    mod_cur_f_t current;
     mod_f_t jacob;
     mod_f_t state;
     mod_f_t initialize;
@@ -121,7 +119,7 @@ extern int nrn_get_mechtype(const char*);
 extern const char* nrn_get_mechname(int);  // slow. use memb_func[i].sym if posible
 extern int register_mech(const char** m,
                          mod_alloc_t alloc,
-                         mod_f_t cur,
+                         mod_cur_f_t cur,
                          mod_f_t jacob,
                          mod_f_t stat,
                          mod_f_t initialize,
@@ -129,7 +127,7 @@ extern int register_mech(const char** m,
                          int vectorized);
 extern int point_register_mech(const char**,
                                mod_alloc_t alloc,
-                               mod_f_t cur,
+                               mod_cur_f_t cur,
                                mod_f_t jacob,
                                mod_f_t stat,
                                mod_f_t initialize,

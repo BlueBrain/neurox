@@ -181,7 +181,7 @@ void initnrn() {
 /* if vectorized then thread_data_size added to it */
 int register_mech(const char** m,
                   mod_alloc_t alloc,
-                  mod_f_t cur,
+                  mod_cur_f_t cur,
                   mod_f_t jacob,
                   mod_f_t stat,
                   mod_f_t initialize,
@@ -425,7 +425,7 @@ int point_reg_helper(Symbol* s2) {
 
 int point_register_mech(const char** m,
                         mod_alloc_t alloc,
-                        mod_f_t cur,
+                        mod_cur_f_t cur,
                         mod_f_t jacob,
                         mod_f_t stat,
                         mod_f_t initialize,

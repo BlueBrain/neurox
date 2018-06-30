@@ -283,12 +283,8 @@ double nrn_nernst_coef(int type) {
 }
 
 /* Must be called prior to any channels which update the currents */
-void nrn_cur_ion(NrnThread* nt, Memb_list* ml, int type) {
-  nrn_cur_parallel_ion(nt, ml, type, NULL, NULL, NULL);
-}
-
-void nrn_cur_parallel_ion(NrnThread* nt, Memb_list* ml, int type,
-                          const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
+void nrn_cur_ion(NrnThread* nt, Memb_list* ml, int type,
+                 const mod_acc_f_t acc_rhs_d, const mod_acc_f_t acc_i_didv, void *args)
 {
     int _cntml_actual = ml->nodecount;
     int _iml;

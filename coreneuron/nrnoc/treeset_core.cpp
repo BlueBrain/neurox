@@ -68,8 +68,8 @@ static void nrn_rhs(NrnThread* _nt) {
     /* note that CAP has no current */
     for (tml = _nt->tml; tml; tml = tml->next)
         if (memb_func[tml->index].current) {
-            mod_f_t s = memb_func[tml->index].current;
-            (*s)(_nt, tml->ml, tml->index);
+            mod_cur_f_t s = memb_func[tml->index].current;
+            (*s)(_nt, tml->ml, tml->index, NULL, NULL, NULL);
 #ifdef DEBUG
             if (errno) {
                 hoc_warning("errno set during calculation of currents", (char*)0);

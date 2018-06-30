@@ -70,8 +70,7 @@ class Mechanism {
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
-  pnt_receive2_t pnt_receive_;
-  pnt_receive2_t pnt_receive_init_;
+  pnt_receive_t pnt_receive_;
   bbcore_read_t nrn_bbcore_read_;
 
   // CVODES-specific

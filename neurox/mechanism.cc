@@ -29,7 +29,6 @@ Mechanism::Mechanism(const int type, const short int data_size,
       successors_(nullptr),
       state_vars_(nullptr),
       pnt_receive_(nullptr),
-      pnt_receive_init_(nullptr),
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
       div_capacity_(nullptr),
@@ -55,21 +54,18 @@ Mechanism::Mechanism(const int type, const short int data_size,
 
   // non-coreneuron functions
   if (this->type_ != CAP && !this->is_ion_) {
-    this->memb_func_.current_parallel =
-        get_cur_parallel_function(this->memb_func_.sym);
+    this->memb_func_.current = get_cur_function(this->memb_func_.sym);
     this->pnt_receive_ = get_net_receive_function(this->memb_func_.sym);
     this->memb_func_.jacob = get_jacob_function(this->memb_func_.sym);
   } else if (this->type_ == CAP)  // capacitance: capac.c
   {
     this->memb_func_.current = nrn_cur_capacitance;
-    this->memb_func_.current_parallel = nrn_cur_parallel_capacitance;
     this->memb_func_.jacob = nrn_jacob_capacitance;
     this->div_capacity_ = nrn_div_capacity;  // CVODE-specific
     this->mul_capacity_ = nrn_mul_capacity;  // CVODE-specific
   } else if (this->is_ion_)                  // ion: eion.c
   {
     this->memb_func_.current = nrn_cur_ion;
-    this->memb_func_.current_parallel = nrn_cur_parallel_ion;
   }
 
   // TODO: hard-coded exceptions of vdata size
@@ -173,11 +169,12 @@ int Mechanism::ModFunctionStateThread(int i, void *args_ptr) {
 int Mechanism::ModFunctionCurrentThread(int i, void *args_ptr) {
   MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
   if (args->requires_shadow_vectors)
-    args->memb_func->current_parallel(args->nt, &args->ml_current[i],
-                                      args->mech_type, args->acc_rhs_d,
-                                      args->acc_di_dv, args->acc_args);
+    args->memb_func->current(args->nt, &args->ml_current[i],
+                             args->mech_type, args->acc_rhs_d,
+                             args->acc_di_dv, args->acc_args);
   else
-    args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type);
+    args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type,
+                             NULL, NULL, NULL);
   return 0;
 }
 
@@ -254,7 +251,7 @@ void Mechanism::CallModFunction(
           hpx_par_for_sync(Mechanism::ModFunctionCurrentThread, 0,
                            threads_args->ml_current_count, threads_args);
         else
-          memb_func_.current(nt, memb_list, type_);
+          memb_func_.current(nt, memb_list, type_, NULL, NULL, NULL);
         break;
       }
       case Mechanism::ModFunctions::kCurrent: {
@@ -280,10 +277,10 @@ void Mechanism::CallModFunction(
                       ? Branch::MechanismsGraph::AccumulateIandDIDV
                       : nullptr;
               void *args = branch->mechs_graph_;
-              memb_func_.current_parallel(nt, memb_list, type_, acc_rhs_d,
-                                          acc_di_dv, args);
+              memb_func_.current(nt, memb_list, type_,
+                                 acc_rhs_d, acc_di_dv, args);
             } else {
-              memb_func_.current(nt, memb_list, type_);
+              memb_func_.current(nt, memb_list, type_, NULL, NULL, NULL);
             }
           }
         }

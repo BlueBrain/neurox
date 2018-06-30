@@ -48,7 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace coreneuron {
 #define PP2NT(pp) (nrn_threads + (pp)->_tid)
 #define PP2t(pp) (PP2NT(pp)->_t)
-#define POINT_RECEIVE(type, tar, w, f) (*pnt_receive[type])(tar, w, f)
+#define POINT_RECEIVE(type, nt, ml, i, w, f) (*pnt_receive[type])(nt, ml, i, w, f)
 
 typedef void (*ReceiveFunc)(Point_process*, double*, double);
 
@@ -283,9 +283,13 @@ void NetCvode::init_events() {
         for (int inetc = 0; inetc < nt->n_netcon; ++inetc) {
             NetCon* d = nt->netcons + inetc;
             if (d->target_) {
+                NrnThread * nt = nrn_threads + d->target_->_tid;
                 int type = d->target_->_type;
+                int iml = d->target_->_i_instance;
+                Memb_list * ml = nt->_ml_list[type];
                 if (pnt_receive_init[type]) {
-                    (*pnt_receive_init[type])(d->target_, d->u.weight_index_, 0);
+                    (*pnt_receive_init[type])
+                            (nt, ml, iml, d->u.weight_index_, 0);
                 } else {
                     int cnt = pnt_receive_size[type];
                     double* wt = nt->weights + d->u.weight_index_;
@@ -471,7 +475,9 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     nt->_t = tt;
 
     // printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
-    POINT_RECEIVE(typ, target_, u.weight_index_, 0);
+    int iml = target_->_i_instance;
+    Memb_list * ml = nt->_ml_list[typ];
+    POINT_RECEIVE(typ, nt, ml, iml, u.weight_index_, 0);
 #ifdef DEBUG
     if (errno && nrn_errno_check(typ))
         hoc_warning("errno set during NetCon deliver to NET_RECEIVE", (char*)0);
@@ -557,7 +563,11 @@ void SelfEvent::deliver(double tt, NetCvode* ns, NrnThread* nt) {
 }
 
 void SelfEvent::call_net_receive(NetCvode* ns) {
-    POINT_RECEIVE(target_->_type, target_, weight_index_, flag_);
+    NrnThread * nt = nrn_threads + target_->_tid;
+    int iml = target_->_i_instance;
+    int type = target_->_type;
+    Memb_list * ml = nt->_ml_list[type];
+    POINT_RECEIVE(type, nt, ml, iml, weight_index_, 0);
 
 #ifdef DEBUG
     if (errno && nrn_errno_check(target_->_type))

@@ -9,7 +9,7 @@ s/\.mod$// foreach @mods;
 
 @mods=sort @mods;
 
-@funcs=('init','cur','state');
+@funcs=('init','state');
 #@funcs=('init','cur','jacob', 'state');
 
 print <<"__eof";
@@ -99,26 +99,23 @@ __eof
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_net_receive2__${_}(NrnThread * _nt, Memb_list* _ml, int _iml, int _weight_index, double _lflag)"} @suffixes_with_net_receive]};
+extern void \n  @{[join ",\n  ", map {"_net_receive__${_}(NrnThread *, Memb_list*, int, int, double)"} @suffixes_with_net_receive]};
 
-pnt_receive2_t get_net_receive_function(const char * sym)
+pnt_receive_t get_net_receive_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _net_receive2__${_};"} @suffixes_with_net_receive]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _net_receive__${_};"} @suffixes_with_net_receive]}
   return NULL;
 }
 
 __eof
 
-# output of locked current function
-#ions only: 'Nap_Et2','NaTa_t','NaTs2_t','SKv3_1','Im','K_Pst', 'K_Tst', 'SK_E2', 'Ca', 'CaDynamics_E2', 'Ca_HVA', 'Ca_LVAst';
-
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_nrn_cur_parallel__${_}(NrnThread*, Memb_list*, int, mod_acc_f_t, mod_acc_f_t, void * args)"} @suffixes_with_cur]};
+extern void \n  @{[join ",\n  ", map {"_nrn_cur__${_}(NrnThread*, Memb_list*, int, mod_acc_f_t = NULL, mod_acc_f_t = NULL, void * args = NULL)"} @suffixes_with_cur]};
 
-mod_parallel_f_t get_cur_parallel_function(const char * sym)
+mod_cur_f_t get_cur_function(const char * sym)
 {
-@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur_parallel__${_};"} @suffixes_with_cur]}
+@{[join "\n",map {"  if (strcmp(sym, \"${_}\") == 0)  return _nrn_cur__${_};"} @suffixes_with_cur]}
   return NULL;
 }
 __eof
