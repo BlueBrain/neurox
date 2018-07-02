@@ -48,7 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace coreneuron {
 #define PP2NT(pp) (nrn_threads + (pp)->_tid)
 #define PP2t(pp) (PP2NT(pp)->_t)
-#define POINT_RECEIVE(type, nt, ml, i, w, f) (*pnt_receive[type])(nt, ml, i, w, f)
+#define POINT_RECEIVE(type, nt, i, w, f) (*pnt_receive[type])(nt, type, i, w, f)
 
 typedef void (*ReceiveFunc)(Point_process*, double*, double);
 
@@ -96,11 +96,13 @@ void net_sem_from_gpu(int sendtype,
 }
 
 void net_send(void** v, int weight_index_, Point_process* pnt, double td, double flag) {
-    NrnThread* nt = PP2NT(pnt);
+    net_send(v, weight_index_, nrn_threads+pnt->_tid, pnt->_type, pnt->_i_instance, td, flag);
+}
+void net_send(void** v, int weight_index_, NrnThread * nt, int type, int iml, double td, double flag) {
     NetCvodeThreadData& p = net_cvode_instance->p[nt->id];
     SelfEvent* se = new SelfEvent;
     se->flag_ = flag;
-    se->target_ = pnt;
+    se->target_ = new Point_process(nt->id, type, iml);
     se->weight_index_ = weight_index_;
     se->movable_ = v;  // needed for SaveState
     assert(net_cvode_instance);
@@ -121,12 +123,16 @@ void net_send(void** v, int weight_index_, Point_process* pnt, double td, double
 }
 
 void artcell_net_send(void** v, int weight_index_, Point_process* pnt, double td, double flag) {
+    assert(0); //not used: mod files call net_send instead
     net_send(v, weight_index_, pnt, td, flag);
 }
 
 void net_event(Point_process* pnt, double time) {
-    NrnThread* nt = PP2NT(pnt);
-    PreSyn* ps = nt->presyns + nt->pnt2presyn_ix[pnttype2presyn[pnt->_type]][pnt->_i_instance];
+    net_event(PP2NT(pnt), pnt->_type, pnt->_i_instance, time);
+}
+
+void net_event(NrnThread * nt, int type, int i_instance, double time) {
+    PreSyn* ps = nt->presyns + nt->pnt2presyn_ix[pnttype2presyn[type]][i_instance];
     if (ps) {
         if (time < nt->_t) {
             char buf[100];
@@ -289,7 +295,7 @@ void NetCvode::init_events() {
                 Memb_list * ml = nt->_ml_list[type];
                 if (pnt_receive_init[type]) {
                     (*pnt_receive_init[type])
-                            (nt, ml, iml, d->u.weight_index_, 0);
+                            (nt, type, iml, d->u.weight_index_, 0);
                 } else {
                     int cnt = pnt_receive_size[type];
                     double* wt = nt->weights + d->u.weight_index_;
@@ -338,6 +344,7 @@ void net_move(void** v, Point_process* pnt, double tt) {
 }
 
 void artcell_net_move(void** v, Point_process* pnt, double tt) {
+    assert(0); //not used: mod files call net_move instead
     net_move(v, pnt, tt);
 }
 
@@ -477,7 +484,7 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     // printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
     int iml = target_->_i_instance;
     Memb_list * ml = nt->_ml_list[typ];
-    POINT_RECEIVE(typ, nt, ml, iml, u.weight_index_, 0);
+    POINT_RECEIVE(typ, nt, iml, u.weight_index_, 0);
 #ifdef DEBUG
     if (errno && nrn_errno_check(typ))
         hoc_warning("errno set during NetCon deliver to NET_RECEIVE", (char*)0);
@@ -567,7 +574,7 @@ void SelfEvent::call_net_receive(NetCvode* ns) {
     int iml = target_->_i_instance;
     int type = target_->_type;
     Memb_list * ml = nt->_ml_list[type];
-    POINT_RECEIVE(type, nt, ml, iml, weight_index_, 0);
+    POINT_RECEIVE(type, nt, iml, weight_index_, 0);
 
 #ifdef DEBUG
     if (errno && nrn_errno_check(target_->_type))

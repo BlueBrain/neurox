@@ -99,7 +99,7 @@ __eof
 
 print <<"__eof";
 
-extern void \n  @{[join ",\n  ", map {"_net_receive__${_}(NrnThread *, Memb_list*, int, int, double)"} @suffixes_with_net_receive]};
+extern void \n  @{[join ",\n  ", map {"_net_receive__${_}(NrnThread *, int, int, int, double)"} @suffixes_with_net_receive]};
 
 pnt_receive_t get_net_receive_function(const char * sym)
 {

@@ -38,7 +38,7 @@ struct NrnThread;
 
 typedef void (*mod_alloc_t)(double*, Datum*, int);
 typedef void (*mod_f_t)(NrnThread*, Memb_list*, int);
-typedef void (*pnt_receive_t)(NrnThread *, Memb_list*, int, int, double);
+typedef void (*pnt_receive_t)(NrnThread *, int, int, int, double);
 
 //for locked calls to `current` functions:
 typedef void (*mod_acc_f_t) (NrnThread*, Memb_list *, int, void*); //type of function to accumulate RHS and D
@@ -214,7 +214,9 @@ extern void add_nrn_fornetcons(int, int);
 extern void add_nrn_artcell(int, int);
 extern void add_nrn_has_net_event(int);
 extern void net_event(Point_process*, double);
+extern void net_event(NrnThread * nt, int type, int iml, double);
 extern void net_send(void**, int, Point_process*, double, double);
+extern void net_send(void**, int, NrnThread*, int, int, double, double);
 extern void net_move(void**, Point_process*, double);
 extern void artcell_net_send(void**, int, Point_process*, double, double);
 extern void artcell_net_move(void**, Point_process*, double);

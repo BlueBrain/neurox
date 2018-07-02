@@ -87,6 +87,10 @@ typedef struct Point_process {
     int _i_instance;
     short _type;
     short _tid; /* NrnThread id */
+
+    Point_process(){}
+    Point_process(int i_instance, short type, short tid):
+        _i_instance(i_instance), _type(type), _tid(tid) {}
 } Point_process;
 
 extern char* pnt_name(Point_process* pnt);
