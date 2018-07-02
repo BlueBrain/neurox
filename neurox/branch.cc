@@ -465,6 +465,16 @@ void Branch::InitVecPlayContinous() {
   }
 }
 
+void Branch::CoreneuronNetSend(void** v, int weight_index, NrnThread * nt, int type, int iml, double td, double flag)
+{
+    assert(0);
+}
+
+void Branch::CoreneuronNetEvent(NrnThread*, int, int, double)
+{
+    assert(0);
+}
+
 void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
 }

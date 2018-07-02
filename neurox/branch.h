@@ -177,6 +177,9 @@ class Branch {
   /// start NetEvents and PlayVect on events queue
   void InitVecPlayContinous();
 
+  static void CoreneuronNetSend(void**, int, NrnThread*, int, int, double, double);
+  static void CoreneuronNetEvent(NrnThread*, int, int, double);
+
   void AddEventToQueue(floble_t t, Event* e);
   void DeliverEvents(floble_t t);
   void FixedPlayContinuous(double);

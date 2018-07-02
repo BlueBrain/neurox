@@ -48,7 +48,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 namespace coreneuron {
 #define PP2NT(pp) (nrn_threads + (pp)->_tid)
 #define PP2t(pp) (PP2NT(pp)->_t)
-#define POINT_RECEIVE(type, nt, i, w, f) (*pnt_receive[type])(nt, type, i, w, f)
+#define POINT_RECEIVE(type, nt, i, w, f, ns, nr) (*pnt_receive[type])(nt, type, i, w, f, ns, nr)
 
 typedef void (*ReceiveFunc)(Point_process*, double*, double);
 
@@ -295,7 +295,7 @@ void NetCvode::init_events() {
                 Memb_list * ml = nt->_ml_list[type];
                 if (pnt_receive_init[type]) {
                     (*pnt_receive_init[type])
-                            (nt, type, iml, d->u.weight_index_, 0);
+                            (nt, type, iml, d->u.weight_index_, 0, NULL, NULL);
                 } else {
                     int cnt = pnt_receive_size[type];
                     double* wt = nt->weights + d->u.weight_index_;
@@ -484,7 +484,7 @@ void NetCon::deliver(double tt, NetCvode* ns, NrnThread* nt) {
     // printf("NetCon::deliver t=%g tt=%g %s\n", t, tt, pnt_name(target_));
     int iml = target_->_i_instance;
     Memb_list * ml = nt->_ml_list[typ];
-    POINT_RECEIVE(typ, nt, iml, u.weight_index_, 0);
+    POINT_RECEIVE(typ, nt, iml, u.weight_index_, 0, coreneuron::net_send, coreneuron::net_event);
 #ifdef DEBUG
     if (errno && nrn_errno_check(typ))
         hoc_warning("errno set during NetCon deliver to NET_RECEIVE", (char*)0);
@@ -574,7 +574,7 @@ void SelfEvent::call_net_receive(NetCvode* ns) {
     int iml = target_->_i_instance;
     int type = target_->_type;
     Memb_list * ml = nt->_ml_list[type];
-    POINT_RECEIVE(type, nt, iml, weight_index_, 0);
+    POINT_RECEIVE(type, nt, iml, weight_index_, 0, coreneuron::net_send, coreneuron::net_event);
 
 #ifdef DEBUG
     if (errno && nrn_errno_check(target_->_type))

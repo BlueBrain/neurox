@@ -36,11 +36,17 @@ typedef Datum* (*Pfrpdat)(void);
 
 struct NrnThread;
 
+// for generic function pointers called by net_receive
+typedef void (*net_send_f_t)(void**, int, NrnThread*, int, int, double, double);
+typedef void (*net_event_f_t)(NrnThread*, int, int, double);
+
+// nrn_alloc, net_receive and other nrn_* functions
 typedef void (*mod_alloc_t)(double*, Datum*, int);
 typedef void (*mod_f_t)(NrnThread*, Memb_list*, int);
-typedef void (*pnt_receive_t)(NrnThread *, int, int, int, double);
+typedef void (*pnt_receive_t)(NrnThread *, int, int, int, double,
+                              net_send_f_t, net_event_f_t);
 
-//for locked calls to `current` functions:
+//for graph-parallel calls to `current` functions:
 typedef void (*mod_acc_f_t) (NrnThread*, Memb_list *, int, void*); //type of function to accumulate RHS and D
 typedef void (*mod_cur_f_t)(NrnThread*, Memb_list*, int, //same as mod_f_t
                             mod_acc_f_t, mod_acc_f_t, //functions to accumulate RHS+D+I and dIdV

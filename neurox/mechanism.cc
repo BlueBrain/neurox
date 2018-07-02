@@ -210,7 +210,7 @@ void Mechanism::CallModFunction(
     int iml = netcon->mech_instance_;
     int weight_index = netcon->weight_index_;
     nt->_t = tt;  // as seen in netcvode.cpp (NetCon::deliver)
-    this->pnt_receive_(nt, this->type_, iml, weight_index, 0);
+    this->pnt_receive_(nt, this->type_, iml, weight_index, 0, Branch::CoreneuronNetSend, Branch::CoreneuronNetEvent);
     return;
   }
 
