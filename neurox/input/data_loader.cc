@@ -417,7 +417,7 @@ void DataLoader::LoadCoreneuronData(int argc, char **argv,
                                     bool run_setup_cleanup) {
   // nrnmpi_under_nrncontrol=true allows parallel data loading without "-m"
   // flag, see rnmpi_init()
-  nrn_init_and_load_data(argc, argv, nrnmpi_under_nrncontrol,
+  nrn_init_and_load_data(argc, argv, false, nrnmpi_under_nrncontrol,
                          run_setup_cleanup);
 }
 
