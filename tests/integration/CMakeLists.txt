@@ -47,6 +47,8 @@ set(TEST_CASE_ARGS
     "ring_gap_permute1!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_permute1 ${PERMUTE1_ARGS}"
     "ring_gap_permute2!${RING_GAP_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_gap_permute2 ${PERMUTE2_ARGS}")
 
+set(NEGATIVE_TEST_CASE_ARGS "ring_different_seed!${RING_COMMON_ARGS} --outpath ${CMAKE_CURRENT_BINARY_DIR}/ring_different_seed --seed 123456")
+
 # There are no directories for permute and multisend related tests, create them and copy ref spikes
 foreach(data_dir "ring" "ring_gap")
     foreach(test_suffix "multisend" "binqueue" "savestate_permute0" "savestate_permute1" "savestate_permute2" "permute1" "permute2")
@@ -72,6 +74,21 @@ foreach (args_line ${TEST_CASE_ARGS})
            COMMAND "/bin/sh" ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}/integration_test.sh
            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}")
 endforeach()
+
+foreach (args_line ${NEGATIVE_TEST_CASE_ARGS})
+  string(REPLACE "!" ";" string_line ${args_line})
+  if(MPI_FOUND)
+    string(REPLACE ";" " " SRUN_PREFIX  "${TEST_MPI_EXEC_BIN};-n;2")
+  endif()
+  list(GET string_line 0 TEST_NAME)
+  list(GET string_line 1 TEST_ARGS)
+  set(SIM_NAME ${TEST_NAME})
+  configure_file(negative_integration_test.sh.in ${TEST_NAME}/negative_integration_test.sh @ONLY)
+  add_test(NAME ${TEST_NAME}_TEST
+           COMMAND "/bin/sh" ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}/negative_integration_test.sh
+           WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}")
+endforeach()
+
 
 # This test is for coreneuron having all the mechanisms integrated into the
 # library. Runs when the corresponding condition is utilized plus the
