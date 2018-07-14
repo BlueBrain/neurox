@@ -36,131 +36,121 @@ tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
 //TODO: hard-coded procedures
 int DataLoader::HardCodedVdataSize(int type)
 {
+    assert(type != MechanismTypes::kInhPoissonStim); //not supported yet
     int total_vdata_size = 0;
-    if (type == MechanismTypes::kNetStim ||
-        type == MechanismTypes::kPatternStim ||
-        type == MechanismTypes::kProbAMPANMDA_EMS ||
-        type == MechanismTypes::kProbGABAAB_EMS ||
-        type == MechanismTypes::kVecStim ||
-        type == MechanismTypes::kBinReportHelper ||
-        type == MechanismTypes::kGluSynapse ||
-        type == MechanismTypes::kALU)
-      total_vdata_size += sizeof(Point_process);
-    if (type == MechanismTypes::kNetStim  ||
-        type == MechanismTypes::kPatternStim ||
-        type == MechanismTypes::kProbAMPANMDA_EMS ||
-        type == MechanismTypes::kProbGABAAB_EMS ||
-        type == MechanismTypes::kStochKv ||
-        type == MechanismTypes::kStochKv3 ||
-        type == MechanismTypes::kGluSynapse ||
-        type == MechanismTypes::kALU)
+
+    if (GetMechanismFromType(type)->pnt_map_ > 0)
+        total_vdata_size += sizeof(Point_process); //always ppvar[1], dicated by nrn_setup.cpp
+
+    if (type == MechanismTypes::kGluSynapse  || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kNetStim  || //_p_donotuse, ppvar[2]
+        type == MechanismTypes::kProbAMPANMDA_EMS || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kProbGABAAB_EMS || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kStochKv || //_p_rng, ppvar[3]
+        type == MechanismTypes::kStochKv3) //_p_rng, ppvar[3]
       total_vdata_size += sizeof(nrnran123_State);
-    if (type == MechanismTypes::kNetStim ||
-        type == MechanismTypes::kPatternStim ||
-        type == MechanismTypes::kBinReports ||
-        type == MechanismTypes::kVecStim ||
-        type == MechanismTypes::kGluSynapse ||
-        type == MechanismTypes::kBinReportHelper ||
-        type == MechanismTypes::kALU)
+
+    if (type == MechanismTypes::kBinReportHelper || //_tqitem, ppvar[2]
+        type == MechanismTypes::kBinReports || //_p_ptr, ppvar[2]
+        type == MechanismTypes::kGluSynapse || //_tqitem, ppvar[3]
+        type == MechanismTypes::kNetStim || //_tqitem, ppvar[3]
+        type == MechanismTypes::kPatternStim || //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
+        type == MechanismTypes::kVecStim || //_tqitem, ppvar[2]
+        type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
       //TODO its not void* we should have a copy of the object, not a copy of pointer!
       total_vdata_size += sizeof(void*);
+
+    if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
+        total_vdata_size += sizeof(void*);  // it has 2 pointers, see above
     return total_vdata_size;
 }
 
-int DataLoader::HardCodedVdataCount(int type)
+int DataLoader::HardCodedVdataCount(int type, char pnt_map)
 {
-    // from "grep vdata at build/coreneuron/*.c*"
-    switch (type) {
-      case MechanismTypes::kALU:
-        assert(0);
-        return 3;
-      case MechanismTypes::kBinReportHelper:
-        return 2;
-      case MechanismTypes::kBinReports:
-        return 1;
-      case MechanismTypes::kGluSynapse:
-        assert(0);
-        return 3;
-      case MechanismTypes::kNetStim: //netstim.cpp
-        assert(0); //I'm not sure
-        return 3;
-      case MechanismTypes::kInhPoissonStim:
-        assert(0); //not correct
-        return 1;
-      case MechanismTypes::kPatternStim:
-        assert(0);
-        return 3;
-      case MechanismTypes::kProbAMPANMDA_EMS:
-        return 2;
-      case MechanismTypes::kProbGABAAB_EMS:
-        return 2;
-      case MechanismTypes::kStochKv3:
-        return 1;
-      case MechanismTypes::kStochKv:
-        return 1;
-      case MechanismTypes::kVecStim:
-        return 2;
-      default:
-        return 0;
-    }
-    assert(0);
-    return -1;
-}
+    assert(type != MechanismTypes::kInhPoissonStim); //not supported yet
+    int total_vdata_count = 0;
 
-// ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
-// pdata[0]: offset in data (area)
-// pdata[1]: offset for Point_process in vdata[0]
-// pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp,  =pdata[1]+1)
+    if (pnt_map > 0)
+        total_vdata_count ++; //Point_Process *
 
-// StochKv:
-// pdata[0]: offset in area (ion_ek)
-// pdata[1]: offset in area (ion_ik)
-// pdata[2]: offset in area (ion_dikdv)
-// pdata[3]: offset for RNG in vdata[0]
-// pdata[4]: offset in data (area)
+    if (type == MechanismTypes::kGluSynapse  || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kNetStim  || //_p_donotuse, ppvar[2]
+        type == MechanismTypes::kProbAMPANMDA_EMS || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kProbGABAAB_EMS || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kStochKv || //_p_rng, ppvar[3]
+        type == MechanismTypes::kStochKv3) //_p_rng, ppvar[3]
+      total_vdata_count ++;
 
-int DataLoader::HardCodedCheckPdataAndVdataSizes(Mechanism * mech)
-{
-    int type = mech->type_;
-    assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-            mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-           (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-            mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-           ((type == MechanismTypes::kProbAMPANMDA_EMS ||
-             type == MechanismTypes::kProbGABAAB_EMS) &&
-            mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-            mech->pnt_map_ > 0));
+    if (type == MechanismTypes::kBinReportHelper || //_tqitem, ppvar[2]
+        type == MechanismTypes::kBinReports || //_p_ptr, ppvar[2]
+        type == MechanismTypes::kGluSynapse || //_tqitem, ppvar[3]
+        type == MechanismTypes::kNetStim || //_tqitem, ppvar[3]
+        type == MechanismTypes::kPatternStim || //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
+        type == MechanismTypes::kVecStim || //_tqitem, ppvar[2]
+        type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
+      total_vdata_count ++;
+
+    if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
+        total_vdata_count ++;
+
+    return total_vdata_count;
 }
 
 int DataLoader::HardCodedPntProcOffsetInPdata(int type)
 {
-    if (type == MechanismTypes::kIClamp ||
-        type == MechanismTypes::kProbAMPANMDA_EMS ||
-        type == MechanismTypes::kProbGABAAB_EMS)
+    // dictated by nrn_setup.cpp:
+    // the area is always at ppvar[0]
+    // the Point Process if always at position ppvar[1] --> pointing to vdata[0]
+    if (GetMechanismFromType(type)->pnt_map_ > 0)
       return 1;
+    return -1; //means unexistent
+}
 
-    assert(0);
-    return -1;
+int DataLoader::HardCodedPntProcOffsetInVdata(int type)
+{
+    if (GetMechanismFromType(type)->pnt_map_ > 0)
+      return 0; //see comment in HardCodedPntProcOffsetInPdata
+    return -1; //means unexistent
 }
 
 int DataLoader::HardCodedRNGOffsetInPdata(int type)
 {
-    if (type == MechanismTypes::kStochKv ||
-        type == MechanismTypes::kProbAMPANMDA_EMS ||
-        type == MechanismTypes::kProbGABAAB_EMS)
-       return type == MechanismTypes::kStochKv ? 3 : 2;
-    assert(0);
-    return -1;
+    assert(type != MechanismTypes::kInhPoissonStim); //not supported yet
+
+    if (type == MechanismTypes::kGluSynapse  || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kNetStim  || //_p_donotuse, ppvar[2]
+        type == MechanismTypes::kProbAMPANMDA_EMS || //_p_rng_rel, ppvar[2]
+        type == MechanismTypes::kProbGABAAB_EMS) //_p_rng_rel, ppvar[2]
+        return 2;
+    if (type == MechanismTypes::kStochKv || //_p_rng, ppvar[3]
+        type == MechanismTypes::kStochKv3) //_p_rng, ppvar[3]
+        return 3;
+    return -1; //means unexistent
 }
 
 int DataLoader::HardCodedRNGOffsetInVdata(int type)
 {
-    if (type == MechanismTypes::kStochKv ||
-        type == MechanismTypes::kProbAMPANMDA_EMS ||
-        type == MechanismTypes::kProbGABAAB_EMS)
-        return type == MechanismTypes::kStochKv ? 0 : 1;
-    assert(0);
-    return -1;
+    assert(type != MechanismTypes::kInhPoissonStim); //not supported yet
+    int offset_rng_in_vdata=0;
+    //return type == MechanismTypes::kStochKv ? 0 : 1;
+    if (GetMechanismFromType(type)->pnt_map_ > 0)
+        offset_rng_in_vdata++; //include offset for Point_process*
+    return offset_rng_in_vdata;
+}
+
+
+bool DataLoader::HardCodedMechanismHasNoInstances(int type)
+{
+ return (HardCodedMechanismForCoreneuronOnly(type) || type == kVecStim);
+}
+
+bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type)
+{
+    //BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
+    //have nodecount 1 but no data and no nodeindices
+    return ( type==kBinReports || type==kBinReportHelper
+           || type==kCoreConfig || type==kMemUsage
+             || type == kProfileHelper);
 }
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
@@ -224,20 +214,6 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
   return ppi;
 }
 
-bool DataLoader::MechanismHasNoInstances(int type)
-{
- return (MechanismForCoreneuronOnly(type) || type == kVecStim);
-}
-
-bool DataLoader::MechanismForCoreneuronOnly(int type)
-{
-    //BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
-    //have nodecount 1 but no data and no nodeindices
-    return ( type==kBinReports || type==kBinReportHelper
-           || type==kCoreConfig || type==kMemUsage
-             || type == kProfileHelper);
-}
-
 int DataLoader::CreateNeuron(int neuron_idx, void *) {
   NrnThread *nt = &nrn_threads[neuron_idx];
   neuron_id_t neuron_id = GetNeuronIdFromNrnThreadId(nt->id);
@@ -251,7 +227,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   size_t data_size_padded = 6 * Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
   {
-    if (MechanismHasNoInstances(tml->index))
+    if (HardCodedMechanismHasNoInstances(tml->index))
     {
       assert(tml->ml->nodeindices == NULL);
     }
@@ -391,8 +367,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         int pd = ml->pdata[pdata_offset_padded];
         int ptype = memb_func[mech->type_].dparam_semantics[i];
 
-        // remove extra space added by padding (for pointer to area or ion mech
-        // instance)
+        // remove extra space added by padding
+        //(for pointer to area or ion mech instance)
         if (input_params_->branch_parallelism_ &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
           assert(data_offsets.at(pd) != -99999);
@@ -407,40 +383,36 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       void **vdata = &nt->_vdata[vdata_total_offset];
       if ( mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
-
-        HardCodedCheckPdataAndVdataSizes(mech);
-
         Compartment *compartment = compartments.at(ml->nodeindices[n]);
         assert(compartment->id_ == ml->nodeindices[n]);
 
-        if (type == MechanismTypes::kIClamp ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS) {
-          //*.cpp : #define _p_rng  _nt->_vdata[_ppvar[2*_STRIDE]]
-          const int point_proc_offset_in_pdata = HardCodedPntProcOffsetInPdata(type);
-          Point_process *ppn = &nt->pntprocs[point_proc_total_offset++];
-          assert(nt->_vdata[pdata[point_proc_offset_in_pdata]] == ppn);
-          Point_process *pp = (Point_process *)vdata[0];
-          assert(pp != NULL);
+        const int point_proc_offset_in_pdata = HardCodedPntProcOffsetInPdata(type);
+        if (point_proc_offset_in_pdata != -1) {
+          const int point_proc_offset_in_vdata = HardCodedPntProcOffsetInVdata(type);
+          assert(nt->_vdata[pdata[point_proc_offset_in_pdata]] == &nt->pntprocs[point_proc_total_offset]);
+          Point_process *ppn = &nt->pntprocs[point_proc_total_offset];
+          Point_process *pp = (Point_process *)vdata[point_proc_offset_in_vdata];
+          assert(ppn->_i_instance == pp->_i_instance && ppn->_tid==pp->_tid && ppn->_type==pp->_type);
           compartment->AddSerializedVData((unsigned char *)(void *)pp,
                                           sizeof(Point_process));
+          point_proc_total_offset++;
         }
 
-        if (type == MechanismTypes::kStochKv ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata = HardCodedRNGOffsetInPdata(type);
+        int rng_offset_in_pdata = HardCodedRNGOffsetInPdata(type);
+        if (rng_offset_in_pdata !=-1) {
           int rng_offset_in_vdata = HardCodedRNGOffsetInVdata(type);
           assert(nt->_vdata[pdata[rng_offset_in_pdata]] == vdata[rng_offset_in_vdata]);
-          nrnran123_State *RNG = (nrnran123_State *)vdata[rng_offset_in_vdata];
+          nrnran123_State *rng = (nrnran123_State *)vdata[rng_offset_in_vdata];
+          nrnran123_State *rng2 = (nrnran123_State *)nt->_vdata[pdata[rng_offset_in_pdata]];
+          assert(rng->c == rng2->c && rng->r==rng2->r && rng->which_==rng2->which_);
 
           // TODO: hard-coded manual hack: StochKv's current state has NULL pointers, why?
-          if (RNG == NULL && type == MechanismTypes::kStochKv)
+          if (rng == NULL && type == MechanismTypes::kStochKv)
             compartment->AddSerializedVData(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
           else {
-            assert(RNG != NULL);
-            compartment->AddSerializedVData((unsigned char *)(void *)RNG,
+            assert(rng != NULL);
+            compartment->AddSerializedVData((unsigned char *)(void *)rng,
                                             sizeof(nrnran123_State));
           }
         }

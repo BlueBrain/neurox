@@ -60,9 +60,9 @@ class DataLoader {
   static hpx_t locality_mutex_;
 
   static int HardCodedVdataSize(int type);
-  static int HardCodedVdataCount(int type);
-  static int HardCodedCheckPdataAndVdataSizes(Mechanism * mech);
+  static int HardCodedVdataCount(int type, char pnt_map);
   static int HardCodedPntProcOffsetInPdata(int type);
+  static int HardCodedPntProcOffsetInVdata(int type);
   static int HardCodedRNGOffsetInPdata(int type);
   static int HardCodedRNGOffsetInVdata(int type);
 
@@ -152,8 +152,8 @@ class DataLoader {
   static hpx_action_t AddNeurons;
   static hpx_action_t SetMechanisms;
 
-  static bool MechanismHasNoInstances(int index);
-  static bool MechanismForCoreneuronOnly(int index);
+  static bool HardCodedMechanismHasNoInstances(int index);
+  static bool HardCodedMechanismForCoreneuronOnly(int index);
   static int CreateNeuron(int neuron_idx, void *);
   static int GetMyNrnThreadsCount();
   static int AddSynapse_handler(const int, const void *[], const size_t[]);

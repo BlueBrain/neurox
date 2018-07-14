@@ -68,7 +68,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current = nrn_cur_ion;
   }
 
-  vdata_size_ = input::DataLoader::HardCodedVdataCount(this->type_);
+  vdata_size_ = input::DataLoader::HardCodedVdataCount(this->type_, pnt_map);
 
   // CVODES-specific
   if (input_params_->interpolator_ !=
