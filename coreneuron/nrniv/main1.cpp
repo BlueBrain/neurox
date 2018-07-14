@@ -70,7 +70,7 @@ namespace coreneuron {
 void call_prcellstate_for_prcellgid(int prcellgid, int compute_gpu, int is_init);
 void nrn_init_and_load_data(int argc,
                             char* argv[],
-                            bool is_mapping_needed = false,
+                            std::vector<ReportConfiguration> * configs = nullptr,
                             bool nrnmpi_under_nrncontrol = true,
                             bool run_setup_cleanup = true) {
 #if defined(NRN_FEEXCEPT)
@@ -86,6 +86,21 @@ void nrn_init_and_load_data(int argc,
 
     // memory footprint after mpi initialisation
     report_mem_usage("After MPI_Init");
+
+    // read command line parameters and parameter config files
+    nrnopt_parse(argc, (const char**)argv);
+
+    if (nrnopt_get_str("--report-conf").size()) {
+        if (nrnopt_get_int("--multiple") > 1) {
+            if (nrnmpi_myid == 0)
+                printf("\n WARNING! : Can't enable reports with model duplications feature! \n");
+        } else {
+            *configs = create_report_configurations(nrnopt_get_str("--report-conf").c_str(),
+                                                   nrnopt_get_str("--outpath").c_str());
+        }
+    }
+
+    bool is_mapping_needed = configs != nullptr && configs->size()>0;
 
     // initialise default coreneuron parameters
     initnrn();
@@ -270,24 +285,11 @@ extern "C" int solve_core(int argc, char** argv) {
     nrnmpi_init(1, &argc, &argv);
 #endif
 
-    // read command line parameters and parameter config files
-    nrnopt_parse(argc, (const char**)argv);
+    //initializes main Coreneuron state and returns the report configuration
     std::vector<ReportConfiguration> configs;
-    bool reports_needs_finalize = false;
+    nrn_init_and_load_data(argc, argv, &configs);
+    bool reports_needs_finalize = configs.size();
 
-    if (nrnopt_get_str("--report-conf").size()) {
-        if (nrnopt_get_int("--multiple") > 1) {
-            if (nrnmpi_myid == 0)
-                printf("\n WARNING! : Can't enable reports with model duplications feature! \n");
-        } else {
-            configs = create_report_configurations(nrnopt_get_str("--report-conf").c_str(),
-                                                   nrnopt_get_str("--outpath").c_str());
-            reports_needs_finalize = configs.size();
-        }
-    }
-
-    // initializationa and loading functions moved to separate
-    nrn_init_and_load_data(argc, argv, configs.size() > 0);
     std::string checkpoint_path = nrnopt_get_str("--checkpoint");
     if (strlen(checkpoint_path.c_str())) {
         nrn_checkpoint_arg_exists = true;

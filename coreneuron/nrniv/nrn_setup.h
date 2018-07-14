@@ -33,6 +33,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "coreneuron/nrnoc/multicore.h"
 #include "coreneuron/nrniv/nrn_filehandler.h"
 #include "coreneuron/utils/sdprintf.h"
+#include "coreneuron/utils/reports/nrnsection_mapping.h"
+#include "coreneuron/utils/reports/nrnreport.h"
+
 namespace coreneuron {
 static int ngroup_w;
 static int* gidgroups_w;
@@ -51,7 +54,7 @@ static void setup_ThreadData(NrnThread& nt);
 // Functions to load and clean data;
 extern void nrn_init_and_load_data(int argc,
                                    char** argv,
-                                   bool is_mapping_needed = false,
+                                   std::vector<struct ReportConfiguration> * configs = nullptr,
                                    bool nrnmpi_under_nrncontrol = true,
                                    bool run_setup_cleanup = true);
 extern void nrn_setup_cleanup();

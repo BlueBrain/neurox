@@ -33,6 +33,60 @@ std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
 tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
 
+//TODO: hard-coded procedures
+int DataLoader::HardCodedVdataSize(int type)
+{
+    int total_vdata_size = 0;
+    if (type == MechanismTypes::kIClamp ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS ||
+        type == MechanismTypes::kVecStim ||
+        type == MechanismTypes::kBinReportHelper ||
+        type == MechanismTypes::kGluSynapse ||
+        type == MechanismTypes::kALU)
+      total_vdata_size += sizeof(Point_process);
+    if (type == MechanismTypes::kIClamp ||
+        type == MechanismTypes::kStochKv ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS ||
+        type == MechanismTypes::kStochKv ||
+        type == MechanismTypes::kStochKv3 ||
+        type == MechanismTypes::kGluSynapse ||
+        type == MechanismTypes::kPatternStim )
+      total_vdata_size += sizeof(nrnran123_State);
+    if (type == MechanismTypes::kBinReports ||
+        type == MechanismTypes::kIClamp ||
+        type == MechanismTypes::kPatternStim ||
+        type == MechanismTypes::kVecStim ||
+        type == MechanismTypes::kBinReportHelper ||
+        type == MechanismTypes::kALU)
+      total_vdata_size += sizeof(void*);
+    return total_vdata_size;
+}
+
+int DataLoader::HardCodedVdataCount(int type)
+{
+    // from "grep vdata at build/coreneuron/*.c*"
+    switch (type) {
+      case MechanismTypes::kIClamp:
+        assert(0); //I'm not sure
+        return 1;
+      case MechanismTypes::kProbAMPANMDA_EMS:
+        return 2;
+      case MechanismTypes::kProbGABAAB_EMS:
+        return 2;
+      case MechanismTypes::kStochKv:
+        return 1;
+      case MechanismTypes::kBinReportHelper:
+        return 2;
+      case MechanismTypes::kBinReports:
+        return 1;
+      default:
+        return 0;
+    }
+    return -1;
+}
+
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
 }
@@ -94,6 +148,20 @@ PointProcInfo DataLoader::GetPointProcInfoFromDataPointer(NrnThread *nt,
   return ppi;
 }
 
+bool DataLoader::MechanismHasNoInstances(int type)
+{
+ return (MechanismForCoreneuronOnly(type) || type == kVecStim);
+}
+
+bool DataLoader::MechanismForCoreneuronOnly(int type)
+{
+    //BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
+    //have nodecount 1 but no data and no nodeindices
+    return ( type==kBinReports || type==kBinReportHelper
+           || type==kCoreConfig || type==kMemUsage
+             || type == kProfileHelper);
+}
+
 int DataLoader::CreateNeuron(int neuron_idx, void *) {
   NrnThread *nt = &nrn_threads[neuron_idx];
   neuron_id_t neuron_id = GetNeuronIdFromNrnThreadId(nt->id);
@@ -106,8 +174,17 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // map of padded to non-padded offsets of data
   size_t data_size_padded = 6 * Vectorizer::SizeOf(N);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
+  {
+    //ALU and NetPoisson not supported yet
+    assert(tml->index!=kALU && tml->index!=kInhPoissonStim && tml->index==kGluSynapse);
+    if (MechanismHasNoInstances(tml->index))
+    {
+      assert(tml->ml->nodeindices == NULL);
+    }
+    assert(tml->ml->data !=NULL);
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
+  }
 
   // map of post- to pre-padding values of pdata
   // only used for branched neurons, otherwise pointers for padded and
@@ -250,11 +327,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       pdata.shrink_to_fit();
 
       void **vdata = &nt->_vdata[vdata_total_offset];
-      Compartment *compartment = compartments.at(ml->nodeindices[n]);
-      assert(compartment->id_ == ml->nodeindices[n]);
-
-      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
+      if ( !MechanismForCoreneuronOnly(mech->type_) && mech->vdata_size_ > 0)  // vdata
       {
+
         assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
                 mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
                (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
@@ -263,6 +338,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                  type == MechanismTypes::kProbGABAAB_EMS) &&
                 mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
                 mech->pnt_map_ > 0));
+
+        Compartment *compartment = compartments.at(ml->nodeindices[n]);
+        assert(compartment->id_ == ml->nodeindices[n]);
 
         // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
         // pdata[0]: offset in data (area)
@@ -309,16 +387,17 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                                             sizeof(nrnran123_State));
           }
         }
-      }
-      compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
-                                        pdata.data(), mech->pdata_size_);
+        compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
+                                          pdata.data(), mech->pdata_size_);
 
-      vdata_total_offset += (unsigned)mech->vdata_size_;
+        vdata_total_offset += (unsigned)mech->vdata_size_;
+      }
     }
     data_total_offset += mech->data_size_ * ml->nodecount;
     data_total_padded_offset +=
         mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
+
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   data_offsets.clear();
@@ -417,7 +496,8 @@ void DataLoader::LoadCoreneuronData(int argc, char **argv,
                                     bool run_setup_cleanup) {
   // nrnmpi_under_nrncontrol=true allows parallel data loading without "-m"
   // flag, see rnmpi_init()
-  nrn_init_and_load_data(argc, argv, false, nrnmpi_under_nrncontrol,
+  std::vector<ReportConfiguration> configs;
+  nrn_init_and_load_data(argc, argv, &configs, nrnmpi_under_nrncontrol,
                          run_setup_cleanup);
 }
 
@@ -804,7 +884,7 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
           if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
               strcmp("ca_ion", parent->memb_func_.sym) == 0)
-            continue;  // TODO hard coded exception
+            continue;  // TODO hard-coded exception
 
           if (parent->GetIonIndex() < Mechanism::IonTypes::kSizeWriteableIons)
             mech->dependency_ion_index_ = parent->GetIonIndex();
@@ -886,7 +966,7 @@ int DataLoader::Finalize_handler() {
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
           if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
               strcmp("ca_ion", parent->memb_func_.sym) == 0)
-            continue;  // TODO: hardcoded exception
+            continue;  // TODO: hard-coded exception
           if (parent->GetIonIndex() <
               Mechanism::IonTypes::kSizeWriteableIons)  // ie is writeable
             fprintf(
@@ -1177,15 +1257,7 @@ int DataLoader::GetBranchData(
       data_offset += mech->data_size_;
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
-        int total_vdata_size = 0;
-        if (mech->type_ == MechanismTypes::kIClamp ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(Point_process);
-        if (mech->type_ == MechanismTypes::kStochKv ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(nrnran123_State);
+        int total_vdata_size = HardCodedVdataSize(mech->type_);
         assert(total_vdata_size > 0);
         vdata.insert(vdata.end(), &vdata_mechs[m][vdata_offset],
                      &vdata_mechs[m][vdata_offset + total_vdata_size]);

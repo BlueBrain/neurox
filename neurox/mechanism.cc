@@ -68,23 +68,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
     this->memb_func_.current = nrn_cur_ion;
   }
 
-  // TODO: hard-coded exceptions of vdata size
-  switch (this->type_) {
-    case MechanismTypes::kIClamp:
-      vdata_size_ = 1;
-      break;
-    case MechanismTypes::kProbAMPANMDA_EMS:
-      vdata_size_ = 2;
-      break;
-    case MechanismTypes::kProbGABAAB_EMS:
-      vdata_size_ = 2;
-      break;
-    case MechanismTypes::kStochKv:
-      vdata_size_ = 1;
-      break;
-    default:
-      vdata_size_ = 0;
-  }
+  vdata_size_ = input::DataLoader::HardCodedVdataCount(this->type_);
 
   // CVODES-specific
   if (input_params_->interpolator_ !=

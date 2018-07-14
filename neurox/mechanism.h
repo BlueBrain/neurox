@@ -10,15 +10,26 @@ namespace neurox {
 
 class NetconX;
 
-/// hard-coded mechanism types
+/// TODO: hard-coded mechanism types
 enum MechanismTypes {
   kCapacitance = 3,
   kIClamp = 7,
   kExpSyn = 9,
-  kCaDynamics_E2 = 32,
-  kProbAMPANMDA_EMS = 137,
-  kProbGABAAB_EMS = 139,
-  kStochKv = 151
+  kCaDynamics_E2 = 36,
+  kProbAMPANMDA_EMS = 156,
+  kProbGABAAB_EMS = 158,
+  kStochKv = 176,
+  kStochKv3 = 175,
+  kBinReportHelper = 26,
+  kBinReports= 27,
+  kCoreConfig = 56,
+  kMemUsage = 131,
+  kProfileHelper = 162,
+  kVecStim = 181,
+  kGluSynapse = 63,
+  kALU = 24,
+  kInhPoissonStim = 152,
+  kPatternStim = 23
 };
 
 /**
