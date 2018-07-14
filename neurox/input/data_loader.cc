@@ -103,6 +103,63 @@ int DataLoader::HardCodedVdataCount(int type)
       default:
         return 0;
     }
+    assert(0);
+    return -1;
+}
+
+// ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
+// pdata[0]: offset in data (area)
+// pdata[1]: offset for Point_process in vdata[0]
+// pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp,  =pdata[1]+1)
+
+// StochKv:
+// pdata[0]: offset in area (ion_ek)
+// pdata[1]: offset in area (ion_ik)
+// pdata[2]: offset in area (ion_dikdv)
+// pdata[3]: offset for RNG in vdata[0]
+// pdata[4]: offset in data (area)
+
+int DataLoader::HardCodedCheckPdataAndVdataSizes(Mechanism * mech)
+{
+    int type = mech->type_;
+    assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
+            mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
+           (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
+            mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
+           ((type == MechanismTypes::kProbAMPANMDA_EMS ||
+             type == MechanismTypes::kProbGABAAB_EMS) &&
+            mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
+            mech->pnt_map_ > 0));
+}
+
+int DataLoader::HardCodedPntProcOffsetInPdata(int type)
+{
+    if (type == MechanismTypes::kIClamp ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS)
+      return 1;
+
+    assert(0);
+    return -1;
+}
+
+int DataLoader::HardCodedRNGOffsetInPdata(int type)
+{
+    if (type == MechanismTypes::kStochKv ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS)
+       return type == MechanismTypes::kStochKv ? 3 : 2;
+    assert(0);
+    return -1;
+}
+
+int DataLoader::HardCodedRNGOffsetInVdata(int type)
+{
+    if (type == MechanismTypes::kStochKv ||
+        type == MechanismTypes::kProbAMPANMDA_EMS ||
+        type == MechanismTypes::kProbGABAAB_EMS)
+        return type == MechanismTypes::kStochKv ? 0 : 1;
+    assert(0);
     return -1;
 }
 
@@ -348,39 +405,19 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       pdata.shrink_to_fit();
 
       void **vdata = &nt->_vdata[vdata_total_offset];
-      if ( !MechanismForCoreneuronOnly(mech->type_) && mech->vdata_size_ > 0)  // vdata
+      if ( mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
 
-        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
-                 type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-                mech->pnt_map_ > 0));
+        HardCodedCheckPdataAndVdataSizes(mech);
 
         Compartment *compartment = compartments.at(ml->nodeindices[n]);
         assert(compartment->id_ == ml->nodeindices[n]);
 
-        //hard-coded !
-
-        // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
-        // pdata[0]: offset in data (area)
-        // pdata[1]: offset for Point_process in vdata[0]
-        // pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp,  =pdata[1]+1)
-
-        // StochKv:
-        // pdata[0]: offset in area (ion_ek)
-        // pdata[1]: offset in area (ion_ik)
-        // pdata[2]: offset in area (ion_dikdv)
-        // pdata[3]: offset for RNG in vdata[0]
-        // pdata[4]: offset in data (area)
-
         if (type == MechanismTypes::kIClamp ||
             type == MechanismTypes::kProbAMPANMDA_EMS ||
             type == MechanismTypes::kProbGABAAB_EMS) {
-          const int point_proc_offset_in_pdata = 1;
+          //*.cpp : #define _p_rng  _nt->_vdata[_ppvar[2*_STRIDE]]
+          const int point_proc_offset_in_pdata = HardCodedPntProcOffsetInPdata(type);
           Point_process *ppn = &nt->pntprocs[point_proc_total_offset++];
           assert(nt->_vdata[pdata[point_proc_offset_in_pdata]] == ppn);
           Point_process *pp = (Point_process *)vdata[0];
@@ -392,15 +429,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         if (type == MechanismTypes::kStochKv ||
             type == MechanismTypes::kProbAMPANMDA_EMS ||
             type == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata =
-              mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
-          int rng_offset_in_vdata =
-              mech->type_ == MechanismTypes::kStochKv ? 0 : 1;
-          assert(nt->_vdata[pdata[rng_offset_in_pdata]] ==
-                 vdata[rng_offset_in_vdata]);
+          int rng_offset_in_pdata = HardCodedRNGOffsetInPdata(type);
+          int rng_offset_in_vdata = HardCodedRNGOffsetInVdata(type);
+          assert(nt->_vdata[pdata[rng_offset_in_pdata]] == vdata[rng_offset_in_vdata]);
           nrnran123_State *RNG = (nrnran123_State *)vdata[rng_offset_in_vdata];
 
-          // TODO: manual hack: StochKv's current state has NULL pointers, why?
+          // TODO: hard-coded manual hack: StochKv's current state has NULL pointers, why?
           if (RNG == NULL && type == MechanismTypes::kStochKv)
             compartment->AddSerializedVData(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));

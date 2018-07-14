@@ -61,6 +61,10 @@ class DataLoader {
 
   static int HardCodedVdataSize(int type);
   static int HardCodedVdataCount(int type);
+  static int HardCodedCheckPdataAndVdataSizes(Mechanism * mech);
+  static int HardCodedPntProcOffsetInPdata(int type);
+  static int HardCodedRNGOffsetInPdata(int type);
+  static int HardCodedRNGOffsetInVdata(int type);
 
  private:
   /// pointer of netcons.dot file
