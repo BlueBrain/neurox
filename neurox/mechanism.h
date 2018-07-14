@@ -26,6 +26,7 @@ enum MechanismTypes {
   kMemUsage = 131,
   kProfileHelper = 162,
   kVecStim = 181,
+  kNetStim = 18,
   kGluSynapse = 63,
   kALU = 24,
   kInhPoissonStim = 152,
