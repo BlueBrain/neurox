@@ -119,6 +119,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   for (offset_t m = 0; m < mechanisms_count_; m++) {
     Memb_list &instance = this->mechs_instances_[m];
     Mechanism *mech = mechanisms_[m];
+    int type = mech->type_;
     instance.nodecount = instances_count[m];
     max_mech_id = max(max_mech_id, mech->type_);
 
@@ -161,65 +162,37 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
           (floble_t *)&instance.data[i * mech->data_size_];
       offset_t *instance_pdata =
           (offset_t *)&instance.pdata[i * mech->pdata_size_];
-      assert(instance_data =
-                 instance_data_2);  // Make sure data offsets are good so far
+      assert(instance_data == instance_data_2);  // Make sure data offsets are good
 
-      if (mech->vdata_size_ > 0 || mech->pnt_map_ > 0) {
-        assert((mech->type_ == MechanismTypes::kIClamp &&
-                mech->vdata_size_ == 1 && mech->pdata_size_ == 2 &&
-                mech->pnt_map_ > 0) ||
-               (mech->type_ == MechanismTypes::kStochKv &&
-                mech->vdata_size_ == 1 && mech->pdata_size_ == 5 &&
-                mech->pnt_map_ == 0) ||
-               ((mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-                 mech->type_ == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-                mech->pnt_map_ > 0));
-
-        // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
-        // pdata[0]: offset in data (area)
-        // pdata[1]: offset for Point_process in vdata[0]
-        // pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp)
-
-        // StochKv:
-        // pdata[0]: offset in area (ion_ek)
-        // pdata[1]: offset in area (ion_ik)
-        // pdata[2]: offset in area (ion_dikdv)
-        // pdata[3]: offset for RNG in vdata[0]
-        // pdata[4]: offset in data (area)
-
-        // copy Point_processes by replacing vdata pointers and pdata offset by
-        // the ones referring to a copy
-        if (mech->type_ == MechanismTypes::kIClamp ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS) {
-          int pointProcOffsetInPdata = 1;
-          Point_process *pp =
-              (Point_process *)(void *)&vdata_serialized[vdata_offset];
-          assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
-          Point_process *pp_copy = new Point_process;
-          memcpy(pp_copy, pp, sizeof(Point_process));
-          vdata_offset += sizeof(Point_process);
-          instance_pdata[pointProcOffsetInPdata] = vdata_ptrs.size();
-          vdata_ptrs.push_back(pp_copy);
-        }
-
-        // copy RNG by replacing vdata pointers and pdata offset by the ones
-        // referring to a copy
-        if (mech->type_ == MechanismTypes::kStochKv ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata =
-              mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
-          nrnran123_State *rng =
-              (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
-          nrnran123_State *rngcopy = new nrnran123_State;
-          memcpy(rngcopy, rng, sizeof(nrnran123_State));
-          vdata_offset += sizeof(nrnran123_State);
-          instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
-          vdata_ptrs.push_back(rngcopy);
-        }
+       // copy Point_processes by replacing vdata pointers and pdata offset by
+      // the ones referring to a copy
+      int pnt_proc_offset_in_pdata = input::DataLoader::HardCodedPntProcOffsetInPdata(type);
+      if ( pnt_proc_offset_in_pdata != -1 )
+      {
+        Point_process *pp =
+            (Point_process *)(void *)&vdata_serialized[vdata_offset];
+        assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
+        Point_process *pp_copy = new Point_process;
+        memcpy(pp_copy, pp, sizeof(Point_process));
+        vdata_offset += sizeof(Point_process);
+        instance_pdata[pnt_proc_offset_in_pdata] = vdata_ptrs.size();
+        vdata_ptrs.push_back(pp_copy);
       }
+
+      // copy RNG by replacing vdata pointers and pdata offset by the ones
+      // referring to a copy
+      int rng_offset_in_pdata = input::DataLoader::HardCodedRNGOffsetInPdata(type);
+      if ( rng_offset_in_pdata != -1 )
+      {
+        nrnran123_State *rng =
+            (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
+        nrnran123_State *rngcopy = new nrnran123_State;
+        memcpy(rngcopy, rng, sizeof(nrnran123_State));
+        vdata_offset += sizeof(nrnran123_State);
+        instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
+        vdata_ptrs.push_back(rngcopy);
+      }
+
       data_offset += mech->data_size_;
       pdata_offset += mech->pdata_size_;
       assert(data_offset < 2 ^ sizeof(offset_t));
@@ -340,6 +313,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
 #if LAYOUT == 0
   // if using vector data structures, convert now
+  printf("%d vs %d\n", nt->_ndata, nrn_threads[0]._ndata);
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 

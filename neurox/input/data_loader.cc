@@ -230,6 +230,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     if (HardCodedMechanismHasNoInstances(tml->index))
     {
       assert(tml->ml->nodeindices == NULL);
+      printf("HELLO %d %d\n", tml->index, GetMechanismFromType(tml->index)->data_size_);
     }
     else
     {
@@ -314,9 +315,13 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                                                                   // padding
   unsigned point_proc_total_offset = 0;
 
-  // information about offsets in data and node ifs of all instances of all ions
+  // information about offsets in data and node ids of all instances of all ions
   vector<DataLoader::IonInstancesInfo> ions_instances_info(
       Mechanism::IonTypes::kSizeAllIons);
+  int DELETE_TEST=N*6;
+  //TODO from tqitem we get mech >< instance and which branch it belongs to
+  //TODO is tditem of class tqueue.h :: TQItem?
+  Compartment * no_instances_compartment = new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -326,7 +331,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     assert(mech->type_ == type);
     int ion_offset = mech->GetIonIndex();
 
-    // for every mech instance (or compartment this mech is applied to)
+    // for every mech instance or compartment this mech is applied to..
+    // (Mechs without instances have nodecount 1 and nodeindices NULL)
     for (int n = 0; n < ml->nodecount; n++) {
       if (mech->is_ion_) {
         if (n == 0) {
@@ -342,9 +348,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       for (int i = 0; i < mech->data_size_; i++) {
         int offset_non_padded = mech->data_size_ * n + i;
 #if LAYOUT == 1
-        data.push_back(ml->data[offset_non_padded]);
+        //compare before and after offsets
+        assert(DELETE_TEST++ == &ml->data[offset_non_padded] - nt->_data);
+        //compare nt vs ml offsets
         assert(ml->data[offset_non_padded] ==
                nt->_data[data_total_offset + offset_non_padded]);
+        data.push_back(ml->data[offset_non_padded]);
 #else
         int offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
         data.push_back(ml->data[offset_padded]);
@@ -381,11 +390,14 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       pdata.shrink_to_fit();
 
       void **vdata = &nt->_vdata[vdata_total_offset];
+
+      bool mech_has_no_instances = HardCodedMechanismHasNoInstances(type);
+      ///bool mech_has_no_instances = tml->ml->nodeindices==NULL;
+      Compartment *compartment = mech_has_no_instances ? no_instances_compartment : compartments.at(ml->nodeindices[n]);
+      compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
+                                          pdata.data(), mech->pdata_size_);
       if ( mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
-        Compartment *compartment = compartments.at(ml->nodeindices[n]);
-        assert(compartment->id_ == ml->nodeindices[n]);
-
         const int point_proc_offset_in_pdata = HardCodedPntProcOffsetInPdata(type);
         if (point_proc_offset_in_pdata != -1) {
           const int point_proc_offset_in_vdata = HardCodedPntProcOffsetInVdata(type);
@@ -401,6 +413,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         int rng_offset_in_pdata = HardCodedRNGOffsetInPdata(type);
         if (rng_offset_in_pdata !=-1) {
           int rng_offset_in_vdata = HardCodedRNGOffsetInVdata(type);
+          assert(!mech_has_no_instances); //needs to have instances!
           assert(nt->_vdata[pdata[rng_offset_in_pdata]] == vdata[rng_offset_in_vdata]);
           nrnran123_State *rng = (nrnran123_State *)vdata[rng_offset_in_vdata];
           nrnran123_State *rng2 = (nrnran123_State *)nt->_vdata[pdata[rng_offset_in_pdata]];
@@ -414,11 +427,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
             assert(rng != NULL);
             compartment->AddSerializedVData((unsigned char *)(void *)rng,
                                             sizeof(nrnran123_State));
-          }
+            }
         }
-        compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
-                                          pdata.data(), mech->pdata_size_);
-
         vdata_total_offset += (unsigned)mech->vdata_size_;
       }
     }
@@ -427,6 +437,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
 
+  assert(DELETE_TEST == nt->_ndata);
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   data_offsets.clear();
@@ -441,8 +452,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     assert(nt->id < netcon_srcgid.size());
     assert(netcon_srcgid.at(nt->id) != NULL);
     int srcgid = netcon_srcgid[nt->id][n];
-    assert(srcgid >= 0);  // gids can be negative! this is a reminder that i
-                          // should double-check when they happen
     int mech_type = nc->target_->_type;
     int weights_count = pnt_receive_size[mech_type];
     size_t weights_offset = nc->u.weight_index_;
@@ -507,6 +516,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
+  //add mechs instances without compartment to end of compartments
+  compartments.push_back(no_instances_compartment);
   CreateBranch(nt->id, HPX_NULL, compartments, compartments.at(0),
                ions_instances_info, -1, thvar_index, ap_threshold);
 
@@ -1237,15 +1248,8 @@ int DataLoader::GetBranchData(
       instances_count[mech_offset]++;
       comp_data_offset += mech->data_size_;
       comp_pdata_offset += mech->pdata_size_;
+
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
-        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
-                 type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-                mech->pnt_map_ > 0));
 
         size_t total_vdata_size = HardCodedVdataSize(mech->type_);
         vdata_mechs[mech_offset].insert(
@@ -1274,7 +1278,8 @@ int DataLoader::GetBranchData(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
       data.insert(data.end(), &data_mechs[m][data_offset],
                   &data_mechs[m][data_offset + mech->data_size_]);
-      nodes_indices.push_back(nodes_indices_mechs[m][i]);
+      if ( nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1)) //-1 is no_instances_mechanism
+        nodes_indices.push_back(nodes_indices_mechs[m][i]);
       data_offset += mech->data_size_;
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
@@ -1622,6 +1627,7 @@ hpx_t DataLoader::CreateBranch(
     }
   /* branch - parallelism */
   } else {
+    assert(0); //take into account mechs without instances
     /* get subsection of all leaves until the end of arborization */
     /* for load-balancing and branch-parallelism, we use the approximated
      * run time of the neuron instead */
