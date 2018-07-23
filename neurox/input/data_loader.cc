@@ -230,13 +230,17 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     if (HardCodedMechanismHasNoInstances(tml->index))
     {
       assert(tml->ml->nodeindices == NULL);
-      printf("HELLO %d %d\n", tml->index, GetMechanismFromType(tml->index)->data_size_);
     }
     else
     {
       assert(tml->ml->nodeindices != NULL);
     }
     assert(tml->ml->data !=NULL);
+    printf("HELLO mech %d, data %d, data*nodecount %d, instances? %d\n",
+           tml->index,
+           GetMechanismFromType(tml->index)->data_size_,
+           GetMechanismFromType(tml->index)->data_size_*tml->ml->nodecount,
+           HardCodedMechanismHasNoInstances(tml->index));
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
   }
@@ -319,6 +323,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   vector<DataLoader::IonInstancesInfo> ions_instances_info(
       Mechanism::IonTypes::kSizeAllIons);
   int DELETE_TEST=N*6;
+  int DELETE_TEST_nodes=0;
   //TODO from tqitem we get mech >< instance and which branch it belongs to
   //TODO is tditem of class tqueue.h :: TQItem?
   Compartment * no_instances_compartment = new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
@@ -333,6 +338,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
     // for every mech instance or compartment this mech is applied to..
     // (Mechs without instances have nodecount 1 and nodeindices NULL)
+    DELETE_TEST_nodes += ml->nodecount*mech->data_size_;
     for (int n = 0; n < ml->nodecount; n++) {
       if (mech->is_ion_) {
         if (n == 0) {
@@ -438,6 +444,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   }
 
   assert(DELETE_TEST == nt->_ndata);
+  assert(DELETE_TEST_nodes == nt->_ndata - N*6);
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   data_offsets.clear();
@@ -1194,18 +1201,18 @@ int DataLoader::GetBranchData(
   int vdata_pointer_offset = 0;
 
   ////// Basic information for RHS, D, A, B, V and area
-  for (const auto comp : compartments) data.push_back(comp->rhs_);
-  for (const auto comp : compartments) data.push_back(comp->d_);
-  for (const auto comp : compartments) data.push_back(comp->a_);
-  for (const auto comp : compartments) data.push_back(comp->b_);
-  for (const auto comp : compartments) data.push_back(comp->v_);
-  for (const auto comp : compartments) data.push_back(comp->area_);
-  for (const auto comp : compartments) p.push_back(comp->p_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->rhs_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->d_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->a_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->b_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->v_);
+  for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->area_);
+  for (const auto comp : compartments) if (comp->id_ != -1) p.push_back(comp->p_);
 
   ////// Tree of neurons: convert from neuron- to branch-level
   std::map<int, int> from_old_to_new_compartment_id;
   for (const Compartment *comp : compartments)
-    from_old_to_new_compartment_id[comp->id_] = n++;
+      from_old_to_new_compartment_id[comp->id_] = n++;
 
   if (mech_instance_map) {
     p.at(0) = 0;  // top node gets parent Id 0 as in Coreneuron
@@ -1245,6 +1252,7 @@ int DataLoader::GetBranchData(
           &comp->pdata[comp_pdata_offset + mech->pdata_size_]);
       int new_id = from_old_to_new_compartment_id.at(comp->id_);
       nodes_indices_mechs[mech_offset].push_back(new_id);
+
       instances_count[mech_offset]++;
       comp_data_offset += mech->data_size_;
       comp_pdata_offset += mech->pdata_size_;
@@ -1259,6 +1267,14 @@ int DataLoader::GetBranchData(
       }
     }
   }
+
+  int DELETE_TOTAL_inst = 0;
+  for (int m=0; m<neurox::mechanisms_count_; m++)
+  {
+    printf("=== HELLO mech %d data %d data*nodecount %d\n", mechanisms_[m]->type_, mechanisms_[m]->data_size_, mechanisms_[m]->data_size_*instances_count[m]);
+    DELETE_TOTAL_inst += mechanisms_[m]->data_size_*instances_count[m];
+  }
+  printf("TOTAL INST= %d\n", DELETE_TOTAL_inst+N*6);
 
   // merge all mechanisms vectors in the final one
   // store the offset of each mechanism data (for later)
@@ -1278,8 +1294,10 @@ int DataLoader::GetBranchData(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
       data.insert(data.end(), &data_mechs[m][data_offset],
                   &data_mechs[m][data_offset + mech->data_size_]);
-      if ( nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1)) //-1 is no_instances_mechanism
+      if ( nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1))
         nodes_indices.push_back(nodes_indices_mechs[m][i]);
+      else
+        nodes_indices.push_back(-1); //-1 is no_instances_compartment
       data_offset += mech->data_size_;
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
@@ -1561,7 +1579,15 @@ hpx_t DataLoader::CreateBranch(
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
     double neuron_runtime, int thvar_index /*AIS*/,
     floble_t ap_threshold /*AIS*/, int assigned_locality) {
-  int N = all_compartments.size();
+
+  //remove no_instances_mechanism from end of all_compartments
+  bool exists_no_instance_compartment = false;
+  for (Compartment* comp : all_compartments)
+      if (comp->id_ == -1)
+          exists_no_instance_compartment = true;
+
+  int N = all_compartments.size() + (exists_no_instance_compartment ? -1 : 0);
+
   bool is_soma = soma_branch_addr == HPX_NULL;
   bool is_AIS = thvar_index != -1;
 
@@ -1774,6 +1800,15 @@ hpx_t DataLoader::CreateBranch(
 
     if (is_soma) thvar_index = -1;
   }
+
+
+  //if exists no_instances_compartment, update n
+  for (int i : nodes_indices)
+      if (i==-1)
+      {
+          n--;
+          break;
+      }
 
   /* initialize subsection on the appropriate locality */
   hpx_call_sync(

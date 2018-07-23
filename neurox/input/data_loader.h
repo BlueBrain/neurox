@@ -65,6 +65,8 @@ class DataLoader {
   static int HardCodedPntProcOffsetInVdata(int type);
   static int HardCodedRNGOffsetInPdata(int type);
   static int HardCodedRNGOffsetInVdata(int type);
+  static bool HardCodedMechanismHasNoInstances(int index);
+  static bool HardCodedMechanismForCoreneuronOnly(int index);
 
  private:
   /// pointer of netcons.dot file
@@ -152,8 +154,6 @@ class DataLoader {
   static hpx_action_t AddNeurons;
   static hpx_action_t SetMechanisms;
 
-  static bool HardCodedMechanismHasNoInstances(int index);
-  static bool HardCodedMechanismForCoreneuronOnly(int index);
   static int CreateNeuron(int neuron_idx, void *);
   static int GetMyNrnThreadsCount();
   static int AddSynapse_handler(const int, const void *[], const size_t[]);

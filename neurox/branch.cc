@@ -134,9 +134,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     if (instance.pdata)
       memcpy(instance.pdata, &pdata[pdata_offset],
              sizeof(offset_t) * (mech->pdata_size_ * instance.nodecount));
-    instance.nodeindices = instance.nodecount > 0
-                               ? Vectorizer::New<offset_t>(instance.nodecount)
-                               : nullptr;
+    instance.nodeindices = instance.nodecount == 0 || input::DataLoader::HardCodedMechanismHasNoInstances(type)
+            ? nullptr
+            : Vectorizer::New<offset_t>(instance.nodecount);
     if (instance.nodeindices)
       memcpy(instance.nodeindices, &nodes_indices[instances_offset],
              sizeof(offset_t) * instance.nodecount);

@@ -349,6 +349,12 @@ void Debugger::CompareBranch2(Branch *branch) {
     assert(ml->nodecount == instances.nodecount);
     short dataSize = mechanisms_[m]->data_size_;
     short pdataSize = mechanisms_[m]->pdata_size_;
+    if (DataLoader::HardCodedMechanismHasNoInstances(tml->index))
+    {
+        assert(ml->nodeindices == nullptr and instances.nodeindices== nullptr);
+        assert(ml->nodecount == instances.nodecount);
+    }
+    else
     for (int n = 0; n < ml->nodecount; n++)  // for every mech instance
     {
       assert(ml->nodeindices[n] == instances.nodeindices[n]);
