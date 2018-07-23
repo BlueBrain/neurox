@@ -1780,6 +1780,14 @@ hpx_t DataLoader::CreateBranch(
 //#endif
   }
 
+  //if exists no_instances_compartment, update n
+  for (int i : nodes_indices)
+      if (i==-1)
+      {
+          n--;
+          break;
+      }
+
   /* allocate GAS mem for subsection in the appropriate locality */
   hpx_t branch_addr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch),
                                                   Vectorizer::kMemoryAlignment,
@@ -1800,15 +1808,6 @@ hpx_t DataLoader::CreateBranch(
 
     if (is_soma) thvar_index = -1;
   }
-
-
-  //if exists no_instances_compartment, update n
-  for (int i : nodes_indices)
-      if (i==-1)
-      {
-          n--;
-          break;
-      }
 
   /* initialize subsection on the appropriate locality */
   hpx_call_sync(
