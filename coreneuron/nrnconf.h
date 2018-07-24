@@ -89,7 +89,7 @@ typedef struct Point_process {
     short _tid; /* NrnThread id */
 
     Point_process(){}
-    Point_process(int i_instance, short type, short tid):
+    Point_process(int tid, short type, short i_instance):
         _i_instance(i_instance), _type(type), _tid(tid) {}
 } Point_process;
 
