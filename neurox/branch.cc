@@ -472,6 +472,7 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count_; m++) {
         if (mechanisms_[m]->type_ == CAP) continue;  // not capacitance
+        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
         if (mechanisms_[m]->dependencies_count_ > 0)
           continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
@@ -486,6 +487,7 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
           continue;  // kCurrentCapacitance and kJacobCapacitance above
+        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
         mechanisms_[m]->CallModFunction(this, function_id, other_ml);
       }
     }
@@ -622,6 +624,7 @@ int Branch::InitMechanismsGraph_handler() {
     local->mechs_graph_ = new Branch::MechanismsGraph();
     for (size_t m = 0; m < mechanisms_count_; m++) {
       if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
+      if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
       hpx_call(target, MechanismsGraph::MechFunction,
                local->mechs_graph_->graph_lco_, &mechanisms_[m]->type_,
                sizeof(int));
@@ -704,13 +707,21 @@ int Branch::BranchTree::InitLCOs_handler() {
 
 Branch::MechanismsGraph::MechanismsGraph() {
   // initializes mechanisms graphs (capacitance is excluded from graph)
+  int mechanisms_count_filtered = 0;
+  for (size_t m = 0; m < mechanisms_count_; m++) {
+    if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
+    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
+    mechanisms_count_filtered ++;
+  }
+
   this->graph_lco_ =
-      hpx_lco_and_new(mechanisms_count_ - 1);  // excludes 'capacitance'
+      hpx_lco_and_new(mechanisms_count_filtered);
   this->mechs_lcos_ = new hpx_t[mechanisms_count_];
   size_t terminal_mechanisms_count = 0;
   for (size_t m = 0; m < mechanisms_count_; m++) {
     this->mechs_lcos_[m] = HPX_NULL;
     if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
+    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
 
     this->mechs_lcos_[m] = hpx_lco_reduce_new(
         max((short)1, mechanisms_[m]->dependencies_count_),
@@ -745,6 +756,7 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
   NEUROX_MEM_PIN(Branch);
   int type = *mech_type_ptr;
   assert(type != CAP);  // capacitance should be outside mechanisms graph
+  assert(!input::DataLoader::HardCodedMechanismForCoreneuronOnly(type));
   assert(local->mechs_graph_);
   assert(local->mechs_graph_->mechs_lcos_[mechanisms_map_[type]] != HPX_NULL);
   Mechanism *mech = GetMechanismFromType(type);

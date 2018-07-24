@@ -236,11 +236,15 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       assert(tml->ml->nodeindices != NULL);
     }
     assert(tml->ml->data !=NULL);
-    printf("HELLO mech %d, data %d, data*nodecount %d, instances? %d\n",
+    assert(nt->ncell==1);
+    /*
+    printf("HELLO neuron id %d, mech %d, data %d, data*nodecount %d, instances? %d\n",
+           nt->id,
            tml->index,
            GetMechanismFromType(tml->index)->data_size_,
            GetMechanismFromType(tml->index)->data_size_*tml->ml->nodecount,
            HardCodedMechanismHasNoInstances(tml->index));
+    */
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
   }
@@ -641,12 +645,12 @@ int DataLoader::InitMechanisms_handler() {
       }
     } else {
       // all except last have one successor
-      if (tml->index != ordered_mechs.back()->index) {
+      if (tml->index != ordered_mechs.back()->index){
         auto tml_next_it = std::next(tml_it, 1);
         successors.push_back((*tml_next_it)->index);
       }
       // all except first have one dependency
-      if (tml->index != CAP) {
+      if (tml->index != CAP ) {
         auto tml_prev_it = std::prev(tml_it, 1);
         dependencies.push_back((*tml_prev_it)->index);
       }
@@ -988,8 +992,9 @@ int DataLoader::Finalize_handler() {
       Mechanism *mech = neurox::mechanisms_[m];
 
       if (mech->pnt_map_ > 0)  // if is point process make it dotted
-        fprintf(file_mechs, "\"%s (%d)\" [style=dashed];\n",
-                mech->memb_func_.sym, mech->type_);
+        fprintf(file_mechs, "\"%s (%d)\" [style=dashed%s];\n",
+                mech->memb_func_.sym, mech->type_,
+                HardCodedMechanismForCoreneuronOnly(mech->type_) ? ", color=gray, fontcolor=gray" : "");
 
       if (mech->dependencies_count_ == 0 &&
           mech->type_ != CAP)  // top mechanism
@@ -1034,12 +1039,13 @@ int DataLoader::Finalize_handler() {
       printf(
           "- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
           "isIon %d, symLength %d, %d successors, %d dependencies, %d state "
-          "vars\n",
+          "vars, noInstances %d\n",
           mech->memb_func_.sym, mech->type_, mech->data_size_,
           mech->pdata_size_, mech->is_artificial_, mech->pnt_map_,
           mech->is_ion_, mech->sym_length_, mech->successors_count_,
           mech->dependencies_count_,
-          mech->state_vars_ ? mech->state_vars_->count_ : 0);
+          mech->state_vars_ ? mech->state_vars_->count_ : 0,
+          HardCodedMechanismHasNoInstances(mech->type_));
     }
   }
 #endif
@@ -1267,14 +1273,6 @@ int DataLoader::GetBranchData(
       }
     }
   }
-
-  int DELETE_TOTAL_inst = 0;
-  for (int m=0; m<neurox::mechanisms_count_; m++)
-  {
-    printf("=== HELLO mech %d data %d data*nodecount %d\n", mechanisms_[m]->type_, mechanisms_[m]->data_size_, mechanisms_[m]->data_size_*instances_count[m]);
-    DELETE_TOTAL_inst += mechanisms_[m]->data_size_*instances_count[m];
-  }
-  printf("TOTAL INST= %d\n", DELETE_TOTAL_inst+N*6);
 
   // merge all mechanisms vectors in the final one
   // store the offset of each mechanism data (for later)
