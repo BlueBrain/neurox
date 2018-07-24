@@ -1214,6 +1214,7 @@ int DataLoader::GetBranchData(
   for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->v_);
   for (const auto comp : compartments) if (comp->id_ != -1) data.push_back(comp->area_);
   for (const auto comp : compartments) if (comp->id_ != -1) p.push_back(comp->p_);
+  assert(p.size()>0); //zero-sized sub-section
 
   ////// Tree of neurons: convert from neuron- to branch-level
   std::map<int, int> from_old_to_new_compartment_id;
@@ -1292,7 +1293,8 @@ int DataLoader::GetBranchData(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
       data.insert(data.end(), &data_mechs[m][data_offset],
                   &data_mechs[m][data_offset + mech->data_size_]);
-      if ( nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1))
+      if ( from_old_to_new_compartment_id.find(-1) == from_old_to_new_compartment_id.end()
+           || nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1))
         nodes_indices.push_back(nodes_indices_mechs[m][i]);
       else
         nodes_indices.push_back(-1); //-1 is no_instances_compartment
@@ -1546,12 +1548,25 @@ double DataLoader::BenchmarkEachCompartment(
     const deque<Compartment *> &all_compartments,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
   double total_time_elapsed = 0;
-  int N = all_compartments.size();
+  //remove no_instances_mechanism from end of all_compartments
+  bool exists_no_instance_compartment = false;
+  for (Compartment* comp : all_compartments)
+      if (comp->id_ == -1)
+          exists_no_instance_compartment = true;
+  int N = all_compartments.size() + (exists_no_instance_compartment ? -1 : 0);
+
   for (Compartment *comp : all_compartments) {
     deque<Compartment *> comp_section;
     comp_section.push_back(comp);
-    comp->runtime_ = BenchmarkSubSection(N, comp_section, ions_instances_info);
-    total_time_elapsed += comp->runtime_;
+    if (comp->id_!=-1) //ignore no_instances_mechanism
+    {
+      comp->runtime_ = BenchmarkSubSection(N, comp_section, ions_instances_info);
+      total_time_elapsed += comp->runtime_;
+    }
+    else
+    {
+      comp->runtime_=0;
+    }
 
     hpx_lco_sema_p(locality_mutex_);
     slowest_compartment_runtime =
@@ -1583,7 +1598,6 @@ hpx_t DataLoader::CreateBranch(
   for (Compartment* comp : all_compartments)
       if (comp->id_ == -1)
           exists_no_instance_compartment = true;
-
   int N = all_compartments.size() + (exists_no_instance_compartment ? -1 : 0);
 
   bool is_soma = soma_branch_addr == HPX_NULL;
@@ -1651,7 +1665,6 @@ hpx_t DataLoader::CreateBranch(
     }
   /* branch - parallelism */
   } else {
-    assert(0); //take into account mechs without instances
     /* get subsection of all leaves until the end of arborization */
     /* for load-balancing and branch-parallelism, we use the approximated
      * run time of the neuron instead */
