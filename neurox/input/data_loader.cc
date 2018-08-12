@@ -1086,15 +1086,12 @@ int DataLoader::Finalize_handler() {
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-double DataLoader::GetSubSectionFromCompartment(
+void DataLoader::GetSubSectionFromCompartment(
     deque<Compartment *> &sub_section, Compartment *top_comp) {
   // parent added first, to respect solvers logic, of parents' ids first
   sub_section.push_back(top_comp);
-  double time_acc = top_comp->runtime_;
   for (int c = 0; c < top_comp->branches_.size(); c++)
-    time_acc +=
         GetSubSectionFromCompartment(sub_section, top_comp->branches_.at(c));
-  return time_acc;
 }
 
 void DataLoader::GetMechInstanceMap(const deque<Compartment *> &compartments,
@@ -1399,7 +1396,7 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 double DataLoader::BenchmarkSubSection(
     int N, const deque<Compartment *> &sub_section,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-    bool run_single_step_benchmark, bool run_mechanisms_benchmark) {
+    bool run_four_steps_benchmark, bool run_mechanisms_benchmark) {
   // common vars to all compartments
   int dumb_threshold_offset = 0;
   int nrn_threadId = -1;
@@ -1470,14 +1467,14 @@ double DataLoader::BenchmarkSubSection(
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  if (run_single_step_benchmark || run_mechanisms_benchmark) {
+  if (run_four_steps_benchmark || run_mechanisms_benchmark) {
     // for benchamark: either type of benchmark, but not both
-    assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
+    assert(run_mechanisms_benchmark ^ run_four_steps_benchmark);
     assert(branch->mechs_graph_ == nullptr);
     assert(branch->mechs_instances_parallel_ == nullptr);
   }
 
-  if (run_single_step_benchmark) {
+  if (run_four_steps_benchmark) {
     // initialize datatypes and graph-parallelism shadow vecs offsets
     branch->soma_ = new Neuron(-1, 999);
 
@@ -1544,48 +1541,6 @@ double DataLoader::BenchmarkSubSection(
   return time_elapsed;
 }
 
-double DataLoader::BenchmarkEachCompartment(
-    const deque<Compartment *> &all_compartments,
-    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
-  double total_time_elapsed = 0;
-  //remove no_instances_mechanism from end of all_compartments
-  bool exists_no_instance_compartment = false;
-  for (Compartment* comp : all_compartments)
-      if (comp->id_ == -1)
-          exists_no_instance_compartment = true;
-  int N = all_compartments.size() + (exists_no_instance_compartment ? -1 : 0);
-
-  for (Compartment *comp : all_compartments) {
-    deque<Compartment *> comp_section;
-    comp_section.push_back(comp);
-    if (comp->id_!=-1) //ignore no_instances_mechanism
-    {
-      comp->runtime_ = BenchmarkSubSection(N, comp_section, ions_instances_info);
-      total_time_elapsed += comp->runtime_;
-    }
-    else
-    {
-      comp->runtime_=0;
-    }
-
-    hpx_lco_sema_p(locality_mutex_);
-    slowest_compartment_runtime =
-        std::max(slowest_compartment_runtime, comp->runtime_);
-    hpx_lco_sema_v_sync(locality_mutex_);
-  }
-  return total_time_elapsed;
-}
-
-double DataLoader::GetSumOfCompartmentsRunTime(
-    const deque<Compartment *> &all_compartments) {
-  double total_runtime = 0;
-  for (Compartment *comp : all_compartments) {
-    assert(comp->runtime_ != -1);
-    total_runtime += comp->runtime_;
-  }
-  return total_runtime;
-}
-
 hpx_t DataLoader::CreateBranch(
     const int nrn_threadId, hpx_t soma_branch_addr,
     const deque<Compartment *> &all_compartments, Compartment *top_compartment,
@@ -1637,11 +1592,10 @@ hpx_t DataLoader::CreateBranch(
     BenchmarkSubSection(N, all_compartments, ions_instances_info, false, true);
   }
 
-  /* fill the runtime of each individual compartment and return their sum */
-  if (is_soma /*first run*/ && input_params_->branch_parallelism_) {
+  /* get the runtime of SIM structured neuron */
+  if (is_soma /*first run*/ && input_params_->branch_parallelism_)
     neuron_runtime =
-        BenchmarkEachCompartment(all_compartments, ions_instances_info);
-  }
+        BenchmarkSubSection(N, all_compartments, ions_instances_info, true, false);
 
   /* No branch-parallelism (a la Coreneuron) */
   if (!input_params_->branch_parallelism_) {
@@ -1652,24 +1606,16 @@ hpx_t DataLoader::CreateBranch(
     GetNetConsBranchData(all_compartments, branch_netcons,
                          branch_netcons_pre_id, branch_weights, NULL);
 
-    /* For querying the table we use and approximated exec time*/
+    /* For querying the table we use neuron's exec time */
     subsection = all_compartments;
     subsection_runtime = neuron_runtime;
-
     if (!input_params_->load_balancing_) {
       /* assign branch locally*/
-      assigned_locality = hpx_get_my_rank();
-    } else {
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &assigned_locality, sizeof(int));  // output
     }
   /* branch - parallelism */
   } else {
-    /* get subsection of all leaves until the end of arborization */
-    /* for load-balancing and branch-parallelism, we use the approximated
-     * run time of the neuron instead */
-    double subsection_runtime =
-        GetSubSectionFromCompartment(subsection, top_compartment);
 
     /* estimated max execution time per subregion for this neuron*/
     double max_work_per_subtree = LoadBalancing::GetMaxWorkPerBranchSubTree(
@@ -1681,57 +1627,17 @@ hpx_t DataLoader::CreateBranch(
              neuron_runtime, max_work_per_subtree);
 //#endif
 
-    if (!input_params_->load_balancing_) {
-      /* assign branch locally*/
-      assigned_locality = hpx_get_my_rank();
-    } else {
-      /* estimated max executiom time allowed per locality */
-      double max_work_per_subsection = LoadBalancing::GetMaxWorkPerBranchSubSection(
-          neuron_runtime, GetMyNrnThreadsCount());
-
-//#ifndef NDEBUG
-      if (is_soma)
-        printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
-               neuron_runtime, max_work_per_subsection);
-//#endif
-
-      /* if subsection_complexity == 0, keep all subtrees in the
-       * same locality (get rank if soma, or use previously assigned
-       * assigned_locality otherwise) */
-      if (  (max_work_per_subsection == 0 && is_soma)
-         /* assign remaining arborization to different locality if it fits in the
-         * max workload per locality and is not too small (to reduce number of
-          * remote small branches)*/
-         || (max_work_per_subsection >0 &&
-             assigned_locality == hpx_get_my_rank() &&
-             subsection_runtime < max_work_per_subsection)) {
-          //subsection_runtime < max_work_per_locality &&
-          //subsection_runtime > max_work_per_locality * 0.5) {
-        /* ask master rank where to allocate this arborization, update table*/
-        hpx_call_sync(HPX_THERE(0),
-                      tools::LoadBalancing::QueryLoadBalancingTable,   /*action*/
-                      &assigned_locality, sizeof(assigned_locality));  /*output*/
-      }
-    }
-
     /*if this subsection exceeds maximum time allowed per subtree*/
-    if (subsection_runtime > max_work_per_subtree) {
+    if (neuron_runtime > max_work_per_subtree) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
       subsection.push_back(top_compartment);
-      subsection_runtime = top_compartment->runtime_;
       for (bottom_compartment = top_compartment;
            bottom_compartment->branches_.size() == 1;
            bottom_compartment = bottom_compartment->branches_.front()) {
-        Compartment *&next_comp = bottom_compartment->branches_.front();
-
-        /* soma and AIS cant be split due to AP threshold communication */
-        if (!is_soma && !is_AIS)
-          if (subsection_runtime + next_comp->runtime_ > max_work_per_subtree)
-            break;
-
-        subsection.push_back(bottom_compartment->branches_.front());
-        subsection_runtime += bottom_compartment->branches_.front()->runtime_;
+        subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
+        if (subsection_runtime < max_work_per_subtree)
+          subsection.push_back(bottom_compartment->branches_.front());
       }
 
       /* let user know, this will be the limiting factor of parallelism */
@@ -1766,13 +1672,46 @@ hpx_t DataLoader::CreateBranch(
                          branch_weights, &mech_instances_map);
 
     // TODO add the removed SORT!!!
+
+    // Load balancing matters here:
+    if (input_params_->load_balancing_) {
+      /* estimated max executiom time allowed per locality */
+      double max_work_per_subsection = LoadBalancing::GetMaxWorkPerBranchSubSection(
+          neuron_runtime, GetMyNrnThreadsCount());
+
+      assert(0); //TODO double check
+      /* TODO: check: soma and AIS cant be split due to AP threshold communication */
+
+//#ifndef NDEBUG
+      if (is_soma)
+        printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
+               neuron_runtime, max_work_per_subsection);
+//#endif
+
+      /* if subsection_complexity == 0, keep all subtrees in the
+       * same locality (get rank of soma, or use previously assigned
+       * assigned_locality otherwise) */
+      if (  (max_work_per_subsection == 0 && is_soma)
+         /* assign remaining arborization to different locality if it fits in the
+         * max workload per locality and is not too small (to reduce number of
+          * remote small branches)*/
+         || (max_work_per_subsection >0 &&
+             assigned_locality == hpx_get_my_rank() &&
+             subsection_runtime < max_work_per_subsection)) {
+          //subsection_runtime < max_work_per_locality &&
+          //subsection_runtime > max_work_per_locality * 0.5) {
+        /* ask master rank where to allocate this arborization, update table*/
+        hpx_call_sync(HPX_THERE(0),
+                      tools::LoadBalancing::QueryLoadBalancingTable,   /*action*/
+                      &assigned_locality, sizeof(assigned_locality));  /*output*/
+      }
+    }
   }
 
-  if (input_params_->output_statistics_ || input_params_->load_balancing_) {
+  if (input_params_->output_statistics_) {
     /* for the LPT table and statistics, we use the final data struct runtime*/
-    subsection_runtime =
-        BenchmarkSubSection(N, subsection, ions_instances_info);
-    subsection = all_compartments;
+    if (subsection_runtime == -1)
+        subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
 
     /* tell master rank to update entry in Least-Processing-Time table */
     hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::UpdateLoadBalancingTable,

@@ -21,8 +21,8 @@ Compartment::Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
       v_(v),
       rhs_(rhs),
       area_(area),
-      p_(p),
-      runtime_(-1){};
+      p_(p)
+      {};
 
 void Compartment::AddChild(Compartment *child) { branches_.push_back(child); }
 
