@@ -1216,7 +1216,8 @@ int DataLoader::GetBranchData(
   ////// Tree of neurons: convert from neuron- to branch-level
   std::map<int, int> from_old_to_new_compartment_id;
   for (const Compartment *comp : compartments)
-      from_old_to_new_compartment_id[comp->id_] = n++;
+      if (comp->id_!=-1)
+          from_old_to_new_compartment_id[comp->id_] = n++;
 
   if (mech_instance_map) {
     p.at(0) = 0;  // top node gets parent Id 0 as in Coreneuron
@@ -1248,13 +1249,14 @@ int DataLoader::GetBranchData(
       int mech_offset = mechanisms_map_[type];
       assert(mech_offset >= 0 && mech_offset < mechanisms_count_);
       Mechanism *mech = mechanisms_[mech_offset];
+
       data_mechs[mech_offset].insert(
           data_mechs[mech_offset].end(), &comp->data[comp_data_offset],
           &comp->data[comp_data_offset + mech->data_size_]);
       pdata_mechs[mech_offset].insert(
           pdata_mechs[mech_offset].end(), &comp->pdata[comp_pdata_offset],
           &comp->pdata[comp_pdata_offset + mech->pdata_size_]);
-      int new_id = from_old_to_new_compartment_id.at(comp->id_);
+      int new_id = comp->id_==-1 ? -1 : from_old_to_new_compartment_id.at(comp->id_);
       nodes_indices_mechs[mech_offset].push_back(new_id);
 
       instances_count[mech_offset]++;
@@ -1284,18 +1286,20 @@ int DataLoader::GetBranchData(
       assert(ion_instance_to_data_offset.find(
                  make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
              ion_instance_to_data_offset.end());
-      if (mech->is_ion_ &&
-          input_params_->branch_parallelism_)  // pdata calculation
-        ion_instance_to_data_offset[make_pair(
-            mech->type_, nodes_indices_mechs[m][i])] = data.size();
+
       data.insert(data.end(), &data_mechs[m][data_offset],
                   &data_mechs[m][data_offset + mech->data_size_]);
-      if ( from_old_to_new_compartment_id.find(-1) == from_old_to_new_compartment_id.end()
-           || nodes_indices_mechs[m][i] != from_old_to_new_compartment_id.at(-1))
-        nodes_indices.push_back(nodes_indices_mechs[m][i]);
-      else
-        nodes_indices.push_back(-1); //-1 is no_instances_compartment
       data_offset += mech->data_size_;
+
+      if (!HardCodedMechanismHasNoInstances(mech->type_))
+        nodes_indices.push_back(nodes_indices_mechs[m][i]);
+
+      //pdata calculation for branch-parallelism
+      if (mech->is_ion_ && input_params_->branch_parallelism_)
+      {
+        ion_instance_to_data_offset[make_pair(
+            mech->type_, nodes_indices_mechs[m][i])] = data.size();
+      }
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
         int total_vdata_size = HardCodedVdataSize(mech->type_);
@@ -1394,7 +1398,7 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 }
 
 double DataLoader::BenchmarkSubSection(
-    int N, const deque<Compartment *> &sub_section,
+    int N, const deque<Compartment *> &subsection,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
     bool run_four_steps_benchmark, bool run_mechanisms_benchmark) {
   // common vars to all compartments
@@ -1427,13 +1431,13 @@ double DataLoader::BenchmarkSubSection(
 
   // mech-offset -> ( map[old instance]->to new instance )
   vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
-  GetMechInstanceMap(sub_section, mech_instances_map);
+  GetMechInstanceMap(subsection, mech_instances_map);
 
-  n = GetBranchData(sub_section, data, pdata, vdata, p, instances_count,
+  n = GetBranchData(subsection, data, pdata, vdata, p, instances_count,
                     nodes_indices, N, ions_instances_info, &mech_instances_map);
-  GetVecPlayBranchData(sub_section, vecplay_t, vecplay_y, vecplay_info,
+  GetVecPlayBranchData(subsection, vecplay_t, vecplay_y, vecplay_info,
                        &mech_instances_map);
-  GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
+  GetNetConsBranchData(subsection, branch_netcons, branch_netcons_pre_id,
                        branch_weights, &mech_instances_map);
 
   hpx_call_sync(
@@ -1541,6 +1545,14 @@ double DataLoader::BenchmarkSubSection(
   return time_elapsed;
 }
 
+int DataLoader::GetNumberOfInstanceCompartments(const deque<Compartment*> &compartments)
+{
+    for (Compartment* comp : compartments)
+        if (comp->id_ == -1)
+            return compartments.size()-1;
+    return compartments.size();
+}
+
 hpx_t DataLoader::CreateBranch(
     const int nrn_threadId, hpx_t soma_branch_addr,
     const deque<Compartment *> &all_compartments, Compartment *top_compartment,
@@ -1549,12 +1561,7 @@ hpx_t DataLoader::CreateBranch(
     floble_t ap_threshold /*AIS*/, int assigned_locality) {
 
   //remove no_instances_mechanism from end of all_compartments
-  bool exists_no_instance_compartment = false;
-  for (Compartment* comp : all_compartments)
-      if (comp->id_ == -1)
-          exists_no_instance_compartment = true;
-  int N = all_compartments.size() + (exists_no_instance_compartment ? -1 : 0);
-
+  int N = GetNumberOfInstanceCompartments(all_compartments);
   bool is_soma = soma_branch_addr == HPX_NULL;
   bool is_AIS = thvar_index != -1;
 
@@ -1583,19 +1590,29 @@ hpx_t DataLoader::CreateBranch(
   double subsection_runtime = -1;
 
   /* defult value (-1) means use this locality */
-  if (assigned_locality < 0) assigned_locality = hpx_get_my_rank();
+  if (assigned_locality < 0)
+      assigned_locality = hpx_get_my_rank();
 
-  /* to calculate computational complexity for the mech-instance parallelism,
-   * benchmark all mechanisms. Only on the first run, and only benchmarks
-   * mechanisms instances, not individual step of neurons */
-  if (is_soma /*first run*/ && input_params_->mech_instances_parallelism_) {
-    BenchmarkSubSection(N, all_compartments, ions_instances_info, false, true);
+  /* get the runtime of SIMD structured neuron */
+  if (is_soma /*first run*/)
+  {
+      //Exclude no instances mechanisms from neuron time
+      //TODO this is the right version, after fixing TODO below
+      //GetSubSectionFromCompartment(subsection, all_compartments.at(0));
+      /* compute total runtime of neuron */
+      //neuron_runtime =
+      //        BenchmarkSubSection(N, subsection, ions_instances_info, true, false);
+
+      /* compute total runtime of neuron */
+      neuron_runtime =
+              BenchmarkSubSection(N, all_compartments, ions_instances_info, true, false);
+
+      /* to calculate computational complexity for the mech-instance parallelism,
+       * benchmark all mechanisms. Only on the first run, and only benchmarks
+       * mechanisms instances, not individual step of neurons */
+      if (input_params_->mech_instances_parallelism_)
+          BenchmarkSubSection(N, all_compartments, ions_instances_info, false, true);
   }
-
-  /* get the runtime of SIM structured neuron */
-  if (is_soma /*first run*/ && input_params_->branch_parallelism_)
-    neuron_runtime =
-        BenchmarkSubSection(N, all_compartments, ions_instances_info, true, false);
 
   /* No branch-parallelism (a la Coreneuron) */
   if (!input_params_->branch_parallelism_) {
@@ -1607,9 +1624,9 @@ hpx_t DataLoader::CreateBranch(
                          branch_netcons_pre_id, branch_weights, NULL);
 
     /* For querying the table we use neuron's exec time */
-    subsection = all_compartments;
+    //subsection = all_compartments;
     subsection_runtime = neuron_runtime;
-    if (!input_params_->load_balancing_) {
+    if (input_params_->load_balancing_) {
       /* assign branch locally*/
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &assigned_locality, sizeof(int));  // output
@@ -1628,7 +1645,8 @@ hpx_t DataLoader::CreateBranch(
 //#endif
 
     /*if this subsection exceeds maximum time allowed per subtree*/
-    if (neuron_runtime > max_work_per_subtree) {
+    subsection_runtime = neuron_runtime;
+    if (subsection_runtime > max_work_per_subtree) {
       /* new subsection: iterate until bifurcation or max time is reached */
       subsection.clear();
       subsection.push_back(top_compartment);
@@ -1729,14 +1747,6 @@ hpx_t DataLoader::CreateBranch(
         assigned_locality);
 //#endif
   }
-
-  //if exists no_instances_compartment, update n
-  for (int i : nodes_indices)
-      if (i==-1)
-      {
-          n--;
-          break;
-      }
 
   /* allocate GAS mem for subsection in the appropriate locality */
   hpx_t branch_addr = hpx_gas_alloc_local_at_sync(1, sizeof(Branch),

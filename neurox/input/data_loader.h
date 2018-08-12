@@ -91,6 +91,9 @@ class DataLoader {
                                     bool run_four_steps_benchmark = true,
                                     bool run_mechs_benchmark = false);
 
+  static int GetNumberOfInstanceCompartments(
+          const deque<Compartment*> &compartments);
+
   static hpx_t CreateBranch(
       const int nrn_thread_id, hpx_t soma_branch_addr,
       const deque<Compartment *> &all_compartments,
