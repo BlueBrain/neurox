@@ -198,7 +198,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       assert(data_offset < 2 ^ sizeof(offset_t));
       assert(pdata_offset < 2 ^ sizeof(offset_t));
       assert(vdata_offset < 2 ^ sizeof(offset_t));
-      instances_offset++;
+
+      if (!input::DataLoader::HardCodedMechanismHasNoInstances(type))
+          instances_offset++;
     }
   }
   assert(data_offset == data_count);

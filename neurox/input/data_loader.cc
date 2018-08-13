@@ -331,6 +331,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   //TODO from tqitem we get mech >< instance and which branch it belongs to
   //TODO is tditem of class tqueue.h :: TQItem?
   Compartment * no_instances_compartment = new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
+  //Compartment * no_instances_compartment = compartments.at(0);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -527,8 +528,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
-  //add mechs instances without compartment to end of compartments
-  compartments.push_back(no_instances_compartment);
+  //add mechs instances without compartment to end of compartments (if not soma)
+  if (no_instances_compartment != compartments.at(0))
+    compartments.push_back(no_instances_compartment);
   CreateBranch(nt->id, HPX_NULL, compartments, compartments.at(0),
                ions_instances_info, -1, thvar_index, ap_threshold);
 
@@ -1317,10 +1319,18 @@ int DataLoader::GetBranchData(
           switch (ptype) {
             case -1:  //"area" (6th field)
             {
-              assert(pd >= N * 5 && pd < N * 6);
-              offset_t old_id = pd - N * 5;
-              offset_t new_id = from_old_to_new_compartment_id.at(old_id);
-              pdata_mechs.at(m).at(p) = n * 5 + new_id;
+              if (HardCodedMechanismHasNoInstances(mech->type_))
+              {
+                  assert(pd == -1); //no instances, no compartment, no area!
+                  pdata_mechs.at(m).at(p) = pd;
+              }
+              else
+              {
+                  assert(pd >= N * 5 && pd < N * 6);
+                  offset_t old_id = pd - N * 5;
+                  offset_t new_id = from_old_to_new_compartment_id.at(old_id);
+                  pdata_mechs.at(m).at(p) = n * 5 + new_id;
+              }
               break;
             }
             case -2:  //"iontype"
@@ -1601,7 +1611,7 @@ hpx_t DataLoader::CreateBranch(
       //GetSubSectionFromCompartment(subsection, all_compartments.at(0));
       /* compute total runtime of neuron */
       //neuron_runtime =
-      //        BenchmarkSubSection(N, subsection, ions_instances_info, true, false);
+      //       BenchmarkSubSection(N, subsection, ions_instances_info, true, false);
 
       /* compute total runtime of neuron */
       neuron_runtime =
