@@ -78,22 +78,8 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
 double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
     const double neuron_time, const int my_neurons_count) {
 
-  // for a single-thread CPU with a single neuron..
-  double work_per_section = neuron_time;
-
-  // for a multi-thread CPU with a single neuron...
-  work_per_section /= wrappers::NumThreads();
-
-  // for a multi-thread CPU with several neurons...
-  //work_per_section *= my_neurons_count;
-
-  // scale by constant 1/K (see paper)
-  work_per_section *= input_params_->subtree_complexity;
-
-  // if graph parallelism is available, increase the work by a factor of...?
-  //if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
-
-  return work_per_section;
+  //intentionally made simillar to NEURON (see multisplit.hoc)
+  return neuron_time / wrappers::NumThreads() * input_params_->subtree_complexity;
 }
 
 double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(const double neuron_time,

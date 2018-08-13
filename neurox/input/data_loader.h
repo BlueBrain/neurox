@@ -88,7 +88,7 @@ class DataLoader {
   static double BenchmarkSubSection(int N,
                                     const deque<Compartment *> &sub_section,
                                     vector<DataLoader::IonInstancesInfo> &,
-                                    bool run_four_steps_benchmark = true,
+                                    bool run_stepping_benchmark = true,
                                     bool run_mechs_benchmark = false);
 
   static int GetNumberOfInstanceCompartments(

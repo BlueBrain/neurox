@@ -330,8 +330,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   int DELETE_TEST_nodes=0;
   //TODO from tqitem we get mech >< instance and which branch it belongs to
   //TODO is tditem of class tqueue.h :: TQItem?
-  Compartment * no_instances_compartment = new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
-  //Compartment * no_instances_compartment = compartments.at(0);
+  //Compartment * no_instances_compartment = new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
+  Compartment * no_instances_compartment = compartments.at(0);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -775,15 +775,6 @@ int DataLoader::InitNeurons_handler() {
   my_neurons_gids_ = new std::vector<int>();
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
-
-#ifndef NDEBUG
-
-  // TODO add also slowest subsection runtime?
-  if (input_params_->branch_parallelism_) {
-    printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
-           slowest_compartment_runtime);
-  }
-#endif
 
   // all neurons created, advertise them
   int my_rank = hpx_get_my_rank();
@@ -1410,7 +1401,7 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 double DataLoader::BenchmarkSubSection(
     int N, const deque<Compartment *> &subsection,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-    bool run_four_steps_benchmark, bool run_mechanisms_benchmark) {
+    bool run_stepping_benchmark, bool run_mechanisms_benchmark) {
   // common vars to all compartments
   int dumb_threshold_offset = 0;
   int nrn_threadId = -1;
@@ -1481,27 +1472,31 @@ double DataLoader::BenchmarkSubSection(
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  if (run_four_steps_benchmark || run_mechanisms_benchmark) {
+  if (run_stepping_benchmark || run_mechanisms_benchmark) {
     // for benchamark: either type of benchmark, but not both
-    assert(run_mechanisms_benchmark ^ run_four_steps_benchmark);
+    assert(run_mechanisms_benchmark ^ run_stepping_benchmark);
     assert(branch->mechs_graph_ == nullptr);
     assert(branch->mechs_instances_parallel_ == nullptr);
   }
 
-  if (run_four_steps_benchmark) {
+  if (run_stepping_benchmark) {
     // initialize datatypes and graph-parallelism shadow vecs offsets
     branch->soma_ = new Neuron(-1, 999);
 
     // initialize datatypes and graph-parallelism shadow vecs offsets
     interpolators::BackwardEuler::Finitialize2(branch);
 
-    // benchmark execution time of a communication-step time-frame
-    const int comm_steps =
-        interpolators::BackwardEuler::GetMinSynapticDelaySteps();
-    hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < comm_steps; i++)
-      interpolators::BackwardEuler::Step(branch, true);
-    time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
+    // benchmark execution time of 10 times 0.1msec
+    time_elapsed=0;
+    double step_count = interpolators::BackwardEuler::GetMinSynapticDelaySteps();
+    for (int i=0; i<20; i++)
+    {
+      hpx_time_t now = hpx_time_now();
+      for(int i=0; i<step_count; i++)
+        interpolators::BackwardEuler::Step(branch, true);
+      time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
+    }
+    time_elapsed /= 20;
   }
 
   if (run_mechanisms_benchmark) {
@@ -1615,7 +1610,7 @@ hpx_t DataLoader::CreateBranch(
 
       /* compute total runtime of neuron */
       neuron_runtime =
-              BenchmarkSubSection(N, all_compartments, ions_instances_info, true, false);
+            BenchmarkSubSection(N, all_compartments, ions_instances_info);
 
       /* to calculate computational complexity for the mech-instance parallelism,
        * benchmark all mechanisms. Only on the first run, and only benchmarks
@@ -1648,42 +1643,61 @@ hpx_t DataLoader::CreateBranch(
     double max_work_per_subtree = LoadBalancing::GetMaxWorkPerBranchSubTree(
         neuron_runtime, GetMyNrnThreadsCount());
 
-//#ifndef NDEBUG
+#ifndef NDEBUG
     if (is_soma)
-      printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-             neuron_runtime, max_work_per_subtree);
-//#endif
+        printf("=== nrn_id %d, neuron time %.5f ms, max work per subtree %.5f ms\n",
+               nrn_threadId, neuron_runtime, max_work_per_subtree);
+#endif
 
-    /*if this subsection exceeds maximum time allowed per subtree*/
-    subsection_runtime = neuron_runtime;
-    if (subsection_runtime > max_work_per_subtree) {
-      /* new subsection: iterate until bifurcation or max time is reached */
+    /*pack compartments until finding bifurcation */
+    /* new subsection: iterate until bifurcation or max time is reached */
+
+    //if remaining arborization fits, use it as a subsection
+    GetSubSectionFromCompartment(subsection, top_compartment);
+    subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
+    //printf("TEST: arborization starting on comp %d, time %f\n", top_compartment->id_, subsection_runtime);
+
+    //if not: pack compartments until it does, or find a bifurcation
+    if (subsection_runtime > max_work_per_subtree)
+    {
       subsection.clear();
       subsection.push_back(top_compartment);
+      subsection_runtime=-1;
       for (bottom_compartment = top_compartment;
-           bottom_compartment->branches_.size() == 1;
-           bottom_compartment = bottom_compartment->branches_.front()) {
-        subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
-        if (subsection_runtime < max_work_per_subtree)
-          subsection.push_back(bottom_compartment->branches_.front());
-      }
+         bottom_compartment->branches_.size() == 1;
+         bottom_compartment = bottom_compartment->branches_.front()) {
 
-      /* let user know, this will be the limiting factor of parallelism */
-      if (subsection_runtime < max_work_per_subtree*0.5)
-        printf(
-            "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
-            "is smaller than half max workload per subtree %.5f ms. total neuron time "
-            "%.5f ms (max parallelism capped at %.2fx)\n",
-            top_compartment->id_, subsection.size(), subsection_runtime,
-            max_work_per_subtree, neuron_runtime,
-            neuron_runtime / max_work_per_subtree);
+        //test current subsection
+        subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
+        //printf("TEST: Subsections starting on comp %d, length %d, time %f vs %f\n",
+        //       bottom_compartment->id_, subsection.size(), subsection_runtime, max_work_per_subtree);
+
+        //keeps adding compartments to subsection until remaining tree fits in runtime
+        if (subsection_runtime < max_work_per_subtree)
+            //add a single compartment to subsection and re-try
+            subsection.push_back(bottom_compartment->branches_.front());
+        else
+            break;
+      }
+      //three conditions that neets to be verified for this to work
+      assert(subsection_runtime!=-1 && subsection.size()>0 && bottom_compartment);
     }
 
+    /* let user know, this will be the limiting factor of parallelism */
+    /*
+    if (subsection_runtime < max_work_per_subtree*0.5)
+      printf(
+          "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
+          "is smaller than half max workload per subtree %.5f ms. total neuron time "
+          "%.5f ms (max parallelism capped at %.2fx)\n",
+          top_compartment->id_, subsection.size(), subsection_runtime,
+          max_work_per_subtree, neuron_runtime,
+          neuron_runtime / max_work_per_subtree);
+    */
     //#ifndef NDEBUG
-    printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
-           is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
-           top_compartment->id_, subsection.size(), nrn_threadId,
-           subsection_runtime);
+    printf("--- nrn_id %d, %s %d, length %d, sum compartments runtime %.5f ms\n",
+           nrn_threadId, is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
+           top_compartment->id_, subsection.size(), subsection_runtime);
     //#endif
 
     /* create serialized sub-section from compartments in subsection*/

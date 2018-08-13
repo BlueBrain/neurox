@@ -78,7 +78,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<floble_t> subtree_complexity(
                 "", "B",
                 "scale constant to subsection complexity (constant k for branch parallelism)",
-                false, 0.7, "floble_t");
+                false, 0.3, "floble_t");
     cmd.add(subtree_complexity);
 
     TCLAP::SwitchArg branch_parallelism(
