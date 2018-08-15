@@ -244,7 +244,10 @@ void Debugger::FixedStepMinimal2(NrnThread *nth, int secondorder) {
 
 void Debugger::CompareAllBranches() {
 #if !defined(NDEBUG)
-  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
+  if (/*input_params_->branch_parallelism_ ||  */
+      /* (branch parallelism is possible to be compared if there are no branches
+       * and this usecase is handled by CoreNeuron::Debugger::CompareBranch) */
+      input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return;
 
@@ -349,6 +352,8 @@ void Debugger::CompareBranch2(Branch *branch) {
     assert(ml->nodecount == instances.nodecount);
     short dataSize = mechanisms_[m]->data_size_;
     short pdataSize = mechanisms_[m]->pdata_size_;
+    assert(pdataSize == nrn_prop_dparam_size_[type]);
+    assert(dataSize == nrn_prop_param_size_[type]);
     if (DataLoader::HardCodedMechanismHasNoInstances(tml->index))
     {
         assert(ml->nodeindices == nullptr and instances.nodeindices== nullptr);
@@ -441,8 +446,9 @@ int Debugger::NrnSpikeExchange_handler() {
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if (input_params_->branch_parallelism_ || input_params_->load_balancing_ ||
-      input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
+  if ((input_params_->branch_parallelism_ && local->branch_tree_ && local->branch_tree_->branches_count_>0)
+       || input_params_->load_balancing_
+       || input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);

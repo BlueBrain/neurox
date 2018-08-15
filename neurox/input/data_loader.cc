@@ -1274,25 +1274,32 @@ int DataLoader::GetBranchData(
     int data_offset = 0;
     int pdata_offset = 0;
     int vdata_offset = 0;
+    int mech_has_no_instances = HardCodedMechanismHasNoInstances(mech->type_);
+
     // for all instances
     for (int i = 0; i < nodes_indices_mechs[m].size(); i++) {
-      assert(ion_instance_to_data_offset.find(
-                 make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
-             ion_instance_to_data_offset.end());
-
-      data.insert(data.end(), &data_mechs[m][data_offset],
-                  &data_mechs[m][data_offset + mech->data_size_]);
-      data_offset += mech->data_size_;
 
       if (!HardCodedMechanismHasNoInstances(mech->type_))
         nodes_indices.push_back(nodes_indices_mechs[m][i]);
 
       //pdata calculation for branch-parallelism
+      assert(ion_instance_to_data_offset.find(
+                 make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
+             ion_instance_to_data_offset.end());
+
+      //set look-up map with beginning of data instance offset
       if (mech->is_ion_ && input_params_->branch_parallelism_)
       {
+        assert (!mech_has_no_instances);
         ion_instance_to_data_offset[make_pair(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
       }
+
+      //insert data (TODO this was before the previous condition)
+      data.insert(data.end(), &data_mechs[m][data_offset],
+                  &data_mechs[m][data_offset + mech->data_size_]);
+      //TODO de we need to account from SIMD spacing here???
+      data_offset += mech->data_size_;
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
         int total_vdata_size = HardCodedVdataSize(mech->type_);
@@ -1360,6 +1367,7 @@ int DataLoader::GetBranchData(
                     (pd - data_start) % ion->data_size_;
                 int node_id = ion_info.node_ids.at(instance_offset);
                 int new_node_id = from_old_to_new_compartment_id.at(node_id);
+                //assert(node_id == new_node_id); //only for branch-parallelism with single section
                 pdata_mechs.at(m).at(p) =
                     ion_instance_to_data_offset.at(
                         make_pair(ion->type_, new_node_id)) +
@@ -1645,7 +1653,7 @@ hpx_t DataLoader::CreateBranch(
 
 #ifndef NDEBUG
     if (is_soma)
-        printf("=== nrn_id %d, neuron time %.5f ms, max work per subtree %.5f ms\n",
+        printf("=== nrn_id %d: neuron time %.5f ms, max runtime per subtree %.5f ms\n",
                nrn_threadId, neuron_runtime, max_work_per_subtree);
 #endif
 
@@ -1654,6 +1662,10 @@ hpx_t DataLoader::CreateBranch(
 
     //if remaining arborization fits, use it as a subsection
     GetSubSectionFromCompartment(subsection, top_compartment);
+
+    //This is just necessary to debug branch parallelism with single sections against no branch-parallelism
+    std::sort(subsection.begin(), subsection.end(), CompareCompartmentPtrId);
+
     subsection_runtime = BenchmarkSubSection(N, subsection, ions_instances_info);
     //printf("TEST: arborization starting on comp %d, time %f\n", top_compartment->id_, subsection_runtime);
 
@@ -1683,19 +1695,8 @@ hpx_t DataLoader::CreateBranch(
       assert(subsection_runtime!=-1 && subsection.size()>0 && bottom_compartment);
     }
 
-    /* let user know, this will be the limiting factor of parallelism */
-    /*
-    if (subsection_runtime < max_work_per_subtree*0.5)
-      printf(
-          "Warning: subtree of compartment %d, length %d, nrn_id %d, runtime %.5f ms "
-          "is smaller than half max workload per subtree %.5f ms. total neuron time "
-          "%.5f ms (max parallelism capped at %.2fx)\n",
-          top_compartment->id_, subsection.size(), subsection_runtime,
-          max_work_per_subtree, neuron_runtime,
-          neuron_runtime / max_work_per_subtree);
-    */
     //#ifndef NDEBUG
-    printf("--- nrn_id %d, %s %d, length %d, sum compartments runtime %.5f ms\n",
+    printf("--- nrn_id %d: %s %d, length %d, runtime %.5f ms\n",
            nrn_threadId, is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
            top_compartment->id_, subsection.size(), subsection_runtime);
     //#endif
@@ -1713,8 +1714,6 @@ hpx_t DataLoader::CreateBranch(
     GetNetConsBranchData(subsection, branch_netcons, branch_netcons_pre_id,
                          branch_weights, &mech_instances_map);
 
-    // TODO add the removed SORT!!!
-
     // Load balancing matters here:
     if (input_params_->load_balancing_) {
       /* estimated max executiom time allowed per locality */
@@ -1726,7 +1725,7 @@ hpx_t DataLoader::CreateBranch(
 
 //#ifndef NDEBUG
       if (is_soma)
-        printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
+        printf("==== neuron time %.5f ms, max runtime per locality %.5fms\n",
                neuron_runtime, max_work_per_subsection);
 //#endif
 
@@ -1735,7 +1734,7 @@ hpx_t DataLoader::CreateBranch(
        * assigned_locality otherwise) */
       if (  (max_work_per_subsection == 0 && is_soma)
          /* assign remaining arborization to different locality if it fits in the
-         * max workload per locality and is not too small (to reduce number of
+         * max runtime per locality and is not too small (to reduce number of
           * remote small branches)*/
          || (max_work_per_subsection >0 &&
              assigned_locality == hpx_get_my_rank() &&
