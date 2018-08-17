@@ -80,42 +80,6 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs clang-format -i -style=Google
 ```
 find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
-<<<<<<< HEAD
-=======
-sort -k 1n,1n -k 2n,2n out.dat > out.spk
-```
-
-# Running tests
-
-Once you compile CoreNEURON, unit tests and a ring test will be compiled if Boost is available.
-If you pass the path for Neurodamus channels, 10 cell tests will also be compile. You can run tests using
-
-```bash
-make test
-```
-
-If you have different mpi launcher, you can specify it during cmake configuration as:
-
-```bash
-cmake .. -DTEST_MPI_EXEC_BIN="mpirun" -DTEST_EXEC_PREFIX="mpirun;-n;2" -DTEST_EXEC_PREFIX="mpirun;-n;2" -DAUTO_TEST_WITH_SLURM=OFF -DAUTO_TEST_WITH_MPIEXEC=OFF
-```
-
-# Developer Notes
-If you have installed `clang-format`, you can reformat/reindent generated .c files from mod2c using:
-
-```
-make formatbuild
-```
-
-The `.clang-format` file in the source repository is compatible with version 5.0.
-
-## License
-* See LICENSE.txt
-* See [NEURON](https://www.neuron.yale.edu/neuron/)
-* The mechanisms and test datasets appearing in the CoreNeuron repository are subject to separate licenses.
-  More information is available on the NMC portal website [NMC portal](https://bbp.epfl.ch/nmc-portal/copyright),
-  the specific licenses are described in the ME-type model packages downloadable from that website.
->>>>>>> coreneuron/master
 
 - Documentation follows the doxygen (www.doxygen.org) notation and can be exported with `make doc`; 
 
