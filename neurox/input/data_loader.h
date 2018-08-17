@@ -59,6 +59,15 @@ class DataLoader {
   /// mutex controlling multi-threaded write of data structs
   static hpx_t locality_mutex_;
 
+  static int HardCodedVdataSize(int type);
+  static int HardCodedVdataCount(int type, char pnt_map);
+  static int HardCodedPntProcOffsetInPdata(int type);
+  static int HardCodedPntProcOffsetInVdata(int type);
+  static int HardCodedRNGOffsetInPdata(int type);
+  static int HardCodedRNGOffsetInVdata(int type);
+  static bool HardCodedMechanismHasNoInstances(int index);
+  static bool HardCodedMechanismForCoreneuronOnly(int index);
+
  private:
   /// pointer of netcons.dot file
   static FILE *file_netcons_;
@@ -79,17 +88,11 @@ class DataLoader {
   static double BenchmarkSubSection(int N,
                                     const deque<Compartment *> &sub_section,
                                     vector<DataLoader::IonInstancesInfo> &,
-                                    bool run_single_step_benchmark = true,
+                                    bool run_stepping_benchmark = true,
                                     bool run_mechs_benchmark = false);
 
-  /// add benchmark execution time to all compartments
-  static double BenchmarkEachCompartment(
-      const deque<Compartment *> &all_comp,
-      vector<DataLoader::IonInstancesInfo> &);
-
-  /// return sum of runtimes of all compartments in sub-section
-  static double GetSumOfCompartmentsRunTime(
-      const deque<Compartment *> &sub_section);
+  static int GetNumberOfInstanceCompartments(
+      const deque<Compartment *> &compartments);
 
   static hpx_t CreateBranch(
       const int nrn_thread_id, hpx_t soma_branch_addr,
@@ -123,8 +126,8 @@ class DataLoader {
       vector<floble_t> &branch_netcons_args,
       vector<map<int, int>> *mech_instance_map = NULL);
 
-  static double GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
-                                             Compartment *top_compartment);
+  static void GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
+                                           Compartment *top_compartment);
 
   static void GetMechInstanceMap(const deque<Compartment *> &compartments,
                                  vector<map<int, int>> &mechs_instance_map);
@@ -159,5 +162,5 @@ class DataLoader {
   static int Finalize_handler();
 };
 
-};  // Input
-};  // NeuroX
+};  // namespace input
+};  // namespace neurox

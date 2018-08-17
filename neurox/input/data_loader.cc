@@ -33,6 +33,118 @@ std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
 tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
 
+// TODO: hard-coded procedures
+int DataLoader::HardCodedVdataSize(int type) {
+  assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
+  int total_vdata_size = 0;
+
+  if (GetMechanismFromType(type)->pnt_map_ > 0)
+    total_vdata_size +=
+        sizeof(Point_process);  // always ppvar[1], dicated by nrn_setup.cpp
+
+  if (type == MechanismTypes::kGluSynapse ||        //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kNetStim ||           //_p_donotuse, ppvar[2]
+      type == MechanismTypes::kProbAMPANMDA_EMS ||  //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kProbGABAAB_EMS ||    //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kStochKv ||           //_p_rng, ppvar[3]
+      type == MechanismTypes::kStochKv3)            //_p_rng, ppvar[3]
+    total_vdata_size += sizeof(nrnran123_State);
+
+  if (type == MechanismTypes::kBinReportHelper ||  //_tqitem, ppvar[2]
+      type == MechanismTypes::kBinReports ||       //_p_ptr, ppvar[2]
+      type == MechanismTypes::kGluSynapse ||       //_tqitem, ppvar[3]
+      type == MechanismTypes::kNetStim ||          //_tqitem, ppvar[3]
+      type == MechanismTypes::kPatternStim ||      //_p_ptr, ppvar[2] + _tqitem,
+                                                   // ppvar[3]
+      type == MechanismTypes::kVecStim ||          //_tqitem, ppvar[2]
+      type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
+    // TODO its not void* we should have a copy of the object, not a copy of
+    // pointer!
+    total_vdata_size += sizeof(void *);
+
+  if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
+    total_vdata_size += sizeof(void *);  // it has 2 pointers, see above
+  return total_vdata_size;
+}
+
+int DataLoader::HardCodedVdataCount(int type, char pnt_map) {
+  assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
+  int total_vdata_count = 0;
+
+  if (pnt_map > 0) total_vdata_count++;  // Point_Process *
+
+  if (type == MechanismTypes::kGluSynapse ||        //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kNetStim ||           //_p_donotuse, ppvar[2]
+      type == MechanismTypes::kProbAMPANMDA_EMS ||  //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kProbGABAAB_EMS ||    //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kStochKv ||           //_p_rng, ppvar[3]
+      type == MechanismTypes::kStochKv3)            //_p_rng, ppvar[3]
+    total_vdata_count++;
+
+  if (type == MechanismTypes::kBinReportHelper ||  //_tqitem, ppvar[2]
+      type == MechanismTypes::kBinReports ||       //_p_ptr, ppvar[2]
+      type == MechanismTypes::kGluSynapse ||       //_tqitem, ppvar[3]
+      type == MechanismTypes::kNetStim ||          //_tqitem, ppvar[3]
+      type == MechanismTypes::kPatternStim ||      //_p_ptr, ppvar[2] + _tqitem,
+                                                   // ppvar[3]
+      type == MechanismTypes::kVecStim ||          //_tqitem, ppvar[2]
+      type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
+    total_vdata_count++;
+
+  if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
+    total_vdata_count++;
+
+  return total_vdata_count;
+}
+
+int DataLoader::HardCodedPntProcOffsetInPdata(int type) {
+  // dictated by nrn_setup.cpp:
+  // the area is always at ppvar[0]
+  // the Point Process if always at position ppvar[1] --> pointing to vdata[0]
+  if (GetMechanismFromType(type)->pnt_map_ > 0) return 1;
+  return -1;  // means unexistent
+}
+
+int DataLoader::HardCodedPntProcOffsetInVdata(int type) {
+  if (GetMechanismFromType(type)->pnt_map_ > 0)
+    return 0;  // see comment in HardCodedPntProcOffsetInPdata
+  return -1;   // means unexistent
+}
+
+int DataLoader::HardCodedRNGOffsetInPdata(int type) {
+  assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
+
+  if (type == MechanismTypes::kGluSynapse ||        //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kNetStim ||           //_p_donotuse, ppvar[2]
+      type == MechanismTypes::kProbAMPANMDA_EMS ||  //_p_rng_rel, ppvar[2]
+      type == MechanismTypes::kProbGABAAB_EMS)      //_p_rng_rel, ppvar[2]
+    return 2;
+  if (type == MechanismTypes::kStochKv ||  //_p_rng, ppvar[3]
+      type == MechanismTypes::kStochKv3)   //_p_rng, ppvar[3]
+    return 3;
+  return -1;  // means unexistent
+}
+
+int DataLoader::HardCodedRNGOffsetInVdata(int type) {
+  assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
+  int offset_rng_in_vdata = 0;
+  // return type == MechanismTypes::kStochKv ? 0 : 1;
+  if (GetMechanismFromType(type)->pnt_map_ > 0)
+    offset_rng_in_vdata++;  // include offset for Point_process*
+  return offset_rng_in_vdata;
+}
+
+bool DataLoader::HardCodedMechanismHasNoInstances(int type) {
+  return (HardCodedMechanismForCoreneuronOnly(type) || type == kVecStim);
+}
+
+bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type) {
+  // BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
+  // have nodecount 1 but no data and no nodeindices
+  return (type == kBinReports || type == kBinReportHelper ||
+          type == kCoreConfig || type == kMemUsage || type == kProfileHelper);
+}
+
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
 }
@@ -105,9 +217,23 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   // map of padded to non-padded offsets of data
   size_t data_size_padded = 6 * Vectorizer::SizeOf(N);
-  for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next)
+  for (NrnThreadMembList *tml = nt->tml; tml != NULL; tml = tml->next) {
+    if (HardCodedMechanismHasNoInstances(tml->index)) {
+      assert(tml->ml->nodeindices == NULL);
+    } else {
+      assert(tml->ml->nodeindices != NULL);
+    }
+    assert(tml->ml->data != NULL);
+    assert(nt->ncell == 1);
+    /*
+    printf("HELLO neuron id %d, mech %d, data %d, data*nodecount %d, instances?
+    %d\n", nt->id, tml->index, GetMechanismFromType(tml->index)->data_size_,
+           GetMechanismFromType(tml->index)->data_size_*tml->ml->nodecount,
+           HardCodedMechanismHasNoInstances(tml->index));
+    */
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
+  }
 
   // map of post- to pre-padding values of pdata
   // only used for branched neurons, otherwise pointers for padded and
@@ -159,10 +285,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         bool isSoma = comp->id_ == 1;  // bottom of soma
         Compartment *child = comp->branches_.at(c);
         if ((isSoma && c == 0)  // connection from some to AIS
-            ||
-            axon_initial_segment_compartments.find(comp->id_) !=
-                axon_initial_segment_compartments
-                    .end())  // connection to any AIS compartment
+            || axon_initial_segment_compartments.find(comp->id_) !=
+                   axon_initial_segment_compartments
+                       .end())  // connection to any AIS compartment
         {
           // reverse connection, so that it plots AIS on top of soma in dot file
           fprintf(file_compartments, "%d -- %d%s;\n", child->id_, comp->id_,
@@ -183,9 +308,16 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                                                                   // padding
   unsigned point_proc_total_offset = 0;
 
-  // information about offsets in data and node ifs of all instances of all ions
+  // information about offsets in data and node ids of all instances of all ions
   vector<DataLoader::IonInstancesInfo> ions_instances_info(
       Mechanism::IonTypes::kSizeAllIons);
+  int DELETE_TEST = N * 6;
+  int DELETE_TEST_nodes = 0;
+  // TODO from tqitem we get mech >< instance and which branch it belongs to
+  // TODO is tditem of class tqueue.h :: TQItem?
+  // Compartment *no_instances_compartment =
+  //   new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
+  Compartment *no_instances_compartment = compartments.at(0);
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -195,7 +327,9 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     assert(mech->type_ == type);
     int ion_offset = mech->GetIonIndex();
 
-    // for every mech instance (or compartment this mech is applied to)
+    // for every mech instance or compartment this mech is applied to..
+    // (Mechs without instances have nodecount 1 and nodeindices NULL)
+    DELETE_TEST_nodes += ml->nodecount * mech->data_size_;
     for (int n = 0; n < ml->nodecount; n++) {
       if (mech->is_ion_) {
         if (n == 0) {
@@ -211,9 +345,12 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       for (int i = 0; i < mech->data_size_; i++) {
         int offset_non_padded = mech->data_size_ * n + i;
 #if LAYOUT == 1
-        data.push_back(ml->data[offset_non_padded]);
+        // compare before and after offsets
+        assert(DELETE_TEST++ == &ml->data[offset_non_padded] - nt->_data);
+        // compare nt vs ml offsets
         assert(ml->data[offset_non_padded] ==
                nt->_data[data_total_offset + offset_non_padded]);
+        data.push_back(ml->data[offset_non_padded]);
 #else
         int offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
         data.push_back(ml->data[offset_padded]);
@@ -233,16 +370,22 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         pdata.push_back(ml->pdata[pdata_offset_non_padded]);
 #else
         int pdata_offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
-        int pd = ml->pdata[pdata_offset_padded];
         int ptype = memb_func[mech->type_].dparam_semantics[i];
+        int pd = ml->pdata[pdata_offset_padded];
 
-        // remove extra space added by padding (for pointer to area or ion mech
-        // instance)
+        // remove extra space added by padding
+        //(for pointer to area or ion mech instance)
         if (input_params_->branch_parallelism_ &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
-          assert(data_offsets.at(pd) != -99999);
-          pdata.push_back(data_offsets.at(pd));  // offset to non-padded SoA
-                                                 // value
+          // if mech has no instances, area is always -1
+          if (ptype == -1 /*area*/ && HardCodedMechanismHasNoInstances(type)) {
+            assert(pd == -1);
+            pdata.push_back(pd);
+          } else {
+            assert(data_offsets.at(pd) != -99999);
+            // offset to non-padded SoA value
+            pdata.push_back(data_offsets.at(pd));
+          }
         } else
           pdata.push_back(pd);
 #endif
@@ -250,75 +393,66 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
       pdata.shrink_to_fit();
 
       void **vdata = &nt->_vdata[vdata_total_offset];
-      Compartment *compartment = compartments.at(ml->nodeindices[n]);
-      assert(compartment->id_ == ml->nodeindices[n]);
 
+      bool mech_has_no_instances = HardCodedMechanismHasNoInstances(type);
+      /// bool mech_has_no_instances = tml->ml->nodeindices==NULL;
+      Compartment *compartment = mech_has_no_instances
+                                     ? no_instances_compartment
+                                     : compartments.at(ml->nodeindices[n]);
+      compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
+                                        pdata.data(), mech->pdata_size_);
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0)  // vdata
       {
-        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
-                 type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-                mech->pnt_map_ > 0));
-
-        // ProbAMPANMDA_EMS, ProbAMPANMDA_EMS and IClamp:
-        // pdata[0]: offset in data (area)
-        // pdata[1]: offset for Point_process in vdata[0]
-        // pdata[2]: offset for RNG in vdata[1]   (NOT for IClamp,  =pdata[1]+1)
-
-        // StochKv:
-        // pdata[0]: offset in area (ion_ek)
-        // pdata[1]: offset in area (ion_ik)
-        // pdata[2]: offset in area (ion_dikdv)
-        // pdata[3]: offset for RNG in vdata[0]
-        // pdata[4]: offset in data (area)
-
-        if (type == MechanismTypes::kIClamp ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS) {
-          const int point_proc_offset_in_pdata = 1;
-          Point_process *ppn = &nt->pntprocs[point_proc_total_offset++];
-          assert(nt->_vdata[pdata[point_proc_offset_in_pdata]] == ppn);
-          Point_process *pp = (Point_process *)vdata[0];
-          assert(pp != NULL);
+        const int point_proc_offset_in_pdata =
+            HardCodedPntProcOffsetInPdata(type);
+        if (point_proc_offset_in_pdata != -1) {
+          const int point_proc_offset_in_vdata =
+              HardCodedPntProcOffsetInVdata(type);
+          assert(nt->_vdata[pdata[point_proc_offset_in_pdata]] ==
+                 &nt->pntprocs[point_proc_total_offset]);
+          Point_process *ppn = &nt->pntprocs[point_proc_total_offset];
+          Point_process *pp =
+              (Point_process *)vdata[point_proc_offset_in_vdata];
+          assert(ppn->_i_instance == pp->_i_instance && ppn->_tid == pp->_tid &&
+                 ppn->_type == pp->_type);
           compartment->AddSerializedVData((unsigned char *)(void *)pp,
                                           sizeof(Point_process));
+          point_proc_total_offset++;
         }
 
-        if (type == MechanismTypes::kStochKv ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS) {
-          int rng_offset_in_pdata =
-              mech->type_ == MechanismTypes::kStochKv ? 3 : 2;
-          int rng_offset_in_vdata =
-              mech->type_ == MechanismTypes::kStochKv ? 0 : 1;
+        int rng_offset_in_pdata = HardCodedRNGOffsetInPdata(type);
+        if (rng_offset_in_pdata != -1) {
+          int rng_offset_in_vdata = HardCodedRNGOffsetInVdata(type);
+          assert(!mech_has_no_instances);  // needs to have instances!
           assert(nt->_vdata[pdata[rng_offset_in_pdata]] ==
                  vdata[rng_offset_in_vdata]);
-          nrnran123_State *RNG = (nrnran123_State *)vdata[rng_offset_in_vdata];
+          nrnran123_State *rng = (nrnran123_State *)vdata[rng_offset_in_vdata];
+          nrnran123_State *rng2 =
+              (nrnran123_State *)nt->_vdata[pdata[rng_offset_in_pdata]];
+          assert(rng->c == rng2->c && rng->r == rng2->r &&
+                 rng->which_ == rng2->which_);
 
-          // TODO: manual hack: StochKv's current state has NULL pointers, why?
-          if (RNG == NULL && type == MechanismTypes::kStochKv)
+          // TODO: hard-coded manual hack: StochKv's current state has NULL
+          // pointers, why?
+          if (rng == NULL && type == MechanismTypes::kStochKv)
             compartment->AddSerializedVData(
                 (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
           else {
-            assert(RNG != NULL);
-            compartment->AddSerializedVData((unsigned char *)(void *)RNG,
+            assert(rng != NULL);
+            compartment->AddSerializedVData((unsigned char *)(void *)rng,
                                             sizeof(nrnran123_State));
           }
         }
+        vdata_total_offset += (unsigned)mech->vdata_size_;
       }
-      compartment->AddMechanismInstance(type, n, data.data(), mech->data_size_,
-                                        pdata.data(), mech->pdata_size_);
-
-      vdata_total_offset += (unsigned)mech->vdata_size_;
     }
     data_total_offset += mech->data_size_ * ml->nodecount;
     data_total_padded_offset +=
         mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
+
+  // assert(DELETE_TEST == nt->_ndata);
+  // assert(DELETE_TEST_nodes == nt->_ndata - N * 6);
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   data_offsets.clear();
@@ -333,8 +467,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     assert(nt->id < netcon_srcgid.size());
     assert(netcon_srcgid.at(nt->id) != NULL);
     int srcgid = netcon_srcgid[nt->id][n];
-    assert(srcgid >= 0);  // gids can be negative! this is a reminder that i
-                          // should double-check when they happen
     int mech_type = nc->target_->_type;
     int weights_count = pnt_receive_size[mech_type];
     size_t weights_offset = nc->u.weight_index_;
@@ -399,6 +531,10 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
 
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
+  // add mechs instances without compartment to end of compartments (if not
+  // soma)
+  if (no_instances_compartment != compartments.at(0))
+    compartments.push_back(no_instances_compartment);
   CreateBranch(nt->id, HPX_NULL, compartments, compartments.at(0),
                ions_instances_info, -1, thvar_index, ap_threshold);
 
@@ -417,7 +553,8 @@ void DataLoader::LoadCoreneuronData(int argc, char **argv,
                                     bool run_setup_cleanup) {
   // nrnmpi_under_nrncontrol=true allows parallel data loading without "-m"
   // flag, see rnmpi_init()
-  nrn_init_and_load_data(argc, argv, nrnmpi_under_nrncontrol,
+  std::vector<ReportConfiguration> configs;
+  nrn_init_and_load_data(argc, argv, &configs, nrnmpi_under_nrncontrol,
                          run_setup_cleanup);
 }
 
@@ -643,15 +780,6 @@ int DataLoader::InitNeurons_handler() {
 
   hpx_par_for_sync(DataLoader::CreateNeuron, 0, my_nrn_threads_count, nullptr);
 
-#ifndef NDEBUG
-
-  // TODO add also slowest subsection runtime?
-  if (input_params_->branch_parallelism_) {
-    printf("Warning: Branch-parallelism: slowest compartment runtime: %.5fms\n",
-           slowest_compartment_runtime);
-  }
-#endif
-
   // all neurons created, advertise them
   int my_rank = hpx_get_my_rank();
   hpx_bcast_rsync(
@@ -804,7 +932,7 @@ void DataLoader::SetMechanisms2(const int mechs_count, const int *mech_ids,
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
           if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
               strcmp("ca_ion", parent->memb_func_.sym) == 0)
-            continue;  // TODO hard coded exception
+            continue;  // TODO hard-coded exception
 
           if (parent->GetIonIndex() < Mechanism::IonTypes::kSizeWriteableIons)
             mech->dependency_ion_index_ = parent->GetIonIndex();
@@ -819,9 +947,9 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-#ifndef NDEBUG
+  //#ifndef NDEBUG
   if (input_params_->mech_instances_parallelism_) {
-    printf("Mechanisms execution time per instance:");
+    printf("Mechanisms execution time per instance:\n");
     for (int m = 0; m < neurox::mechanisms_count_; m++)
       printf("mech type %d (%s): state %.3f us, current %.3f us\n",
              neurox::mechanisms_[m]->type_,
@@ -829,7 +957,7 @@ int DataLoader::Finalize_handler() {
              neurox::mechanisms_[m]->state_func_runtime_,
              neurox::mechanisms_[m]->current_func_runtime_);
   }
-#endif
+  //#endif
 
   if (input_params_->output_netcons_dot) {
     fprintf(file_netcons_, "}\n");
@@ -861,8 +989,11 @@ int DataLoader::Finalize_handler() {
       Mechanism *mech = neurox::mechanisms_[m];
 
       if (mech->pnt_map_ > 0)  // if is point process make it dotted
-        fprintf(file_mechs, "\"%s (%d)\" [style=dashed];\n",
-                mech->memb_func_.sym, mech->type_);
+        fprintf(file_mechs, "\"%s (%d)\" [style=dashed%s];\n",
+                mech->memb_func_.sym, mech->type_,
+                HardCodedMechanismForCoreneuronOnly(mech->type_)
+                    ? ", color=gray, fontcolor=gray"
+                    : "");
 
       if (mech->dependencies_count_ == 0 &&
           mech->type_ != CAP)  // top mechanism
@@ -886,7 +1017,7 @@ int DataLoader::Finalize_handler() {
           Mechanism *parent = GetMechanismFromType(mech->dependencies_[d]);
           if (strcmp("SK_E2", mech->memb_func_.sym) == 0 &&
               strcmp("ca_ion", parent->memb_func_.sym) == 0)
-            continue;  // TODO: hardcoded exception
+            continue;  // TODO: hard-coded exception
           if (parent->GetIonIndex() <
               Mechanism::IonTypes::kSizeWriteableIons)  // ie is writeable
             fprintf(
@@ -907,12 +1038,13 @@ int DataLoader::Finalize_handler() {
       printf(
           "- %s (%d), dataSize %d, pdataSize %d, isArtificial %d, pntMap %d, "
           "isIon %d, symLength %d, %d successors, %d dependencies, %d state "
-          "vars\n",
+          "vars, noInstances %d\n",
           mech->memb_func_.sym, mech->type_, mech->data_size_,
           mech->pdata_size_, mech->is_artificial_, mech->pnt_map_,
           mech->is_ion_, mech->sym_length_, mech->successors_count_,
           mech->dependencies_count_,
-          mech->state_vars_ ? mech->state_vars_->count_ : 0);
+          mech->state_vars_ ? mech->state_vars_->count_ : 0,
+          HardCodedMechanismHasNoInstances(mech->type_));
     }
   }
 #endif
@@ -953,15 +1085,12 @@ int DataLoader::Finalize_handler() {
   return neurox::wrappers::MemoryUnpin(target);
 }
 
-double DataLoader::GetSubSectionFromCompartment(
-    deque<Compartment *> &sub_section, Compartment *top_comp) {
+void DataLoader::GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
+                                              Compartment *top_comp) {
   // parent added first, to respect solvers logic, of parents' ids first
   sub_section.push_back(top_comp);
-  double time_acc = top_comp->runtime_;
   for (int c = 0; c < top_comp->branches_.size(); c++)
-    time_acc +=
-        GetSubSectionFromCompartment(sub_section, top_comp->branches_.at(c));
-  return time_acc;
+    GetSubSectionFromCompartment(sub_section, top_comp->branches_.at(c));
 }
 
 void DataLoader::GetMechInstanceMap(const deque<Compartment *> &compartments,
@@ -1074,18 +1203,26 @@ int DataLoader::GetBranchData(
   int vdata_pointer_offset = 0;
 
   ////// Basic information for RHS, D, A, B, V and area
-  for (const auto comp : compartments) data.push_back(comp->rhs_);
-  for (const auto comp : compartments) data.push_back(comp->d_);
-  for (const auto comp : compartments) data.push_back(comp->a_);
-  for (const auto comp : compartments) data.push_back(comp->b_);
-  for (const auto comp : compartments) data.push_back(comp->v_);
-  for (const auto comp : compartments) data.push_back(comp->area_);
-  for (const auto comp : compartments) p.push_back(comp->p_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->rhs_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->d_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->a_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->b_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->v_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) data.push_back(comp->area_);
+  for (const auto comp : compartments)
+    if (comp->id_ != -1) p.push_back(comp->p_);
+  assert(p.size() > 0);  // zero-sized sub-section
 
   ////// Tree of neurons: convert from neuron- to branch-level
   std::map<int, int> from_old_to_new_compartment_id;
   for (const Compartment *comp : compartments)
-    from_old_to_new_compartment_id[comp->id_] = n++;
+    if (comp->id_ != -1) from_old_to_new_compartment_id[comp->id_] = n++;
 
   if (mech_instance_map) {
     p.at(0) = 0;  // top node gets parent Id 0 as in Coreneuron
@@ -1117,36 +1254,23 @@ int DataLoader::GetBranchData(
       int mech_offset = mechanisms_map_[type];
       assert(mech_offset >= 0 && mech_offset < mechanisms_count_);
       Mechanism *mech = mechanisms_[mech_offset];
+
       data_mechs[mech_offset].insert(
           data_mechs[mech_offset].end(), &comp->data[comp_data_offset],
           &comp->data[comp_data_offset + mech->data_size_]);
       pdata_mechs[mech_offset].insert(
           pdata_mechs[mech_offset].end(), &comp->pdata[comp_pdata_offset],
           &comp->pdata[comp_pdata_offset + mech->pdata_size_]);
-      int new_id = from_old_to_new_compartment_id.at(comp->id_);
+      int new_id =
+          comp->id_ == -1 ? -1 : from_old_to_new_compartment_id.at(comp->id_);
       nodes_indices_mechs[mech_offset].push_back(new_id);
+
       instances_count[mech_offset]++;
       comp_data_offset += mech->data_size_;
       comp_pdata_offset += mech->pdata_size_;
-      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
-        assert((type == MechanismTypes::kIClamp && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 2 && mech->pnt_map_ > 0) ||
-               (type == MechanismTypes::kStochKv && mech->vdata_size_ == 1 &&
-                mech->pdata_size_ == 5 && mech->pnt_map_ == 0) ||
-               ((type == MechanismTypes::kProbAMPANMDA_EMS ||
-                 type == MechanismTypes::kProbGABAAB_EMS) &&
-                mech->vdata_size_ == 2 && mech->pdata_size_ == 3 &&
-                mech->pnt_map_ > 0));
 
-        size_t total_vdata_size = 0;
-        if (type == MechanismTypes::kIClamp ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(Point_process);
-        if (type == MechanismTypes::kStochKv ||
-            type == MechanismTypes::kProbAMPANMDA_EMS ||
-            type == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(nrnran123_State);
+      if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
+        size_t total_vdata_size = HardCodedVdataSize(mech->type_);
         vdata_mechs[mech_offset].insert(
             vdata_mechs[mech_offset].end(), &comp->vdata_[comp_vdata_offset],
             &comp->vdata_[comp_vdata_offset + total_vdata_size]);
@@ -1162,30 +1286,33 @@ int DataLoader::GetBranchData(
     int data_offset = 0;
     int pdata_offset = 0;
     int vdata_offset = 0;
+    int mech_has_no_instances = HardCodedMechanismHasNoInstances(mech->type_);
+
     // for all instances
     for (int i = 0; i < nodes_indices_mechs[m].size(); i++) {
+      if (!HardCodedMechanismHasNoInstances(mech->type_))
+        nodes_indices.push_back(nodes_indices_mechs[m][i]);
+
+      // pdata calculation for branch-parallelism
       assert(ion_instance_to_data_offset.find(
                  make_pair(mech->type_, nodes_indices_mechs[m][i])) ==
              ion_instance_to_data_offset.end());
-      if (mech->is_ion_ &&
-          input_params_->branch_parallelism_)  // pdata calculation
+
+      // set look-up map with beginning of data instance offset
+      if (mech->is_ion_ && input_params_->branch_parallelism_) {
+        assert(!mech_has_no_instances);
         ion_instance_to_data_offset[make_pair(
             mech->type_, nodes_indices_mechs[m][i])] = data.size();
+      }
+
+      // insert data (TODO this was before the previous condition)
       data.insert(data.end(), &data_mechs[m][data_offset],
                   &data_mechs[m][data_offset + mech->data_size_]);
-      nodes_indices.push_back(nodes_indices_mechs[m][i]);
+      // TODO de we need to account from SIMD spacing here???
       data_offset += mech->data_size_;
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
-        int total_vdata_size = 0;
-        if (mech->type_ == MechanismTypes::kIClamp ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(Point_process);
-        if (mech->type_ == MechanismTypes::kStochKv ||
-            mech->type_ == MechanismTypes::kProbAMPANMDA_EMS ||
-            mech->type_ == MechanismTypes::kProbGABAAB_EMS)
-          total_vdata_size += sizeof(nrnran123_State);
+        int total_vdata_size = HardCodedVdataSize(mech->type_);
         assert(total_vdata_size > 0);
         vdata.insert(vdata.end(), &vdata_mechs[m][vdata_offset],
                      &vdata_mechs[m][vdata_offset + total_vdata_size]);
@@ -1200,10 +1327,15 @@ int DataLoader::GetBranchData(
           switch (ptype) {
             case -1:  //"area" (6th field)
             {
-              assert(pd >= N * 5 && pd < N * 6);
-              offset_t old_id = pd - N * 5;
-              offset_t new_id = from_old_to_new_compartment_id.at(old_id);
-              pdata_mechs.at(m).at(p) = n * 5 + new_id;
+              if (HardCodedMechanismHasNoInstances(mech->type_)) {
+                assert(pd == -1);  // no instances, no compartment, no area!
+                pdata_mechs.at(m).at(p) = pd;
+              } else {
+                assert(pd >= N * 5 && pd < N * 6);
+                offset_t old_id = pd - N * 5;
+                offset_t new_id = from_old_to_new_compartment_id.at(old_id);
+                pdata_mechs.at(m).at(p) = n * 5 + new_id;
+              }
               break;
             }
             case -2:  //"iontype"
@@ -1242,6 +1374,8 @@ int DataLoader::GetBranchData(
                     (pd - data_start) % ion->data_size_;
                 int node_id = ion_info.node_ids.at(instance_offset);
                 int new_node_id = from_old_to_new_compartment_id.at(node_id);
+                // assert(node_id == new_node_id); //only for branch-parallelism
+                // with single section
                 pdata_mechs.at(m).at(p) =
                     ion_instance_to_data_offset.at(
                         make_pair(ion->type_, new_node_id)) +
@@ -1281,9 +1415,9 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 }
 
 double DataLoader::BenchmarkSubSection(
-    int N, const deque<Compartment *> &sub_section,
+    int N, const deque<Compartment *> &subsection,
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-    bool run_single_step_benchmark, bool run_mechanisms_benchmark) {
+    bool run_stepping_benchmark, bool run_mechanisms_benchmark) {
   // common vars to all compartments
   int dumb_threshold_offset = 0;
   int nrn_threadId = -1;
@@ -1314,13 +1448,13 @@ double DataLoader::BenchmarkSubSection(
 
   // mech-offset -> ( map[old instance]->to new instance )
   vector<map<int, int>> mech_instances_map(neurox::mechanisms_count_);
-  GetMechInstanceMap(sub_section, mech_instances_map);
+  GetMechInstanceMap(subsection, mech_instances_map);
 
-  n = GetBranchData(sub_section, data, pdata, vdata, p, instances_count,
+  n = GetBranchData(subsection, data, pdata, vdata, p, instances_count,
                     nodes_indices, N, ions_instances_info, &mech_instances_map);
-  GetVecPlayBranchData(sub_section, vecplay_t, vecplay_y, vecplay_info,
+  GetVecPlayBranchData(subsection, vecplay_t, vecplay_y, vecplay_info,
                        &mech_instances_map);
-  GetNetConsBranchData(sub_section, branch_netcons, branch_netcons_pre_id,
+  GetNetConsBranchData(subsection, branch_netcons, branch_netcons_pre_id,
                        branch_weights, &mech_instances_map);
 
   hpx_call_sync(
@@ -1354,27 +1488,31 @@ double DataLoader::BenchmarkSubSection(
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  if (run_single_step_benchmark || run_mechanisms_benchmark) {
+  if (run_stepping_benchmark || run_mechanisms_benchmark) {
     // for benchamark: either type of benchmark, but not both
-    assert(run_mechanisms_benchmark ^ run_single_step_benchmark);
+    assert(run_mechanisms_benchmark ^ run_stepping_benchmark);
     assert(branch->mechs_graph_ == nullptr);
     assert(branch->mechs_instances_parallel_ == nullptr);
   }
 
-  if (run_single_step_benchmark) {
+  if (run_stepping_benchmark) {
     // initialize datatypes and graph-parallelism shadow vecs offsets
     branch->soma_ = new Neuron(-1, 999);
 
     // initialize datatypes and graph-parallelism shadow vecs offsets
     interpolators::BackwardEuler::Finitialize2(branch);
 
-    // benchmark execution time of a communication-step time-frame
-    const int comm_steps =
+    // benchmark execution time of 10 times 0.1msec
+    time_elapsed = 0;
+    double step_count =
         interpolators::BackwardEuler::GetMinSynapticDelaySteps();
-    hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < comm_steps; i++)
-      interpolators::BackwardEuler::Step(branch, true);
-    time_elapsed = hpx_time_elapsed_ms(now) / 1e3;
+    for (int i = 0; i < 20; i++) {
+      hpx_time_t now = hpx_time_now();
+      for (int i = 0; i < step_count; i++)
+        interpolators::BackwardEuler::Step(branch, true);
+      time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
+    }
+    time_elapsed /= 20;
   }
 
   if (run_mechanisms_benchmark) {
@@ -1428,33 +1566,11 @@ double DataLoader::BenchmarkSubSection(
   return time_elapsed;
 }
 
-double DataLoader::BenchmarkEachCompartment(
-    const deque<Compartment *> &all_compartments,
-    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
-  double total_time_elapsed = 0;
-  int N = all_compartments.size();
-  for (Compartment *comp : all_compartments) {
-    deque<Compartment *> comp_section;
-    comp_section.push_back(comp);
-    comp->runtime_ = BenchmarkSubSection(N, comp_section, ions_instances_info);
-    total_time_elapsed += comp->runtime_;
-
-    hpx_lco_sema_p(locality_mutex_);
-    slowest_compartment_runtime =
-        std::max(slowest_compartment_runtime, comp->runtime_);
-    hpx_lco_sema_v_sync(locality_mutex_);
-  }
-  return total_time_elapsed;
-}
-
-double DataLoader::GetSumOfCompartmentsRunTime(
-    const deque<Compartment *> &all_compartments) {
-  double total_runtime = 0;
-  for (Compartment *comp : all_compartments) {
-    assert(comp->runtime_ != -1);
-    total_runtime += comp->runtime_;
-  }
-  return total_runtime;
+int DataLoader::GetNumberOfInstanceCompartments(
+    const deque<Compartment *> &compartments) {
+  for (Compartment *comp : compartments)
+    if (comp->id_ == -1) return compartments.size() - 1;
+  return compartments.size();
 }
 
 hpx_t DataLoader::CreateBranch(
@@ -1463,7 +1579,8 @@ hpx_t DataLoader::CreateBranch(
     vector<DataLoader::IonInstancesInfo> &ions_instances_info,
     double neuron_runtime, int thvar_index /*AIS*/,
     floble_t ap_threshold /*AIS*/, int assigned_locality) {
-  int N = all_compartments.size();
+  // remove no_instances_mechanism from end of all_compartments
+  int N = GetNumberOfInstanceCompartments(all_compartments);
   bool is_soma = soma_branch_addr == HPX_NULL;
   bool is_AIS = thvar_index != -1;
 
@@ -1494,17 +1611,26 @@ hpx_t DataLoader::CreateBranch(
   /* defult value (-1) means use this locality */
   if (assigned_locality < 0) assigned_locality = hpx_get_my_rank();
 
-  /* to calculate computational complexity for the mech-instance parallelism,
-   * benchmark all mechanisms. Only on the first run, and only benchmarks
-   * mechanisms instances, not individual step of neurons */
-  if (is_soma /*first run*/ && input_params_->mech_instances_parallelism_) {
-    BenchmarkSubSection(N, all_compartments, ions_instances_info, false, true);
-  }
+  /* get the runtime of SIMD structured neuron */
+  if (is_soma /*first run*/) {
+    // Exclude no instances mechanisms from neuron time
+    // TODO this is the right version, after fixing TODO below
+    // GetSubSectionFromCompartment(subsection, all_compartments.at(0));
+    /* compute total runtime of neuron */
+    // neuron_runtime =
+    //       BenchmarkSubSection(N, subsection, ions_instances_info, true,
+    //       false);
 
-  /* fill the runtime of each individual compartment and return their sum */
-  if (is_soma /*first run*/ && input_params_->branch_parallelism_) {
+    /* compute total runtime of neuron */
     neuron_runtime =
-        BenchmarkEachCompartment(all_compartments, ions_instances_info);
+        BenchmarkSubSection(N, all_compartments, ions_instances_info);
+
+    /* to calculate computational complexity for the mech-instance parallelism,
+     * benchmark all mechanisms. Only on the first run, and only benchmarks
+     * mechanisms instances, not individual step of neurons */
+    if (input_params_->mech_instances_parallelism_)
+      BenchmarkSubSection(N, all_compartments, ions_instances_info, false,
+                          true);
   }
 
   /* No branch-parallelism (a la Coreneuron) */
@@ -1516,99 +1642,76 @@ hpx_t DataLoader::CreateBranch(
     GetNetConsBranchData(all_compartments, branch_netcons,
                          branch_netcons_pre_id, branch_weights, NULL);
 
-    /* For querying the table we use and approximated exec time*/
-    subsection = all_compartments;
+    /* For querying the table we use neuron's exec time */
+    // subsection = all_compartments;
     subsection_runtime = neuron_runtime;
-
-    if (!input_params_->load_balancing_) {
+    if (input_params_->load_balancing_) {
       /* assign branch locally*/
-      assigned_locality = hpx_get_my_rank();
-    } else {
       hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::QueryLoadBalancingTable,
                     &assigned_locality, sizeof(int));  // output
     }
-
     /* branch - parallelism */
   } else {
-    /* get subsection of all leaves until the end of arborization */
-    /* for load-balancing and branch-parallelism, we use the approximated
-     * run time of the neuron instead */
-    double subsection_runtime =
-        GetSubSectionFromCompartment(subsection, top_compartment);
-
     /* estimated max execution time per subregion for this neuron*/
-    double max_work_per_section = LoadBalancing::GetWorkPerBranchSubsection(
+    double max_work_per_subtree = LoadBalancing::GetMaxWorkPerBranchSubTree(
         neuron_runtime, GetMyNrnThreadsCount());
 
 #ifndef NDEBUG
     if (is_soma)
-      printf("==== neuron time %.5f ms, max work per subsection %.5f ms\n",
-             neuron_runtime, max_work_per_section);
+      printf(
+          "=== nrn_id %d: neuron time %.5f ms, max runtime per subtree %.5f "
+          "ms\n",
+          nrn_threadId, neuron_runtime, max_work_per_subtree);
 #endif
 
-    if (!input_params_->load_balancing_) {
-      /* assign branch locally*/
-      assigned_locality = hpx_get_my_rank();
-    } else {
-      /* estimated max executiom time allowed per locality */
-      double max_work_per_locality = LoadBalancing::GetWorkPerLocality(
-          neuron_runtime, GetMyNrnThreadsCount());
+    /*pack compartments until finding bifurcation */
+    /* new subsection: iterate until bifurcation or max time is reached */
 
-#ifndef NDEBUG
-      if (is_soma)
-        printf("==== neuron time %.5f ms, max work per locality %.5fms\n",
-               neuron_runtime, max_work_per_locality);
-#endif
+    // if remaining arborization fits, use it as a subsection
+    GetSubSectionFromCompartment(subsection, top_compartment);
 
-      /* assign remaining arborization to different locality if it fits in the
-       * max workload per locality and is not too small (to reduce number of
-       * remote small branches)*/
-      if (assigned_locality == hpx_get_my_rank() &&
-          subsection_runtime < max_work_per_locality &&
-          subsection_runtime > max_work_per_section * 0.6) {
-        /* ask master rank where to allocate this arborization, update LPT
-         * table*/
-        hpx_call_sync(HPX_THERE(0),
-                      tools::LoadBalancing::QueryLoadBalancingTable, /**/
-                      &assigned_locality, sizeof(int));              // output
-      }
-    }
+    // This is just necessary to debug branch parallelism with single sections
+    // against no branch-parallelism
+    std::sort(subsection.begin(), subsection.end(), CompareCompartmentPtrId);
 
-    /*if this subsection exceeds maximum time allowed per subsection*/
-    // if (is_soma) { /*split at soma level */
-    if (subsection_runtime > max_work_per_section) {
-      /* new subsection: iterate until bifurcation or max time is reached */
+    subsection_runtime =
+        BenchmarkSubSection(N, subsection, ions_instances_info);
+    // printf("TEST: arborization starting on comp %d, time %f\n",
+    // top_compartment->id_, subsection_runtime);
+
+    // if not: pack compartments until it does, or find a bifurcation
+    if (subsection_runtime > max_work_per_subtree) {
       subsection.clear();
       subsection.push_back(top_compartment);
-      subsection_runtime = top_compartment->runtime_;
+      subsection_runtime = -1;
       for (bottom_compartment = top_compartment;
            bottom_compartment->branches_.size() == 1;
            bottom_compartment = bottom_compartment->branches_.front()) {
-        Compartment *&next_comp = bottom_compartment->branches_.front();
-        /* soma and AIS cant be split due to AP threshold communication */
-        if (!is_soma && !is_AIS)
-          if (subsection_runtime + next_comp->runtime_ > max_work_per_section)
-            break;
-        subsection.push_back(bottom_compartment->branches_.front());
-        subsection_runtime += bottom_compartment->branches_.front()->runtime_;
-      }
+        // test current subsection
+        subsection_runtime =
+            BenchmarkSubSection(N, subsection, ions_instances_info);
+        // printf("TEST: Subsections starting on comp %d, length %d, time %f vs
+        // %f\n",
+        //       bottom_compartment->id_, subsection.size(), subsection_runtime,
+        //       max_work_per_subtree);
 
-      /* let user know, this will be the limiting factor of parallelism */
-      if (subsection_runtime > max_work_per_section)
-        printf(
-            "Warning: compartment %d, length %d, nrn_id %d, runtime %.5f ms "
-            "exceeds max workload per subsection %.5f ms. total neuron time "
-            "%.5f ms (max parallelism capped at %.2fx)\n",
-            top_compartment->id_, subsection.size(), subsection_runtime,
-            max_work_per_section, neuron_runtime,
-            neuron_runtime / max_work_per_section);
+        // keeps adding compartments to subsection until remaining tree fits in
+        // runtime
+        if (subsection_runtime < max_work_per_subtree)
+          // add a single compartment to subsection and re-try
+          subsection.push_back(bottom_compartment->branches_.front());
+        else
+          break;
+      }
+      // three conditions that neets to be verified for this to work
+      assert(subsection_runtime != -1 && subsection.size() > 0 &&
+             bottom_compartment);
     }
 
     //#ifndef NDEBUG
-    printf("- %s %d, length %d, nrn_id %d, sum compartments runtime %.5f ms\n",
+    printf("--- nrn_id %d: %s %d, length %d, runtime %.5f ms\n", nrn_threadId,
            is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
-           top_compartment->id_, subsection.size(), nrn_threadId,
-           subsection_runtime);
+           top_compartment->id_, subsection.size(), subsection_runtime);
     //#endif
 
     /* create serialized sub-section from compartments in subsection*/
@@ -1624,14 +1727,48 @@ hpx_t DataLoader::CreateBranch(
     GetNetConsBranchData(subsection, branch_netcons, branch_netcons_pre_id,
                          branch_weights, &mech_instances_map);
 
-    // TODO add the removed SORT!!!
+    // Load balancing matters here:
+    if (input_params_->load_balancing_) {
+      /* estimated max executiom time allowed per locality */
+      double max_work_per_subsection =
+          LoadBalancing::GetMaxWorkPerBranchSubSection(neuron_runtime,
+                                                       GetMyNrnThreadsCount());
+
+      assert(0);  // TODO double check
+      /* TODO: check: soma and AIS cant be split due to AP threshold
+       * communication */
+
+      //#ifndef NDEBUG
+      if (is_soma)
+        printf("==== neuron time %.5f ms, max runtime per locality %.5fms\n",
+               neuron_runtime, max_work_per_subsection);
+      //#endif
+
+      /* if subsection_complexity == 0, keep all subtrees in the
+       * same locality (get rank of soma, or use previously assigned
+       * assigned_locality otherwise) */
+      if ((max_work_per_subsection == 0 && is_soma)
+          /* assign remaining arborization to different locality if it fits in
+           * the max runtime per locality and is not too small (to reduce number
+           * of remote small branches)*/
+          || (max_work_per_subsection > 0 &&
+              assigned_locality == hpx_get_my_rank() &&
+              subsection_runtime < max_work_per_subsection)) {
+        // subsection_runtime < max_work_per_locality &&
+        // subsection_runtime > max_work_per_locality * 0.5) {
+        /* ask master rank where to allocate this arborization, update table*/
+        hpx_call_sync(HPX_THERE(0),
+                      tools::LoadBalancing::QueryLoadBalancingTable,  /*action*/
+                      &assigned_locality, sizeof(assigned_locality)); /*output*/
+      }
+    }
   }
 
-  if (input_params_->output_statistics_ || input_params_->load_balancing_) {
+  if (input_params_->output_statistics_) {
     /* for the LPT table and statistics, we use the final data struct runtime*/
-    subsection_runtime =
-        BenchmarkSubSection(N, subsection, ions_instances_info);
-    subsection = all_compartments;
+    if (subsection_runtime == -1)
+      subsection_runtime =
+          BenchmarkSubSection(N, subsection, ions_instances_info);
 
     /* tell master rank to update entry in Least-Processing-Time table */
     hpx_call_sync(HPX_THERE(0), tools::LoadBalancing::UpdateLoadBalancingTable,
@@ -1639,15 +1776,16 @@ hpx_t DataLoader::CreateBranch(
                   &subsection_runtime, sizeof(double),  // input[0]
                   &assigned_locality, sizeof(int));     // input[1]
 
-#ifndef NDEBUG
+    //#ifndef NDEBUG
     printf(
-        "- %s %d, length %d, nrn_id %d, runtime %.6f ms, allocated to %s rank "
+        "- %s %d, length %d, nrn_id %d, actual runtime %.6f ms, allocated to "
+        "%s rank "
         "%d\n",
         is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
         top_compartment->id_, n, nrn_threadId, subsection_runtime,
         assigned_locality == hpx_get_my_rank() ? "local" : "remote",
         assigned_locality);
-#endif
+    //#endif
   }
 
   /* allocate GAS mem for subsection in the appropriate locality */

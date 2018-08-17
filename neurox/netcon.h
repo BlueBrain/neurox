@@ -45,4 +45,4 @@ struct PointProcInfo {
   offset_t instance_data_offset;
   size_t size;
 };
-}
+}  // namespace neurox

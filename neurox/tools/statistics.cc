@@ -1,7 +1,4 @@
-#include <iostream>
 #include <numeric>
-#include <sstream>
-#include <string>
 #include "coreneuron/utils/randoms/nrnran123.h"  //RNG data structures
 #include "neurox/neurox.h"
 
@@ -200,6 +197,8 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
 
   unsigned* mechs_count_per_type = new unsigned[mechanisms_count_];
   unsigned* sum_mechs_count_per_type = new unsigned[mechanisms_count_]();
+  std::vector<int>* count_per_type = new std::vector<int>[mechanisms_count_];
+
   unsigned long long total_mechs_instances = 0;
   for (int i = 0; i < neurox::neurons_count_; i++) {
     hpx_call_sync(neurox::neurons_[i],
@@ -208,6 +207,7 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
     for (int m = 0; m < mechanisms_count_; m++) {
       sum_mechs_count_per_type[m] += mechs_count_per_type[m];
       total_mechs_instances += mechs_count_per_type[m];
+      count_per_type[m].push_back(mechs_count_per_type[m]);
     }
   }
   delete[] mechs_count_per_type;
@@ -216,15 +216,27 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
   FILE* outstream = stdout;
   if (write_to_file)
     outstream = fopen(string("mechs-distribution.csv").c_str(), "wt");
-  fprintf(outstream, "mech-type,name,instances,avg-per-neuron\n");
+  fprintf(outstream, "mech-type,name,instances,mean-per-neuron,stddev\n");
 
-  for (int m = 0; m < mechanisms_count_; m++)
-    fprintf(outstream, "%d,%s,%d,%.2f\n", mechanisms_[m]->type_,
-            mechanisms_[m]->memb_func_.sym, sum_mechs_count_per_type[m],
-            (double)sum_mechs_count_per_type[m] / neurox::neurons_count_);
+  for (int m = 0; m < mechanisms_count_; m++) {
+    double mean = (double)sum_mechs_count_per_type[m] / neurox::neurons_count_;
+
+    // standard deviation = sqrt ( 1/N * sum (x_i - mean)^2 )
+    double std_dev = 0;
+    for (int& count : count_per_type[m])
+      std_dev += (count - mean) * (count - mean);
+    std_dev = sqrt(std_dev / (double)count_per_type[m].size());
+
+    count_per_type[m].clear();
+
+    fprintf(outstream, "%d,%s,%d,%.2f,%.2f\n", mechanisms_[m]->type_,
+            mechanisms_[m]->memb_func_.sym, sum_mechs_count_per_type[m], mean,
+            std_dev);
+  }
 
   if (write_to_file) fclose(outstream);
 
+  delete[] count_per_type;
   delete[] sum_mechs_count_per_type;
 }
 

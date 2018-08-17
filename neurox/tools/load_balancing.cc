@@ -16,13 +16,15 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler() {
   double min_elapsed_time = 99999999999;
   int rank = -1;
   hpx_lco_sema_p(load_balancing_mutex_);
+
+  // return rank of least busy locality
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     if (load_balancing_table_[r] < min_elapsed_time) {
       min_elapsed_time = load_balancing_table_[r];
       rank = r;
     }
   hpx_lco_sema_v_sync(load_balancing_mutex_);
-  NEUROX_MEM_UNPIN(rank);
+  NEUROX_MEM_UNPIN_CONTINUE(rank);
 }
 
 hpx_action_t tools::LoadBalancing::UpdateLoadBalancingTable = 0;
@@ -67,45 +69,32 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
   if (load_balancing_table_ == nullptr) return;
   if (hpx_get_my_rank() != 0) return;
 
-  printf("neurox::tools::LoadBalancing::PrintTable()\n");
+  printf("neurox::tools::LoadBalancing::PrintLoadBalancingTable:\n");
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
 }
 
-//TODO should be avg_neuron_time, not neuron_time (same in next func)!
-double tools::LoadBalancing::GetWorkPerBranchSubsection(
+// TODO should be avg_neuron_time, not neuron_time (same in next func)!
+double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
     const double neuron_time, const int my_neurons_count) {
-
-  // for a single-thread CPU with a single neuron..
-  double work_per_section = neuron_time;
-
-  // for a multi-thread CPU with a single neuron...
-  work_per_section /= wrappers::NumThreads();
-
-  // for a multi-thread CPU with several neurons...
-  work_per_section *= my_neurons_count;
-
-  // scale by constant 1/K (see paper)
-  work_per_section /= input_params_->subsection_complexity;
-
-  // if graph parallelism is available, increase the work by a factor of...?
-  if (input_params_->graph_mechs_parallelism_) work_per_section *= 10;
-
-  return work_per_section;
+  // intentionally made simillar to NEURON (see multisplit.hoc)
+  return neuron_time / wrappers::NumThreads() *
+         input_params_->subtree_complexity;
 }
 
-double tools::LoadBalancing::GetWorkPerLocality(const double neuron_time,
-                                                const int my_neurons_count) {
+double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(
+    const double neuron_time, const int my_neurons_count) {
+  if (input_params_->subsection_complexity == 0)
+    return 0;  // 0 means "keep it as single subsection"
+
   // get an estimation of total workload in this locality
   double total_work = neuron_time * (double)my_neurons_count;
 
   // average the total work in this locality by all localityes
   double avg_locality_work = total_work / (double)wrappers::NumRanks();
 
-  // scale to constant k' (see paper)
-  avg_locality_work *= input_params_->group_of_subsections_complexity;
-
-  return avg_locality_work;
+  // scale to constant 1/k' (see paper)
+  return avg_locality_work / input_params_->subsection_complexity;
 }
 
 void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
@@ -114,7 +103,8 @@ void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
 }
 
 double tools::LoadBalancing::GetWorkloadPerMechInstancesBlock() {
-  return total_mech_instances_runtime_ * input_params_->mech_instance_percent_per_block;
+  return total_mech_instances_runtime_ *
+         input_params_->mech_instance_percent_per_block;
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {

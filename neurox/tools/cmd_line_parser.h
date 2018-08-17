@@ -7,7 +7,7 @@ namespace neurox {
 namespace synchronizers {
 enum class SynchronizerIds : int;
 class Synchronizer;
-}
+}  // namespace synchronizers
 
 namespace interpolators {
 enum class InterpolatorIds : int;
@@ -60,11 +60,11 @@ class CmdLineParser {
 
   /// constant k for scaling subsections
   /// (for branch-parallelism)
-  floble_t subsection_complexity;
+  floble_t subtree_complexity;
 
   /// constant k' for scaling group of subsections
   /// (for branch-parallelism in multipe localities)
-  floble_t group_of_subsections_complexity;
+  floble_t subsection_complexity;
 
   /// maximum workload assigned to a block of instances
   /// (for mech-instances parallelism)
@@ -80,5 +80,5 @@ class CmdLineParser {
   /// Parses command line arguments and populates structure
   void Parse(int argc, char** argv);
 };
-};  // CmdLineParser
-};  // neurox
+};  // namespace tools
+};  // namespace neurox

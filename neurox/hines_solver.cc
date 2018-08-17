@@ -27,10 +27,10 @@ void HinesSolver::InitializeBranchConstants(const Branch *branch) {
     hpx_lco_set_rsync(bt->with_parent_lco_[channel_double],
                       sizeof(floble_t) * 2, &to_parent_a_b);
 
-    //updated by ForwardSubstitution (v += rhs)
+    // updated by ForwardSubstitution (v += rhs)
     bt->parent_v_ = input_params_->voltage_;
 
-    //set by ForwardSubstitution
+    // set by ForwardSubstitution
     bt->parent_rhs_ = -1;
   }
 
@@ -220,7 +220,8 @@ void HinesSolver::ForwardSubstitution(Branch *branch) {
     rhs[0] -= b[0] * from_parent_rhs;
     rhs[0] /= d[0];
 
-    /* pass final RHS to parent, will be needed by UpdateBranchVoltagesWithRHS */
+    /* pass final RHS to parent, will be needed by UpdateBranchVoltagesWithRHS
+     */
     floble_t &to_parent_rhs = rhs[0];
     hpx_lco_set(branch_tree->with_parent_lco_[channel_final_rhs],
                 sizeof(floble_t), &to_parent_rhs, HPX_NULL, HPX_NULL);

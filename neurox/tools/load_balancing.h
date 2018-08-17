@@ -36,12 +36,12 @@ class LoadBalancing {
   static void PrintLoadBalancingTable();
 
   /// returns work per branch-subsection, for branch parallelism
-  static double GetWorkPerBranchSubsection(const double neuron_time,
+  static double GetMaxWorkPerBranchSubTree(const double neuron_time,
                                            const int my_neurons_count);
 
   /// returns max work per locality, for branch parallelism
-  static double GetWorkPerLocality(const double neuron_time,
-                                   const int my_neurons_count);
+  static double GetMaxWorkPerBranchSubSection(const double neuron_time,
+                                              const int my_neurons_count);
 
   /// sums given runtime to variable total_mech_instances_runtime_
   static void AddToTotalMechInstancesRuntime(double);
@@ -63,5 +63,5 @@ class LoadBalancing {
   static double total_mech_instances_runtime_;
 };
 
-};  // Tools
-};  // NeuroX
+};  // namespace tools
+};  // namespace neurox

@@ -30,6 +30,6 @@ class Event {
   virtual void Deliver(floble_t t, Branch* branch) = 0;
   virtual EventTypes Type() { return EventTypes::kDiscreteEvent; }
 };
-}
+}  // namespace neurox
 
 typedef std::pair<floble_t, neurox::Event*> TimedEvent;

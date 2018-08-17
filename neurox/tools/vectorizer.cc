@@ -103,10 +103,18 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
           if (is_pointer)  // true for pointer to area in nt->data, or ion
                            // instance data
           {
-            pdata_new[new_offset] =
-                data_offsets.at(pdata_old[old_offset]);  // point to new offset
-            assert(data_new[pdata_new[new_offset]] ==
-                   data_old[pdata_old[old_offset]]);
+            // if mech has no instances, area is always -1
+            if (ptype == -1 /*area*/ &&
+                input::DataLoader::HardCodedMechanismHasNoInstances(
+                    mechanisms_[m]->type_)) {
+              assert(pdata_old[old_offset] == -1);
+              pdata_new[new_offset] = pdata_old[old_offset];
+            } else {
+              // point to new offset
+              pdata_new[new_offset] = data_offsets.at(pdata_old[old_offset]);
+              assert(data_new[pdata_new[new_offset]] ==
+                     data_old[pdata_old[old_offset]]);
+            }
           }
         }
         assert(pdata_new[new_offset] != -99999);
@@ -171,7 +179,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     Memb_list** ml_no_capacitors_ptr,  // out (optional)
     Memb_list** ml_capacitors_ptr,     // out (optional)
     std::set<int>* capacitor_ids_ptr   // in  (optional)
-    ) {
+) {
   // if not provided, build list of capacitor ids
   std::set<int> new_capacitor_ids;
   if (capacitor_ids_ptr == nullptr) {
@@ -371,6 +379,11 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
         assert(cluster_count > 0);
       }
+
+      //#ifndef NDEBUG
+      printf("neuron gid %d, mech %d: cluster_size %d, cluster_count %d\n",
+             b->soma_->gid_, mech->type_, cluster_size, cluster_count);
+      //#endif
 
       /* if cluster_count==1, does not need threaded execution */
       if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {

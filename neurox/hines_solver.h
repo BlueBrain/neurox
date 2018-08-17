@@ -55,4 +55,4 @@ class HinesSolver {
  private:
 };
 
-};  // namespace
+};  // namespace neurox

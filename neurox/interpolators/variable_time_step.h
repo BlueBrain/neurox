@@ -122,6 +122,6 @@ class VariableTimeStep : public Interpolator {
                                           N_Vector fcur);
 };
 
-};  // interpolators
+};  // namespace interpolators
 
-};  // neurox
+};  // namespace neurox

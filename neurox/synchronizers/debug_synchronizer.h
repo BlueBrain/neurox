@@ -34,6 +34,6 @@ class DebugSynchronizer : public Synchronizer {
   };
 };
 
-};  // synchronizer
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

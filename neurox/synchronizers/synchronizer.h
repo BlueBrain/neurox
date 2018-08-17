@@ -133,6 +133,6 @@ class Synchronizer {
                                        const size_t[]);
 };
 
-};  // synchronizers
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

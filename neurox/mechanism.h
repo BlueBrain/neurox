@@ -4,19 +4,33 @@
 
 #include <vector>
 
+using namespace coreneuron;
+
 namespace neurox {
 
 class NetconX;
 
-/// hard-coded mechanism types
+/// TODO: hard-coded mechanism types
 enum MechanismTypes {
   kCapacitance = 3,
   kIClamp = 7,
   kExpSyn = 9,
-  kCaDynamics_E2 = 32,
-  kProbAMPANMDA_EMS = 137,
-  kProbGABAAB_EMS = 139,
-  kStochKv = 151
+  kCaDynamics_E2 = 36,
+  kProbAMPANMDA_EMS = 156,
+  kProbGABAAB_EMS = 158,
+  kStochKv = 176,
+  kStochKv3 = 175,
+  kBinReportHelper = 26,
+  kBinReports = 27,
+  kCoreConfig = 56,
+  kMemUsage = 131,
+  kProfileHelper = 162,
+  kVecStim = 181,
+  kNetStim = 18,
+  kGluSynapse = 63,
+  kALU = 24,
+  kInhPoissonStim = 152,
+  kPatternStim = 23
 };
 
 /**
@@ -43,7 +57,8 @@ class Mechanism {
   Mechanism(const int type_, const short int data_size,
             const short int pdata_size, const char is_artificial, char pnt_map,
             const char is_ion, const short int sym_length, const char *sym,
-            Memb_func &memb_func_, const short int dependencies_count = 0,
+            coreneuron::Memb_func &memb_func_,
+            const short int dependencies_count = 0,
             const int *dependencies_ = nullptr,
             const short int successors_count = 0,
             const int *successors_ = nullptr);
@@ -68,8 +83,7 @@ class Mechanism {
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
-  pnt_receive2_t pnt_receive_;
-  pnt_receive2_t pnt_receive_init_;
+  pnt_receive_t pnt_receive_;
   bbcore_read_t nrn_bbcore_read_;
 
   // CVODES-specific
@@ -82,11 +96,11 @@ class Mechanism {
   class StateVars {
    public:
     StateVars();
-    StateVars(short count, short *offsets, short *dv_offsets);
+    StateVars(int count, int *offsets, int *dv_offsets);
     ~StateVars();
-    short count_;         ///> number of cvode state variables
-    short *var_offsets_;  ///>offset of state vars in ml->data
-    short *dv_offsets_;   ///> offset of dx/dV for state vars
+    int count_;         ///> number of cvode state variables
+    int *var_offsets_;  ///>offset of state vars in ml->data
+    int *dv_offsets_;   ///> offset of dx/dV for state vars
   } * state_vars_;
 
   enum ModFunctions {
@@ -155,4 +169,4 @@ class Mechanism {
   /// register Before-After functions
   void RegisterBeforeAfterFunctions();
 };
-};
+};  // namespace neurox
