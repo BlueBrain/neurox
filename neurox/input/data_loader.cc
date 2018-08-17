@@ -370,16 +370,22 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         pdata.push_back(ml->pdata[pdata_offset_non_padded]);
 #else
         int pdata_offset_padded = Vectorizer::SizeOf(ml->nodecount) * i + n;
-        int pd = ml->pdata[pdata_offset_padded];
         int ptype = memb_func[mech->type_].dparam_semantics[i];
+        int pd = ml->pdata[pdata_offset_padded];
 
         // remove extra space added by padding
         //(for pointer to area or ion mech instance)
         if (input_params_->branch_parallelism_ &&
             (ptype == -1 || (ptype > 0 && ptype < 1000))) {
-          assert(data_offsets.at(pd) != -99999);
-          pdata.push_back(data_offsets.at(pd));  // offset to non-padded SoA
-                                                 // value
+          // if mech has no instances, area is always -1
+          if (ptype == -1 /*area*/ && HardCodedMechanismHasNoInstances(type)) {
+            assert(pd == -1);
+            pdata.push_back(pd);
+          } else {
+            assert(data_offsets.at(pd) != -99999);
+            // offset to non-padded SoA value
+            pdata.push_back(data_offsets.at(pd));
+          }
         } else
           pdata.push_back(pd);
 #endif
@@ -445,8 +451,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
 
-  assert(DELETE_TEST == nt->_ndata);
-  assert(DELETE_TEST_nodes == nt->_ndata - N * 6);
+  // assert(DELETE_TEST == nt->_ndata);
+  // assert(DELETE_TEST_nodes == nt->_ndata - N * 6);
   for (Compartment *comp : compartments) comp->ShrinkToFit();
 
   data_offsets.clear();
