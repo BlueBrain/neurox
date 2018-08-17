@@ -58,5 +58,5 @@ class Debugger {
   static int FixedStepMinimal_handler(const int *, const size_t);
   static int ThreadTableCheck_handler();
 };
-};  // Input
-};  // NeuroX
+};  // namespace input
+};  // namespace neurox

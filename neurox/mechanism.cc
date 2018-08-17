@@ -153,9 +153,8 @@ int Mechanism::ModFunctionStateThread(int i, void *args_ptr) {
 int Mechanism::ModFunctionCurrentThread(int i, void *args_ptr) {
   MembListThreadArgs *args = (MembListThreadArgs *)args_ptr;
   if (args->requires_shadow_vectors)
-    args->memb_func->current(args->nt, &args->ml_current[i],
-                             args->mech_type, args->acc_rhs_d,
-                             args->acc_di_dv, args->acc_args);
+    args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type,
+                             args->acc_rhs_d, args->acc_di_dv, args->acc_args);
   else
     args->memb_func->current(args->nt, &args->ml_current[i], args->mech_type,
                              NULL, NULL, NULL);
@@ -167,7 +166,7 @@ void Mechanism::CallModFunction(
     Memb_list *other_ml,    // other Memb_list (if any)
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
-    ) {
+) {
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -194,7 +193,8 @@ void Mechanism::CallModFunction(
     int iml = netcon->mech_instance_;
     int weight_index = netcon->weight_index_;
     nt->_t = tt;  // as seen in netcvode.cpp (NetCon::deliver)
-    this->pnt_receive_(nt, this->type_, iml, weight_index, 0, Branch::CoreneuronNetSend, Branch::CoreneuronNetEvent);
+    this->pnt_receive_(nt, this->type_, iml, weight_index, 0,
+                       Branch::CoreneuronNetSend, Branch::CoreneuronNetEvent);
     return;
   }
 
@@ -261,8 +261,8 @@ void Mechanism::CallModFunction(
                       ? Branch::MechanismsGraph::AccumulateIandDIDV
                       : nullptr;
               void *args = branch->mechs_graph_;
-              memb_func_.current(nt, memb_list, type_,
-                                 acc_rhs_d, acc_di_dv, args);
+              memb_func_.current(nt, memb_list, type_, acc_rhs_d, acc_di_dv,
+                                 args);
             } else {
               memb_func_.current(nt, memb_list, type_, NULL, NULL, NULL);
             }

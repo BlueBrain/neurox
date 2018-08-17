@@ -49,5 +49,5 @@ class Compartment {
  private:
 };
 
-};  // Input
-};  // NeuroX
+};  // namespace input
+};  // namespace neurox

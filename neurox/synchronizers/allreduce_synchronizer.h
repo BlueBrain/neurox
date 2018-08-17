@@ -82,6 +82,6 @@ class AllreduceSynchronizer : public Synchronizer {
  private:
 };
 
-};  // synchronizer
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

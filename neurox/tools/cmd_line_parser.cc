@@ -62,13 +62,14 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                           cmd, false);
 
     TCLAP::SwitchArg graph_mechs_parallelism(
-        "G", "graph-parallelism", "activates graph-based parallelism of mechanisms.", cmd,
-        false);
+        "G", "graph-parallelism",
+        "activates graph-based parallelism of mechanisms.", cmd, false);
 
     TCLAP::ValueArg<floble_t> subsection_complexity(
-                "", "L",
-                "scale constant to groups of subsection complexity (constant k' for branch parallelism on multiple localities)",
-                false, 0, "floble_t");
+        "", "L",
+        "scale constant to groups of subsection complexity (constant k' for "
+        "branch parallelism on multiple localities)",
+        false, 0, "floble_t");
     cmd.add(subsection_complexity);
 
     TCLAP::SwitchArg load_balancing(
@@ -76,23 +77,26 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "performs dynamic load balancing of neurons and branches.", cmd, false);
 
     TCLAP::ValueArg<floble_t> subtree_complexity(
-                "", "B",
-                "scale constant to subsection complexity (constant k for branch parallelism)",
-                false, 0.3, "floble_t");
+        "", "B",
+        "scale constant to subsection complexity (constant k for branch "
+        "parallelism)",
+        false, 0.3, "floble_t");
     cmd.add(subtree_complexity);
 
     TCLAP::SwitchArg branch_parallelism(
-        "B", "branch-parallelism", "performs branch-level parallelism on neurons",
-        cmd, false);
+        "B", "branch-parallelism",
+        "performs branch-level parallelism on neurons", cmd, false);
 
     TCLAP::ValueArg<floble_t> mech_instance_percent_per_block(
-                "", "M",
-                "percentage of total workload assigned to each mechanism instances block (for mech-instance parallelism)",
-                false, 0.1, "floble_t");
+        "", "M",
+        "percentage of total workload assigned to each mechanism instances "
+        "block (for mech-instance parallelism)",
+        false, 0.1, "floble_t");
     cmd.add(mech_instance_percent_per_block);
 
     TCLAP::SwitchArg mech_instances_parallelism(
-        "M", "mech-parallelism", "parallelism of mechanisms instances", cmd, false);
+        "M", "mech-parallelism", "parallelism of mechanisms instances", cmd,
+        false);
 
     TCLAP::ValueArg<int> synchronizer(
         "A", "synchronizer",
@@ -214,7 +218,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     this->subtree_complexity = subtree_complexity.getValue();
     this->subsection_complexity = subsection_complexity.getValue();
-    this->mech_instance_percent_per_block = mech_instance_percent_per_block.getValue();
+    this->mech_instance_percent_per_block =
+        mech_instance_percent_per_block.getValue();
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(

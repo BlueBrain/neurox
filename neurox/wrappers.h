@@ -114,9 +114,10 @@ static void RegisterMultipleVarAction(hpx_action_t& action,
                                       int (*handler)(const int, const void* [],
                                                      const size_t[]),
                                       bool compressed = false) {
-  HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED |
-                                       (compressed ? HPX_COMPRESSED : 0),
-                      action, handler, HPX_INT, HPX_POINTER, HPX_POINTER);
+  HPX_REGISTER_ACTION(
+      HPX_DEFAULT,
+      HPX_MARSHALLED | HPX_VECTORED | (compressed ? HPX_COMPRESSED : 0), action,
+      handler, HPX_INT, HPX_POINTER, HPX_POINTER);
 }
 
 /// register hpx-action and handlers for an AllReduce init action
@@ -146,5 +147,5 @@ inline int NumRanks() { return hpx_get_num_ranks(); }
 /// get number of threads in current locality
 inline int NumThreads() { return hpx_get_num_threads(); }
 
-};  // namespace wrappers;
-};  // namespare neurox;
+};  // namespace wrappers
+};  // namespace neurox

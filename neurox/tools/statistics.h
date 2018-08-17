@@ -50,5 +50,5 @@ class Statistics {
   static int GetNeuronSize_handler();
   static int GetNeuronMechanismsDistribution_handler();
 };
-}  // Tools
-}  // neurox
+}  // namespace tools
+}  // namespace neurox

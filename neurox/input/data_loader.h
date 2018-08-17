@@ -92,7 +92,7 @@ class DataLoader {
                                     bool run_mechs_benchmark = false);
 
   static int GetNumberOfInstanceCompartments(
-          const deque<Compartment*> &compartments);
+      const deque<Compartment *> &compartments);
 
   static hpx_t CreateBranch(
       const int nrn_thread_id, hpx_t soma_branch_addr,
@@ -127,7 +127,7 @@ class DataLoader {
       vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
-                                             Compartment *top_compartment);
+                                           Compartment *top_compartment);
 
   static void GetMechInstanceMap(const deque<Compartment *> &compartments,
                                  vector<map<int, int>> &mechs_instance_map);
@@ -162,5 +162,5 @@ class DataLoader {
   static int Finalize_handler();
 };
 
-};  // Input
-};  // NeuroX
+};  // namespace input
+};  // namespace neurox

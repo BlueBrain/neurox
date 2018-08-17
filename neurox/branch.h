@@ -177,7 +177,8 @@ class Branch {
   /// start NetEvents and PlayVect on events queue
   void InitVecPlayContinous();
 
-  static void CoreneuronNetSend(void**, int, NrnThread*, int, int, double, double);
+  static void CoreneuronNetSend(void**, int, NrnThread*, int, int, double,
+                                double);
   static void CoreneuronNetEvent(NrnThread*, int, int, double);
 
   void AddEventToQueue(floble_t t, Event* e);
@@ -205,4 +206,4 @@ class Branch {
   static int SetSyncStepTrigger_handler(const hpx_t*, const size_t);
 };
 
-};  // namespace
+};  // namespace neurox

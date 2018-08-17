@@ -134,7 +134,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     if (instance.pdata)
       memcpy(instance.pdata, &pdata[pdata_offset],
              sizeof(offset_t) * (mech->pdata_size_ * instance.nodecount));
-    instance.nodeindices = instance.nodecount == 0 || input::DataLoader::HardCodedMechanismHasNoInstances(type)
+    instance.nodeindices =
+        instance.nodecount == 0 ||
+                input::DataLoader::HardCodedMechanismHasNoInstances(type)
             ? nullptr
             : Vectorizer::New<offset_t>(instance.nodecount);
     if (instance.nodeindices)
@@ -162,13 +164,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
           (floble_t *)&instance.data[i * mech->data_size_];
       offset_t *instance_pdata =
           (offset_t *)&instance.pdata[i * mech->pdata_size_];
-      assert(instance_data == instance_data_2);  // Make sure data offsets are good
+      assert(instance_data ==
+             instance_data_2);  // Make sure data offsets are good
 
-       // copy Point_processes by replacing vdata pointers and pdata offset by
+      // copy Point_processes by replacing vdata pointers and pdata offset by
       // the ones referring to a copy
-      int pnt_proc_offset_in_pdata = input::DataLoader::HardCodedPntProcOffsetInPdata(type);
-      if ( pnt_proc_offset_in_pdata != -1 )
-      {
+      int pnt_proc_offset_in_pdata =
+          input::DataLoader::HardCodedPntProcOffsetInPdata(type);
+      if (pnt_proc_offset_in_pdata != -1) {
         Point_process *pp =
             (Point_process *)(void *)&vdata_serialized[vdata_offset];
         assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
@@ -181,9 +184,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
       // copy RNG by replacing vdata pointers and pdata offset by the ones
       // referring to a copy
-      int rng_offset_in_pdata = input::DataLoader::HardCodedRNGOffsetInPdata(type);
-      if ( rng_offset_in_pdata != -1 )
-      {
+      int rng_offset_in_pdata =
+          input::DataLoader::HardCodedRNGOffsetInPdata(type);
+      if (rng_offset_in_pdata != -1) {
         nrnran123_State *rng =
             (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
         nrnran123_State *rngcopy = new nrnran123_State;
@@ -200,7 +203,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       assert(vdata_offset < 2 ^ sizeof(offset_t));
 
       if (!input::DataLoader::HardCodedMechanismHasNoInstances(type))
-          instances_offset++;
+        instances_offset++;
     }
   }
   assert(data_offset == data_count);
@@ -315,7 +318,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
 #if LAYOUT == 0
   // if using vector data structures, convert now
-  printf("%d vs %d\n", nt->_ndata, nrn_threads[0]._ndata);
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
@@ -441,15 +443,12 @@ void Branch::InitVecPlayContinous() {
   }
 }
 
-void Branch::CoreneuronNetSend(void** v, int weight_index, NrnThread * nt, int type, int iml, double td, double flag)
-{
-    assert(0);
+void Branch::CoreneuronNetSend(void **v, int weight_index, NrnThread *nt,
+                               int type, int iml, double td, double flag) {
+  assert(0);
 }
 
-void Branch::CoreneuronNetEvent(NrnThread*, int, int, double)
-{
-    assert(0);
-}
+void Branch::CoreneuronNetEvent(NrnThread *, int, int, double) { assert(0); }
 
 void Branch::AddEventToQueue(floble_t tt, Event *e) {
   this->events_queue_.push(make_pair(tt, e));
@@ -474,7 +473,9 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
       // launch execution on top nodes of the branch
       for (int m = 0; m < neurox::mechanisms_count_; m++) {
         if (mechanisms_[m]->type_ == CAP) continue;  // not capacitance
-        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
+        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(
+                mechanisms_[m]->type_))
+          continue;
         if (mechanisms_[m]->dependencies_count_ > 0)
           continue;  // not a top branch
         hpx_lco_set(this->mechs_graph_->mechs_lcos_[m], sizeof(function_id),
@@ -489,7 +490,9 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
             (function_id == Mechanism::ModFunctions::kCurrent ||
              function_id == Mechanism::ModFunctions::kJacob))
           continue;  // kCurrentCapacitance and kJacobCapacitance above
-        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
+        if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(
+                mechanisms_[m]->type_))
+          continue;
         mechanisms_[m]->CallModFunction(this, function_id, other_ml);
       }
     }
@@ -626,7 +629,9 @@ int Branch::InitMechanismsGraph_handler() {
     local->mechs_graph_ = new Branch::MechanismsGraph();
     for (size_t m = 0; m < mechanisms_count_; m++) {
       if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
-      if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
+      if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(
+              mechanisms_[m]->type_))
+        continue;
       hpx_call(target, MechanismsGraph::MechFunction,
                local->mechs_graph_->graph_lco_, &mechanisms_[m]->type_,
                sizeof(int));
@@ -712,18 +717,21 @@ Branch::MechanismsGraph::MechanismsGraph() {
   int mechanisms_count_filtered = 0;
   for (size_t m = 0; m < mechanisms_count_; m++) {
     if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
-    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
-    mechanisms_count_filtered ++;
+    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(
+            mechanisms_[m]->type_))
+      continue;
+    mechanisms_count_filtered++;
   }
 
-  this->graph_lco_ =
-      hpx_lco_and_new(mechanisms_count_filtered);
+  this->graph_lco_ = hpx_lco_and_new(mechanisms_count_filtered);
   this->mechs_lcos_ = new hpx_t[mechanisms_count_];
   size_t terminal_mechanisms_count = 0;
   for (size_t m = 0; m < mechanisms_count_; m++) {
     this->mechs_lcos_[m] = HPX_NULL;
     if (mechanisms_[m]->type_ == CAP) continue;  // exclude capacitance
-    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(mechanisms_[m]->type_)) continue;
+    if (input::DataLoader::HardCodedMechanismForCoreneuronOnly(
+            mechanisms_[m]->type_))
+      continue;
 
     this->mechs_lcos_[m] = hpx_lco_reduce_new(
         max((short)1, mechanisms_[m]->dependencies_count_),

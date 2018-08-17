@@ -47,4 +47,4 @@ class VecplayContinuousX : Event {
   size_t discon_index_;
   size_t ubound_index_;
 };
-}
+}  // namespace neurox

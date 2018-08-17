@@ -112,7 +112,7 @@ extern hpx_t neurons_progress_mutex_;
 /** semaphort controling number of active neurons per locality.
  *  (default size of "number of compute cores" per locality)*/
 extern hpx_t neurons_scheduler_sema_;
-}
+}  // namespace locality
 
 /// returns mechanism of type 'type'
 Mechanism *GetMechanismFromType(int type);
@@ -137,7 +137,7 @@ static int Clear_handler();
 
 /// HPX-actions registration
 void RegisterHpxActions();
-};
+};  // namespace neurox
 
 // hpx macros and hpx-wrapperss
 // TODO can we move this somewhere else?

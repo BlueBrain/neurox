@@ -7,7 +7,7 @@ namespace neurox {
 namespace synchronizers {
 enum class SynchronizerIds : int;
 class Synchronizer;
-}
+}  // namespace synchronizers
 
 namespace interpolators {
 enum class InterpolatorIds : int;
@@ -80,5 +80,5 @@ class CmdLineParser {
   /// Parses command line arguments and populates structure
   void Parse(int argc, char** argv);
 };
-};  // CmdLineParser
-};  // neurox
+};  // namespace tools
+};  // namespace neurox

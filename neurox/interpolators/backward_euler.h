@@ -42,5 +42,5 @@ class BackwardEuler : public Interpolator {
   static int Finitialize_handler();
 };
 
-};  // namespace
-};  // namespace
+};  // namespace interpolators
+};  // namespace neurox

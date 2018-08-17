@@ -96,6 +96,6 @@ class TimeDependencySynchronizer : public Synchronizer {
                                                   const size_t[]);
 };
 
-};  // synchronizer
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

@@ -17,7 +17,7 @@ int tools::LoadBalancing::QueryLoadBalancingTable_handler() {
   int rank = -1;
   hpx_lco_sema_p(load_balancing_mutex_);
 
-  //return rank of least busy locality
+  // return rank of least busy locality
   for (int r = 0; r < hpx_get_num_ranks(); r++)
     if (load_balancing_table_[r] < min_elapsed_time) {
       min_elapsed_time = load_balancing_table_[r];
@@ -74,18 +74,18 @@ void tools::LoadBalancing::PrintLoadBalancingTable() {
     printf("- rank %d : %.6f ms\n", r, load_balancing_table_[r]);
 }
 
-//TODO should be avg_neuron_time, not neuron_time (same in next func)!
+// TODO should be avg_neuron_time, not neuron_time (same in next func)!
 double tools::LoadBalancing::GetMaxWorkPerBranchSubTree(
     const double neuron_time, const int my_neurons_count) {
-
-  //intentionally made simillar to NEURON (see multisplit.hoc)
-  return neuron_time / wrappers::NumThreads() * input_params_->subtree_complexity;
+  // intentionally made simillar to NEURON (see multisplit.hoc)
+  return neuron_time / wrappers::NumThreads() *
+         input_params_->subtree_complexity;
 }
 
-double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(const double neuron_time,
-                                                const int my_neurons_count) {
+double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(
+    const double neuron_time, const int my_neurons_count) {
   if (input_params_->subsection_complexity == 0)
-      return 0; //0 means "keep it as single subsection"
+    return 0;  // 0 means "keep it as single subsection"
 
   // get an estimation of total workload in this locality
   double total_work = neuron_time * (double)my_neurons_count;
@@ -103,7 +103,8 @@ void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
 }
 
 double tools::LoadBalancing::GetWorkloadPerMechInstancesBlock() {
-  return total_mech_instances_runtime_ * input_params_->mech_instance_percent_per_block;
+  return total_mech_instances_runtime_ *
+         input_params_->mech_instance_percent_per_block;
 }
 
 void tools::LoadBalancing::RegisterHpxActions() {

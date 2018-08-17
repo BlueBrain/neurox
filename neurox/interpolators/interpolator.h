@@ -31,6 +31,6 @@ class Interpolator {
   /// Returns an instantiated class of the given type
   static Interpolator* New(InterpolatorIds);
 };
-};  // interpolators
+};  // namespace interpolators
 
-};  // neurox
+};  // namespace neurox

@@ -28,6 +28,6 @@ class SlidingTimeWindowSynchronizer : public Synchronizer {
  private:
 };
 
-};  // synchronizer
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

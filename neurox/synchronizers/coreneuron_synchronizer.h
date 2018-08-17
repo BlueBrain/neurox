@@ -31,6 +31,6 @@ class CoreneuronSynchronizer : public Synchronizer {
   };
 };
 
-};  // synchronizer
+};  // namespace synchronizers
 
-};  // neurox
+};  // namespace neurox

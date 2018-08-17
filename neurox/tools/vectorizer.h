@@ -45,7 +45,7 @@ class Vectorizer {
       Memb_list **ml_no_capacitors_ptr = nullptr,  // out (optional)
       Memb_list **ml_capacitors_ptr = nullptr,     // out (optional)
       std::set<int> *capacitors_ids_ptr = nullptr  // in (optional)
-      );
+  );
 
   /// creates branch->
   static void CreateMechInstancesThreads(Branch *branch);
@@ -69,5 +69,5 @@ class Vectorizer {
  private:
 };
 
-};  // Tools
-};  // NeuroX
+};  // namespace tools
+};  // namespace neurox

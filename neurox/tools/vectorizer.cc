@@ -171,7 +171,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     Memb_list** ml_no_capacitors_ptr,  // out (optional)
     Memb_list** ml_capacitors_ptr,     // out (optional)
     std::set<int>* capacitor_ids_ptr   // in  (optional)
-    ) {
+) {
   // if not provided, build list of capacitor ids
   std::set<int> new_capacitor_ids;
   if (capacitor_ids_ptr == nullptr) {
@@ -372,10 +372,10 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         assert(cluster_count > 0);
       }
 
-//#ifndef NDEBUG
+      //#ifndef NDEBUG
       printf("neuron gid %d, mech %d: cluster_size %d, cluster_count %d\n",
-              b->soma_->gid_, mech->type_, cluster_size, cluster_count);
-//#endif
+             b->soma_->gid_, mech->type_, cluster_size, cluster_count);
+      //#endif
 
       /* if cluster_count==1, does not need threaded execution */
       if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {

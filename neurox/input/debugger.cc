@@ -354,53 +354,51 @@ void Debugger::CompareBranch2(Branch *branch) {
     short pdataSize = mechanisms_[m]->pdata_size_;
     assert(pdataSize == nrn_prop_dparam_size_[type]);
     assert(dataSize == nrn_prop_param_size_[type]);
-    if (DataLoader::HardCodedMechanismHasNoInstances(tml->index))
-    {
-        assert(ml->nodeindices == nullptr and instances.nodeindices== nullptr);
-        assert(ml->nodecount == instances.nodecount);
-    }
-    else
-    for (int n = 0; n < ml->nodecount; n++)  // for every mech instance
-    {
-      assert(ml->nodeindices[n] == instances.nodeindices[n]);
-      for (int i = 0; i < dataSize; i++) {
+    if (DataLoader::HardCodedMechanismHasNoInstances(tml->index)) {
+      assert(ml->nodeindices == nullptr and instances.nodeindices == nullptr);
+      assert(ml->nodecount == instances.nodecount);
+    } else
+      for (int n = 0; n < ml->nodecount; n++)  // for every mech instance
+      {
+        assert(ml->nodeindices[n] == instances.nodeindices[n]);
+        for (int i = 0; i < dataSize; i++) {
 #if LAYOUT == 1
-        int offset = neurox::mechanisms_[m]->data_size_ * n + i;
+          int offset = neurox::mechanisms_[m]->data_size_ * n + i;
 #else
-        int offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+          int offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
 #endif
-        assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
-      }
-
-      for (int i = 0; i < pdataSize; i++) {
-#if LAYOUT == 1
-        int offset = pdataSize * n + i;
-#else
-        int offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
-#endif
-        int ptype = memb_func[type].dparam_semantics[i];
-        bool isPointer = ptype == -1 || (ptype > 0 && ptype < 1000);
-        if (isPointer) {
-          assert(IsEqual(nt._data[ml->pdata[offset]],
-                         branch->nt_->_data[instances.pdata[offset]],
-                         multiMex));
+          assert(IsEqual(ml->data[offset], instances.data[offset], multiMex));
         }
-        assert(ml->pdata[offset] == instances.pdata[offset]);
-      }
 
-      /* We comment this because it runs for NULL presyn
-      if (mechanisms[m]->pntMap)
-          //compare point_processes (index 1)
-          Point_process * pp = (Point_process *) nt._vdata[vdataOffset+1];
-          Point_process * pp2 = (Point_process *) branch->vdata[vdataOffset+1];
-          assert(pp->_type == pp2->_type );
-          assert(pp->_i_instance == pp2->_i_instance );
-          assert(pp->_tid == pp2->_tid );
-          assert(pp->_presyn == pp2->_presyn );
-          vdataOffset+= mechanisms[m]->vdataSize;
+        for (int i = 0; i < pdataSize; i++) {
+#if LAYOUT == 1
+          int offset = pdataSize * n + i;
+#else
+          int offset = tools::Vectorizer::SizeOf(ml->nodecount) * i + n;
+#endif
+          int ptype = memb_func[type].dparam_semantics[i];
+          bool isPointer = ptype == -1 || (ptype > 0 && ptype < 1000);
+          if (isPointer) {
+            assert(IsEqual(nt._data[ml->pdata[offset]],
+                           branch->nt_->_data[instances.pdata[offset]],
+                           multiMex));
+          }
+          assert(ml->pdata[offset] == instances.pdata[offset]);
+        }
+
+        /* We comment this because it runs for NULL presyn
+        if (mechanisms[m]->pntMap)
+            //compare point_processes (index 1)
+            Point_process * pp = (Point_process *) nt._vdata[vdataOffset+1];
+            Point_process * pp2 = (Point_process *)
+        branch->vdata[vdataOffset+1]; assert(pp->_type == pp2->_type );
+            assert(pp->_i_instance == pp2->_i_instance );
+            assert(pp->_tid == pp2->_tid );
+            assert(pp->_presyn == pp2->_presyn );
+            vdataOffset+= mechanisms[m]->vdataSize;
+        }
+        */
       }
-      */
-    }
   }
 }
 
@@ -446,9 +444,10 @@ int Debugger::NrnSpikeExchange_handler() {
 hpx_action_t Debugger::CompareBranch = 0;
 int Debugger::CompareBranch_handler() {
   NEUROX_MEM_PIN(Branch);
-  if ((input_params_->branch_parallelism_ && local->branch_tree_ && local->branch_tree_->branches_count_>0)
-       || input_params_->load_balancing_
-       || input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
+  if ((input_params_->branch_parallelism_ && local->branch_tree_ &&
+       local->branch_tree_->branches_count_ > 0) ||
+      input_params_->load_balancing_ ||
+      input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);  // not implemented for branch-parallelism
   return neurox::wrappers::MemoryUnpin(target);
