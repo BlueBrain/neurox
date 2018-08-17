@@ -39,6 +39,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 ```
 
 ## Compilation
+
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 ```
@@ -64,6 +65,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
 ```
 
 ## Execution
+
 ```
 ./neurox --help for execution parameters
 ./neurox -d <input-data-folder> -e <execution-time-milisecs> for execution with minimum parameters
