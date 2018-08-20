@@ -447,7 +447,6 @@ int Debugger::CompareBranch_handler() {
   if ((input_params_->branch_parallelism_ && local->branch_tree_ &&
        local->branch_tree_->branches_count_ > 0) ||
       input_params_->load_balancing_ ||
-      input_params_->mech_instances_parallelism_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
   CompareBranch2(local);
