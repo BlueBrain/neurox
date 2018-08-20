@@ -32,9 +32,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
       div_capacity_(nullptr),
-      mul_capacity_(nullptr),
-      current_func_runtime_(-1),
-      state_func_runtime_(-1) {
+      mul_capacity_(nullptr) {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 

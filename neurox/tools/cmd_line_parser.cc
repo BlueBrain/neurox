@@ -94,6 +94,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 0.1, "floble_t");
     cmd.add(mech_instance_percent_per_block);
 
+    TCLAP::ValueArg<int> processor_cache_line_size_l1(
+        "", "L1", "processor Level-1 cache line size", false, 64, "int");
+    cmd.add(processor_cache_line_size_l1);
+
     TCLAP::SwitchArg mech_instances_parallelism(
         "M", "mech-parallelism", "parallelism of mechanisms instances", cmd,
         false);
@@ -220,6 +224,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->subsection_complexity = subsection_complexity.getValue();
     this->mech_instance_percent_per_block =
         mech_instance_percent_per_block.getValue();
+    this->processor_cache_line_size_l1_ =
+        processor_cache_line_size_l1.getValue();
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(

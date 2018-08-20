@@ -76,10 +76,6 @@ class Mechanism {
 
   int dependency_ion_index_;  ///> index of parent ion (if any)
 
-  // Variables for mechanism-instances parallelism
-  double current_func_runtime_;  ///> runtime of current function
-  double state_func_runtime_;    ///> runtime of state function
-
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions

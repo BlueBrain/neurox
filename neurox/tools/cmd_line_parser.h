@@ -70,6 +70,9 @@ class CmdLineParser {
   /// (for mech-instances parallelism)
   floble_t mech_instance_percent_per_block;
 
+  /// processor Level-1 cache line size (for mech-instance parallelism)
+  int processor_cache_line_size_l1_;
+
   /// neurons sychronization synchronizer
   synchronizers::SynchronizerIds synchronizer_;
 

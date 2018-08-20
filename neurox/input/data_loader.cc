@@ -947,18 +947,6 @@ hpx_action_t DataLoader::Finalize = 0;
 int DataLoader::Finalize_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
-  //#ifndef NDEBUG
-  if (input_params_->mech_instances_parallelism_) {
-    printf("Mechanisms execution time per instance:\n");
-    for (int m = 0; m < neurox::mechanisms_count_; m++)
-      printf("mech type %d (%s): state %.3f us, current %.3f us\n",
-             neurox::mechanisms_[m]->type_,
-             neurox::mechanisms_[m]->memb_func_.sym,
-             neurox::mechanisms_[m]->state_func_runtime_,
-             neurox::mechanisms_[m]->current_func_runtime_);
-  }
-  //#endif
-
   if (input_params_->output_netcons_dot) {
     fprintf(file_netcons_, "}\n");
     fclose(file_netcons_);
@@ -1416,8 +1404,7 @@ bool CompareCompartmentPtrId(Compartment *a, Compartment *b) {
 
 double DataLoader::BenchmarkSubSection(
     int N, const deque<Compartment *> &subsection,
-    vector<DataLoader::IonInstancesInfo> &ions_instances_info,
-    bool run_stepping_benchmark, bool run_mechanisms_benchmark) {
+    vector<DataLoader::IonInstancesInfo> &ions_instances_info) {
   // common vars to all compartments
   int dumb_threshold_offset = 0;
   int nrn_threadId = -1;
@@ -1425,7 +1412,6 @@ double DataLoader::BenchmarkSubSection(
 
   // timing vars
   double time_elapsed = 0;
-  hpx_time_t now;
 
   // serialization of neurons
   offset_t n;              // number of compartments in branch
@@ -1488,77 +1474,22 @@ double DataLoader::BenchmarkSubSection(
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
 
-  if (run_stepping_benchmark || run_mechanisms_benchmark) {
-    // for benchamark: either type of benchmark, but not both
-    assert(run_mechanisms_benchmark ^ run_stepping_benchmark);
-    assert(branch->mechs_graph_ == nullptr);
-    assert(branch->mechs_instances_parallel_ == nullptr);
+  // initialize datatypes and graph-parallelism shadow vecs offsets
+  branch->soma_ = new Neuron(-1, 999);
+
+  // initialize datatypes and graph-parallelism shadow vecs offsets
+  interpolators::BackwardEuler::Finitialize2(branch);
+
+  // benchmark execution time of 10 times 0.1msec
+  time_elapsed = 0;
+  double step_count = interpolators::BackwardEuler::GetMinSynapticDelaySteps();
+  for (int i = 0; i < 20; i++) {
+    hpx_time_t now = hpx_time_now();
+    for (int i = 0; i < step_count; i++)
+      interpolators::BackwardEuler::Step(branch, true);
+    time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
   }
-
-  if (run_stepping_benchmark) {
-    // initialize datatypes and graph-parallelism shadow vecs offsets
-    branch->soma_ = new Neuron(-1, 999);
-
-    // initialize datatypes and graph-parallelism shadow vecs offsets
-    interpolators::BackwardEuler::Finitialize2(branch);
-
-    // benchmark execution time of 10 times 0.1msec
-    time_elapsed = 0;
-    double step_count =
-        interpolators::BackwardEuler::GetMinSynapticDelaySteps();
-    for (int i = 0; i < 20; i++) {
-      hpx_time_t now = hpx_time_now();
-      for (int i = 0; i < step_count; i++)
-        interpolators::BackwardEuler::Step(branch, true);
-      time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
-    }
-    time_elapsed /= 20;
-  }
-
-  if (run_mechanisms_benchmark) {
-    for (int m = 0; m < neurox::mechanisms_count_; m++) {
-      Mechanism *mech = neurox::mechanisms_[m];
-      Memb_list *ml = &branch->mechs_instances_[m];
-
-      /* benchmark state function */
-      now = hpx_time_now();
-      if (mech->memb_func_.state) {
-        mech->CallModFunction(branch, Mechanism::ModFunctions::kState);
-        time_elapsed = hpx_time_elapsed_us(now);
-
-        hpx_lco_sema_p(DataLoader::locality_mutex_);
-        LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
-        time_elapsed /= ml->nodecount;
-        mech->state_func_runtime_ =
-            mech->state_func_runtime_ == -1 /*if not set */
-                ? time_elapsed
-                : std::min(mech->state_func_runtime_, time_elapsed);
-        hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
-      }
-
-      /* benchmark current function (capacitance is an exception) */
-      time_elapsed = 0;
-      now = hpx_time_now();
-      if (mech->type_ == MechanismTypes::kCapacitance ||
-          mech->memb_func_.current) {
-        if (mech->type_ == MechanismTypes::kCapacitance)
-          mech->CallModFunction(branch,
-                                Mechanism::ModFunctions::kCurrentCapacitance);
-        else
-          mech->CallModFunction(branch, Mechanism::ModFunctions::kCurrent);
-        time_elapsed = hpx_time_elapsed_us(now);
-
-        hpx_lco_sema_p(DataLoader::locality_mutex_);
-        LoadBalancing::AddToTotalMechInstancesRuntime(time_elapsed);
-        time_elapsed /= ml->nodecount;
-        mech->current_func_runtime_ =
-            mech->current_func_runtime_ == -1 /*if not set */
-                ? time_elapsed
-                : std::min(mech->current_func_runtime_, time_elapsed);
-        hpx_lco_sema_v_sync(DataLoader::locality_mutex_);
-      }
-    }
-  }
+  time_elapsed /= 20;
 
   hpx_call_sync(temp_branch_addr, Branch::Clear, nullptr, 0);
   hpx_gas_unpin(temp_branch_addr);
@@ -1624,13 +1555,6 @@ hpx_t DataLoader::CreateBranch(
     /* compute total runtime of neuron */
     neuron_runtime =
         BenchmarkSubSection(N, all_compartments, ions_instances_info);
-
-    /* to calculate computational complexity for the mech-instance parallelism,
-     * benchmark all mechanisms. Only on the first run, and only benchmarks
-     * mechanisms instances, not individual step of neurons */
-    if (input_params_->mech_instances_parallelism_)
-      BenchmarkSubSection(N, all_compartments, ions_instances_info, false,
-                          true);
   }
 
   /* No branch-parallelism (a la Coreneuron) */

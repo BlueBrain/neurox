@@ -87,9 +87,7 @@ class DataLoader {
   /// compute execution time of a given subsection
   static double BenchmarkSubSection(int N,
                                     const deque<Compartment *> &sub_section,
-                                    vector<DataLoader::IonInstancesInfo> &,
-                                    bool run_stepping_benchmark = true,
-                                    bool run_mechs_benchmark = false);
+                                    vector<DataLoader::IonInstancesInfo> &);
 
   static int GetNumberOfInstanceCompartments(
       const deque<Compartment *> &compartments);

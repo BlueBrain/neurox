@@ -5,7 +5,6 @@ using namespace neurox;
 
 double *tools::LoadBalancing::load_balancing_table_ = nullptr;
 hpx_t tools::LoadBalancing::load_balancing_mutex_ = HPX_NULL;
-double tools::LoadBalancing::total_mech_instances_runtime_ = 0;
 
 hpx_action_t tools::LoadBalancing::QueryLoadBalancingTable = 0;
 int tools::LoadBalancing::QueryLoadBalancingTable_handler() {
@@ -97,13 +96,9 @@ double tools::LoadBalancing::GetMaxWorkPerBranchSubSection(
   return avg_locality_work / input_params_->subsection_complexity;
 }
 
-void tools::LoadBalancing::AddToTotalMechInstancesRuntime(double runtime) {
-  assert(runtime > 0);
-  total_mech_instances_runtime_ += runtime;
-}
-
-double tools::LoadBalancing::GetWorkloadPerMechInstancesBlock() {
-  return total_mech_instances_runtime_ *
+double tools::LoadBalancing::GetWorkloadPerMechInstancesBlock(
+    const double total_mech_instances_runtime) {
+  return total_mech_instances_runtime *
          input_params_->mech_instance_percent_per_block;
 }
 
