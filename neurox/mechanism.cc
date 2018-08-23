@@ -165,6 +165,9 @@ void Mechanism::CallModFunction(
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
 ) {
+
+  hpx_time_t time_now = hpx_time_now();
+
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -343,4 +346,5 @@ void Mechanism::CallModFunction(
         exit(1);
     }
   }
+  neurox::time_spent_in_mechs += hpx_time_elapsed_ms(time_now) / 1e3;
 }

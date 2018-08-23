@@ -16,6 +16,7 @@ hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
+double time_spent_in_mechs = 0;
 neurox::Mechanism **mechanisms_ = nullptr;
 neurox::tools::CmdLineParser *input_params_ = nullptr;
 neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
@@ -115,7 +116,7 @@ static int Main_handler() {
 
 #ifdef NDEBUG
     // output benchmark info
-    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f\n",
+    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",
            neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
            neurox::neurons_count_ / (double)hpx_get_num_ranks(),
            input_params_->tstop_, synchronizer_->GetId(),
@@ -126,6 +127,7 @@ static int Main_handler() {
            input_params_->subtree_complexity,
            input_params_->load_balancing_ ? 1 : 0,
            input_params_->subsection_complexity,
+           neurox::time_spent_in_mechs,
            input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
     fflush(stdout);
 #endif

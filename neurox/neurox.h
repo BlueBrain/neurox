@@ -137,6 +137,9 @@ static int Clear_handler();
 
 /// HPX-actions registration
 void RegisterHpxActions();
+
+/// Total time spent in mechanisms
+extern double time_spent_in_mechs;
 };  // namespace neurox
 
 // hpx macros and hpx-wrapperss
