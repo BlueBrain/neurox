@@ -86,6 +86,11 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 
 - Documentation follows the doxygen (www.doxygen.org) notation and can be exported with `make doc`; 
 
+- Developer note: to collect CPU hotspots with inter VTune (`amplxe-cl --help` for details):
+```
+amplxe-cl -collect hotspots -r r000hs srun -n 1 ./bin/neurox_exec -d /gpfs/bbp.cscs.ch/project/proj16/bmagalha/Circuits/PCP/1/coreneuron_input
+```
+
 ## Copyright
 
 - Blue Brain Project, École Polytechnique Fédérale de Lausanne (EPFL), Switzerland;
