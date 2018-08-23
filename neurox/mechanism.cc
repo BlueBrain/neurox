@@ -166,8 +166,6 @@ void Mechanism::CallModFunction(
     const floble_t tt       // for net_receive only
 ) {
 
-  hpx_time_t time_now = hpx_time_now();
-
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -199,6 +197,7 @@ void Mechanism::CallModFunction(
     return;
   }
 
+
   /* memb_list to be used is the one with all instances or
    * an user-provided one (eg CVODE provides non-capacitors memb_list */
   const int mech_offset = neurox::mechanisms_map_[this->type_];
@@ -216,6 +215,7 @@ void Mechanism::CallModFunction(
       threads_args = &branch->mechs_instances_parallel_[mech_offset];
 
   if (memb_list->nodecount > 0) {
+    hpx_time_t time_now = hpx_time_now();
     switch (function_id) {
       case Mechanism::ModFunctions::kBeforeInitialize:
       case Mechanism::ModFunctions::kAfterInitialize:
@@ -345,6 +345,8 @@ void Mechanism::CallModFunction(
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);
     }
+    hpx_lco_sema_p(input::DataLoader::locality_mutex_);
+    neurox::time_spent_in_mechs += hpx_time_elapsed_ns(time_now);
+    hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
   }
-  neurox::time_spent_in_mechs += hpx_time_elapsed_ms(time_now) / 1e3;
 }

@@ -1042,7 +1042,7 @@ int DataLoader::Finalize_handler() {
   all_neurons_gids_ = nullptr;
 
   nrn_setup_cleanup();
-  hpx_lco_delete_sync(locality_mutex_);
+  //TODO delete somewhere else: hpx_lco_delete_sync(locality_mutex_);
 
 #if defined(NDEBUG)
   // if not on debug, there's no CoreNeuron comparison, so data can be

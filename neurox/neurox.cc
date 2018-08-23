@@ -127,8 +127,9 @@ static int Main_handler() {
            input_params_->subtree_complexity,
            input_params_->load_balancing_ ? 1 : 0,
            input_params_->subsection_complexity,
-           neurox::time_spent_in_mechs,
-           input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
+           input_params_->locality_comm_reduce_ ? 1 : 0,
+           neurox::time_spent_in_mechs / 1e9, //nano secs to secs
+           time_elapsed);
     fflush(stdout);
 #endif
     CallAllNeurons(Synchronizer::CallClearNeuron);
