@@ -351,12 +351,21 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
   // memory for runtime of individual instances
   std::vector<double> state_func_runtime(mechanisms_count_);
   std::vector<double> current_func_runtime(mechanisms_count_);
-  double total_mech_instances_runtime = 0;
+  double total_mech_current_runtime = 0;
+  double total_mech_state_runtime = 0;
+
+  // number of parallel instructions on this architecture
+  const int parallel_instructions_count =
+      input_params_->processor_cache_line_size_l1_ / sizeof(double);
 
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism* mech = neurox::mechanisms_[m];
     Memb_list* ml = &b->mechs_instances_[m];
     int type = mech->type_;
+
+    // get number of SIMD exec blocks from number of (rounded-up) instances
+    int number_of_simd_blocks =
+        std::ceil((double)ml->nodecount / (double)parallel_instructions_count);
 
     /* benchmark state function */
     if (mech->memb_func_.state) {
@@ -367,25 +376,27 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
       // average time per instance per node
       state_func_runtime[m] =
           hpx_time_elapsed_ns(now) / (double)benchmark_iterations;
-      total_mech_instances_runtime += current_func_runtime[m];
-      state_func_runtime[m] /= (double)ml->nodecount;
+      total_mech_state_runtime += state_func_runtime[m];
+      state_func_runtime[m] /= (double)number_of_simd_blocks;
     }
 
     /* benchmark current function (capacitance is an exception) */
-    if (type == MechanismTypes::kCapacitance || mech->memb_func_.current) {
+    if (mech->memb_func_.current) {
       now = hpx_time_now();
       for (int i = 0; i < benchmark_iterations; i++)
         mech->memb_func_.current(nt, ml, type, nullptr, nullptr, nullptr);
+
+      // average time per instance per node
       current_func_runtime[m] =
           hpx_time_elapsed_ns(now) / (double)benchmark_iterations;
-      total_mech_instances_runtime += current_func_runtime[m];
-      current_func_runtime[m] /= (double)ml->nodecount;
+      total_mech_current_runtime += current_func_runtime[m];
+      current_func_runtime[m] /= (double)number_of_simd_blocks;
     }
   }
 
 #ifndef NDEBUG
-  printf("neuron gid %d: total current+state runtime: %.3f ns\n", nt->id,
-         total_mech_instances_runtime);
+  printf("neuron gid %d: total runtime: state %.8f ns, current %.3f ns\n",
+         nt->id, total_mech_state_runtime, total_mech_current_runtime);
   for (int m = 0; m < neurox::mechanisms_count_; m++)
     printf("neuron gid %d: mech type %d: state %.8f ns, current %.8f ns\n",
            nt->id, mechanisms_[m]->type_, state_func_runtime[m],
@@ -393,11 +404,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
 #endif
 
   /* compute mech-instances per thread for state and current funtions */
-  assert(total_mech_instances_runtime > 0);
-  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock(
-      total_mech_instances_runtime);
-  const int cluster_min_size =
-      input_params_->processor_cache_line_size_l1_ / sizeof(double);
+  assert(total_mech_current_runtime > 0 && total_mech_state_runtime > 0);
 
   // build memb_lists for parallel processing of mechanisms
   b->mechs_instances_parallel_ =
@@ -405,6 +412,10 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
 
   enum funcs { State = 0, Current = 1, Count = 2 };
   for (int f = 0; f < funcs::Count; f++) {
+    double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock(
+        f == funcs::State ? total_mech_state_runtime
+                          : total_mech_current_runtime);
+
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
       Mechanism* mech = neurox::mechanisms_[m];
       Memb_list* ml = &b->mechs_instances_[m];
@@ -413,33 +424,30 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           &b->mechs_instances_parallel_[m];
 
       /* compute the number of instances per thread thread */
-      double instance_runtime =
+      double simd_block_runtime =
           f == funcs::State ? state_func_runtime[m] : current_func_runtime[m];
 
-      int cluster_size = 0, cluster_count = 1;
-      /* if instance_runtime==0, then mod-function is not defined */
-      /* if ml->nodecount==0, there is no instances of this mechanism here */
-      if (instance_runtime > 0 && ml->nodecount > 0) {
-        /* cluster size is the number of instances that fits the max workload
-        /* (that fully utilize the processor cache line size) */
-        cluster_size = std::ceil(max_workload / instance_runtime);
-        assert(cluster_size > 0);
-        if (cluster_size % cluster_min_size != 0)
-          cluster_size += cluster_min_size - cluster_size % cluster_min_size;
-        assert(cluster_size % cluster_min_size == 0);
-
-        /* cluster count is the number of parallel threads to be spawned */
+      // number of simd_blocks per Memb_list, and number of Memb_lists
+      int cluster_count = 1;
+      int cluster_size = ml->nodecount;
+      if (simd_block_runtime > 0) {
+        int simd_blocks_per_cluster =
+            std::ceil(max_workload / simd_block_runtime);
+        cluster_size = simd_blocks_per_cluster * parallel_instructions_count;
         cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
         assert(cluster_count > 0);
+        assert(cluster_size % parallel_instructions_count == 0);
       }
 
       //#ifndef NDEBUG
-      printf("neuron gid %d, mech %d: cluster_size %d, cluster_count %d\n",
-             b->soma_->gid_, mech->type_, cluster_size, cluster_count);
+      printf(
+          "neuron gid %d, mech %d: cluster_size %d, cluster_count "
+          "%d\n",
+          b->soma_->gid_, mech->type_, cluster_size, cluster_count);
       //#endif
 
       /* if cluster_count==1, does not need threaded execution */
-      if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {
+      if (simd_block_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {
         switch (f) {
           case funcs::State:
             threads_args->ml_state_count = 0;

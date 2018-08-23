@@ -168,7 +168,6 @@ void Mechanism::CallModFunction(
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
 ) {
-
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -199,7 +198,6 @@ void Mechanism::CallModFunction(
                        Branch::CoreneuronNetSend, Branch::CoreneuronNetEvent);
     return;
   }
-
 
   /* memb_list to be used is the one with all instances or
    * an user-provided one (eg CVODE provides non-capacitors memb_list */

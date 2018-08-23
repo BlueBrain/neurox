@@ -155,7 +155,7 @@ class Mechanism {
     void *acc_args;
   } MembListThreadArgs;
 
-  ///counter for execution time allocated to mechanisms execution
+  /// counter for execution time allocated to mechanisms execution
   static double time_spent_in_mechs_;
   static hpx_t time_spent_in_mechs_mutex_;
 
