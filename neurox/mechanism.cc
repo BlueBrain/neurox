@@ -8,6 +8,9 @@ using namespace std;
 using namespace neurox;
 using namespace neurox::interpolators;
 
+double Mechanism::time_spent_in_mechs_ = 0;
+hpx_t Mechanism::time_spent_in_mechs_mutex_ = HPX_NULL;
+
 Mechanism::Mechanism(const int type, const short int data_size,
                      const short int pdata_size, const char is_artificial,
                      char pnt_map, const char is_ion,
@@ -215,7 +218,6 @@ void Mechanism::CallModFunction(
       threads_args = &branch->mechs_instances_parallel_[mech_offset];
 
   if (memb_list->nodecount > 0) {
-    hpx_time_t time_now = hpx_time_now();
     switch (function_id) {
       case Mechanism::ModFunctions::kBeforeInitialize:
       case Mechanism::ModFunctions::kAfterInitialize:
@@ -345,8 +347,5 @@ void Mechanism::CallModFunction(
         printf("ERROR: Unknown ModFunction with id %d.\n", function_id);
         exit(1);
     }
-    hpx_lco_sema_p(input::DataLoader::locality_mutex_);
-    neurox::time_spent_in_mechs += hpx_time_elapsed_ns(time_now);
-    hpx_lco_sema_v_sync(input::DataLoader::locality_mutex_);
   }
 }

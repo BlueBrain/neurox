@@ -568,6 +568,8 @@ hpx_action_t DataLoader::InitMechanisms = 0;
 int DataLoader::InitMechanisms_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
+  Mechanism::time_spent_in_mechs_mutex_ = hpx_lco_sema_new(1);
+
   // To insert mechanisms in the right order, we must first calculate
   // dependencies
   int my_nrn_threads_count = GetMyNrnThreadsCount();
@@ -1042,7 +1044,7 @@ int DataLoader::Finalize_handler() {
   all_neurons_gids_ = nullptr;
 
   nrn_setup_cleanup();
-  //TODO delete somewhere else: hpx_lco_delete_sync(locality_mutex_);
+  hpx_lco_delete_sync(locality_mutex_);
 
 #if defined(NDEBUG)
   // if not on debug, there's no CoreNeuron comparison, so data can be

@@ -16,7 +16,6 @@ hpx_t *neurons_ = nullptr;
 int neurons_count_ = 0;
 int mechanisms_count_ = -1;
 int *mechanisms_map_ = nullptr;
-double time_spent_in_mechs = 0;
 neurox::Mechanism **mechanisms_ = nullptr;
 neurox::tools::CmdLineParser *input_params_ = nullptr;
 neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
@@ -128,7 +127,7 @@ static int Main_handler() {
            input_params_->load_balancing_ ? 1 : 0,
            input_params_->subsection_complexity,
            input_params_->locality_comm_reduce_ ? 1 : 0,
-           neurox::time_spent_in_mechs / 1e9, //nano secs to secs
+           Mechanism::time_spent_in_mechs_ / 1e9, //nano secs to secs
            time_elapsed);
     fflush(stdout);
 #endif

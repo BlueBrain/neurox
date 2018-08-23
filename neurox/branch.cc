@@ -468,6 +468,7 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
   }
   // for all others except capacitance (mechanisms graph)
   else {
+    hpx_time_t time_now = hpx_time_now();
     if (this->mechs_graph_ != NULL)  // parallel
     {
       // launch execution on top nodes of the branch
@@ -496,6 +497,9 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
         mechanisms_[m]->CallModFunction(this, function_id, other_ml);
       }
     }
+    hpx_lco_sema_p(Mechanism::time_spent_in_mechs_mutex_);
+    Mechanism::time_spent_in_mechs_ += hpx_time_elapsed_ns(time_now);
+    hpx_lco_sema_v_sync(Mechanism::time_spent_in_mechs_mutex_);
   }
 }
 

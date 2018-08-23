@@ -155,6 +155,10 @@ class Mechanism {
     void *acc_args;
   } MembListThreadArgs;
 
+  ///counter for execution time allocated to mechanisms execution
+  static double time_spent_in_mechs_;
+  static hpx_t time_spent_in_mechs_mutex_;
+
  private:
   /// thread function for an instance-parallel call of current function
   static inline int ModFunctionCurrentThread(int i, void *arg_ptr);
