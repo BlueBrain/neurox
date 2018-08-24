@@ -568,6 +568,7 @@ hpx_action_t DataLoader::InitMechanisms = 0;
 int DataLoader::InitMechanisms_handler() {
   NEUROX_MEM_PIN(uint64_t);
 
+  //TODO has to ble cleared at some point
   Mechanism::time_spent_in_mechs_mutex_ = hpx_lco_sema_new(1);
 
   // To insert mechanisms in the right order, we must first calculate
