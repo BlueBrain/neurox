@@ -423,7 +423,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
       int cluster_size = ml->nodecount, cluster_count = 1;
       /* if instance_runtime==0, then mod-function is not defined */
       if (instance_runtime > 0 && ml->nodecount > 0) {
-        //cluster size is the number of instances that fits the max workload
+        // cluster size is the number of instances that fits the max workload
         //(that fully utilize the processor cache line size)
         cluster_size = std::ceil(max_workload / instance_runtime);
         assert(cluster_size > 0);
@@ -432,8 +432,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
                           cluster_size % parallel_simd_instructions_count;
         assert(cluster_size % parallel_simd_instructions_count == 0);
 
-        if (cluster_size > ml->nodecount)
-          cluster_size = ml->nodecount;
+        if (cluster_size > ml->nodecount) cluster_size = ml->nodecount;
 
         cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
 

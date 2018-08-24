@@ -497,9 +497,13 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
         mechanisms_[m]->CallModFunction(this, function_id, other_ml);
       }
     }
-    hpx_lco_sema_p(Mechanism::time_spent_in_mechs_mutex_);
-    Mechanism::time_spent_in_mechs_ += hpx_time_elapsed_ns(time_now);
-    hpx_lco_sema_v_sync(Mechanism::time_spent_in_mechs_mutex_);
+    if (function_id == Mechanism::ModFunctions::kCurrentCapacitance ||
+        function_id == Mechanism::ModFunctions::kCurrent ||
+        function_id == Mechanism::ModFunctions::kState) {
+      hpx_lco_sema_p(Mechanism::time_spent_in_mechs_mutex_);
+      Mechanism::time_spent_in_mechs_ += hpx_time_elapsed_ns(time_now);
+      hpx_lco_sema_v_sync(Mechanism::time_spent_in_mechs_mutex_);
+    }
   }
 }
 
