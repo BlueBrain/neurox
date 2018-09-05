@@ -35,8 +35,54 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
       events_queue_mutex_(HPX_NULL),
-      interpolator_(nullptr) {
-  this->nt_ = (NrnThread *)malloc(sizeof(NrnThread));
+      interpolator_(nullptr)
+{
+
+  // compute total serialized size of data structure
+  unsigned cache = 0;
+  int cache_it = -1; //none
+  unsigned char *buffer = nullptr;
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+#if LAYOUT==0
+    assert(0);
+#endif
+    cache_it = 0; //yes
+    cache += Vectorizer::SizeOf(sizeof(NrnThread));
+    cache += Vectorizer::SizeOf(sizeof(floble_t) * data_count);
+    cache += Vectorizer::SizeOf(sizeof(floble_t) * weights_count);
+    cache += Vectorizer::SizeOf(sizeof(offset_t) * p_count);
+    cache += Vectorizer::SizeOf(sizeof(Memb_list) * mechanisms_count_);
+
+    for (offset_t m = 0; m < mechanisms_count_; m++) {
+      Mechanism *mech = mechanisms_[m];
+      int type = mech->type_;
+      int nodecount = instances_count[m];
+      cache += mech->pdata_size_ == 0 || nodecount == 0
+                   ? 0
+                   : Vectorizer::SizeOf(sizeof(offset_t) * mech->pdata_size_ *
+                                        nodecount);
+      cache += nodecount == 0 ||
+                       input::DataLoader::HardCodedMechanismHasNoInstances(type)
+                   ? 0
+                   : Vectorizer::SizeOf(sizeof(offset_t) * nodecount);
+
+      if (mech->memb_func_.thread_size_)
+        cache += Vectorizer::SizeOf(sizeof(ThreadDatum) *
+                                    mech->memb_func_.thread_size_);
+
+      for (size_t i = 0; i < nodecount; i++) {
+        if (input::DataLoader::HardCodedPntProcOffsetInPdata(type) != -1)
+          cache += Vectorizer::SizeOf(sizeof(Point_process));
+        if (input::DataLoader::HardCodedRNGOffsetInPdata(type) != -1)
+          cache += Vectorizer::SizeOf(sizeof(nrnran123_State));
+      }
+    }
+    //TODO: missing netcons and queues to be serialized
+    printf("NEURON %d, cache size %d.\n", nrn_thread_id, cache);
+    buffer = new unsigned char [cache];
+  }
+
+  this->nt_ = Vectorizer::New<NrnThread>(1, buffer, cache_it);
   NrnThread *nt = this->nt_;
 
   // all non usable values
@@ -73,11 +119,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   nt->end = n;
 
-  nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count);
+  nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count, buffer, cache_it);
   memcpy(nt->_data, data, data_count * sizeof(floble_t));
   nt->_ndata = data_count;
 
-  nt->weights = weights_count == 0 ? nullptr : new floble_t[weights_count];
+  nt->weights =
+      weights_count == 0 ? nullptr : Vectorizer::New<floble_t>(weights_count, buffer, cache_it);
   memcpy(nt->weights, weights, sizeof(floble_t) * weights_count);
   nt->n_weight = weights_count;
 
@@ -99,7 +146,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // parent index
   if (p_count > 0) {
     assert(p_count == n);
-    this->nt_->_v_parent_index = Vectorizer::New<offset_t>(p_count);
+    this->nt_->_v_parent_index = Vectorizer::New<offset_t>(p_count, buffer, cache_it);
     memcpy(this->nt_->_v_parent_index, p, n * sizeof(offset_t));
   } else {
     this->nt_->_v_parent_index = nullptr;
@@ -110,7 +157,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   offset_t data_offset = 6 * n;
   offset_t pdata_offset = 0;
   offset_t instances_offset = 0;
-  this->mechs_instances_ = new Memb_list[mechanisms_count_];
+  this->mechs_instances_ = Vectorizer::New<Memb_list>(mechanisms_count_, buffer, cache_it);
   int max_mech_id = 0;
 
   vector<void *> vdata_ptrs;
@@ -130,7 +177,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     instance.pdata =
         mech->pdata_size_ == 0 || instance.nodecount == 0
             ? nullptr
-            : Vectorizer::New<offset_t>(mech->pdata_size_ * instance.nodecount);
+            : Vectorizer::New<offset_t>(mech->pdata_size_ * instance.nodecount, buffer, cache_it);
     if (instance.pdata)
       memcpy(instance.pdata, &pdata[pdata_offset],
              sizeof(offset_t) * (mech->pdata_size_ * instance.nodecount));
@@ -138,14 +185,15 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         instance.nodecount == 0 ||
                 input::DataLoader::HardCodedMechanismHasNoInstances(type)
             ? nullptr
-            : Vectorizer::New<offset_t>(instance.nodecount);
+            : Vectorizer::New<offset_t>(instance.nodecount, buffer, cache_it);
     if (instance.nodeindices)
       memcpy(instance.nodeindices, &nodes_indices[instances_offset],
              sizeof(offset_t) * instance.nodecount);
 
     // init thread data :: nrn_setup.cpp->setup_ThreadData();
     if (mech->memb_func_.thread_size_) {
-      instance._thread = new ThreadDatum[mech->memb_func_.thread_size_];
+      instance._thread =
+          Vectorizer::New<ThreadDatum>(mech->memb_func_.thread_size_, buffer, cache_it);
       if (mech->memb_func_.thread_mem_init_)
         mech->memb_func_.thread_mem_init_(instance._thread);
     } else {
@@ -175,7 +223,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         Point_process *pp =
             (Point_process *)(void *)&vdata_serialized[vdata_offset];
         assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
-        Point_process *pp_copy = new Point_process;
+        Point_process *pp_copy = Vectorizer::New<Point_process>(1, buffer, cache_it);
         memcpy(pp_copy, pp, sizeof(Point_process));
         vdata_offset += sizeof(Point_process);
         instance_pdata[pnt_proc_offset_in_pdata] = vdata_ptrs.size();
@@ -189,7 +237,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       if (rng_offset_in_pdata != -1) {
         nrnran123_State *rng =
             (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
-        nrnran123_State *rngcopy = new nrnran123_State;
+        nrnran123_State *rngcopy = Vectorizer::New<nrnran123_State>(1, buffer, cache_it);
         memcpy(rngcopy, rng, sizeof(nrnran123_State));
         vdata_offset += sizeof(nrnran123_State);
         instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
@@ -212,13 +260,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // nt->_vdata pointers
   nt->_nvdata = vdata_ptrs.size();
-  nt->_vdata =
-      vdata_serialized_count == 0 ? nullptr : new void *[vdata_ptrs.size()];
+  nt->_vdata = vdata_serialized_count == 0
+                   ? nullptr
+                   : Vectorizer::New<void *>(vdata_ptrs.size(), buffer, cache_it);
   memcpy(nt->_vdata, vdata_ptrs.data(), vdata_ptrs.size() * sizeof(void *));
   vdata_ptrs.clear();
 
   // nt->_ml_list
-  nt->_ml_list = new Memb_list *[max_mech_id + 1];
+  nt->_ml_list = Vectorizer::New<Memb_list *>(max_mech_id + 1, buffer, cache_it);
   for (int i = 0; i <= max_mech_id; i++) nt->_ml_list[i] = NULL;
 
   int ionsCount = 0;
@@ -234,8 +283,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // vecplay
   nt->n_vecplay = vecplay_ppi_count;
-  nt->_vecplay =
-      vecplay_ppi_count == 0 ? nullptr : new void *[vecplay_ppi_count];
+  nt->_vecplay = vecplay_ppi_count == 0
+                     ? nullptr
+                     : Vectorizer::New<void *>(vecplay_ppi_count, buffer, cache_it);
 
   offset_t v_offset = 0;
   for (size_t v = 0; v < nt->n_vecplay; v++) {
@@ -247,13 +297,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);
-    floble_t *yvec = new floble_t[size];
-    floble_t *tvec = new floble_t[size];
+    floble_t *yvec = Vectorizer::New<floble_t>(size, buffer, cache_it);
+    floble_t *tvec = Vectorizer::New<floble_t>(size, buffer, cache_it);
     for (size_t i = 0; i < size; i++) {
       yvec[i] = vecplay_y[v_offset + i];
       tvec[i] = vecplay_t[v_offset + i];
     }
-    nt->_vecplay[v] = new VecplayContinuousX(pd, size, yvec, tvec, NULL);
+    nt->_vecplay[v] = Vectorizer::New<VecplayContinuousX>(1, buffer, cache_it);
+    new(nt->_vecplay[v]) VecplayContinuousX(pd, size, yvec, tvec, NULL); //in-place new
     v_offset += size;
   }
 
@@ -270,9 +321,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     Memb_list *ml = &mechs_instances_[m];
     ml->_shadow_d =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
     ml->_shadow_rhs =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
 
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_d[i] = 0;
@@ -284,13 +335,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       shadow_size = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
     ml->_shadow_didv =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
     ml->_shadow_i_offsets =
-        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, cache_it);
     ml->_shadow_didv_offsets =
-        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size);
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, cache_it);
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_i[i] = 0;
       ml->_shadow_didv[i] = 0;
@@ -318,9 +369,11 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
 #if LAYOUT == 0
   // if using vector data structures, convert now
+  //TODO for now we only support LAYOUT==1
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
+  //TODO missing this too on cache efficient serialization!
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 }
 

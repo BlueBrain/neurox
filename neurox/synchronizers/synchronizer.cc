@@ -197,6 +197,7 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
    * - This branch will be synchronized with soma during Hines solver;
    */
   if (!local->soma_) {
+    BackwardEuler::Step(local);
     interpolator->StepTo(local, tstop);
     NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
     NEUROX_MEM_UNPIN;

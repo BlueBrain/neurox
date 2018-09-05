@@ -59,6 +59,18 @@ class Vectorizer {
                                           sizeof(T));
   }
 
+  template <typename T>
+  static T *New(size_t count, void * buffer, int & offset) {
+    //insteaf of allocating memory, send next position in buffer available
+    if (buffer)
+    {
+      void* pos = &((unsigned char *)buffer)[offset];
+      offset += sizeof(T) * SizeOf(count);
+      return (T*) pos;
+    }
+    return New<T>(count);
+  }
+
   /// delete for the New method
   template <typename T>
   static void Delete(T *ptr) {
