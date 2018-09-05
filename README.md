@@ -54,7 +54,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
          -DCORENEURON_OPENMP=OFF \
          -DDISABLE_NRN_TIMEOUT=ON\
          -DENABLE_DEV_FILES_INSTALLATION=ON \
-         -DCMAKE_CXX_FLAGS="-std=c++11"\   #-------> add -xMIC-AVX512 on KNL   
+         -DCMAKE_CXX_FLAGS="-std=c++11"\  
          \
          -DENABLE_CUDA_MODULES=OFF \
          -DENABLE_NET_RECEIVE_BUFFERING=OFF \
