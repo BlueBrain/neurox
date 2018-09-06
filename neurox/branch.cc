@@ -27,7 +27,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
                neuron_id_t *netcons_pre_ids, size_t netcons_pre_ids_count,
                floble_t *weights, size_t weights_count,
                unsigned char *vdata_serialized, size_t vdata_serialized_count)
-    : soma_(nullptr),
+    : buffer(nullptr),
+      soma_(nullptr),
       nt_(nullptr),
       mechs_instances_(nullptr),
       mechs_instances_parallel_(nullptr),
@@ -38,51 +39,87 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       interpolator_(nullptr)
 {
 
+  int max_mech_id = 0;
+
   // compute total serialized size of data structure
-  unsigned cache = 0;
-  int cache_it = -1; //none
-  unsigned char *buffer = nullptr;
+  size_t buffer_size = 0;
+  size_t buffer_it = 0;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT==0
     assert(0);
 #endif
-    cache_it = 0; //yes
-    cache += Vectorizer::SizeOf(sizeof(NrnThread));
-    cache += Vectorizer::SizeOf(sizeof(floble_t) * data_count);
-    cache += Vectorizer::SizeOf(sizeof(floble_t) * weights_count);
-    cache += Vectorizer::SizeOf(sizeof(offset_t) * p_count);
-    cache += Vectorizer::SizeOf(sizeof(Memb_list) * mechanisms_count_);
+    int vdata_ptrs_count = 0;
+
+    buffer_size += Vectorizer::SizeOf(sizeof(NrnThread));
+    buffer_size += Vectorizer::SizeOf(sizeof(floble_t) * data_count);
+    buffer_size += Vectorizer::SizeOf(sizeof(floble_t) * weights_count);
+    buffer_size += Vectorizer::SizeOf(sizeof(offset_t) * p_count);
+    buffer_size += Vectorizer::SizeOf(sizeof(Memb_list) * mechanisms_count_);
+    //fprintf(stderr, "Buffer size = %d\n", buffer_size);
 
     for (offset_t m = 0; m < mechanisms_count_; m++) {
       Mechanism *mech = mechanisms_[m];
       int type = mech->type_;
+      max_mech_id = max(max_mech_id, type);
       int nodecount = instances_count[m];
-      cache += mech->pdata_size_ == 0 || nodecount == 0
-                   ? 0
+      buffer_size += mech->pdata_size_ == 0 || nodecount == 0 ? 0
                    : Vectorizer::SizeOf(sizeof(offset_t) * mech->pdata_size_ *
                                         nodecount);
-      cache += nodecount == 0 ||
-                       input::DataLoader::HardCodedMechanismHasNoInstances(type)
+      buffer_size += nodecount == 0 ||
+                     input::DataLoader::HardCodedMechanismHasNoInstances(type)
                    ? 0
                    : Vectorizer::SizeOf(sizeof(offset_t) * nodecount);
 
       if (mech->memb_func_.thread_size_)
-        cache += Vectorizer::SizeOf(sizeof(ThreadDatum) *
+        buffer_size += Vectorizer::SizeOf(sizeof(ThreadDatum) *
                                     mech->memb_func_.thread_size_);
 
       for (size_t i = 0; i < nodecount; i++) {
         if (input::DataLoader::HardCodedPntProcOffsetInPdata(type) != -1)
-          cache += Vectorizer::SizeOf(sizeof(Point_process));
+        {
+          buffer_size += Vectorizer::SizeOf(sizeof(Point_process));
+          vdata_ptrs_count++;
+        }
         if (input::DataLoader::HardCodedRNGOffsetInPdata(type) != -1)
-          cache += Vectorizer::SizeOf(sizeof(nrnran123_State));
+        {
+          buffer_size += Vectorizer::SizeOf(sizeof(nrnran123_State));
+          vdata_ptrs_count++;
+        }
       }
+      //fprintf(stderr, "Mech %d Buffer size = %d\n", m, buffer_size);
     }
+    buffer_size += Vectorizer::SizeOf(sizeof(void*)*vdata_ptrs_count);
+    //fprintf(stderr, "Buffer size vdata_ptrs = %d\n", buffer_size);
+    buffer_size += Vectorizer::SizeOf(sizeof(Memb_list*)*(max_mech_id+1));
+    //fprintf(stderr, "Buffer size ml_list = %d\n", buffer_size);
+    buffer_size += Vectorizer::SizeOf(sizeof(void*)*(vecplay_ppi_count));
+    //fprintf(stderr, "Buffer size vec_play = %d\n", buffer_size);
+
+    //vecplays
+    for (size_t v = 0; v <vecplay_ppi_count; v++) {
+        PointProcInfo &ppi = vecplay_ppi[v];
+        buffer_size += Vectorizer::SizeOf(sizeof(floble_t)*ppi.size)*2; //y+t
+        buffer_size += Vectorizer::SizeOf(sizeof(VecplayContinuousX));
+    }
+    //fprintf(stderr, "Buffer size vec_play (2) = %d\n", buffer_size);
+
+    //shadow arrays
+    for (int m = 0; m < mechanisms_count_; m++) {
+      int shadow_size = instances_count[m];
+        if (mechanisms_[m]->memb_func_.current && !mechanisms_[m]->is_ion_)
+          buffer_size += Vectorizer::SizeOf(sizeof(double)*shadow_size)*2; //d+rhs
+        if (mechanisms_[m]->dependency_ion_index_ <
+            Mechanism::IonTypes::kSizeWriteableIons)
+            buffer_size += Vectorizer::SizeOf(sizeof(double)*shadow_size)*2 + Vectorizer::SizeOf(sizeof(int)*shadow_size)*2;
+    }
+    //fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size);
+
     //TODO: missing netcons and queues to be serialized
-    printf("NEURON %d, cache size %d.\n", nrn_thread_id, cache);
-    buffer = new unsigned char [cache];
+    //fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id, buffer_size);
+    buffer = new unsigned char [buffer_size];
   }
 
-  this->nt_ = Vectorizer::New<NrnThread>(1, buffer, cache_it);
+  this->nt_ = Vectorizer::New<NrnThread>(1, buffer, buffer_size, buffer_it);
   NrnThread *nt = this->nt_;
 
   // all non usable values
@@ -119,12 +156,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   nt->end = n;
 
-  nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count, buffer, cache_it);
+  nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(data_count, buffer, buffer_size, buffer_it);
   memcpy(nt->_data, data, data_count * sizeof(floble_t));
   nt->_ndata = data_count;
 
   nt->weights =
-      weights_count == 0 ? nullptr : Vectorizer::New<floble_t>(weights_count, buffer, cache_it);
+      weights_count == 0 ? nullptr : Vectorizer::New<floble_t>(weights_count, buffer, buffer_size, buffer_it);
   memcpy(nt->weights, weights, sizeof(floble_t) * weights_count);
   nt->n_weight = weights_count;
 
@@ -146,7 +183,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // parent index
   if (p_count > 0) {
     assert(p_count == n);
-    this->nt_->_v_parent_index = Vectorizer::New<offset_t>(p_count, buffer, cache_it);
+    this->nt_->_v_parent_index = Vectorizer::New<offset_t>(p_count, buffer, buffer_size, buffer_it);
     memcpy(this->nt_->_v_parent_index, p, n * sizeof(offset_t));
   } else {
     this->nt_->_v_parent_index = nullptr;
@@ -157,12 +194,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   offset_t data_offset = 6 * n;
   offset_t pdata_offset = 0;
   offset_t instances_offset = 0;
-  this->mechs_instances_ = Vectorizer::New<Memb_list>(mechanisms_count_, buffer, cache_it);
-  int max_mech_id = 0;
+  this->mechs_instances_ = Vectorizer::New<Memb_list>(mechanisms_count_, buffer, buffer_size, buffer_it);
 
   vector<void *> vdata_ptrs;
   offset_t vdata_offset = 0;
 
+  //fprintf(stderr, "buffer_it = %d\n", buffer_it);
+
+  max_mech_id = 0;
   for (offset_t m = 0; m < mechanisms_count_; m++) {
     Memb_list &instance = this->mechs_instances_[m];
     Mechanism *mech = mechanisms_[m];
@@ -177,7 +216,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     instance.pdata =
         mech->pdata_size_ == 0 || instance.nodecount == 0
             ? nullptr
-            : Vectorizer::New<offset_t>(mech->pdata_size_ * instance.nodecount, buffer, cache_it);
+            : Vectorizer::New<offset_t>(mech->pdata_size_ * instance.nodecount, buffer, buffer_size, buffer_it);
     if (instance.pdata)
       memcpy(instance.pdata, &pdata[pdata_offset],
              sizeof(offset_t) * (mech->pdata_size_ * instance.nodecount));
@@ -185,7 +224,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         instance.nodecount == 0 ||
                 input::DataLoader::HardCodedMechanismHasNoInstances(type)
             ? nullptr
-            : Vectorizer::New<offset_t>(instance.nodecount, buffer, cache_it);
+            : Vectorizer::New<offset_t>(instance.nodecount, buffer, buffer_size, buffer_it);
     if (instance.nodeindices)
       memcpy(instance.nodeindices, &nodes_indices[instances_offset],
              sizeof(offset_t) * instance.nodecount);
@@ -193,7 +232,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // init thread data :: nrn_setup.cpp->setup_ThreadData();
     if (mech->memb_func_.thread_size_) {
       instance._thread =
-          Vectorizer::New<ThreadDatum>(mech->memb_func_.thread_size_, buffer, cache_it);
+          Vectorizer::New<ThreadDatum>(mech->memb_func_.thread_size_, buffer, buffer_size, buffer_it);
       if (mech->memb_func_.thread_mem_init_)
         mech->memb_func_.thread_mem_init_(instance._thread);
     } else {
@@ -223,7 +262,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         Point_process *pp =
             (Point_process *)(void *)&vdata_serialized[vdata_offset];
         assert(pp->_i_instance >= 0 && pp->_tid >= 0 && pp->_type >= 0);
-        Point_process *pp_copy = Vectorizer::New<Point_process>(1, buffer, cache_it);
+        Point_process *pp_copy = Vectorizer::New<Point_process>(1, buffer, buffer_size, buffer_it);
         memcpy(pp_copy, pp, sizeof(Point_process));
         vdata_offset += sizeof(Point_process);
         instance_pdata[pnt_proc_offset_in_pdata] = vdata_ptrs.size();
@@ -237,7 +276,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       if (rng_offset_in_pdata != -1) {
         nrnran123_State *rng =
             (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
-        nrnran123_State *rngcopy = Vectorizer::New<nrnran123_State>(1, buffer, cache_it);
+        nrnran123_State *rngcopy = Vectorizer::New<nrnran123_State>(1, buffer, buffer_size, buffer_it);
         memcpy(rngcopy, rng, sizeof(nrnran123_State));
         vdata_offset += sizeof(nrnran123_State);
         instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
@@ -253,6 +292,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       if (!input::DataLoader::HardCodedMechanismHasNoInstances(type))
         instances_offset++;
     }
+    //fprintf(stderr, "buffer_it mech %d = %d\n", m, buffer_it);
   }
   assert(data_offset == data_count);
   assert(pdata_offset == pdata_count);
@@ -262,12 +302,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->_nvdata = vdata_ptrs.size();
   nt->_vdata = vdata_serialized_count == 0
                    ? nullptr
-                   : Vectorizer::New<void *>(vdata_ptrs.size(), buffer, cache_it);
+                   : Vectorizer::New<void *>(vdata_ptrs.size(), buffer, buffer_size, buffer_it);
   memcpy(nt->_vdata, vdata_ptrs.data(), vdata_ptrs.size() * sizeof(void *));
   vdata_ptrs.clear();
+  //fprintf(stderr, "buffer_it vdata_ptrs %d\n", buffer_it);
 
   // nt->_ml_list
-  nt->_ml_list = Vectorizer::New<Memb_list *>(max_mech_id + 1, buffer, cache_it);
+  nt->_ml_list = Vectorizer::New<Memb_list *>(max_mech_id + 1, buffer, buffer_size, buffer_it);
+  //fprintf(stderr, "buffer_it ml_list %d\n", buffer_it);
   for (int i = 0; i <= max_mech_id; i++) nt->_ml_list[i] = NULL;
 
   int ionsCount = 0;
@@ -285,7 +327,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->n_vecplay = vecplay_ppi_count;
   nt->_vecplay = vecplay_ppi_count == 0
                      ? nullptr
-                     : Vectorizer::New<void *>(vecplay_ppi_count, buffer, cache_it);
+                     : Vectorizer::New<void *>(vecplay_ppi_count, buffer, buffer_size, buffer_it);
+  //fprintf(stderr, "buffer_it vec_play %d\n", buffer_it);
 
   offset_t v_offset = 0;
   for (size_t v = 0; v < nt->n_vecplay; v++) {
@@ -297,16 +340,17 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     floble_t *pd =
         &(instances_data[ppi.mech_instance * mechanisms_[m]->data_size_ +
                          ppi.instance_data_offset]);
-    floble_t *yvec = Vectorizer::New<floble_t>(size, buffer, cache_it);
-    floble_t *tvec = Vectorizer::New<floble_t>(size, buffer, cache_it);
+    floble_t *yvec = Vectorizer::New<floble_t>(size, buffer, buffer_size, buffer_it);
+    floble_t *tvec = Vectorizer::New<floble_t>(size, buffer, buffer_size, buffer_it);
     for (size_t i = 0; i < size; i++) {
       yvec[i] = vecplay_y[v_offset + i];
       tvec[i] = vecplay_t[v_offset + i];
     }
-    nt->_vecplay[v] = Vectorizer::New<VecplayContinuousX>(1, buffer, cache_it);
+    nt->_vecplay[v] = Vectorizer::New<VecplayContinuousX>(1, buffer, buffer_size, buffer_it);
     new(nt->_vecplay[v]) VecplayContinuousX(pd, size, yvec, tvec, NULL); //in-place new
     v_offset += size;
   }
+  //fprintf(stderr, "buffer_it vec_play (2) = %d\n", buffer_it);
 
   // Shadow arrays
   this->nt_->shadow_rhs_cnt = 0;
@@ -321,9 +365,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     Memb_list *ml = &mechs_instances_[m];
     ml->_shadow_d =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, buffer_size, buffer_it);
     ml->_shadow_rhs =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, buffer_size, buffer_it);
 
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_d[i] = 0;
@@ -335,13 +379,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       shadow_size = 0;  //> only mechanisms with parent ions update I and DI/DV
 
     ml->_shadow_i =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, buffer_size, buffer_it);
     ml->_shadow_didv =
-        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<double>(shadow_size, buffer, buffer_size, buffer_it);
     ml->_shadow_i_offsets =
-        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, buffer_size, buffer_it);
     ml->_shadow_didv_offsets =
-        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, cache_it);
+        shadow_size == 0 ? nullptr : Vectorizer::New<int>(shadow_size, buffer, buffer_size, buffer_it);
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_i[i] = 0;
       ml->_shadow_didv[i] = 0;
@@ -349,6 +393,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       ml->_shadow_didv_offsets[i] = -1;
     }
   }
+  //fprintf(stderr, "buffer_it shadow arrays = %d\n", buffer_it);
 
   // reconstructs netcons
   offset_t weights_offset = 0;
@@ -414,6 +459,13 @@ void Branch::ClearNrnThread(NrnThread *&nt) {
 
 Branch::~Branch() {
   hpx_lco_delete_sync(this->events_queue_mutex_);
+
+  if (buffer) { // SynchronizerIds::kTimeDependency
+      delete [] buffer;
+      buffer = nullptr;
+      return;
+  }
+
   ClearMembList(this->mechs_instances_);
   ClearNrnThread(this->nt_);
 
