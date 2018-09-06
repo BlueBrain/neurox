@@ -420,6 +420,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   //TODO missing this too on cache efficient serialization!
   interpolator_ = Interpolator::New(input_params_->interpolator_);
+
+  assert(buffer_size == buffer_it);
 }
 
 void Branch::ClearMembList(Memb_list *&mechs_instances) {
