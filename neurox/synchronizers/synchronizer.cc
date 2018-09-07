@@ -182,6 +182,42 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_UNPIN;
 }
 
+hpx_action_t Synchronizer::RunNeuronTimeDependency = 0;
+int Synchronizer::RunNeuronTimeDependency_handler(const double* tstop_ptr,
+                                                  const size_t size) {
+  NEUROX_MEM_PIN(Branch);
+  assert(synchronizer_->GetId() == SynchronizerIds::kTimeDependency);
+  const double tstop = *tstop_ptr;
+  double tpause = -1, max_step=-1;
+  const hpx_t step_trigger = local->soma_->synchronizer_step_trigger_;
+  assert(step_trigger);
+  NrnThread * nt = local->nt_;
+  char second_order = input_params_->second_order_;
+  while (nt->_t < tstop - 0.00001) {
+      // SCHEDULER: wait for scheduler signal to proceed
+      hpx_lco_wait_reset(step_trigger);
+
+      max_step = synchronizer_->GetNeuronMaxStep(local);
+      assert(max_step >= 0.025);
+      tpause = std::min(t + max_step, tstop);
+      while (nt->_t < tstop - 0.000001) {
+        BackwardEuler::Step(local);
+        input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[nt->id], local,
+                                                    second_order);
+      }
+
+      // SCHEDULER: increment scheduler counter to allow it to look for next job
+      hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
+      // re-add this job to queue, to be picked up again later
+      hpx_lco_sema_p(locality::neurons_progress_mutex_);
+      tpause += 0.00000001; // make it not be picked by scheduler immediately
+      locality::neurons_progress_->insert(std::make_pair(tpause, step_trigger));
+      hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
+
+  }
+  NEUROX_MEM_UNPIN;
+}
+
 hpx_action_t Synchronizer::RunNeuron = 0;
 int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
                                     const size_t size) {
@@ -353,6 +389,9 @@ void Synchronizer::RegisterHpxActions() {
                                             Synchronizer::RunLocality_handler);
   wrappers::RegisterSingleVarAction<double>(Synchronizer::RunNeuron,
                                             Synchronizer::RunNeuron_handler);
+  wrappers::RegisterSingleVarAction<double>(
+      Synchronizer::RunNeuronTimeDependency,
+      Synchronizer::RunNeuronTimeDependency_handler);
   wrappers::RegisterSingleVarAction<int>(
       Synchronizer::CallInitLocality, Synchronizer::CallInitLocality_handler);
   wrappers::RegisterSingleVarAction<int>(

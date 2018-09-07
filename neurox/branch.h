@@ -45,8 +45,9 @@ class Branch {
          unsigned char* vdata_serialized, size_t vdata_serialized_count);
   ~Branch();
 
-  ///if using cache-effificent representation, all data is serialized here
-  unsigned char * buffer;
+  /// if using cache-effificent representation, all data is serialized here
+  unsigned char* buffer_;
+  size_t buffer_size_;
 
   /// clears a given Memb_list structure
   static void ClearMembList(Memb_list*&);

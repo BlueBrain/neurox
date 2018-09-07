@@ -55,22 +55,22 @@ class Vectorizer {
   /// memory-aligned memory allocation
   template <typename T>
   static T *New(size_t count) {
-    return count == 0 ? nullptr : (T *)coreneuron::ecalloc_align(SizeOf(count), kMemoryAlignment,
-                                          sizeof(T));
+    return count == 0 ? nullptr
+                      : (T *)coreneuron::ecalloc_align(
+                            SizeOf(count), kMemoryAlignment, sizeof(T));
   }
 
   template <typename T>
-  static T *New(size_t count, void * buffer, size_t buffer_size, size_t & offset) {
-    if (count==0)
-        return nullptr;
+  static T *New(size_t count, void *buffer, size_t buffer_size,
+                size_t &offset) {
+    if (count == 0) return nullptr;
 
-    //insteaf of allocating memory, send next position in buffer available
-    if (buffer)
-    {
-      assert(offset<buffer_size);
-      void* pos = &((unsigned char *)buffer)[offset];
+    // insteaf of allocating memory, send next position in buffer available
+    if (buffer) {
+      assert(offset < buffer_size);
+      void *pos = &((unsigned char *)buffer)[offset];
       offset += SizeOf(sizeof(T) * count);
-      return (T*) pos;
+      return (T *)pos;
     }
     return New<T>(count);
   }

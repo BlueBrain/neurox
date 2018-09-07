@@ -107,6 +107,7 @@ class Synchronizer {
   static hpx_action_t CallInitLocality;
   static hpx_action_t CallInitNeuron;
   static hpx_action_t RunNeuron;
+  static hpx_action_t RunNeuronTimeDependency;
   static hpx_action_t RunLocality;
   static hpx_action_t CallClearLocality;
   static hpx_action_t CallClearNeuron;
@@ -123,6 +124,7 @@ class Synchronizer {
   static int CallInitLocality_handler(const int*, const size_t);
   static int CallInitNeuron_handler();
   static int RunNeuron_handler(const double*, const size_t);
+  static int RunNeuronTimeDependency_handler(const double*, const size_t);
   static int RunLocality_handler(const double*, const size_t);
   static int CallClearLocality_handler();
   static int CallClearNeuron_handler();

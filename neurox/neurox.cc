@@ -101,10 +101,15 @@ static int Main_handler() {
     CallAllNeurons(Synchronizer::CallInitNeuron);
 
     hpx_time_t time_now = hpx_time_now();
-    if (input_params_->locality_comm_reduce_)
-      CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
-    else
-      CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
+    //if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+    if (false) {
+      CallAllNeurons(Synchronizer::RunNeuronTimeDependency, &tstop, sizeof(tstop));
+    } else {
+      if (input_params_->locality_comm_reduce_)
+        CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
+      else
+        CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
+    }
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
     printf(
