@@ -453,6 +453,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   // if using vector data structures, convert now
   // TODO for now we only support LAYOUT==1
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
+  {
+      fprintf(stderr, "LAYOUT=0 (SoA) and Time-Dependency synchronizer not implemented yet\n");
+      assert(0); //not supported yet
+      exit(1);
+  }
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 

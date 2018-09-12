@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.5.2, 2018-09-12T17:14:04. -->
+<!-- Written by QtCreator 4.5.2, 2018-09-12T17:48:08. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -167,7 +167,7 @@
      <value type="int">14</value>
     </valuelist>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguation.Title">neurox_exec</value>
-    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/Circuits/PCP/1/coreneuron_input -e 100 --synchronizer 0 -C</value>
+    <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.Arguments">-d /home/bmagalha/Workspace/Circuits/PCP/1/coreneuron_input -e 100 --synchronizer 0 --comm-reduce</value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory"></value>
     <value type="QString" key="CMakeProjectManager.CMakeRunConfiguration.UserWorkingDirectory.default">/home/bmagalha/Workspace/neurox-withcoreneuron/build/bin</value>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
