@@ -42,7 +42,8 @@ class Branch {
          PointProcInfo* vecplay_ppi, size_t vecplay_ppi_count,
          NetconX* netcons_, size_t netcons_count, neuron_id_t* netcons_pre_ids,
          size_t netcons_pre_ids_count, floble_t* weights, size_t weights_count,
-         unsigned char* vdata_serialized, size_t vdata_serialized_count);
+         unsigned char* vdata_serialized, size_t vdata_serialized_count,
+         neuron_id_t soma_gid, floble_t soma_ap_threshold);
   ~Branch();
 
   /// if using cache-effificent representation, all data is serialized here
@@ -163,7 +164,6 @@ class Branch {
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
-  static hpx_action_t InitSoma;             ///> Initializes soma information
   static hpx_action_t InitMechanismsGraph;  ///> Initializes mechanisms graph
   static hpx_action_t InitMechParallelism;  ///> Initializes M.I.P.
   static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
@@ -198,7 +198,6 @@ class Branch {
 
  private:
   static int Init_handler(const int, const void* [], const size_t[]);
-  static int InitSoma_handler(const int, const void* [], const size_t[]);
   static int InitMechanismsGraph_handler();
   static int InitMechParallelism_handler();
   static int Initialize_handler();

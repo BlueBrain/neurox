@@ -1446,6 +1446,10 @@ double DataLoader::BenchmarkSubSection(
   GetNetConsBranchData(subsection, branch_netcons, branch_netcons_pre_id,
                        branch_weights, &mech_instances_map);
 
+  // initialize datatypes and graph-parallelism shadow vecs offsets
+  neuron_id_t soma_gid = 0;
+  floble_t soma_ap_threshold = 999;
+
   hpx_call_sync(
       temp_branch_addr, Branch::Init, &time_elapsed,
       sizeof(time_elapsed),  // output
@@ -1470,15 +1474,14 @@ double DataLoader::BenchmarkSubSection(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size());
+      sizeof(unsigned char) * vdata.size(),
+      &soma_gid, sizeof(neuron_id_t),
+      &soma_ap_threshold, sizeof(floble_t));
 
   /* this mem pin works because benchmark neurons are allocated locally*/
   Branch *branch = NULL;
   int err = hpx_gas_try_pin(temp_branch_addr, (void **)&branch);
   assert(err != 0);
-
-  // initialize datatypes and graph-parallelism shadow vecs offsets
-  branch->soma_ = new Neuron(-1, 999);
 
   // initialize datatypes and graph-parallelism shadow vecs offsets
   interpolators::BackwardEuler::Finitialize2(branch);
@@ -1737,6 +1740,7 @@ hpx_t DataLoader::CreateBranch(
   }
 
   /* initialize subsection on the appropriate locality */
+  neuron_id_t neuron_id = is_soma ?  GetNeuronIdFromNrnThreadId(nrn_threadId) : -1;
   hpx_call_sync(
       branch_addr, Branch::Init, NULL, 0,  // no timing
       &n, sizeof(offset_t), &nrn_threadId, sizeof(int), &thvar_index,
@@ -1762,14 +1766,11 @@ hpx_t DataLoader::CreateBranch(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size());
+      sizeof(unsigned char) * vdata.size(),
+      &neuron_id, sizeof(neuron_id_t),
+      &ap_threshold, sizeof(floble_t));
 
-  /* create soma metadata */
   if (is_soma) {
-    int neuron_id = GetNeuronIdFromNrnThreadId(nrn_threadId);
-    hpx_call_sync(branch_addr, Branch::InitSoma, NULL, 0, &neuron_id,
-                  sizeof(neuron_id_t), &ap_threshold, sizeof(floble_t));
-
     hpx_lco_sema_p(locality_mutex_);
     my_neurons_addr_->push_back(branch_addr);
     my_neurons_gids_->push_back(neuron_id);

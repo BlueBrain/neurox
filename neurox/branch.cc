@@ -26,7 +26,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
                NetconX *netcons, size_t netcons_count,
                neuron_id_t *netcons_pre_ids, size_t netcons_pre_ids_count,
                floble_t *weights, size_t weights_count,
-               unsigned char *vdata_serialized, size_t vdata_serialized_count)
+               unsigned char *vdata_serialized, size_t vdata_serialized_count,
+               neuron_id_t soma_gid, floble_t soma_ap_threshold)
     : buffer_(nullptr),
       buffer_size_(0),
       soma_(nullptr),
@@ -38,6 +39,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       branch_tree_(nullptr),
       events_queue_mutex_(HPX_NULL),
       interpolator_(nullptr) {
+  bool is_soma = soma_gid>=0;
   int max_mech_id = 0;
 
   // compute total serialized size of data structure
@@ -47,7 +49,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     assert(0);
 #endif
     int vdata_ptrs_count = 0;
-
+    buffer_size_ += is_soma ? Vectorizer::SizeOf(sizeof(Neuron)) : 0;
     buffer_size_ += Vectorizer::SizeOf(sizeof(NrnThread));
     buffer_size_ += Vectorizer::SizeOf(sizeof(floble_t) * data_count);
     buffer_size_ += Vectorizer::SizeOf(sizeof(floble_t) * weights_count);
@@ -152,6 +154,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->_nidata = -1;
 
   // assignemnts start here
+
+  if (is_soma)
+  {
+    this->soma_ = Vectorizer::New<Neuron>(1, buffer_, buffer_size_, buffer_it);
+    new (this->soma_) Neuron(soma_gid, soma_ap_threshold);  // in-place new
+  }
   nt->_dt = input_params_->dt_;
   nt->_t = input_params_->tstart_;
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
@@ -522,7 +530,10 @@ hpx_action_t Branch::Init = 0;
 int Branch::Init_handler(const int nargs, const void *args[],
                          const size_t sizes[]) {
   NEUROX_MEM_PIN(Branch);
-  assert(nargs == 17);
+  assert(nargs == 19);
+
+  neuron_id_t gid = *(neuron_id_t*)args[17];
+  floble_t ap_threshold = *(floble_t*)args[18];
 
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
@@ -547,36 +558,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
       sizes[14] / sizeof(neuron_id_t),                     // netcons pre-ids
       (floble_t *)args[15], sizes[15] / sizeof(floble_t),  // netcons weights
       (unsigned char *)args[16],
-      sizes[16] / sizeof(unsigned char));  // serialized vdata
-  NEUROX_MEM_UNPIN
-}
-
-hpx_action_t Branch::InitSoma = 0;
-int Branch::InitSoma_handler(const int nargs, const void *args[],
-                             const size_t[]) {
-  NEUROX_MEM_PIN(Branch);
-  assert(nargs == 2);
-  const neuron_id_t neuron_id = *(const neuron_id_t *)args[0];
-  const floble_t ap_threshold = *(const floble_t *)args[1];
-  if (local->buffer_)
-  {
-      //in place allocation of Neuron at the end of existing buffer
-      size_t soma_size = Vectorizer::SizeOf(sizeof(Neuron));
-      size_t new_size = local->buffer_size_ + soma_size;
-      unsigned char *new_buffer = new unsigned char[new_size];
-      memcpy(new_buffer, local->buffer_, local->buffer_size_);
-      local->soma_ = (Neuron*) &new_buffer[local->buffer_size_];
-      new (local->soma_) Neuron(neuron_id, ap_threshold);
-
-      //all good, set correct Branch status
-      delete [] local->buffer_;
-      local->buffer_ = new_buffer;
-      local->buffer_size_ = new_size;
-  }
-  else
-  {
-    local->soma_ = new Neuron(neuron_id, ap_threshold);
-  }
+      sizes[16] / sizeof(unsigned char),  // serialized vdata
+      gid, ap_threshold); //soma fields (-1 if not)
   NEUROX_MEM_UNPIN
 }
 
@@ -1012,8 +995,6 @@ void Branch::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<hpx_t>(Branch::SetSyncStepTrigger,
                                            Branch::SetSyncStepTrigger_handler);
   wrappers::RegisterMultipleVarAction(Branch::Init, Branch::Init_handler);
-  wrappers::RegisterMultipleVarAction(Branch::InitSoma,
-                                      Branch::InitSoma_handler);
   wrappers::RegisterMultipleVarAction(Branch::AddSpikeEvent,
                                       Branch::AddSpikeEvent_handler);
   wrappers::RegisterMultipleVarAction(Branch::AddSpikeEventLocality,

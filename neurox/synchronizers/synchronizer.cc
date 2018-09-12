@@ -135,7 +135,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
     hpx_t neurons_lco = hpx_lco_and_new(neurons_count);
 
     for (size_t i = 0; i < neurons_count; i++)
-      hpx_call(neurox::locality::neurons_->at(i), Synchronizer::RunNeuron,
+      hpx_call(neurox::locality::neurons_->at(i), Synchronizer::RunNeuronTimeDependency,
                neurons_lco, tstop_ptr, sizeof(double));
 
     // number of simultaneous neuron to launch (1 per thread)
@@ -187,17 +187,35 @@ int Synchronizer::RunNeuronTimeDependency_handler(const double* tstop_ptr,
                                                   const size_t size) {
   NEUROX_MEM_PIN(Branch);
   assert(synchronizer_->GetId() == SynchronizerIds::kTimeDependency);
+  TimeDependencySynchronizer * sync = (TimeDependencySynchronizer*) synchronizer_;
   const double tstop = *tstop_ptr;
   double tpause = -1, max_step=-1;
   const hpx_t step_trigger = local->soma_->synchronizer_step_trigger_;
-  assert(step_trigger);
   NrnThread * nt = local->nt_;
   char second_order = input_params_->second_order_;
+  NrnThread * nt2 = &nrn_threads[nt->id];
+
+  if (!step_trigger)
+  {
+      max_step = sync->GetNeuronMaxStep(local);
+#ifndef NDEBUG
+      printf("step,%d,%.4f,%.2f\n", nt->id, nt->_t, max_step);
+#endif
+      tpause = std::min(t + max_step, tstop);
+      while (nt->_t < tstop - 0.000001) {
+        BackwardEuler::Step(local);
+        input::Debugger::SingleNeuronStepAndCompare(nt2, local, second_order);
+      }
+  }
+  else
   while (nt->_t < tstop - 0.00001) {
       // SCHEDULER: wait for scheduler signal to proceed
       hpx_lco_wait_reset(step_trigger);
 
-      max_step = synchronizer_->GetNeuronMaxStep(local);
+      max_step = sync->GetNeuronMaxStep(local);
+#ifndef NDEBUG
+      printf("step,%d,%.4f,%.2f\n", local->nt_->id, nt->_t, max_step);
+#endif
       assert(max_step >= 0.025);
       tpause = std::min(t + max_step, tstop);
       while (nt->_t < tstop - 0.000001) {
@@ -213,7 +231,6 @@ int Synchronizer::RunNeuronTimeDependency_handler(const double* tstop_ptr,
       tpause += 0.00000001; // make it not be picked by scheduler immediately
       locality::neurons_progress_->insert(std::make_pair(tpause, step_trigger));
       hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-
   }
   NEUROX_MEM_UNPIN;
 }
