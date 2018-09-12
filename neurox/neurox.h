@@ -1,9 +1,4 @@
 #pragma once
-
-// Debug flags
-// #define NEUROX_PRINT_TIME_DEPENDENCY
-// #define NDEBUG
-
 #include "hpx/hpx.h"
 
 // typedefs
