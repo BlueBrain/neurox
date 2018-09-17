@@ -47,8 +47,10 @@ class PriorityQueue {
       vals_[i] = (Val*)&(buffer[offset]);
       Val dummy_val;
       for (int j = 0; j < max_vals_per_key[i]; j++)
+      {
         memcpy(&(vals_[i][j]), &dummy_val, sizeof(Val));
-      i++;
+        offset += sizeof(Val);
+      }
     }
   }
 

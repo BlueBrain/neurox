@@ -4,6 +4,7 @@
 #include <cstring>
 #include <numeric>
 #include <set>
+#include <math.h>
 
 using namespace neurox;
 using namespace neurox::tools;
@@ -132,7 +133,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       } else {
         netcons_vals_per_key[pre_gid] += 1;
-        if (netcons[nc].delay_ > delay_per_pre_gid[pre_gid])
+        if (netcons[nc].delay_ > delay_per_pre_gid.at(pre_gid))
           delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       }
     }
@@ -143,7 +144,17 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
       events_max_vals_per_key[i] =
-          (int)(delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
+          ceil(delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
+      if (delay_per_pre_gid.at(it.first)<0)
+      {
+        //artificial cells or VecPlayContinuous
+        assert(delay_per_pre_gid.at(it.first)==0);
+        events_max_vals_per_key[i]=1;
+      }
+      else
+      {
+        assert(delay_per_pre_gid.at(it.first)>0);
+      }
       i++;
     }
 
@@ -155,7 +166,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
 
     events_linear_size =
-        Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, Event>::Size(
+        Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, TimedEvent>::Size(
             keys_count, events_max_vals_per_key));
     buffer_size_ += events_linear_size;
     fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
@@ -492,9 +503,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
     events_queue_linear_ =
-        (linear::PriorityQueue<neuron_id_t, Event *> *)&buffer_[buffer_it];
-
-    new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, Event *>(
+        (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
+    new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
         &buffer_[buffer_it]);
     buffer_it += events_linear_size;

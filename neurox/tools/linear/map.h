@@ -37,7 +37,10 @@ class Map {
       vals_[i] = (Val*)&(buffer[offset]);
       int j = 0;
       for (auto vec_it : map_it.second)
+      {
         memcpy(&(vals_[i][j++]), vec_it, sizeof(Val));
+        offset += sizeof(Val);
+      }
       i++;
     }
   }
