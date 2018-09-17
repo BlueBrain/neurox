@@ -11,6 +11,7 @@ using namespace neurox::interpolators;
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
     : gid_(neuron_id),
       threshold_(ap_threshold),
+      synapses_linear_(nullptr),
       synchronizer_neuron_info_(nullptr),
       synchronizer_step_trigger_(HPX_NULL) {
   this->synapses_transmission_flag_ = false;
@@ -72,6 +73,18 @@ void Neuron::AddSynapse(Synapse* syn) {
   synapses_.push_back(syn);
   synapses_.shrink_to_fit();
   hpx_lco_sema_v_sync(synapses_mutex_);
+}
+
+void Neuron::LinearizeSynapses() {
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+    size_t size = linear::Vector<Synapse>::Size(synapses_.size());
+    synapses_linear_buffer_ = new unsigned char[size];
+    synapses_linear_ = (linear::Vector<Synapse>*)synapses_linear_buffer_;
+    new (synapses_linear_)
+        linear::Vector<Synapse>(synapses_, synapses_linear_buffer_);
+    for (auto it : synapses_) delete it;
+    synapses_.clear();
+  }
 }
 
 // netcvode.cpp::static bool pscheck(...)

@@ -5,6 +5,8 @@
 #include <deque>
 #include <set>
 
+using namespace tools;
+
 namespace neurox {
 
 /// forward declarations
@@ -68,11 +70,17 @@ class Neuron {
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse*);
 
+  /// copy data from synapses_ to synapses_linear_
+  void LinearizeSynapses();
+
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
+
+  /// linear data container of synapses
+  linear::Vector<Synapse>* synapses_linear_;
 
   /// Synchronizer-dependent metadata
   synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
@@ -85,5 +93,7 @@ class Neuron {
 
   ///  PreSynHelper* psh->flag (whether spikes for a given AP have been sent)
   bool synapses_transmission_flag_;
+
+  unsigned char* synapses_linear_buffer_;
 };  // Neuron
 };  // namespace neurox

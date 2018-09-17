@@ -14,6 +14,8 @@ class PriorityQueue {
  public:
   // needs to be called with placement-new where buffer*
   // is the start of the data structure
+  PriorityQueue() = delete;
+
   PriorityQueue(size_t keys_count, Key* keys, size_t* max_vals_per_key,
                 char* buffer)
       : keys_count_(keys_count) {
@@ -47,7 +49,7 @@ class PriorityQueue {
     }
   }
 
-  size_t Size(size_t keys_count, size_t* vals_per_key) {
+  static size_t Size(size_t keys_count, size_t* vals_per_key) {
     size_t size = sizeof(PriorityQueue<Key, Val>);
     size += sizeof(size_t) * keys_count;  // keys
     size += sizeof(size_t) * keys_count;  // vals per key

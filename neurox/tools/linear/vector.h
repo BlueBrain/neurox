@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include "neurox/neurox.h"
 
 namespace neurox {
@@ -9,21 +10,25 @@ namespace linear {
 /**
  * @brief The Linear Vector class
  */
-template <class T>
+template <class Val>
 class Vector {
  public:
-  // needs to be called with placement-new where buffer*
-  // is the start of the data structure
-  Vector(size_t n, T* data, char* buffer) : n_(n) {
+  Vector() = delete;
+
+  Vector(std::vector<Val*> data, unsigned char* buffer) {
+    // needs to be called with placement-new where buffer*
+    // is the start of the data structure
     assert(buffer == this);
-    size_t offset = sizeof(n) + sizeof(data);
-    data_ = (T*)&(buffer[offset]);
-    memcpy(data_, data, sizeof(T) * n);
+    n_ = data.size();
+    size_t offset = sizeof(Vector<Val>);
+    data_ = (Val*)&(buffer[offset]);
+    for (int i = 0; i < data.size(); i++)
+      memcpy(&data_[i], data[i], sizeof(Val));
   }
 
-  size_t Size(size_t n) { return sizeof(Vector<T>) + sizeof(T) * n; }
+  static size_t Size(size_t n) { return sizeof(Vector<Val>) + sizeof(Val) * n; }
 
-  inline T At(size_t i) {
+  inline Val At(size_t i) {
     assert(i < n_);
     return data_[i];
   }
@@ -32,7 +37,7 @@ class Vector {
 
  private:
   size_t n_;
-  T* data_;
+  Val* data_;
 };  // class Vector
 };  // namespace linear
 };  // namespace tools

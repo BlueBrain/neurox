@@ -9,6 +9,7 @@
 #include <vector>
 
 using namespace neurox;
+using namespace tools;
 
 namespace neurox {
 
@@ -154,10 +155,15 @@ class Branch {
   /// map of incoming netcons per pre-synaptic gid
   std::map<neuron_id_t, std::vector<NetconX*> > netcons_;
 
+  linear::Map<neuron_id_t, NetconX>* netcons_linear_;
+
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
                       std::greater_equal<TimedEvent> >
       events_queue_;
+
+  /// for a neuron_id_t, gives the next Event* on the list
+  linear::PriorityQueue<neuron_id_t, Event>* events_queue_linear_;
 
   /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;

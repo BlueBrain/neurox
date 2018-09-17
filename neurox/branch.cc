@@ -37,6 +37,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       thvar_ptr_(nullptr),
       mechs_graph_(nullptr),
       branch_tree_(nullptr),
+      netcons_linear_(nullptr),
+      events_queue_linear_(nullptr),
       events_queue_mutex_(HPX_NULL),
       interpolator_(nullptr) {
   bool is_soma = soma_gid >= 0;
@@ -44,6 +46,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // compute total serialized size of data structure
   size_t buffer_it = 0;
+  size_t netcons_linear_size = 0;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT == 0
     assert(0);
@@ -115,11 +118,28 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         buffer_size_ += Vectorizer::SizeOf(sizeof(double) * shadow_size) * 2 +
                         Vectorizer::SizeOf(sizeof(int) * shadow_size) * 2;
     }
-    // fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size);
+    fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size_);
 
-    // TODO: missing netcons and queues to be serialized
-    // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
-    // buffer_size);
+    // linear map of netcons
+    std::map<neuron_id_t, size_t> netcons_vals_per_key;
+    for (offset_t nc = 0; nc < netcons_count; nc++) {
+      int pre_gid = netcons_pre_ids[nc];
+      if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end())
+        netcons_vals_per_key[pre_gid] = 1;
+      else
+        netcons_vals_per_key[pre_gid] += 1;
+    }
+
+    size_t *netcons_count_per_key = new size_t[netcons_vals_per_key.size()];
+    int i = 0;
+    for (auto it : netcons_vals_per_key) netcons_count_per_key[i++] = it.second;
+    netcons_linear_size =
+        Vectorizer::SizeOf(linear::Map<neuron_id_t, NetconX>::Size(
+            netcons_vals_per_key.size(), netcons_count_per_key));
+    fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
+    buffer_size_ += netcons_linear_size;
+
+    fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id, buffer_size_);
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -444,6 +464,17 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     assert(weights_offset == netcons[nc].weight_index_);
     weights_offset += netcons[nc].weights_count_;
   }
+
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+    netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
+    new (netcons_linear_)
+        linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
+    for (auto it : netcons_)
+      for (auto vec_it : it.second) delete vec_it;
+    netcons_.clear();
+    buffer_it += netcons_linear_size;
+  }
+
   assert(weights_count == weights_offset);
 
   // create data structure that defines branching
