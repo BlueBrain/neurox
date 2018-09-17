@@ -104,7 +104,8 @@ static int Main_handler() {
     if (input_params_->locality_comm_reduce_)
       CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
     else
-      CallAllNeurons(Synchronizer::RunNeuronTimeDependency, &tstop, sizeof(tstop));
+      CallAllNeurons(Synchronizer::RunNeuronTimeDependency, &tstop,
+                     sizeof(tstop));
     double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
     printf(

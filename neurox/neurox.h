@@ -17,6 +17,11 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/netcon.h"
 #include "neurox/vecplay_continuous.h"
 
+// linear memory (cache-efficient) containers
+#include "neurox/tools/linear/map.h"
+#include "neurox/tools/linear/priority_queue.h"
+#include "neurox/tools/linear/vector.h"
+
 // morphology classes (branches, neuron) and Hines solver
 #include "neurox/branch.h"
 #include "neurox/hines_solver.h"

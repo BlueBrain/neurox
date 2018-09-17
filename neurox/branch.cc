@@ -39,7 +39,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       branch_tree_(nullptr),
       events_queue_mutex_(HPX_NULL),
       interpolator_(nullptr) {
-  bool is_soma = soma_gid>=0;
+  bool is_soma = soma_gid >= 0;
   int max_mech_id = 0;
 
   // compute total serialized size of data structure
@@ -63,9 +63,9 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       max_mech_id = max(max_mech_id, type);
       int nodecount = instances_count[m];
       buffer_size_ += mech->pdata_size_ == 0 || nodecount == 0
-                         ? 0
-                         : Vectorizer::SizeOf(sizeof(offset_t) *
-                                              mech->pdata_size_ * nodecount);
+                          ? 0
+                          : Vectorizer::SizeOf(sizeof(offset_t) *
+                                               mech->pdata_size_ * nodecount);
       buffer_size_ +=
           nodecount == 0 ||
                   input::DataLoader::HardCodedMechanismHasNoInstances(type)
@@ -74,7 +74,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
       if (mech->memb_func_.thread_size_)
         buffer_size_ += Vectorizer::SizeOf(sizeof(ThreadDatum) *
-                                          mech->memb_func_.thread_size_);
+                                           mech->memb_func_.thread_size_);
 
       for (size_t i = 0; i < nodecount; i++) {
         if (input::DataLoader::HardCodedPntProcOffsetInPdata(type) != -1) {
@@ -98,7 +98,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // vecplays
     for (size_t v = 0; v < vecplay_ppi_count; v++) {
       PointProcInfo &ppi = vecplay_ppi[v];
-      buffer_size_ += Vectorizer::SizeOf(sizeof(floble_t) * ppi.size) * 2;  // y+t
+      buffer_size_ +=
+          Vectorizer::SizeOf(sizeof(floble_t) * ppi.size) * 2;  // y+t
       buffer_size_ += Vectorizer::SizeOf(sizeof(VecplayContinuousX));
     }
     // fprintf(stderr, "Buffer size vec_play (2) = %d\n", buffer_size);
@@ -112,7 +113,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       if (mechanisms_[m]->dependency_ion_index_ <
           Mechanism::IonTypes::kSizeWriteableIons)
         buffer_size_ += Vectorizer::SizeOf(sizeof(double) * shadow_size) * 2 +
-                       Vectorizer::SizeOf(sizeof(int) * shadow_size) * 2;
+                        Vectorizer::SizeOf(sizeof(int) * shadow_size) * 2;
     }
     // fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size);
 
@@ -155,8 +156,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // assignemnts start here
 
-  if (is_soma)
-  {
+  if (is_soma) {
     this->soma_ = Vectorizer::New<Neuron>(1, buffer_, buffer_size_, buffer_it);
     new (this->soma_) Neuron(soma_gid, soma_ap_threshold);  // in-place new
   }
@@ -165,9 +165,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   nt->end = n;
 
-  nt->_data = data_count == 0 ? nullptr
-                              : Vectorizer::New<floble_t>(
-                                    data_count, buffer_, buffer_size_, buffer_it);
+  nt->_data = data_count == 0
+                  ? nullptr
+                  : Vectorizer::New<floble_t>(data_count, buffer_, buffer_size_,
+                                              buffer_it);
   memcpy(nt->_data, data, data_count * sizeof(floble_t));
   nt->_ndata = data_count;
 
@@ -208,8 +209,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   offset_t data_offset = 6 * n;
   offset_t pdata_offset = 0;
   offset_t instances_offset = 0;
-  this->mechs_instances_ = Vectorizer::New<Memb_list>(mechanisms_count_, buffer_,
-                                                      buffer_size_, buffer_it);
+  this->mechs_instances_ = Vectorizer::New<Memb_list>(
+      mechanisms_count_, buffer_, buffer_size_, buffer_it);
 
   vector<void *> vdata_ptrs;
   offset_t vdata_offset = 0;
@@ -240,8 +241,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         instance.nodecount == 0 ||
                 input::DataLoader::HardCodedMechanismHasNoInstances(type)
             ? nullptr
-            : Vectorizer::New<offset_t>(instance.nodecount, buffer_, buffer_size_,
-                                        buffer_it);
+            : Vectorizer::New<offset_t>(instance.nodecount, buffer_,
+                                        buffer_size_, buffer_it);
     if (instance.nodeindices)
       memcpy(instance.nodeindices, &nodes_indices[instances_offset],
              sizeof(offset_t) * instance.nodecount);
@@ -294,8 +295,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       if (rng_offset_in_pdata != -1) {
         nrnran123_State *rng =
             (nrnran123_State *)(void *)&vdata_serialized[vdata_offset];
-        nrnran123_State *rngcopy =
-            Vectorizer::New<nrnran123_State>(1, buffer_, buffer_size_, buffer_it);
+        nrnran123_State *rngcopy = Vectorizer::New<nrnran123_State>(
+            1, buffer_, buffer_size_, buffer_it);
         memcpy(rngcopy, rng, sizeof(nrnran123_State));
         vdata_offset += sizeof(nrnran123_State);
         instance_pdata[rng_offset_in_pdata] = vdata_ptrs.size();
@@ -370,8 +371,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       yvec[i] = vecplay_y[v_offset + i];
       tvec[i] = vecplay_t[v_offset + i];
     }
-    nt->_vecplay[v] =
-        Vectorizer::New<VecplayContinuousX>(1, buffer_, buffer_size_, buffer_it);
+    nt->_vecplay[v] = Vectorizer::New<VecplayContinuousX>(
+        1, buffer_, buffer_size_, buffer_it);
     new (nt->_vecplay[v])
         VecplayContinuousX(pd, size, yvec, tvec, NULL);  // in-place new
     v_offset += size;
@@ -416,14 +417,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
                            ? nullptr
                            : Vectorizer::New<double>(shadow_size, buffer_,
                                                      buffer_size_, buffer_it);
-    ml->_shadow_i_offsets =
-        shadow_size == 0
-            ? nullptr
-            : Vectorizer::New<int>(shadow_size, buffer_, buffer_size_, buffer_it);
+    ml->_shadow_i_offsets = shadow_size == 0
+                                ? nullptr
+                                : Vectorizer::New<int>(shadow_size, buffer_,
+                                                       buffer_size_, buffer_it);
     ml->_shadow_didv_offsets =
-        shadow_size == 0
-            ? nullptr
-            : Vectorizer::New<int>(shadow_size, buffer_, buffer_size_, buffer_it);
+        shadow_size == 0 ? nullptr
+                         : Vectorizer::New<int>(shadow_size, buffer_,
+                                                buffer_size_, buffer_it);
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_i[i] = 0;
       ml->_shadow_didv[i] = 0;
@@ -453,11 +454,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #if LAYOUT == 0
   // if using vector data structures, convert now
   // TODO for now we only support LAYOUT==1
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
-  {
-      fprintf(stderr, "LAYOUT=0 (SoA) and Time-Dependency synchronizer not implemented yet\n");
-      assert(0); //not supported yet
-      exit(1);
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+    fprintf(stderr,
+            "LAYOUT=0 (SoA) and Time-Dependency synchronizer not implemented "
+            "yet\n");
+    assert(0);  // not supported yet
+    exit(1);
   }
   tools::Vectorizer::ConvertToSOA(this);
 #endif
@@ -538,8 +540,8 @@ int Branch::Init_handler(const int nargs, const void *args[],
   NEUROX_MEM_PIN(Branch);
   assert(nargs == 19);
 
-  neuron_id_t gid = *(neuron_id_t*)args[17];
-  floble_t ap_threshold = *(floble_t*)args[18];
+  neuron_id_t gid = *(neuron_id_t *)args[17];
+  floble_t ap_threshold = *(floble_t *)args[18];
 
   new (local) Branch(
       *(offset_t *)args[0],  // number of compartments
@@ -565,7 +567,7 @@ int Branch::Init_handler(const int nargs, const void *args[],
       (floble_t *)args[15], sizes[15] / sizeof(floble_t),  // netcons weights
       (unsigned char *)args[16],
       sizes[16] / sizeof(unsigned char),  // serialized vdata
-      gid, ap_threshold); //soma fields (-1 if not)
+      gid, ap_threshold);                 // soma fields (-1 if not)
   NEUROX_MEM_UNPIN
 }
 

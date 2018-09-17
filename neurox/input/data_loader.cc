@@ -1474,8 +1474,7 @@ double DataLoader::BenchmarkSubSection(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size(),
-      &soma_gid, sizeof(neuron_id_t),
+      sizeof(unsigned char) * vdata.size(), &soma_gid, sizeof(neuron_id_t),
       &soma_ap_threshold, sizeof(floble_t));
 
   /* this mem pin works because benchmark neurons are allocated locally*/
@@ -1740,7 +1739,8 @@ hpx_t DataLoader::CreateBranch(
   }
 
   /* initialize subsection on the appropriate locality */
-  neuron_id_t neuron_id = is_soma ?  GetNeuronIdFromNrnThreadId(nrn_threadId) : -1;
+  neuron_id_t neuron_id =
+      is_soma ? GetNeuronIdFromNrnThreadId(nrn_threadId) : -1;
   hpx_call_sync(
       branch_addr, Branch::Init, NULL, 0,  // no timing
       &n, sizeof(offset_t), &nrn_threadId, sizeof(int), &thvar_index,
@@ -1766,8 +1766,7 @@ hpx_t DataLoader::CreateBranch(
       branch_weights.size() > 0 ? branch_weights.data() : nullptr,
       sizeof(floble_t) * branch_weights.size(),
       vdata.size() > 0 ? vdata.data() : nullptr,
-      sizeof(unsigned char) * vdata.size(),
-      &neuron_id, sizeof(neuron_id_t),
+      sizeof(unsigned char) * vdata.size(), &neuron_id, sizeof(neuron_id_t),
       &ap_threshold, sizeof(floble_t));
 
   if (is_soma) {
