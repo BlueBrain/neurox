@@ -1,10 +1,10 @@
 #include "neurox/neurox.h"
 
+#include <math.h>
 #include <algorithm>
 #include <cstring>
 #include <numeric>
 #include <set>
-#include <math.h>
 
 using namespace neurox;
 using namespace neurox::tools;
@@ -121,7 +121,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         buffer_size_ += Vectorizer::SizeOf(sizeof(double) * shadow_size) * 2 +
                         Vectorizer::SizeOf(sizeof(int) * shadow_size) * 2;
     }
-    fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size_);
+    // fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size_);
 
     // linear map of netcons and priority queue of events
     std::map<neuron_id_t, size_t> netcons_vals_per_key;
@@ -145,15 +145,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       netcons_count_per_key[i] = it.second;
       events_max_vals_per_key[i] =
           ceil(delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
-      if (delay_per_pre_gid.at(it.first)<0)
-      {
-        //artificial cells or VecPlayContinuous
-        assert(delay_per_pre_gid.at(it.first)==0);
-        events_max_vals_per_key[i]=1;
-      }
-      else
-      {
-        assert(delay_per_pre_gid.at(it.first)>0);
+      if (delay_per_pre_gid.at(it.first) < 0) {
+        // artificial cells or VecPlayContinuous
+        assert(delay_per_pre_gid.at(it.first) == 0);
+        events_max_vals_per_key[i] = 1;
+      } else {
+        assert(delay_per_pre_gid.at(it.first) > 0);
       }
       i++;
     }
@@ -163,15 +160,16 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         Vectorizer::SizeOf(linear::Map<neuron_id_t, NetconX>::Size(
             keys_count, netcons_count_per_key));
     buffer_size_ += netcons_linear_size;
-    fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
+    // fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
 
     events_linear_size =
         Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, TimedEvent>::Size(
             keys_count, events_max_vals_per_key));
     buffer_size_ += events_linear_size;
-    fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
+    // fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
 
-    fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id, buffer_size_);
+    // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
+    // buffer_size_);
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -499,6 +497,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
     neuron_id_t *pre_gids = new neuron_id_t[netcons_.size()];
+
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
@@ -674,7 +673,12 @@ void Branch::CoreneuronNetSend(void **v, int weight_index, NrnThread *nt,
 void Branch::CoreneuronNetEvent(NrnThread *, int, int, double) { assert(0); }
 
 void Branch::AddEventToQueue(floble_t tt, Event *e) {
-  this->events_queue_.push(make_pair(tt, e));
+  // Only VectPlayContinuousX calls this function
+  if (this->events_queue_linear_)
+    this->events_queue_linear_->Push(events_vecplaycontinuous_id,
+                                     make_pair(tt, e));
+  else
+    this->events_queue_.push(make_pair(tt, e));
 }
 
 void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
@@ -760,14 +764,27 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
   spike_time_t dependency_time =
       nargs == 3 ? *(const spike_time_t *)args[2] : -1;
 
-  assert(local->netcons_.find(pre_neuron_id) != local->netcons_.end());
-  auto &netcons = local->netcons_.at(pre_neuron_id);
-  hpx_lco_sema_p(local->events_queue_mutex_);
-  for (auto nc : netcons) {
-    floble_t delivery_time = spike_time + nc->delay_;
-    local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
+  if (local->netcons_linear_) {
+    size_t count = -1;
+    NetconX *netcons = nullptr;
+    local->netcons_linear_->At(pre_neuron_id, count, netcons);
+    hpx_lco_sema_p(local->events_queue_mutex_);
+    for (int i = 0; i < count; i++) {
+      floble_t delivery_time = spike_time + netcons[i].delay_;
+      local->events_queue_linear_->Push(
+          pre_neuron_id, make_pair(delivery_time, (Event *)&netcons[i]));
+    }
+    hpx_lco_sema_v_sync(local->events_queue_mutex_);
+  } else {
+    assert(local->netcons_.find(pre_neuron_id) != local->netcons_.end());
+    auto &netcons = local->netcons_.at(pre_neuron_id);
+    hpx_lco_sema_p(local->events_queue_mutex_);
+    for (auto nc : netcons) {
+      floble_t delivery_time = spike_time + nc->delay_;
+      local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
+    }
+    hpx_lco_sema_v_sync(local->events_queue_mutex_);
   }
-  hpx_lco_sema_v_sync(local->events_queue_mutex_);
 
   synchronizer_->AfterReceiveSpikes(local, target, pre_neuron_id, spike_time,
                                     dependency_time);
@@ -788,18 +805,31 @@ void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
   // delivers events in the previous half-step
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
-  while (!this->events_queue_.empty() &&
-         this->events_queue_.top().first <= til) {
-    auto event_it = this->events_queue_.top();
-    floble_t &tt = event_it.first;
-    Event *&e = event_it.second;
+  if (this->events_queue_linear_) {
+    std::vector<TimedEvent> events;
+    this->events_queue_linear_->PopAllBeforeTime(til, events);
+    for (auto te: events)
+    {
+        floble_t &tt = te.first;
+        Event *&e = te.second;
+        e->Deliver(tt, this);
+    }
+  }
+  else
+  {
+    while (!this->events_queue_.empty() &&
+           this->events_queue_.top().first <= til) {
+      auto event_it = this->events_queue_.top();
+      floble_t &tt = event_it.first;
+      Event *&e = event_it.second;
 
-    // must have been delivered in the previous half step (not earlier), or it
-    // was missed
-    // TODO assert(tt >= til-0.5*nt->_dt && tt<=til);
+      // must have been delivered in the previous half step (not earlier), or it
+      // was missed
+      // TODO assert(tt >= til-0.5*nt->_dt && tt<=til);
 
-    e->Deliver(tt, this);
-    this->events_queue_.pop();
+      e->Deliver(tt, this);
+      this->events_queue_.pop();
+    }
   }
   hpx_lco_sema_v_sync(this->events_queue_mutex_);
   this->nt_->_t = tsav;

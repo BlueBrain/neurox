@@ -26,10 +26,7 @@ class Vector {
       memcpy(&data_[i], data[i], sizeof(Val));
   }
 
-  ~Vector()
-  {
-    delete [] data_;
-  }
+  ~Vector() { delete[] data_; }
 
   static size_t Size(size_t n) { return sizeof(Vector<Val>) + sizeof(Val) * n; }
 

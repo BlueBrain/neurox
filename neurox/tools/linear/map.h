@@ -36,8 +36,7 @@ class Map {
       vals_per_key_[i] = map_it.second.size();
       vals_[i] = (Val*)&(buffer[offset]);
       int j = 0;
-      for (auto vec_it : map_it.second)
-      {
+      for (auto vec_it : map_it.second) {
         memcpy(&(vals_[i][j++]), vec_it, sizeof(Val));
         offset += sizeof(Val);
       }
@@ -45,18 +44,16 @@ class Map {
     }
   }
 
-  ~Map()
-  {
-    delete [] keys_;
-    delete [] vals_per_key_;
-    for (int i=0; i<keys_count_; i++)
-      delete [] vals_[i];
-    delete [] vals_;
+  ~Map() {
+    delete[] keys_;
+    delete[] vals_per_key_;
+    for (int i = 0; i < keys_count_; i++) delete[] vals_[i];
+    delete[] vals_;
   }
 
   static size_t Size(size_t keys_count, size_t* vals_per_key) {
     size_t size = sizeof(Map<Key, Val>);
-    size += sizeof(Key) * keys_count;  // keys
+    size += sizeof(Key) * keys_count;     // keys
     size += sizeof(size_t) * keys_count;  // vals per key
     size += sizeof(Val*) * keys_count;    // values pointers
     for (int i = 0; i < keys_count; i++) size += vals_per_key[i] * sizeof(Val);
@@ -66,9 +63,14 @@ class Map {
   inline size_t GetIndex(Key key) { return -1; }
 
   inline void At(Key key, size_t& count, Val*& vals) {
-    size_t i = GetIndex(key);
-    count = vals_per_key_[i];
-    vals = vals_[i];
+    // TODO if this is sorted, then we can do a binary search
+    for (int i = 0; i < keys_count_; i++)
+      if (keys_[i] == key) {
+        count = vals_per_key_[i];
+        vals = vals_[i];
+        break;
+      }
+    assert(0);  // not found
   }
 
  private:
