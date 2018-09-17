@@ -118,23 +118,19 @@ class PriorityQueue {
     assert(0);
   }
 
-  void PopAllBeforeTime(floble_t t, std::vector<Val> & events)
-  {
-    for (int i=0; i<keys_count_; i++)
-    {
-      size_t & offset_pop = offsets_pop_[i];
-      size_t & offset_push = offsets_push_[i];
-      while (offset_pop < offset_push && vals_[i][offset_pop].first <= t)
-      {
-          events.push_back(vals_[i][offset_pop]);
-          offset_pop++;
+  void PopAllBeforeTime(floble_t t, std::vector<Val>& events) {
+    for (int i = 0; i < keys_count_; i++) {
+      size_t& offset_pop = offsets_pop_[i];
+      size_t& offset_push = offsets_push_[i];
+      while (offset_pop < offset_push && vals_[i][offset_pop].first <= t) {
+        events.push_back(vals_[i][offset_pop]);
+        offset_pop++;
       }
     }
     std::sort(events.begin(), events.end());
   }
 
   Val* Pop(Key key) {
-
     for (int i = 0; i < keys_count_; i++)
       if (keys_[i] == key) {
         size_t& offset = offsets_pop_[i];

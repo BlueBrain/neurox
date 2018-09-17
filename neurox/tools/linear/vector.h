@@ -30,9 +30,9 @@ class Vector {
 
   static size_t Size(size_t n) { return sizeof(Vector<Val>) + sizeof(Val) * n; }
 
-  inline Val At(size_t i) {
+  inline Val* At(size_t i) {
     assert(i < n_);
-    return data_[i];
+    return &data_[i];
   }
 
   inline size_t Count() { return n_; }

@@ -36,8 +36,14 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
      * synchronizer starts at t=inputParams->tend*2 increase
      * notification and dependencies time */
     if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
-      for (Neuron::Synapse*& s : b->soma_->synapses_)
+      Neuron* neuron = b->soma_;
+      size_t syn_count = neuron->GetSynapsesCount();
+      for (int i = 0; i < syn_count; i++) {
+        Neuron::Synapse* s = neuron->synapses_linear_
+                                 ? neuron->synapses_linear_->At(i)
+                                 : neuron->synapses_.at(i);
         s->next_notification_time_ += b->nt_->_t;
+      }
       time_dependencies->IncreseDependenciesTime(b->nt_->_t);
     }
   }
@@ -125,7 +131,12 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
 
-  for (Neuron::Synapse*& s : neuron->synapses_) {
+  size_t syn_count = neuron->GetSynapsesCount();
+  for (int i = 0; i < syn_count; i++) {
+    Neuron::Synapse* s = neuron->synapses_linear_
+                             ? neuron->synapses_linear_->At(i)
+                             : neuron->synapses_.at(i);
+
     /* reminder, s->min_delay_ is the syn. min-delay to branch or locality*/
     s->next_notification_time_ =
         t + (s->min_delay_ + neuron->refractory_period_) * notification_ratio;
@@ -331,8 +342,7 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     Branch* b, const floble_t dt) {
-  std::vector<Neuron::Synapse*>& synapses = b->soma_->synapses_;
-  if (synapses.empty()) return;
+  if (b->soma_->GetSynapsesCount() == 0) return;
 
   const floble_t t = b->nt_->_t;
   const neuron_id_t gid = b->soma_->gid_;
@@ -353,7 +363,12 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 
   // printf("=============== Neuron %d informs step at %.5f :", gid, t);
 
-  for (Neuron::Synapse*& s : synapses) {
+  Neuron* neuron = b->soma_;
+  size_t syn_count = neuron->GetSynapsesCount();
+  for (int i = 0; i < syn_count; i++) {
+    Neuron::Synapse* s = neuron->synapses_linear_
+                             ? neuron->synapses_linear_->At(i)
+                             : neuron->synapses_.at(i);
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
     // printf("%d (", s->destination_gid_);

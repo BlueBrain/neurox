@@ -1922,6 +1922,10 @@ int DataLoader::FilterRepeatedLocalitySynapses_handler() {
   synapses.clear();
   for (auto &syn_it : synapses_loc) synapses.push_back(syn_it.second);
   assert(synapses.size() <= hpx_get_num_ranks());
+
+  // convert synapses to linear synapses representation
+  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
+    local->soma_->LinearizeSynapses();
   NEUROX_MEM_UNPIN
 }
 

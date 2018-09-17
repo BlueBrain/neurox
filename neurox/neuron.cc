@@ -63,7 +63,7 @@ Neuron::Synapse::~Synapse() {
 
 size_t Neuron::GetSynapsesCount() {
   hpx_lco_sema_p(synapses_mutex_);
-  size_t size = synapses_.size();
+  size_t size = synapses_linear_ ? synapses_linear_->Count() : synapses_.size();
   hpx_lco_sema_v_sync(synapses_mutex_);
   return size;
 }
@@ -112,6 +112,6 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
-  if (synapses_.size() == 0) return HPX_NULL;
+  if (GetSynapsesCount() == 0) return HPX_NULL;
   return synchronizer_->SendSpikes(this, tt, t);
 }
