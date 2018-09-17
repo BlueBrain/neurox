@@ -163,7 +163,8 @@ class Branch {
       events_queue_;
 
   /// for a neuron_id_t, gives the next Event* on the list
-  linear::PriorityQueue<neuron_id_t, Event>* events_queue_linear_;
+  /// (we use Event* cause it points to data structs thar are linearized)
+  linear::PriorityQueue<neuron_id_t, Event*>* events_queue_linear_;
 
   /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;

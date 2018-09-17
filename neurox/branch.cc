@@ -47,6 +47,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   // compute total serialized size of data structure
   size_t buffer_it = 0;
   size_t netcons_linear_size = 0;
+  size_t events_linear_size = 0;
+  size_t *events_max_vals_per_key = nullptr;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT == 0
     assert(0);
@@ -120,24 +122,43 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     }
     fprintf(stderr, "Buffer size shadow arrays = %d\n", buffer_size_);
 
-    // linear map of netcons
+    // linear map of netcons and priority queue of events
     std::map<neuron_id_t, size_t> netcons_vals_per_key;
+    std::map<neuron_id_t, size_t> delay_per_pre_gid;
     for (offset_t nc = 0; nc < netcons_count; nc++) {
       int pre_gid = netcons_pre_ids[nc];
-      if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end())
+      if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end()) {
         netcons_vals_per_key[pre_gid] = 1;
-      else
+        delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+      } else {
         netcons_vals_per_key[pre_gid] += 1;
+        if (netcons[nc].delay_ > delay_per_pre_gid[pre_gid])
+          delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+      }
     }
 
     size_t *netcons_count_per_key = new size_t[netcons_vals_per_key.size()];
+    events_max_vals_per_key = new size_t[netcons_vals_per_key.size()];
     int i = 0;
-    for (auto it : netcons_vals_per_key) netcons_count_per_key[i++] = it.second;
+    for (auto it : netcons_vals_per_key) {
+      netcons_count_per_key[i] = it.second;
+      events_max_vals_per_key[i] =
+          (int)(delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
+      i++;
+    }
+
+    size_t keys_count = netcons_vals_per_key.size();
     netcons_linear_size =
         Vectorizer::SizeOf(linear::Map<neuron_id_t, NetconX>::Size(
-            netcons_vals_per_key.size(), netcons_count_per_key));
-    fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
+            keys_count, netcons_count_per_key));
     buffer_size_ += netcons_linear_size;
+    fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
+
+    events_linear_size =
+        Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, Event>::Size(
+            keys_count, events_max_vals_per_key));
+    buffer_size_ += events_linear_size;
+    fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
 
     fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id, buffer_size_);
     buffer_ = new unsigned char[buffer_size_];
@@ -466,6 +487,18 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   }
 
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+    neuron_id_t *pre_gids = new neuron_id_t[netcons_.size()];
+    int i = 0;
+    for (auto it : this->netcons_) pre_gids[i++] = it.first;
+
+    events_queue_linear_ =
+        (linear::PriorityQueue<neuron_id_t, Event *> *)&buffer_[buffer_it];
+
+    new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, Event *>(
+        (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
+        &buffer_[buffer_it]);
+    buffer_it += events_linear_size;
+
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
