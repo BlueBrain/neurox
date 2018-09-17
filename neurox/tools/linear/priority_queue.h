@@ -21,7 +21,7 @@ class PriorityQueue {
       : keys_count_(keys_count) {
     assert(buffer == this);
 
-    size_t offset = sizeof(size_t);
+    size_t offset = sizeof(PriorityQueue<Key, Val>);
 
     // keys_
     keys_ = (Key*)&(buffer[offset]);
@@ -56,7 +56,7 @@ class PriorityQueue {
 
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
     size_t size = sizeof(PriorityQueue<Key, Val>);
-    size += sizeof(size_t) * keys_count;  // keys
+    size += sizeof(Key) * keys_count;  // keys
     size += sizeof(size_t) * keys_count;  // vals per key
     size += sizeof(size_t) * keys_count;  // offsets per key
     size += sizeof(Val*) * keys_count;    // values pointers

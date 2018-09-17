@@ -22,7 +22,7 @@ class Map {
     size_t offset = 0;
 
     keys_count_ = map1.size();
-    offset += sizeof(size_t);
+    offset += sizeof(Map<Key, Val>);
     keys_ = (Key*)&(buffer[offset]);
     offset += sizeof(Key) * keys_count_;
     vals_per_key_ = (size_t*)&(buffer[offset]);
@@ -47,7 +47,7 @@ class Map {
 
   static size_t Size(size_t keys_count, size_t* vals_per_key) {
     size_t size = sizeof(Map<Key, Val>);
-    size += sizeof(size_t) * keys_count;  // keys
+    size += sizeof(Key) * keys_count;  // keys
     size += sizeof(size_t) * keys_count;  // vals per key
     size += sizeof(Val*) * keys_count;    // values pointers
     for (int i = 0; i < keys_count; i++) size += vals_per_key[i] * sizeof(Val);
