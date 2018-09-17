@@ -32,6 +32,8 @@ Neuron::~Neuron() {
   if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
   if (synchronizer_step_trigger_ != HPX_NULL)
     hpx_lco_delete_sync(synchronizer_step_trigger_);
+
+  delete synapses_linear_;
 }
 
 Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,

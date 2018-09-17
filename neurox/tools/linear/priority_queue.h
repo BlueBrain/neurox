@@ -54,6 +54,16 @@ class PriorityQueue {
     }
   }
 
+  ~PriorityQueue()
+  {
+    delete [] keys_;
+    delete [] vals_per_key_;
+    delete [] offsets_per_key_;
+    for (int i=0; i<keys_count_; i++)
+      delete [] vals_[i];
+    delete [] vals_;
+  }
+
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
     size_t size = sizeof(PriorityQueue<Key, Val>);
     size += sizeof(Key) * keys_count;  // keys

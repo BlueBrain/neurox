@@ -594,6 +594,9 @@ Branch::~Branch() {
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
 
+  delete netcons_linear_;
+  delete events_queue_linear_;
+
   delete soma_;
   delete branch_tree_;
   delete mechs_graph_;
