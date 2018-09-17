@@ -45,7 +45,7 @@ class DataLoader {
   static hpx_action_t SetNeurons;
   static hpx_action_t InitNetcons;
   static hpx_action_t Finalize;
-  static hpx_action_t FilterRepeatedLocalitySynapses;
+  static hpx_action_t FilterRepeatedAndLinearizeSynapses;
 
   /// holds information about offsets of instances of mechanisms
   struct IonInstancesInfo {
@@ -149,7 +149,7 @@ class DataLoader {
   static int CreateNeuron(int neuron_idx, void *);
   static int GetMyNrnThreadsCount();
   static int AddSynapse_handler(const int, const void *[], const size_t[]);
-  static int FilterRepeatedLocalitySynapses_handler();
+  static int FilterRepeatedAndLinearizeSynapses_handler();
   static int AddNeurons_handler(const int, const void *[], const size_t[]);
   static int SetMechanisms_handler(const int, const void *[], const size_t[]);
   static int Init_handler();

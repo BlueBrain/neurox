@@ -55,7 +55,7 @@ static int Main_handler() {
   DebugMessage("neurox::input::DataLoader::InitNetcons...\n");
   CallAllNeurons(input::DataLoader::InitNetcons);
   DebugMessage("neurox::input::DataLoader::FilterLocalitySynapses...\n");
-  CallAllNeurons(input::DataLoader::FilterRepeatedLocalitySynapses);
+  CallAllNeurons(input::DataLoader::FilterRepeatedAndLinearizeSynapses);
   DebugMessage("neurox::input::DataLoader::Finalize...\n");
   CallAllLocalities(input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");

@@ -1891,8 +1891,8 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   NEUROX_MEM_UNPIN
 }
 
-hpx_action_t DataLoader::FilterRepeatedLocalitySynapses = 0;
-int DataLoader::FilterRepeatedLocalitySynapses_handler() {
+hpx_action_t DataLoader::FilterRepeatedAndLinearizeSynapses = 0;
+int DataLoader::FilterRepeatedAndLinearizeSynapses_handler() {
   if (!input_params_->locality_comm_reduce_) return HPX_SUCCESS;
 
   NEUROX_MEM_PIN(Branch);
@@ -1931,8 +1931,8 @@ int DataLoader::FilterRepeatedLocalitySynapses_handler() {
 
 void DataLoader::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(
-      DataLoader::FilterRepeatedLocalitySynapses,
-      DataLoader::FilterRepeatedLocalitySynapses_handler);
+      DataLoader::FilterRepeatedAndLinearizeSynapses,
+      DataLoader::FilterRepeatedAndLinearizeSynapses_handler);
   wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
   wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms,
                                   DataLoader::InitMechanisms_handler);
