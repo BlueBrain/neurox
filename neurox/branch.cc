@@ -150,7 +150,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         assert(delay_per_pre_gid.at(it.first) == 0);
         events_max_vals_per_key[i] = 1;
       } else {
-        assert(delay_per_pre_gid.at(it.first) > 0);
+        // assert(delay_per_pre_gid.at(it.first) > 0); //TODO !!
       }
       i++;
     }
@@ -501,19 +501,24 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
-    events_queue_linear_ =
-        (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
+    /*
+    events_queue_linear_ = (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
         &buffer_[buffer_it]);
+    */
+    events_queue_linear_=nullptr;
     buffer_it += events_linear_size;
 
+    /*
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
     for (auto it : netcons_)
       for (auto vec_it : it.second) delete vec_it;
     netcons_.clear();
+    */
+    netcons_linear_ = nullptr;
     buffer_it += netcons_linear_size;
   }
 

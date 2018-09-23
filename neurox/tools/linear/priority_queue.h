@@ -20,7 +20,7 @@ class PriorityQueue {
 
   PriorityQueue(size_t keys_count, Key* keys, size_t* max_vals_per_key,
                 unsigned char* buffer) {
-    assert(buffer == this);
+    assert((void*)buffer == this);
 
 #ifdef ADD_VECPLAY_CONTINUOUSX_ENTRY
     Key* keys2 = new Key[keys_count + 1];

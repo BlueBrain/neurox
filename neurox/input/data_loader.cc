@@ -1893,39 +1893,41 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
 
 hpx_action_t DataLoader::FilterRepeatedAndLinearizeSynapses = 0;
 int DataLoader::FilterRepeatedAndLinearizeSynapses_handler() {
-  if (!input_params_->locality_comm_reduce_) return HPX_SUCCESS;
-
   NEUROX_MEM_PIN(Branch);
-  /* this methods takes all outgoing synapses as <locality hpx_t, min_delay>,
-   * removes all repeated localities (we have several copies), and uses only
-   * the values of the min_delay per locality */
 
-  // initial synapses, several per locality
-  std::vector<Neuron::Synapse *> &synapses = local->soma_->synapses_;
+  if (input_params_->locality_comm_reduce_) {
+    /* this methods takes all outgoing synapses as <locality hpx_t, min_delay>,
+     * removes all repeated localities (we have several copies), and uses only
+     * the values of the min_delay per locality */
 
-  // filtered synapses (1 per locality)
-  map<hpx_t, Neuron::Synapse *> synapses_loc;
+    // initial synapses, several per locality
+    std::vector<Neuron::Synapse *> &synapses = local->soma_->synapses_;
 
-  for (Neuron::Synapse *s : synapses) {
-    if (synapses_loc.find(s->branch_addr_) == synapses_loc.end()) {
-      synapses_loc[s->branch_addr_] = s;
-      continue;
+    // filtered synapses (1 per locality)
+    map<hpx_t, Neuron::Synapse *> synapses_loc;
+
+    for (Neuron::Synapse *s : synapses) {
+      if (synapses_loc.find(s->branch_addr_) == synapses_loc.end()) {
+        synapses_loc[s->branch_addr_] = s;
+        continue;
+      }
+
+      // synapse already exists, use only the one with min syn delay
+      Neuron::Synapse *syn_old = synapses_loc.at(s->branch_addr_);
+      assert(syn_old->branch_addr_ == s->branch_addr_);
+      if (s->min_delay_ < syn_old->min_delay_)
+        synapses_loc.at(s->branch_addr_) = s;
     }
 
-    // synapse already exists, use only the one with min syn delay
-    Neuron::Synapse *syn_old = synapses_loc.at(s->branch_addr_);
-    assert(syn_old->branch_addr_ == s->branch_addr_);
-    if (s->min_delay_ < syn_old->min_delay_)
-      synapses_loc.at(s->branch_addr_) = s;
+    synapses.clear();
+    for (auto &syn_it : synapses_loc) synapses.push_back(syn_it.second);
+    assert(synapses.size() <= hpx_get_num_ranks());
   }
-
-  synapses.clear();
-  for (auto &syn_it : synapses_loc) synapses.push_back(syn_it.second);
-  assert(synapses.size() <= hpx_get_num_ranks());
 
   // convert synapses to linear synapses representation
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
     local->soma_->LinearizeSynapses();
+
   NEUROX_MEM_UNPIN
 }
 

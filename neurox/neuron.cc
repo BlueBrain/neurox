@@ -56,9 +56,7 @@ Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
 }
 
 Neuron::Synapse::~Synapse() {
-  if (previous_spike_lco_ != HPX_NULL) {
-    hpx_lco_delete_sync(previous_spike_lco_);
-  }
+  if (previous_spike_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_spike_lco_);
 }
 
 size_t Neuron::GetSynapsesCount() {
@@ -78,15 +76,27 @@ void Neuron::AddSynapse(Synapse* syn) {
 }
 
 void Neuron::LinearizeSynapses() {
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
-    size_t size = linear::Vector<Synapse>::Size(synapses_.size());
-    synapses_linear_buffer_ = new unsigned char[size];
-    synapses_linear_ = (linear::Vector<Synapse>*)synapses_linear_buffer_;
-    new (synapses_linear_)
-        linear::Vector<Synapse>(synapses_, synapses_linear_buffer_);
-    for (auto it : synapses_) delete it;
-    synapses_.clear();
+  size_t size = linear::Vector<Synapse>::Size(synapses_.size());
+  synapses_linear_ = (linear::Vector<Synapse>*)new unsigned char[size];
+  new (synapses_linear_)
+      linear::Vector<Synapse>(synapses_, (unsigned char*)synapses_linear_);
+#ifndef NDEBUG
+  assert(synapses_.size() == synapses_linear_->Count());
+  size_t syn_count = GetSynapsesCount();
+  for (int i = 0; i < syn_count; i++) {
+    Neuron::Synapse* s = synapses_linear_
+                         ? synapses_linear_->At(i)
+                         : synapses_.at(i);
+
+    Neuron::Synapse* s1 = synapses_.at(i);
+    Neuron::Synapse* s2 = synapses_linear_->At(i);
+    assert(s1->branch_addr_ == s2->branch_addr_);
+    assert(s1->min_delay_ == s2->min_delay_);
+    assert(s1->previous_spike_lco_ == s2->previous_spike_lco_);
+    assert(s1->soma_or_locality_addr_ == s2->soma_or_locality_addr_);
   }
+#endif
+  synapses_.clear();
 }
 
 // netcvode.cpp::static bool pscheck(...)

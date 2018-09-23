@@ -18,7 +18,7 @@ class Map {
   Map(std::map<Key, std::vector<Val*> >& map1, unsigned char* buffer) {
     // needs to be called with placement-new where buffer*
     // is the start of the data structure
-    assert(buffer == this);
+    assert((void*)buffer == this);
     size_t offset = 0;
 
     keys_count_ = map1.size();

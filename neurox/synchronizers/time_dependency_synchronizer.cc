@@ -369,6 +369,7 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     Neuron::Synapse* s = neuron->synapses_linear_
                              ? neuron->synapses_linear_->At(i)
                              : neuron->synapses_.at(i);
+
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
     // printf("%d (", s->destination_gid_);
