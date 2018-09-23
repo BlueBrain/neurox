@@ -42,6 +42,14 @@ class Map {
       i++;
     }
     assert(offset == Size(keys_count_, vals_per_key_));
+
+    // make sure keys are sorted and not identical
+    for (int i = 1; i < keys_count_; i++) {
+      assert(keys_[i] > keys_[i - 1]);
+      if (keys_[i] <= keys_[i - 1])
+        throw std::runtime_error(
+            std::string("Keys for linear map are not sorted."));
+    }
   }
 
   ~Map() {
@@ -63,22 +71,26 @@ class Map {
   inline size_t GetIndex(Key key) { return -1; }
 
   inline void At(Key key, size_t& count, Val*& vals) {
-    // TODO if this is sorted, then we can do a binary search
-    for (int i = 0; i < keys_count_; i++)
-      if (keys_[i] == key) {
-        count = vals_per_key_[i];
-        vals = vals_[i];
-        return;
-      }
-    assert(0);  // not found
-    throw std::runtime_error(
-        std::string("Key not found in linear map: " + key));
+    Key* k = (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_,
+                                sizeof(Key), Map::CompareKeyPtrs);
+    if (k == nullptr)
+      throw std::runtime_error(
+          std::string("Key not found in linear map: " + key));
+    assert(*k == key);
+    const size_t pos = k - keys_;
+    count = vals_per_key_[pos];
+    vals = vals_[pos];
   }
 
   Key* Keys() { return keys_; }
   size_t Count() { return keys_count_; }
 
  private:
+  static int CompareKeyPtrs(const void* pa, const void* pb) {
+    const Key a = *(const Key*)pa;
+    const Key b = *(const Key*)pb;
+    return a<b ? -1 : (a==b ? 0 : 1);
+  }
   size_t keys_count_;
   Key* keys_;
   size_t* vals_per_key_;

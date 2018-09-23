@@ -199,7 +199,7 @@ int Synchronizer::RunNeuronTimeDependency_handler(const double* tstop_ptr,
   if (!step_trigger) {
     max_step = sync->GetNeuronMaxStep(local);
 #ifndef NDEBUG
-    //printf("step,%d,%.4f,%.2f\n", nt->id, nt->_t, max_step);
+    // printf("step,%d,%.4f,%.2f\n", nt->id, nt->_t, max_step);
 #endif
     tpause = std::min(t + max_step, tstop);
     while (nt->_t < tstop - 0.000001) {
