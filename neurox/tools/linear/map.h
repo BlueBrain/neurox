@@ -19,10 +19,9 @@ class Map {
     // needs to be called with placement-new where buffer*
     // is the start of the data structure
     assert((void*)buffer == this);
-    size_t offset = 0;
 
     keys_count_ = map1.size();
-    offset += sizeof(Map<Key, Val>);
+    size_t offset = sizeof(Map<Key, Val>);
     keys_ = (Key*)&(buffer[offset]);
     offset += sizeof(Key) * keys_count_;
     vals_per_key_ = (size_t*)&(buffer[offset]);
@@ -71,15 +70,16 @@ class Map {
   inline size_t GetIndex(Key key) { return -1; }
 
   inline void At(Key key, size_t& count, Val*& vals) {
-    Key* k = (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_,
-                                sizeof(Key), Map::CompareKeyPtrs);
-    if (k == nullptr)
+    Key* key_ptr = (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_,
+                                      sizeof(Key), Map::CompareKeyPtrs);
+    if (key_ptr == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear map: " + key));
-    assert(*k == key);
-    const size_t pos = k - keys_;
-    count = vals_per_key_[pos];
-    vals = vals_[pos];
+    assert(*key_ptr == key);
+
+    const size_t k = key_ptr - keys_;
+    count = vals_per_key_[k];
+    vals = vals_[k];
   }
 
   Key* Keys() { return keys_; }
@@ -89,7 +89,7 @@ class Map {
   static int CompareKeyPtrs(const void* pa, const void* pb) {
     const Key a = *(const Key*)pa;
     const Key b = *(const Key*)pb;
-    return a<b ? -1 : (a==b ? 0 : 1);
+    return a < b ? -1 : (a == b ? 0 : 1);
   }
   size_t keys_count_;
   Key* keys_;

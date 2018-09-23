@@ -126,6 +126,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // linear map of netcons and priority queue of events
     std::map<neuron_id_t, size_t> netcons_vals_per_key;
     std::map<neuron_id_t, size_t> max_delay_per_pre_gid;
+
+    //CREATE ONE EXTRA ENTRY FROM VECPLAYCONTINUOUS
+    //not used by netcons_linear_ but used by events_queue_linear_
+    netcons_vals_per_key[Branch::events_vecplaycontinuous_id] = 0;
+    max_delay_per_pre_gid[Branch::events_vecplaycontinuous_id] = 0;
+
     for (offset_t nc = 0; nc < netcons_count; nc++) {
       int pre_gid = netcons_pre_ids[nc];
       if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end()) {
@@ -143,15 +149,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
-      if (it.first < 0) {
-        // artificial cells
-        assert(max_delay_per_pre_gid.at(it.first) >= 0);
-        if (max_delay_per_pre_gid.at(it.first) == 0)
-            events_max_vals_per_key[i] = 1;
-        else
-          events_max_vals_per_key[i] =
+      assert(max_delay_per_pre_gid.at(it.first) >= 0);
+      if (max_delay_per_pre_gid.at(it.first) == 0)
+        events_max_vals_per_key[i] = 1;
+      else
+        // TODO find a better value: maybe refractory period min (1ms?)
+        events_max_vals_per_key[i] =
             ceil(max_delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
-      }
       i++;
     }
 
@@ -501,14 +505,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
-    /*
-    events_queue_linear_ = (linear::PriorityQueue<neuron_id_t, TimedEvent>
-    *)&buffer_[buffer_it]; new (events_queue_linear_)
-    linear::PriorityQueue<neuron_id_t, TimedEvent>( (size_t)netcons_.size(),
-    pre_gids, events_max_vals_per_key, &buffer_[buffer_it]);
-    events_queue_.clear();
-    */
+    events_queue_linear_ =
+        (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
+    new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
+        (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
+        &buffer_[buffer_it]);
     buffer_it += events_linear_size;
+    events_queue_linear_=nullptr;
+    // events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
@@ -537,7 +541,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       nc_key_it++;
     }
 #endif
-    netcons_.clear();
+    // netcons_.clear(); //TODO why it fails if this is on?
     buffer_it += netcons_linear_size;
   }
 
@@ -619,9 +623,6 @@ Branch::~Branch() {
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
 
-  delete netcons_linear_;
-  delete events_queue_linear_;
-
   delete soma_;
   delete branch_tree_;
   delete mechs_graph_;
@@ -699,7 +700,7 @@ void Branch::CoreneuronNetSend(void **v, int weight_index, NrnThread *nt,
 void Branch::CoreneuronNetEvent(NrnThread *, int, int, double) { assert(0); }
 
 void Branch::AddEventToQueue(floble_t tt, Event *e) {
-  // Only VectPlayContinuousX calls this function
+  // Only VecPlayContinuousX calls this function
   if (this->events_queue_linear_)
     this->events_queue_linear_->Push(events_vecplaycontinuous_id,
                                      make_pair(tt, e));

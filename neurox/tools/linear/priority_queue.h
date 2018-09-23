@@ -1,7 +1,5 @@
 #pragma once
 
-#define ADD_VECPLAY_CONTINUOUSX_ENTRY
-
 #include "neurox/neurox.h"
 
 namespace neurox {
@@ -22,23 +20,7 @@ class PriorityQueue {
                 unsigned char* buffer) {
     assert((void*)buffer == this);
 
-#ifdef ADD_VECPLAY_CONTINUOUSX_ENTRY
-    Key* keys2 = new Key[keys_count + 1];
-    size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-    memcpy(&keys2[1], keys, sizeof(Key) * keys_count);
-    memcpy(&max_vals_per_key2[1], max_vals_per_key,
-           sizeof(size_t) * keys_count);
-    keys2[0] = (Key)-999999999;
-    max_vals_per_key2[0] = 1;
-    delete[] keys;
-    delete[] max_vals_per_key;
-    keys = keys2;
-    max_vals_per_key = max_vals_per_key2;
-    keys_count++;
-#endif
-
     keys_count_ = keys_count;
-
     size_t offset = sizeof(PriorityQueue<Key, Val>);
 
     // keys_
@@ -52,12 +34,12 @@ class PriorityQueue {
     offset += sizeof(size_t) * keys_count;
 
     // current offset of each circular array
-    offsets_push_ = (size_t*)&(buffer[offset]);
-    for (int i = 0; i < keys_count; i++) offsets_push_[i] = 0;
-    offset += sizeof(size_t) * keys_count;
-
     offsets_pop_ = (size_t*)&(buffer[offset]);
     for (int i = 0; i < keys_count; i++) offsets_pop_[i] = 0;
+    offset += sizeof(size_t) * keys_count;
+
+    offsets_push_ = (size_t*)&(buffer[offset]);
+    for (int i = 0; i < keys_count; i++) offsets_push_[i] = 0;
     offset += sizeof(size_t) * keys_count;
 
     // values array of pointers
@@ -73,6 +55,14 @@ class PriorityQueue {
         offset += sizeof(Val);
       }
     }
+
+    // make sure keys are sorted and not identical
+    for (int i = 1; i < keys_count_; i++) {
+      assert(keys_[i] > keys_[i - 1]);
+      if (keys_[i] <= keys_[i - 1])
+        throw std::runtime_error(
+            std::string("Keys for linear priority queue are not sorted."));
+    }
   }
 
   ~PriorityQueue() {
@@ -85,20 +75,11 @@ class PriorityQueue {
   }
 
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
-#ifdef ADD_VECPLAY_CONTINUOUSX_ENTRY
-    size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-    memcpy(&max_vals_per_key2[1], max_vals_per_key,
-           sizeof(size_t) * keys_count);
-    max_vals_per_key2[0] = 1;
-    delete[] max_vals_per_key;
-    max_vals_per_key = max_vals_per_key2;
-    keys_count++;
-#endif
     size_t size = sizeof(PriorityQueue<Key, Val>);
     size += sizeof(Key) * keys_count;     // keys
     size += sizeof(size_t) * keys_count;  // vals per key
-    size += sizeof(size_t) * keys_count;  // insert offsets per key
-    size += sizeof(size_t) * keys_count;  // get offsets per key
+    size += sizeof(size_t) * keys_count;  // pop offsets per key
+    size += sizeof(size_t) * keys_count;  // push offsets per key
     size += sizeof(Val*) * keys_count;    // values pointers
     for (int i = 0; i < keys_count; i++)
       size += max_vals_per_key[i] * sizeof(Val);
@@ -106,67 +87,51 @@ class PriorityQueue {
   }
 
   void Push(Key key, Val timed_event) {
-    for (int i = 0; i < keys_count_; i++)
-      if (keys_[i] == key) {
-        size_t& offset = offsets_push_[i];
-        size_t count = vals_per_key_[i];
-        memcpy(&(vals_[i][offset]), &timed_event, sizeof(Val));
-        offset++;
-        if (offset == count) offset = 0;
-        return;
-      }
-    assert(0);
-    throw std::runtime_error(
-        std::string("Key not found in linear priority queue: " + key));
+    Key* key_ptr =
+        (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_, sizeof(Key),
+                           PriorityQueue<Key, Val>::CompareKeyPtrs);
+    if (key_ptr == nullptr)
+      throw std::runtime_error(
+          std::string("Key not found in linear priority queue: " + key));
+    assert(*key_ptr == key);
+
+    const size_t k = key_ptr - keys_;
+    const size_t max_vals = vals_per_key_[k];
+    size_t& offset_push = offsets_push_[k];
+    memcpy(&(vals_[k][offset_push]), &timed_event, sizeof(Val));
+    if (++offset_push == max_vals) offset_push = 0;
   }
 
   void PopAllBeforeTime(floble_t t, std::vector<Val>& events) {
-    for (int i = 0; i < keys_count_; i++) {
-      size_t& offset_pop = offsets_pop_[i];
-      size_t& offset_push = offsets_push_[i];
-      while (offset_pop < offset_push && vals_[i][offset_pop].first <= t) {
-        events.push_back(vals_[i][offset_pop]);
-        offset_pop++;
+    for (int k = 0; k < keys_count_; k++) {
+      const size_t max_vals = vals_per_key_[k];
+      const size_t offset_push = offsets_push_[k];
+      size_t& offset_pop = offsets_pop_[k];
+      while (offset_pop != offset_push && vals_[k][offset_pop].first <= t) {
+        events.push_back(vals_[k][offset_pop]);
+        if (++offset_pop == max_vals) offset_pop = 0;
       }
     }
     std::sort(events.begin(), events.end());
   }
 
-  Val* Pop(Key key) {
-    for (int i = 0; i < keys_count_; i++)
-      if (keys_[i] == key) {
-        size_t& offset = offsets_pop_[i];
-
-        // no event
-        if (offset == offsets_push_[i]) return nullptr;
-
-        // return value
-        Val* ret_val = &(vals_[i][offset]);
-
-        // append read offset
-        size_t count = vals_per_key_[i];
-        offset++;
-        if (offset == count) offset = 0;
-
-        return ret_val;
-      }
-    assert(0);
-    throw std::runtime_error(
-        std::string("Key not found in linear priority queue: " + key));
-  }
-
   bool Empty() {
     for (int i = 0; i < keys_count_; i++)
-      if (offsets_push_[i] > offsets_pop_[i]) return true;
+      if (offsets_push_[i] > offsets_pop_[i]) return false;
     return true;
   }
 
  private:
+  static int CompareKeyPtrs(const void* pa, const void* pb) {
+    const Key a = *(const Key*)pa;
+    const Key b = *(const Key*)pb;
+    return a < b ? -1 : (a == b ? 0 : 1);
+  }
   size_t keys_count_;
   Key* keys_;
   size_t* vals_per_key_;  // max size of circular array
-  size_t* offsets_push_;  // one circular array per key
   size_t* offsets_pop_;   // one circular array per key
+  size_t* offsets_push_;  // one circular array per key
   Val** vals_;
 };  // class PriorityQueue
 

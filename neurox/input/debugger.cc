@@ -338,9 +338,9 @@ void Debugger::CompareBranch2(Branch *branch) {
 
   if (branch->netcons_linear_) {
     NetconX *ncs;
+    size_t nc_count;
     auto ncl = branch->netcons_linear_;
     for (int i = 0; i < ncl->Count(); i++) {
-      size_t nc_count;
       ncl->At(ncl->Keys()[i], nc_count, ncs);
       netconsCount += nc_count;
     }
