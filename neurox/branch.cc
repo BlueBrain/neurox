@@ -125,16 +125,16 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     // linear map of netcons and priority queue of events
     std::map<neuron_id_t, size_t> netcons_vals_per_key;
-    std::map<neuron_id_t, size_t> delay_per_pre_gid;
+    std::map<neuron_id_t, size_t> max_delay_per_pre_gid;
     for (offset_t nc = 0; nc < netcons_count; nc++) {
       int pre_gid = netcons_pre_ids[nc];
       if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end()) {
         netcons_vals_per_key[pre_gid] = 1;
-        delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+        max_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       } else {
         netcons_vals_per_key[pre_gid] += 1;
-        if (netcons[nc].delay_ > delay_per_pre_gid.at(pre_gid))
-          delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+        if (netcons[nc].delay_ > max_delay_per_pre_gid.at(pre_gid))
+          max_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       }
     }
 
@@ -143,14 +143,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
-      events_max_vals_per_key[i] =
-          ceil(delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
-      if (delay_per_pre_gid.at(it.first) < 0) {
-        // artificial cells or VecPlayContinuous
-        assert(delay_per_pre_gid.at(it.first) == 0);
-        events_max_vals_per_key[i] = 1;
-      } else {
-        // assert(delay_per_pre_gid.at(it.first) > 0); //TODO !!
+      if (it.first < 0) {
+        // artificial cells
+        assert(max_delay_per_pre_gid.at(it.first) >= 0);
+        if (max_delay_per_pre_gid.at(it.first) == 0)
+            events_max_vals_per_key[i] = 1;
+        else
+          events_max_vals_per_key[i] =
+            ceil(max_delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
       }
       i++;
     }
@@ -537,7 +537,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       nc_key_it++;
     }
 #endif
-    // netcons_.clear();
+    netcons_.clear();
     buffer_it += netcons_linear_size;
   }
 
