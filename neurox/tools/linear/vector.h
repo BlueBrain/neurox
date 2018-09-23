@@ -22,7 +22,7 @@ class Vector {
     n_ = data.size();
     size_t offset = sizeof(Vector<Val>);
     data_ = (Val*)&(buffer[offset]);
-    for (int i=0; i<data.size(); i++)
+    for (int i = 0; i < data.size(); i++)
       memcpy(&data_[i], data[i], sizeof(Val));
     assert(offset + n_ * sizeof(Val) == Size(n_));
   }

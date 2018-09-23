@@ -31,17 +31,17 @@ class Map {
     offset += sizeof(Val*) * keys_count_;
 
     int i = 0;
-    for (auto map_it : map1) {
-      keys_[i] = map_it.first;
-      vals_per_key_[i] = map_it.second.size();
+    for (auto key_vals : map1) {
+      keys_[i] = key_vals.first;
+      vals_per_key_[i] = key_vals.second.size();
       vals_[i] = (Val*)&(buffer[offset]);
       int j = 0;
-      for (auto vec_it : map_it.second) {
-        memcpy(&(vals_[i][j++]), vec_it, sizeof(Val));
-        offset += sizeof(Val);
-      }
+      for (auto val_ptr : key_vals.second)
+        memcpy(&(vals_[i][j++]), val_ptr, sizeof(Val));
+      offset += vals_per_key_[i] * sizeof(Val);
       i++;
     }
+    assert(offset == Size(keys_count_, vals_per_key_));
   }
 
   ~Map() {
@@ -68,10 +68,15 @@ class Map {
       if (keys_[i] == key) {
         count = vals_per_key_[i];
         vals = vals_[i];
-        break;
+        return;
       }
     assert(0);  // not found
+    throw std::runtime_error(
+        std::string("Key not found in linear map: " + key));
   }
+
+  Key* Keys() { return keys_; }
+  size_t Count() { return keys_count_; }
 
  private:
   size_t keys_count_;

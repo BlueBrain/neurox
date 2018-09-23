@@ -113,9 +113,11 @@ class PriorityQueue {
         memcpy(&(vals_[i][offset]), &timed_event, sizeof(Val));
         offset++;
         if (offset == count) offset = 0;
-        break;
+        return;
       }
     assert(0);
+    throw std::runtime_error(
+        std::string("Key not found in linear priority queue: " + key));
   }
 
   void PopAllBeforeTime(floble_t t, std::vector<Val>& events) {
@@ -149,6 +151,8 @@ class PriorityQueue {
         return ret_val;
       }
     assert(0);
+    throw std::runtime_error(
+        std::string("Key not found in linear priority queue: " + key));
   }
 
   bool Empty() {

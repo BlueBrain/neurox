@@ -84,9 +84,8 @@ void Neuron::LinearizeSynapses() {
   assert(synapses_.size() == synapses_linear_->Count());
   size_t syn_count = GetSynapsesCount();
   for (int i = 0; i < syn_count; i++) {
-    Neuron::Synapse* s = synapses_linear_
-                         ? synapses_linear_->At(i)
-                         : synapses_.at(i);
+    Neuron::Synapse* s =
+        synapses_linear_ ? synapses_linear_->At(i) : synapses_.at(i);
 
     Neuron::Synapse* s1 = synapses_.at(i);
     Neuron::Synapse* s2 = synapses_linear_->At(i);

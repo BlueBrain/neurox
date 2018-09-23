@@ -502,28 +502,48 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
     /*
-    events_queue_linear_ = (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
-    new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
-        (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
-        &buffer_[buffer_it]);
+    events_queue_linear_ = (linear::PriorityQueue<neuron_id_t, TimedEvent>
+    *)&buffer_[buffer_it]; new (events_queue_linear_)
+    linear::PriorityQueue<neuron_id_t, TimedEvent>( (size_t)netcons_.size(),
+    pre_gids, events_max_vals_per_key, &buffer_[buffer_it]);
+    events_queue_.clear();
     */
-    events_queue_linear_=nullptr;
     buffer_it += events_linear_size;
 
-    /*
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
-    for (auto it : netcons_)
-      for (auto vec_it : it.second) delete vec_it;
-    netcons_.clear();
-    */
-    netcons_linear_ = nullptr;
+#ifndef NDEBUG
+    assert(netcons_.size() == netcons_linear_->Count());
+    NetconX *ncs2;
+    size_t nc2_count = -1;
+    neuron_id_t nc_key_it = 0;
+    for (auto gid_vec_it : netcons_) {
+      neuron_id_t pre_gid = gid_vec_it.first;
+      assert(pre_gid == netcons_linear_->Keys()[nc_key_it]);
+      std::vector<NetconX *> ncs1 = gid_vec_it.second;
+      netcons_linear_->At(pre_gid, nc2_count, ncs2);
+      assert(ncs1.size() == nc2_count);
+      for (int i = 0; i < nc2_count; i++) {
+        NetconX *nc1 = ncs1.at(i);
+        NetconX *nc2 = &ncs2[i];
+        assert(nc1->active_ == nc2->active_);
+        assert(nc1->delay_ == nc2->delay_);
+        assert(nc1->mech_instance_ == nc2->mech_instance_);
+        assert(nc1->mech_type_ == nc2->mech_type_);
+        assert(nc1->weights_count_ == nc2->weights_count_);
+        assert(nc1->weight_index_ == nc2->weight_index_);
+      }
+      nc_key_it++;
+    }
+#endif
+    // netcons_.clear();
     buffer_it += netcons_linear_size;
   }
 
   assert(weights_count == weights_offset);
 
+  // TODO missing this on cache efficient serialization!
   // create data structure that defines branching
   if (input_params_->branch_parallelism_)
     this->branch_tree_ =
@@ -542,7 +562,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
-  // TODO missing this too on cache efficient serialization!
+  // TODO missing this on cache efficient serialization!
+  // (only for variable time-step, Backward Euler has no variables)
   interpolator_ = Interpolator::New(input_params_->interpolator_);
 
   assert(buffer_size_ == buffer_it);
@@ -770,14 +791,17 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
       nargs == 3 ? *(const spike_time_t *)args[2] : -1;
 
   if (local->netcons_linear_) {
-    size_t count = -1;
-    NetconX *netcons = nullptr;
-    local->netcons_linear_->At(pre_neuron_id, count, netcons);
+    size_t ncs_count = -1;
+    NetconX *ncs = nullptr;
+    local->netcons_linear_->At(pre_neuron_id, ncs_count, ncs);
     hpx_lco_sema_p(local->events_queue_mutex_);
-    for (int i = 0; i < count; i++) {
-      floble_t delivery_time = spike_time + netcons[i].delay_;
-      local->events_queue_linear_->Push(
-          pre_neuron_id, make_pair(delivery_time, (Event *)&netcons[i]));
+    for (int i = 0; i < ncs_count; i++) {
+      floble_t delivery_time = spike_time + ncs[i].delay_;
+      if (local->events_queue_linear_)
+        local->events_queue_linear_->Push(
+            pre_neuron_id, make_pair(delivery_time, (Event *)&ncs[i]));
+      else
+        local->events_queue_.push(make_pair(delivery_time, (Event *)&ncs[i]));
     }
     hpx_lco_sema_v_sync(local->events_queue_mutex_);
   } else {
@@ -786,7 +810,11 @@ int Branch::AddSpikeEvent_handler(const int nargs, const void *args[],
     hpx_lco_sema_p(local->events_queue_mutex_);
     for (auto nc : netcons) {
       floble_t delivery_time = spike_time + nc->delay_;
-      local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
+      if (local->events_queue_linear_)
+        local->events_queue_linear_->Push(
+            pre_neuron_id, make_pair(delivery_time, (Event *)nc));
+      else
+        local->events_queue_.push(make_pair(delivery_time, (Event *)nc));
     }
     hpx_lco_sema_v_sync(local->events_queue_mutex_);
   }
