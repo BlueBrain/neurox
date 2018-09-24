@@ -893,6 +893,10 @@ int Branch::SetSyncStepTrigger_handler(const hpx_t *step_trigger_ptr,
                                        const size_t) {
   NEUROX_MEM_PIN(Branch);
   assert(local->soma_);
+  //TODO delete
+  hpx_lco_sema_p(locality::neurons_progress_mutex_);
+  (*locality::from_hpx_to_gid)[*step_trigger_ptr] = local->soma_->gid_;
+  hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
   local->soma_->synchronizer_step_trigger_ = *step_trigger_ptr;
   NEUROX_MEM_UNPIN
 }

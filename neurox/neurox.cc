@@ -25,8 +25,10 @@ std::vector<hpx_t> *locality::neurons_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_branches_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_somas_ = nullptr;
 set<pair<floble_t, hpx_t>> *locality::neurons_progress_ = nullptr;
+std::queue<hpx_t> *locality::neurons_progress_queue_ = nullptr;
 hpx_t locality::neurons_progress_mutex_ = HPX_NULL;
 hpx_t locality::neurons_scheduler_sema_ = HPX_NULL;
+std::map<hpx_t, neuron_id_t> *locality::from_hpx_to_gid = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);

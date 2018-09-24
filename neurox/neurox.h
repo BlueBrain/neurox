@@ -106,6 +106,12 @@ extern std::map<neuron_id_t, std::vector<hpx_t>> *netcons_somas_;
  * Useful for locality based TimeDependency-based synchronizer */
 extern set<pair<floble_t, hpx_t>> *neurons_progress_;
 
+/** queue of neurons that are to be run next */
+extern std::queue<hpx_t> *neurons_progress_queue_;
+
+// TODO delete
+extern std::map<hpx_t, neuron_id_t> *from_hpx_to_gid;
+
 /** mutex to locality::neurons_progress_ */
 extern hpx_t neurons_progress_mutex_;
 

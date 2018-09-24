@@ -745,6 +745,7 @@ int DataLoader::Init_handler() {
     locality::neurons_ = new vector<hpx_t>();
     locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
     locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
+    locality::from_hpx_to_gid = new map<hpx_t, neuron_id_t>();
   }
 
   NEUROX_MEM_UNPIN;
