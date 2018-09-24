@@ -192,45 +192,39 @@ int Synchronizer::RunNeuronTimeDependency_handler(const double* tstop_ptr,
   const double tstop = *tstop_ptr;
   double tpause = -1, max_step = -1;
   const hpx_t step_trigger = local->soma_->synchronizer_step_trigger_;
+  const bool has_scheduler = step_trigger != HPX_NULL;
   NrnThread* nt = local->nt_;
   char second_order = input_params_->second_order_;
-  NrnThread* nt2 = &nrn_threads[nt->id];
 
-  if (!step_trigger) {
+  while (nt->_t < tstop - 0.00001) {
+    // if scheduler is active: wait for scheduler signal to proceed
+    if (has_scheduler) hpx_lco_wait_reset(step_trigger);
+
     max_step = sync->GetNeuronMaxStep(local);
 #ifndef NDEBUG
-    // printf("step,%d,%.4f,%.2f\n", nt->id, nt->_t, max_step);
+    printf("step,%d,%.4f,%.2f\n", local->nt_->id, nt->_t, max_step);
 #endif
+    assert(max_step >= 0.025);
     tpause = std::min(t + max_step, tstop);
     while (nt->_t < tstop - 0.000001) {
       BackwardEuler::Step(local);
-      input::Debugger::SingleNeuronStepAndCompare(nt2, local, second_order);
+      input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[nt->id], local,
+                                                  second_order);
     }
-  } else
-    while (nt->_t < tstop - 0.00001) {
-      // SCHEDULER: wait for scheduler signal to proceed
-      hpx_lco_wait_reset(step_trigger);
-
-      max_step = sync->GetNeuronMaxStep(local);
-#ifndef NDEBUG
-      printf("step,%d,%.4f,%.2f\n", local->nt_->id, nt->_t, max_step);
-#endif
-      assert(max_step >= 0.025);
-      tpause = std::min(t + max_step, tstop);
-      while (nt->_t < tstop - 0.000001) {
-        BackwardEuler::Step(local);
-        input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[nt->id], local,
-                                                    second_order);
-      }
-
-      // SCHEDULER: increment scheduler counter to allow it to look for next job
+    if (has_scheduler) {
+      // increment scheduler counter to allow it to look for next job
       hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
+
       // re-add this job to queue, to be picked up again later
       hpx_lco_sema_p(locality::neurons_progress_mutex_);
-      tpause += 0.00000001;  // make it not be picked by scheduler immediately
+      // hack: make it not be picked by scheduler immediately
+      tpause += 0.00000001;
       locality::neurons_progress_->insert(std::make_pair(tpause, step_trigger));
       hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
+    } else {
+      // wait for time dependencies!
     }
+  }
   NEUROX_MEM_UNPIN;
 }
 
