@@ -514,13 +514,15 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
+    /* TODO
     events_queue_linear_ =
         (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, max_events_per_key,
         &buffer_[buffer_it]);
+     */
+    events_queue_linear_ = nullptr;
     buffer_it += events_queue_linear_size;
-    /* TODO */ events_queue_linear_ = nullptr;
     // events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];

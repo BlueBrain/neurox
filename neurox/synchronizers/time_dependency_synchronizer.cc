@@ -293,7 +293,13 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
-  if (dependencies_max_time_allowed_.empty()) return;
+  if (dependencies_max_time_allowed_.empty()) {
+#ifndef NDEBUG
+    printf("step_neuron,%d,%.2f,%.2f,%.4f\n", b->nt_->id, b->nt_->_t,
+           input_params_->tstop_, input_params_->tstop_ - b->nt_->_t);
+#endif
+    return;
+  }
 
   // if this is an "end of execution notification"... no need to wait
   const floble_t t = b->nt_->_t;
@@ -322,12 +328,17 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     printf("== %d wakes up: getDependenciesMinTime()=%.11f\n", gid,
            GetDependenciesMinTime());
 #endif
-  }
+  } else {
+#ifndef NDEBUG
+    floble_t dep_time = GetDependenciesMinTime();
+    printf("step_neuron,%d,%.2f,%.2f,%.4f\n", b->nt_->id, t, dep_time,
+           dep_time - t);
+#endif
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-  else
     printf("== %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
            gid, GetDependenciesMinTime(), t + dt);
 #endif
+  }
   assert(GetDependenciesMinTime() + kTEps >= t + dt);
   libhpx_mutex_unlock(&this->dependencies_lock_);
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
