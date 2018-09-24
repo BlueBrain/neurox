@@ -227,14 +227,14 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     // if size too small or zero, wait to be awake again
     // (while it waits, allow scheduler to start a new job)
     max_step = synchronizer_->GetNeuronMaxStep(local);
-#ifndef NDEBUG
-    if (has_scheduler)
-      printf("step_scheduler,%d,%.4f,%.2f,%.4f\n", nt->id, t, max_step,
-             max_step - t);
-#endif
     assert(max_step >= 0.025);
 
     tpause = std::min(t + max_step, tstop);
+#ifndef NDEBUG
+    if (has_scheduler)
+      printf("step_scheduler,%d,%d,%.4f,%.2f,%.4f\n", neurox::neurons_count_,
+             nt->id, t, tpause, tpause - t);
+#endif
     assert(tpause > t + 0.000001);  // make sure it will step
     spikes_lco = interpolator->StepTo(local, tpause);
     assert(fabs(t - tpause) < 0.000001);  // equal

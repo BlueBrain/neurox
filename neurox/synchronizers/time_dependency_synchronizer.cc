@@ -13,6 +13,11 @@ TimeDependencySynchronizer::TimeDependencySynchronizer() {
           0 &&
       TimeDependencySynchronizer::TimeDependencies::
               kNotificationIntervalRatio <= 1);
+
+  if (input_params_->locality_comm_reduce_)
+  {
+      assert(TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio<=0.5);
+  }
 }
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
@@ -295,8 +300,9 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.empty()) {
 #ifndef NDEBUG
-    printf("step_neuron,%d,%.2f,%.2f,%.4f\n", b->nt_->id, b->nt_->_t,
-           input_params_->tstop_, input_params_->tstop_ - b->nt_->_t);
+    printf("step_neuron,%d,%d,%.2f,%.2f,%.4f\n", neurox::neurons_count_,
+           b->nt_->id, b->nt_->_t, input_params_->tstop_,
+           input_params_->tstop_ - b->nt_->_t);
 #endif
     return;
   }
@@ -331,8 +337,8 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   } else {
 #ifndef NDEBUG
     floble_t dep_time = GetDependenciesMinTime();
-    printf("step_neuron,%d,%.2f,%.2f,%.4f\n", b->nt_->id, t, dep_time,
-           dep_time - t);
+    printf("step_neuron,%d,%d,%.2f,%.2f,%.4f\n", neurox::neurons_count_,
+           b->nt_->id, t, dep_time, dep_time - t);
 #endif
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
     printf("== %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
