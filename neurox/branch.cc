@@ -49,7 +49,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   size_t buffer_it = 0;
   size_t netcons_linear_size = 0;
   size_t events_linear_size = 0;
-  size_t *events_max_vals_per_key = nullptr;
+  size_t *max_events_per_key = nullptr;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT == 0
     assert(0);
@@ -125,32 +125,46 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     // linear map of netcons and priority queue of events
     std::map<neuron_id_t, size_t> netcons_vals_per_key;
-    std::map<neuron_id_t, size_t> max_delay_per_pre_gid;
+    std::map<neuron_id_t, size_t> min_delay_per_pre_gid;
 
     for (offset_t nc = 0; nc < netcons_count; nc++) {
       int pre_gid = netcons_pre_ids[nc];
       if (netcons_vals_per_key.find(pre_gid) == netcons_vals_per_key.end()) {
         netcons_vals_per_key[pre_gid] = 1;
-        max_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+        min_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       } else {
         netcons_vals_per_key[pre_gid] += 1;
-        if (netcons[nc].delay_ > max_delay_per_pre_gid.at(pre_gid))
-          max_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
+        if (netcons[nc].delay_ < min_delay_per_pre_gid.at(pre_gid))
+          min_delay_per_pre_gid[pre_gid] = netcons[nc].delay_;
       }
     }
 
+    /* Calculus of max events:
+     * Take neurons A--1ms-->B, and B--5ms-->A .
+     * if t_A=0, t_B=1ms: B can receive notifs at 0 [1] 2  3  4  5  6
+     * if t_B=0, t_A=5ms: A can receive notifs at 0  1  2  3  4 [5] 6
+     * max events: (delay B->A) + (delay A->B) / min(delay B->A, delay A->B)
+     */
+
+    //because we dont know the post_gid delay, we set to min_synaptic_delay_
+    //std::map<neuron_id_t, size_t> min_delay_per_post_gid;
+    //for (Neuron::Synapse * syn : soma_->synapses_)
+    //  min_delay_per_post_gid[syn->destination_gid_] = syn->min_delay_;
+
     size_t *netcons_count_per_key = new size_t[netcons_vals_per_key.size()];
-    events_max_vals_per_key = new size_t[netcons_vals_per_key.size()];
+    max_events_per_key = new size_t[netcons_vals_per_key.size()];
     int i = 0;
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
-      assert(max_delay_per_pre_gid.at(it.first) >= 0);
-      if (max_delay_per_pre_gid.at(it.first) == 0)
-        events_max_vals_per_key[i] = 1;
-      else
-        // TODO find a better value: maybe refractory period min (1ms?)
-        events_max_vals_per_key[i] =
-            ceil(max_delay_per_pre_gid.at(it.first) / min_synaptic_delay_);
+      assert(min_delay_per_pre_gid.at(it.first) >= 0);
+      if (min_delay_per_pre_gid.at(it.first) == 0)
+        max_events_per_key[i] = 1;  // same step delivery
+      else {
+        //TODO floble_t d2 = min_delay_per_post_gid.at(it.first);
+        floble_t d2 = neurox::min_synaptic_delay_;
+        floble_t d1 = min_delay_per_pre_gid.at(it.first);
+        max_events_per_key[i] = ceil((d1 + d2) / std::min(d1, d2));
+      }
       i++;
     }
 
@@ -163,7 +177,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     events_linear_size =
         Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, TimedEvent>::Size(
-            keys_count, events_max_vals_per_key));
+            keys_count, max_events_per_key));
     buffer_size_ += events_linear_size;
     // fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
 
@@ -503,7 +517,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     events_queue_linear_ =
         (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
-        (size_t)netcons_.size(), pre_gids, events_max_vals_per_key,
+        (size_t)netcons_.size(), pre_gids, max_events_per_key,
         &buffer_[buffer_it]);
     buffer_it += events_linear_size;
     // events_queue_.clear();

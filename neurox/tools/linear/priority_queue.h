@@ -6,6 +6,10 @@ namespace neurox {
 namespace tools {
 namespace linear {
 
+/* Use-case specific: VecPlayContinuousX has no neuron
+ * id, so we give it a very large one. vecplay_max_vals
+ * should be 1 (?), but we set to 10 to keep initial
+ * events that are to be delivered at negative times */
 static const bool add_vecplay_continuousx_entry = true;
 static const int vecplay_max_vals = 10;
 static const int vecplay_event_id = 999999999;
@@ -16,7 +20,6 @@ static const int vecplay_event_id = 999999999;
 template <class Key, class Val>
 class PriorityQueue {
  public:
-
   // needs to be called with placement-new where buffer*
   // is the start of the data structure
   PriorityQueue() = delete;
@@ -158,8 +161,8 @@ class PriorityQueue {
   size_t keys_count_;
   Key* keys_;
   size_t* max_vals_per_key_;  // max size of circular array
-  size_t* offsets_pop_;   // one circular array per key
-  size_t* offsets_push_;  // one circular array per key
+  size_t* offsets_pop_;       // one circular array per key
+  size_t* offsets_push_;      // one circular array per key
   Val** vals_;
 };  // class PriorityQueue
 

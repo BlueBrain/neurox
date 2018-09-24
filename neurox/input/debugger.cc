@@ -257,6 +257,8 @@ void Debugger::CompareAllBranches() {
 }
 
 void Debugger::CompareBranch2(Branch *branch) {
+  if (branch->events_queue_linear_) return;  // TODO
+
   assert(branch->soma_);  // only non-branched neurons
 
   int nrnThreadId = branch->nt_->id;
