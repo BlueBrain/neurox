@@ -61,6 +61,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                           "level (better for small cluster).",
                                           cmd, false);
 
+    TCLAP::SwitchArg neurons_scheduler(
+        "H", "scheduler", "last neuron goes first scheduler", cmd, false);
+
     TCLAP::SwitchArg graph_mechs_parallelism(
         "G", "graph-parallelism",
         "activates graph-based parallelism of mechanisms.", cmd, false);
@@ -211,6 +214,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->graph_mechs_parallelism_ = graph_mechs_parallelism.getValue();
     this->mech_instances_parallelism_ = mech_instances_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
+    this->neurons_scheduler_ = neurons_scheduler.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_ = branch_parallelism.getValue();
     this->synchronizer_ =

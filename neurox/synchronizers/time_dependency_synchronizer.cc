@@ -13,11 +13,6 @@ TimeDependencySynchronizer::TimeDependencySynchronizer() {
           0 &&
       TimeDependencySynchronizer::TimeDependencies::
               kNotificationIntervalRatio <= 1);
-
-  if (input_params_->locality_comm_reduce_)
-  {
-      assert(TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio<=0.5);
-  }
 }
 
 TimeDependencySynchronizer::~TimeDependencySynchronizer() {}
@@ -77,9 +72,7 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   if (!has_scheduler) return input_params_->tstop_;
 
   /* if a scheduler exists, it steps the last neuron until maximum possible
-   * time. If it does not exist, this neuron steps freely until tstop and
-   * independently waits for dependencies at every step, via method
-   * WaitForTimeDependencyNeurons*/
+   * time. If it does not exist, this neuron steps freely until tstop */
   TimeDependencies* time_dependencies =
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
@@ -87,26 +80,22 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
   double dep_min_time = time_dependencies->GetDependenciesMinTime();
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
+  // step can be zero if notifications from dependencies didn't arrive yet!
   double step_size = dep_min_time - b->nt_->_t;
+  if (step_size <= 0.000001) {
+    printf(
+        "WARNING: Neuron %d, t %.4f, step_size %.8f. Increase comm ratio. "
+        "Dependencies:\n",
+        b->nt_->id, b->nt_->_t, step_size);
+    for (auto& p : time_dependencies->dependencies_min_delay_)
+      printf("- neuron %d, min delay %.4f, max time allowed %.4f\n", p.first,
+             p.second,
+             time_dependencies->dependencies_max_time_allowed_.at(p.first));
 
-  // TODO for parallel execution, we have to set this to
-  // min_delay - time difference to last neuron running
-  const double min_step_size = neurox::min_synaptic_delay_;
-  while (step_size <
-         min_step_size)  // wait for dependencies if no step or step too small
-  {
-    // step notification msg was not processed yet, so this branch will
-    // (notify scheduler to pick other neuron,) sleep and use idle cores
-    // to process arrival of stepping notifications
-    hpx_lco_sema_p(locality::neurons_progress_mutex_);
-    time_dependencies->WaitForTimeDependencyNeurons(b, min_step_size);
-    libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
-    dep_min_time = time_dependencies->GetDependenciesMinTime();
-    libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
-    step_size = dep_min_time - b->nt_->_t;
-    hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
+    printf("Neurons progress:\n");
+    for (auto& p : *locality::neurons_progress_)
+      printf("--- %lld %.12f\n", p.first, p.second);
   }
-  assert(step_size > 0);
   return step_size;
 }
 
@@ -170,7 +159,8 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 }
 
 double TimeDependencySynchronizer::LocalitySyncInterval() {
-  return -1;  // means advance last neuron first (see synchronizer.h)
+  // -1 means advance last neuron first
+  return input_params_->neurons_scheduler_ ? -1 : 0;
 }
 
 TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {
@@ -292,7 +282,10 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b) {
-  return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
+  // TODO if it deadlocks, i changed this:
+  //return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
+  floble_t dt = std::min(input_params_->tstop_-b->nt_->_t, neurox::min_synaptic_delay_-0.0001);
+  return WaitForTimeDependencyNeurons(b, dt);
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
@@ -300,9 +293,8 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.empty()) {
 #ifndef NDEBUG
-    printf("step_neuron,%d,%d,%.2f,%.2f,%.4f\n", neurox::neurons_count_,
-           b->nt_->id, b->nt_->_t, input_params_->tstop_,
-           input_params_->tstop_ - b->nt_->_t);
+    printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
+           b->nt_->id, b->nt_->_t, b->nt_->_t + dt, dt);
 #endif
     return;
   }
@@ -337,7 +329,7 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   } else {
 #ifndef NDEBUG
     floble_t dep_time = GetDependenciesMinTime();
-    printf("step_neuron,%d,%d,%.2f,%.2f,%.4f\n", neurox::neurons_count_,
+    printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
            b->nt_->id, t, dep_time, dep_time - t);
 #endif
 #if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)

@@ -71,15 +71,15 @@ class TimeDependencySynchronizer : public Synchronizer {
     /// controls sleep and waking of neurons after dependencies time-update
     libhpx_mutex_t dependencies_lock_;
 
-   private:
-    /// wait condition that wakes dependencies_lock_
-    libhpx_cond_t dependencies_wait_condition_;
+    ///> map of synaptic delay per pre-synaptic id
+    std::map<neuron_id_t, floble_t> dependencies_min_delay_;
 
     ///> map of actual time per dependency if
     std::map<neuron_id_t, floble_t> dependencies_max_time_allowed_;
 
-    ///> map of synaptic delay per pre-synaptic id
-    std::map<neuron_id_t, floble_t> dependencies_min_delay_;
+   private:
+    /// wait condition that wakes dependencies_lock_
+    libhpx_cond_t dependencies_wait_condition_;
 
     /// time that this neuron waits for, before waking up and continuing
     floble_t dependencies_time_neuron_waits_for_;

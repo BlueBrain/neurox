@@ -739,7 +739,8 @@ int DataLoader::Init_handler() {
   }
 
   // initiate map of locality to branch netcons (if needed)
-  if (input_params_->locality_comm_reduce_) {
+  if (input_params_->locality_comm_reduce_ ||
+      synchronizer_->LocalitySyncInterval() == -1) {
     assert(locality::netcons_branches_ == nullptr);
     locality::neurons_ = new vector<hpx_t>();
     locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
@@ -841,7 +842,8 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    if (input_params_->locality_comm_reduce_) {
+    if (input_params_->locality_comm_reduce_ ||
+        input_params_->neurons_scheduler_) {
       assert(locality::neurons_->size() == 0);
       locality::neurons_->insert(locality::neurons_->end(), neurons_addr,
                                  neurons_addr + recv_neurons_count);
