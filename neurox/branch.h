@@ -165,7 +165,6 @@ class Branch {
   /// for a neuron_id_t, gives the next Event* on the list
   /// (we use Event* cause it points to data structs thar are linearized)
   linear::PriorityQueue<neuron_id_t, TimedEvent>* events_queue_linear_;
-  const int events_vecplaycontinuous_id = -999999999;  // same as PriorityQueue
 
   /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;
