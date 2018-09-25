@@ -1048,7 +1048,6 @@ int DataLoader::Finalize_handler() {
   all_neurons_gids_ = nullptr;
 
   nrn_setup_cleanup();
-  hpx_lco_delete_sync(locality_mutex_);
 
 #if defined(NDEBUG)
   // if not on debug, there's no CoreNeuron comparison, so data can be
@@ -1076,6 +1075,8 @@ int DataLoader::Finalize_handler() {
       addrs.erase(unique(addrs.begin(), addrs.end()), addrs.end());
     }
   }
+
+  hpx_lco_delete_sync(locality_mutex_);
   return neurox::wrappers::MemoryUnpin(target);
 }
 

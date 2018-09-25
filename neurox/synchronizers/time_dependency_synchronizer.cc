@@ -377,15 +377,15 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
       // commented: for variable dt, one can jump ahead of notification time
       // assert(s->next_notification_time_ >= t);
 
-#ifdef PRINT_TIME_DEPENDENCY
+//#ifdef PRINT_TIME_DEPENDENCY
       printf(
           "    #### neuron %d notifies %d of time %.4f, next notif time %.4f\n",
           neuron->gid_, s->destination_gid_, update_time_dep_action,
           s->next_notification_time_);
-#endif
+//#endif
 
       // Wait for previous synapse to be delivered, if any
-      hpx_lco_wait(s->previous_notif_lco_);
+      hpx_lco_wait_reset(s->previous_notif_lco_);
       hpx_call(s->soma_or_locality_addr_, update_time_dep_action,
                HPX_NULL, &gid, sizeof(neuron_id_t), &t,
                sizeof(spike_time_t));
@@ -407,11 +407,11 @@ int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
   const spike_time_t dependency_time = *(const spike_time_t*)args[1];
   const bool init_phase = nargs == 3 ? *(const bool*)args[2] : false;
 
-#ifdef PRINT_TIME_DEPENDENCY
+//#ifdef PRINT_TIME_DEPENDENCY
   printf("    #### neuron %d is notified by %d of time %.4f\n",
          local->soma_->gid_, pre_neuron_id, dependency_time);
   assert(local->soma_ && local->soma_->synchronizer_neuron_info_);
-#endif
+//#endif
   TimeDependencies* time_dependencies =
       (TimeDependencies*)local->soma_->synchronizer_neuron_info_;
   time_dependencies->UpdateTimeDependency(
