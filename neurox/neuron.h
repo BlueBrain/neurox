@@ -49,9 +49,10 @@ class Neuron {
     /// address of top-branch (soma) or locality of destination neuron
     hpx_t soma_or_locality_addr_;
 
-#ifndef NDEBUG
+//#if !defined(NDEBUG) || defined(PRINT_TIME_DEPENDENCY)
     int destination_gid_;
-#endif
+//#endif
+
     ///  next time this post-syn neuron needs to be informed of my actual time
     floble_t next_notification_time_;
 

@@ -62,7 +62,7 @@ class TimeDependencySynchronizer : public Synchronizer {
     void IncreseDependenciesTime(floble_t t);
 
     /// ratio of notification interval (0,1]
-    static constexpr const floble_t kNotificationIntervalRatio = 0.5;
+    static constexpr const floble_t kNotificationIntervalRatio = 1;
 
     /// time-epsilon to correct wrong delivery of events due to floating point
     /// rounding

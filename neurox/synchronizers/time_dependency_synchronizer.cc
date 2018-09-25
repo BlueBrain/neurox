@@ -85,7 +85,7 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   if (step_size <= 0.000001) {
     fprintf(
         stderr,
-        "WARNING: Neuron %d, t %.4f, step_size %.8f. Increase comm ratio?\n",
+        "WARNING: Neuron %d, t %.4f, step_size %.8f. Probably waiting for notifs.\n",
         b->soma_->gid_, b->nt_->_t, step_size);
     for (auto& p : time_dependencies->dependencies_min_delay_)
       fprintf(stderr, "--- neuron %d, min delay %.4f, max time allowed %.4f\n",
@@ -384,15 +384,10 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           s->next_notification_time_);
 #endif
 
-      /* wait for previous notif/synapse to be delivered before notifying.
-       * NORE: before was hpx_lco_wait(...) and hpx_call with result HPX_NULL,
-       * and it was dead-locking: sending 2 notifs leads to only first being
-       * delivered */
-      /* TODO: this goes against the "you can send async whatever you want and
-       * all messages are deliveres in any order, AND breaks cache-efficiency */
-      hpx_lco_wait_reset(s->previous_notif_lco_);
+      // Wait for previous synapse to be delivered, if any
+      hpx_lco_wait(s->previous_notif_lco_);
       hpx_call(s->soma_or_locality_addr_, update_time_dep_action,
-               s->previous_notif_lco_, &gid, sizeof(neuron_id_t), &t,
+               HPX_NULL, &gid, sizeof(neuron_id_t), &t,
                sizeof(spike_time_t));
     }
   }

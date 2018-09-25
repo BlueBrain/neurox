@@ -49,9 +49,9 @@ Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
   this->previous_notif_lco_ = hpx_lco_future_new(0);
   // starts LCOs as set and will be reset when synapses happen
   hpx_lco_set_rsync(this->previous_notif_lco_, 0, NULL);
-#ifndef NDEBUG
+//#ifndef NDEBUG
   this->destination_gid_ = destination_gid;
-#endif
+//#endif
 }
 
 Neuron::Synapse::~Synapse() {

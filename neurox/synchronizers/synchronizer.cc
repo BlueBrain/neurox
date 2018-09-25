@@ -61,6 +61,8 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
       input_params_->neurons_scheduler_) {
     // scheduler semaphore (controls how many parallel jobs can run)
     size_t thread_count = hpx_get_num_threads();
+    // Note: i tried thread_count*2, not good: it does not process
+    // pending messages RPCs
     const int max_jobs = std::min(thread_count, locality::neurons_->size());
     locality::neurons_scheduler_sema_ = hpx_lco_sema_new(max_jobs);
     assert(max_jobs > 0);
@@ -290,8 +292,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
 #ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
-  // TODO it needs to inform others, to be sure they can step?
-  printf("## Neuron %d finished.\n", local->soma_->gid_);
+  if (input_params_->neurons_scheduler_)
+    // TODO it needs to inform others, to be sure they can step?
+    printf("## Neuron %d finished.\n", local->soma_->gid_);
 #endif
   NEUROX_MEM_UNPIN;
 }
