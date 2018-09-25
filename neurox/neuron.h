@@ -58,7 +58,7 @@ class Neuron {
     /// interval  of notification in case of no spykes (fastest Netcon from
     /// current neuron to dependant-neuron or dependant-locality)
     floble_t min_delay_;
-    hpx_t previous_spike_lco_;  ///>lco controlling spikes delivery
+    hpx_t previous_notif_lco_;  ///>lco controlling spikes delivery
   };
 
   /// fires AP, returns LCO for sent synapses

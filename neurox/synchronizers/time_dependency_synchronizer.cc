@@ -92,13 +92,13 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
               p.first, p.second,
               time_dependencies->dependencies_max_time_allowed_.at(p.first));
 
-    /*
+#ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr, "Neurons progress (%d):\n",
             locality::neurons_progress_->size());
     for (auto& p : *locality::neurons_progress_)
       fprintf(stderr, "--- %ld %.12f\n",
               locality::from_hpx_to_gid->at(p.second), p.first);
-              */
+#endif
   }
   return step_size;
 }
@@ -143,16 +143,16 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 
     /* reset LCO to be used next. any spike or step notification
      * happening after must wait for this spike delivery */
-    hpx_lco_wait_reset(s->previous_spike_lco_);
+    hpx_lco_wait_reset(s->previous_notif_lco_);
 
     hpx_action_t add_spike_action = input_params_->locality_comm_reduce_
                                         ? Branch::AddSpikeEventLocality
                                         : Branch::AddSpikeEvent;
-    hpx_call(s->branch_addr_, add_spike_action, s->previous_spike_lco_,
+    hpx_call(s->branch_addr_, add_spike_action, s->previous_notif_lco_,
              &neuron->gid_, sizeof(neuron_id_t), &tt, sizeof(spike_time_t),
              &min_time_before_spiking, sizeof(spike_time_t));
 
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
     printf(
         "Neuron::sendSpikes: gid %d at time %.3f, informs gid %d of next notif "
         "time =%.3f\n",
@@ -247,7 +247,7 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     // order of msgs is not guaranteed so take only last update (highest time)
     if (max_time_allowed > dependencies_max_time_allowed_.at(src_gid)) {
       dependencies_max_time_allowed_.at(src_gid) = max_time_allowed;
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
       printf(
           "-- %d (msg from %d) updates dependenciesMap(%d)=%.11f, notif "
           "time=%.11f, getDependenciesMinTime()=%.11f\n",
@@ -255,7 +255,7 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
           max_time_allowed, GetDependenciesMinTime());
 #endif
     } else {
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
       printf(
           "-- %d (msg from %d) DOES NOT UPDATE dependenciesMap(%d)=%.11f, "
           "notif time=%.11f, getDependenciesMinTime()=%.11f\n",
@@ -268,7 +268,7 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     if (dependencies_time_neuron_waits_for_ > 0)
       // and new min time allows neuron to proceed
       if (GetDependenciesMinTime() >= dependencies_time_neuron_waits_for_) {
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
         printf(
             "-- %d (msg from %d) wakes up producer, "
             "GetDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
@@ -297,7 +297,7 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.empty()) {
-#ifndef NDEBUG
+#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
     printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
            b->soma_->gid_, b->nt_->_t, b->nt_->_t + dt, dt);
 #endif
@@ -308,14 +308,14 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   const floble_t t = b->nt_->_t;
   if (fabs(t - input_params_->tstop_) < 0.0001) return;
 
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
   const int gid = b->soma_->gid_;
   printf("== %d enters TimeDependencies::waitForTimeDependencyNeurons\n", gid);
 #endif
   libhpx_mutex_lock(&this->dependencies_lock_);
   if (GetDependenciesMinTime() + kTEps < t + dt)  // if I cant proceed
   {
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
     printf(
         "== %d cant proceed and sleeps: GetDependenciesMinTime()=%.11f < "
         "t+dt=%.11f\n",
@@ -327,24 +327,24 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     // TimeDependencies::dependenciesWaitCondition
     libhpx_cond_wait(&this->dependencies_wait_condition_,
                      &this->dependencies_lock_);
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
     printf("== %d wakes up: getDependenciesMinTime()=%.11f\n", gid,
            GetDependenciesMinTime());
 #endif
   } else {
-#ifndef NDEBUG
+#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
     floble_t dep_time = GetDependenciesMinTime();
     printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
            b->nt_->id, t, dep_time, dep_time - t);
 #endif
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
     printf("== %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
            gid, GetDependenciesMinTime(), t + dt);
 #endif
   }
   assert(GetDependenciesMinTime() + kTEps >= t + dt);
   libhpx_mutex_unlock(&this->dependencies_lock_);
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
+#ifdef PRINT_TIME_DEPENDENCY
   printf("== %d leaves TimeDependencies::waitForTimeDependencyNeurons\n", gid);
 #endif
 }
@@ -375,8 +375,6 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           ? TimeDependencySynchronizer::UpdateTimeDependencyLocality
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
-  //printf("=============== Neuron %d informs step at %.5f :\n", gid, t);
-
   Neuron* neuron = b->soma_;
   size_t syn_count = neuron->GetSynapsesCount();
   for (int i = 0; i < syn_count; i++) {
@@ -386,41 +384,32 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) */
-    // printf("%d (", s->destination_gid_);
     if (dt < 0.0001 || s->next_notification_time_ - kTEps <= t + dt) {
-      // printf("%f),", s->next_notification_time_);
       s->next_notification_time_ =
           t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
 
       // commented: for variable dt, one can jump ahead of notification time
       // assert(s->next_notification_time_ >= t);
 
-      /* wait for previous synapse to be delivered (if any) before telling
-       * post-syn neuron that I've reached time 't' */
-      //TODO this break continuous cache stepping?!
-      /* OLD: */ hpx_lco_wait(s->previous_spike_lco_);
-      /* NEW: */ //hpx_lco_wait_reset(s->previous_spike_lco_);
-
+#ifdef PRINT_TIME_DEPENDENCY
       printf(
           "    #### neuron %d notifies %d of time %.4f, next notif time %.4f\n",
           neuron->gid_, s->destination_gid_, update_time_dep_action,
           s->next_notification_time_);
-      /* NEW
-      hpx_call(s->soma_or_locality_addr_, update_time_dep_action, s->previous_spike_lco_,
-               &gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
-               */
-      /* OLD */
-      hpx_call(s->soma_or_locality_addr_, update_time_dep_action, HPX_NULL,
-               &gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
-
-#if !defined(NDEBUG) && defined(PRINT_TIME_DEPENDENCY)
-      printf("## %d notifies %d he that he steppted at %.6fms\n", gid,
-             s->destination_gid_, t);
 #endif
+
+      /* wait for previous notif/synapse to be delivered before notifying.
+       * NORE: before was hpx_lco_wait(...) and hpx_call with result HPX_NULL,
+       * and it was dead-locking: sending 2 notifs leads to only first being
+       * delivered */
+      /* TODO: this goes against the "you can send async whatever you want and
+       * all messages are deliveres in any order, AND breaks cache-efficiency */
+      hpx_lco_wait_reset(s->previous_notif_lco_);
+      hpx_call(s->soma_or_locality_addr_, update_time_dep_action,
+               s->previous_notif_lco_, &gid, sizeof(neuron_id_t), &t,
+               sizeof(spike_time_t));
     }
   }
-
-  // printf("\n");
 }
 
 hpx_action_t TimeDependencySynchronizer::UpdateTimeDependency = 0;
@@ -437,9 +426,11 @@ int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
   const spike_time_t dependency_time = *(const spike_time_t*)args[1];
   const bool init_phase = nargs == 3 ? *(const bool*)args[2] : false;
 
+#ifdef PRINT_TIME_DEPENDENCY
   printf("    #### neuron %d is notified by %d of time %.4f\n",
-        local->soma_->gid_, pre_neuron_id, dependency_time);
+         local->soma_->gid_, pre_neuron_id, dependency_time);
   assert(local->soma_ && local->soma_->synchronizer_neuron_info_);
+#endif
   TimeDependencies* time_dependencies =
       (TimeDependencies*)local->soma_->synchronizer_neuron_info_;
   time_dependencies->UpdateTimeDependency(

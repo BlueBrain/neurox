@@ -46,17 +46,16 @@ Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
   this->next_notification_time_ =
       input_params_->tstart_ + teps + this->min_delay_ * notification_ratio;
-  this->previous_spike_lco_ = hpx_lco_future_new(0);
-  hpx_lco_set_rsync(
-      this->previous_spike_lco_, 0,
-      NULL);  // starts as set and will be reset when synapses happen
+  this->previous_notif_lco_ = hpx_lco_future_new(0);
+  // starts LCOs as set and will be reset when synapses happen
+  hpx_lco_set_rsync(this->previous_notif_lco_, 0, NULL);
 #ifndef NDEBUG
   this->destination_gid_ = destination_gid;
 #endif
 }
 
 Neuron::Synapse::~Synapse() {
-  if (previous_spike_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_spike_lco_);
+  if (previous_notif_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_notif_lco_);
 }
 
 size_t Neuron::GetSynapsesCount() {
@@ -91,7 +90,7 @@ void Neuron::LinearizeSynapses() {
     Neuron::Synapse* s2 = synapses_linear_->At(i);
     assert(s1->branch_addr_ == s2->branch_addr_);
     assert(s1->min_delay_ == s2->min_delay_);
-    assert(s1->previous_spike_lco_ == s2->previous_spike_lco_);
+    assert(s1->previous_notif_lco_ == s2->previous_notif_lco_);
     assert(s1->soma_or_locality_addr_ == s2->soma_or_locality_addr_);
   }
 #endif
