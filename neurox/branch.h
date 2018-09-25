@@ -9,6 +9,7 @@
 #include <vector>
 
 using namespace neurox;
+using namespace tools;
 
 namespace neurox {
 
@@ -42,8 +43,13 @@ class Branch {
          PointProcInfo* vecplay_ppi, size_t vecplay_ppi_count,
          NetconX* netcons_, size_t netcons_count, neuron_id_t* netcons_pre_ids,
          size_t netcons_pre_ids_count, floble_t* weights, size_t weights_count,
-         unsigned char* vdata_serialized, size_t vdata_serialized_count);
+         unsigned char* vdata_serialized, size_t vdata_serialized_count,
+         neuron_id_t soma_gid, floble_t soma_ap_threshold);
   ~Branch();
+
+  /// if using cache-effificent representation, all data is serialized here
+  unsigned char* buffer_;
+  size_t buffer_size_;
 
   /// clears a given Memb_list structure
   static void ClearMembList(Memb_list*&);
@@ -100,7 +106,7 @@ class Branch {
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
-  } * mechs_graph_;  ///> parallel computation graph of mechanisms
+  }* mechs_graph_;  ///> parallel computation graph of mechanisms
 
   class BranchTree {
    public:
@@ -144,22 +150,26 @@ class Branch {
 
     static hpx_action_t InitLCOs;  ///> Initializes neuronTree
     static int InitLCOs_handler();
-  } * branch_tree_;  ///> represents the tree structure (or NULL if none)
+  }* branch_tree_;  ///> represents the tree structure (or NULL if none)
 
   /// map of incoming netcons per pre-synaptic gid
   std::map<neuron_id_t, std::vector<NetconX*> > netcons_;
 
+  linear::Map<neuron_id_t, NetconX>* netcons_linear_;
+
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
-                      std::greater_equal<TimedEvent> >
-      events_queue_;
+                      std::greater_equal<TimedEvent> > events_queue_;
+
+  /// for a neuron_id_t, gives the next Event* on the list
+  /// (we use Event* cause it points to data structs thar are linearized)
+  linear::PriorityQueue<neuron_id_t, TimedEvent>* events_queue_linear_;
 
   /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;
 
   static hpx_action_t Init;  ///> Initializes the diagonal matrix and branching
 
-  static hpx_action_t InitSoma;             ///> Initializes soma information
   static hpx_action_t InitMechanismsGraph;  ///> Initializes mechanisms graph
   static hpx_action_t InitMechParallelism;  ///> Initializes M.I.P.
   static hpx_action_t Initialize;  ///> Initializes interpolator for this neuron
@@ -193,14 +203,13 @@ class Branch {
   interpolators::Interpolator* interpolator_;
 
  private:
-  static int Init_handler(const int, const void* [], const size_t[]);
-  static int InitSoma_handler(const int, const void* [], const size_t[]);
+  static int Init_handler(const int, const void * [], const size_t[]);
   static int InitMechanismsGraph_handler();
   static int InitMechParallelism_handler();
   static int Initialize_handler();
   static int Clear_handler();
-  static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
-  static int AddSpikeEventLocality_handler(const int, const void* [],
+  static int AddSpikeEvent_handler(const int, const void * [], const size_t[]);
+  static int AddSpikeEventLocality_handler(const int, const void * [],
                                            const size_t[]);
   static int ThreadTableCheck_handler();
   static int SetSyncStepTrigger_handler(const hpx_t*, const size_t);

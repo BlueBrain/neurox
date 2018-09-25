@@ -51,6 +51,7 @@ class CmdLineParser {
   bool graph_mechs_parallelism_;     ///> graph-based parallelism of mechanisms
   bool mech_instances_parallelism_;  ///> mechanisms parallelism
   bool locality_comm_reduce_;        ///> locality-based communication reduction
+  bool neurons_scheduler_;           ///> last neuron goest first scheduler
 
   /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;

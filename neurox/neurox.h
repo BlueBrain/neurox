@@ -1,10 +1,9 @@
 #pragma once
-
-// Debug flags
-// #define NEUROX_PRINT_TIME_DEPENDENCY
-// #define NDEBUG
-
 #include "hpx/hpx.h"
+
+// debug flags
+//#define PRINT_TIME_DEPENDENCY
+//#define PRINT_TIME_DEPENDENCY_STEP_SIZE
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
@@ -21,6 +20,11 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 #include "neurox/mechanism.h"
 #include "neurox/netcon.h"
 #include "neurox/vecplay_continuous.h"
+
+// linear memory (cache-efficient) containers
+#include "neurox/tools/linear/map.h"
+#include "neurox/tools/linear/priority_queue.h"
+#include "neurox/tools/linear/vector.h"
 
 // morphology classes (branches, neuron) and Hines solver
 #include "neurox/branch.h"
@@ -105,6 +109,12 @@ extern std::map<neuron_id_t, std::vector<hpx_t>> *netcons_somas_;
 /** execution-time ordered set of branches and-gates (hpx_t).
  * Useful for locality based TimeDependency-based synchronizer */
 extern set<pair<floble_t, hpx_t>> *neurons_progress_;
+
+/** queue of neurons that are to be run next */
+extern std::queue<hpx_t> *neurons_progress_queue_;
+
+// TODO delete
+extern std::map<hpx_t, neuron_id_t> *from_hpx_to_gid;
 
 /** mutex to locality::neurons_progress_ */
 extern hpx_t neurons_progress_mutex_;

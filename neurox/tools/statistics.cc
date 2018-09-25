@@ -14,9 +14,9 @@ Statistics::SizeInfo::SizeInfo()
       global_vars_(0),
       compartments_count_(0),
       branches_count_(0),
-      mechs_instances_count_(0){};
+      mechs_instances_count_(0) {};
 
-Statistics::SizeInfo::~SizeInfo(){};
+Statistics::SizeInfo::~SizeInfo() {};
 
 double Statistics::SizeInfo::getTotalSize() {
   return morphologies_ + mechanisms_ + synapses_ + metadata_ + global_vars_;
@@ -166,7 +166,7 @@ int Statistics::GetNeuronSize_handler() {
     SizeInfo* sub_branches_size = new SizeInfo[branches_count];
 
     hpx_t* futures = new hpx_t[branches_count];
-    void** addrs = new void*[branches_count];
+    void** addrs = new void* [branches_count];
     size_t* sizes = new size_t[branches_count];
     for (offset_t c = 0; c < branches_count; c++) {
       futures[c] = hpx_lco_future_new(sizeof(SizeInfo));
@@ -251,12 +251,12 @@ int Statistics::GetNeuronMechanismsDistribution_handler() {
   if (local->branch_tree_ && local->branch_tree_->branches_count_ > 0) {
     int branches_count = local->branch_tree_->branches_count_;
 
-    unsigned** mechs_count_per_type_child = new unsigned*[branches_count];
+    unsigned** mechs_count_per_type_child = new unsigned* [branches_count];
     for (int c = 0; c < branches_count; c++)
       mechs_count_per_type_child[c] = new unsigned[mechanisms_count_];
 
     hpx_t* futures = new hpx_t[branches_count];
-    void** addrs = new void*[branches_count];
+    void** addrs = new void* [branches_count];
     size_t* sizes = new size_t[branches_count];
     for (offset_t c = 0; c < branches_count; c++) {
       futures[c] = hpx_lco_future_new(sizeof(unsigned[mechanisms_count_]));
