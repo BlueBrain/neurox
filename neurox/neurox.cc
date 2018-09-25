@@ -25,8 +25,10 @@ std::vector<hpx_t> *locality::neurons_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_branches_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_somas_ = nullptr;
 set<pair<floble_t, hpx_t>> *locality::neurons_progress_ = nullptr;
+std::queue<hpx_t> *locality::neurons_progress_queue_ = nullptr;
 hpx_t locality::neurons_progress_mutex_ = HPX_NULL;
 hpx_t locality::neurons_scheduler_sema_ = HPX_NULL;
+std::map<hpx_t, neuron_id_t> *locality::from_hpx_to_gid = nullptr;
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -55,7 +57,7 @@ static int Main_handler() {
   DebugMessage("neurox::input::DataLoader::InitNetcons...\n");
   CallAllNeurons(input::DataLoader::InitNetcons);
   DebugMessage("neurox::input::DataLoader::FilterLocalitySynapses...\n");
-  CallAllNeurons(input::DataLoader::FilterRepeatedLocalitySynapses);
+  CallAllNeurons(input::DataLoader::FilterRepeatedAndLinearizeSynapses);
   DebugMessage("neurox::input::DataLoader::Finalize...\n");
   CallAllLocalities(input::DataLoader::Finalize);
   DebugMessage("neurox::Branch::BranchTree::InitLCOs...\n");
@@ -101,7 +103,8 @@ static int Main_handler() {
     CallAllNeurons(Synchronizer::CallInitNeuron);
 
     hpx_time_t time_now = hpx_time_now();
-    if (input_params_->locality_comm_reduce_)
+    if (input_params_->locality_comm_reduce_ ||
+        input_params_->neurons_scheduler_)
       CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
     else
       CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
@@ -115,18 +118,21 @@ static int Main_handler() {
 
 #ifdef NDEBUG
     // output benchmark info
-    printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f\n",
-           neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
-           neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-           input_params_->tstop_, synchronizer_->GetId(),
-           input_params_->graph_mechs_parallelism_ ? 1 : 0,
-           input_params_->mech_instances_parallelism_ ? 1 : 0,
-           input_params_->mech_instance_percent_per_block,
-           input_params_->branch_parallelism_ ? 1 : 0,
-           input_params_->subtree_complexity,
-           input_params_->load_balancing_ ? 1 : 0,
-           input_params_->subsection_complexity,
-           input_params_->locality_comm_reduce_ ? 1 : 0, time_elapsed);
+    printf(
+        "csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",
+        neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
+        neurox::neurons_count_ / (double)hpx_get_num_ranks(),
+        input_params_->tstop_, synchronizer_->GetId(),
+        input_params_->graph_mechs_parallelism_ ? 1 : 0,
+        input_params_->mech_instances_parallelism_ ? 1 : 0,
+        input_params_->mech_instance_percent_per_block,
+        input_params_->branch_parallelism_ ? 1 : 0,
+        input_params_->subtree_complexity,
+        input_params_->load_balancing_ ? 1 : 0,
+        input_params_->subsection_complexity,
+        input_params_->locality_comm_reduce_ ? 1 : 0,
+        Mechanism::time_spent_in_mechs_ / 1e9,  // nano secs to secs
+        time_elapsed);
     fflush(stdout);
 #endif
     CallAllNeurons(Synchronizer::CallClearNeuron);
@@ -144,8 +150,7 @@ static int Main_handler() {
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
   DebugMessage(string("neurox::total time: " +
-                      std::to_string(total_elapsed_time) + " secs\n")
-                   .c_str());
+                      std::to_string(total_elapsed_time) + " secs\n").c_str());
   hpx_exit(0, NULL);
 }
 
@@ -157,7 +162,8 @@ int Clear_handler() {
   delete[] neurox::mechanisms_map_;
   delete synchronizer_;
 
-  if (input_params_->locality_comm_reduce_) {
+  if (input_params_->locality_comm_reduce_ ||
+      input_params_->neurons_scheduler_) {
     (*neurox::locality::neurons_).clear();
     (*neurox::locality::netcons_branches_).clear();
     (*neurox::locality::netcons_somas_).clear();

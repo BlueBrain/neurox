@@ -22,8 +22,8 @@ class Debugger {
   static bool IsEqual(floble_t a, floble_t b, bool roughlyEqual = false);
 
   static void CompareAllBranches();  ///> compares all branches wth Coreneuron
-  static void CompareBranch2(
-      Branch *branch);  ///> compares a branch to Coreneuron data structures
+  static void CompareBranch2(Branch *branch);  ///> compares a branch to
+                                               ///Coreneuron data structures
   static void CompareMechanismsFunctions();
 
   /// compares a branch to CoreNeuron data structures

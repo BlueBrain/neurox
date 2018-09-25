@@ -5,6 +5,8 @@
 #include <deque>
 #include <set>
 
+using namespace tools;
+
 namespace neurox {
 
 /// forward declarations
@@ -47,16 +49,17 @@ class Neuron {
     /// address of top-branch (soma) or locality of destination neuron
     hpx_t soma_or_locality_addr_;
 
-#ifndef NDEBUG
+    //#if !defined(NDEBUG) || defined(PRINT_TIME_DEPENDENCY)
     int destination_gid_;
-#endif
+    //#endif
+
     ///  next time this post-syn neuron needs to be informed of my actual time
     floble_t next_notification_time_;
 
     /// interval  of notification in case of no spykes (fastest Netcon from
     /// current neuron to dependant-neuron or dependant-locality)
     floble_t min_delay_;
-    hpx_t previous_spike_lco_;  ///>lco controlling spikes delivery
+    hpx_t previous_synapse_lco_;  ///>lco controlling spikes delivery
   };
 
   /// fires AP, returns LCO for sent synapses
@@ -68,11 +71,17 @@ class Neuron {
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse*);
 
+  /// copy data from synapses_ to synapses_linear_
+  void LinearizeSynapses();
+
   /// get size of vector synapse
   size_t GetSynapsesCount();
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
+
+  /// linear data container of synapses
+  linear::Vector<Synapse>* synapses_linear_;
 
   /// Synchronizer-dependent metadata
   synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
@@ -85,5 +94,7 @@ class Neuron {
 
   ///  PreSynHelper* psh->flag (whether spikes for a given AP have been sent)
   bool synapses_transmission_flag_;
+
+  unsigned char* synapses_linear_buffer_;
 };  // Neuron
 };  // namespace neurox

@@ -75,8 +75,7 @@ void tools::Vectorizer::ConvertToSOA(Branch* b) {
 
     for (int n = 0; n < instances->nodecount; n++)  // for every node
     {
-      for (size_t i = 0; i < mechanisms_[m]->data_size_;
-           i++)  // for every variable
+      for (size_t i = 0; i < mechanisms_[m]->data_size_; i++)  // and varable
       {
         int old_offset = mechanisms_[m]->data_size_ * n + i;
         int new_offset = SizeOf(instances->nodecount) * i + n;
@@ -179,7 +178,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     Memb_list** ml_no_capacitors_ptr,  // out (optional)
     Memb_list** ml_capacitors_ptr,     // out (optional)
     std::set<int>* capacitor_ids_ptr   // in  (optional)
-) {
+    ) {
   // if not provided, build list of capacitor ids
   std::set<int> new_capacitor_ids;
   if (capacitor_ids_ptr == nullptr) {
@@ -344,18 +343,76 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
 }
 
 void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
-  /* compute mech-instances per thread for state and current funtions */
-  double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock();
+  // First step: measuse compute times
+  NrnThread* nt = b->nt_;
+  const int benchmark_iterations = 200;
+  hpx_time_t now;
 
-  // benchmark of all mechanisns instances has not been performed yet
-  if (max_workload == 0) return;
+  // memory for runtime of individual instances
+  std::vector<double> state_func_runtime(mechanisms_count_);
+  std::vector<double> current_func_runtime(mechanisms_count_);
+  double total_state_instances_runtime = 0;
+  double total_current_instances_runtime = 0;
+
+  for (int m = 0; m < neurox::mechanisms_count_; m++) {
+    Mechanism* mech = neurox::mechanisms_[m];
+    Memb_list* ml = &b->mechs_instances_[m];
+    int type = mech->type_;
+
+    /* benchmark state function */
+    if (mech->memb_func_.state) {
+      now = hpx_time_now();
+      for (int i = 0; i < benchmark_iterations; i++)
+        mech->memb_func_.state(nt, ml, type);
+
+      // average time per instance per node
+      state_func_runtime[m] =
+          hpx_time_elapsed_ns(now) / (double)benchmark_iterations;
+      total_state_instances_runtime += state_func_runtime[m];
+      state_func_runtime[m] /= (double)ml->nodecount;
+    }
+
+    /* benchmark current function (capacitance is an exception) */
+    if (type == MechanismTypes::kCapacitance || mech->memb_func_.current) {
+      now = hpx_time_now();
+      for (int i = 0; i < benchmark_iterations; i++)
+        mech->memb_func_.current(nt, ml, type, nullptr, nullptr, nullptr);
+      current_func_runtime[m] =
+          hpx_time_elapsed_ns(now) / (double)benchmark_iterations;
+      total_current_instances_runtime += current_func_runtime[m];
+      current_func_runtime[m] /= (double)ml->nodecount;
+    }
+  }
+
+#ifndef NDEBUG
+  printf("neuron gid %d: total runtime: state %.3f ns, current %.3f ns\n",
+         nt->id, total_state_instances_runtime,
+         total_current_instances_runtime);
+  for (int m = 0; m < neurox::mechanisms_count_; m++)
+    printf("neuron gid %d: mech type %d: state %.8f ns, current %.8f ns\n",
+           nt->id, mechanisms_[m]->type_, state_func_runtime[m],
+           current_func_runtime[m]);
+#endif
+
+  /* compute mech-instances per thread for state and current funtions */
+  assert(total_state_instances_runtime > 0 &&
+         total_current_instances_runtime > 0);
+  const int parallel_simd_instructions_count =
+      input_params_->processor_cache_line_size_l1_ / sizeof(double);
 
   // build memb_lists for parallel processing of mechanisms
   b->mechs_instances_parallel_ =
       new Mechanism::MembListThreadArgs[mechanisms_count_];
 
-  enum funcs { State = 0, Current = 1, Count = 2 };
+  enum funcs {
+    State = 0,
+    Current = 1,
+    Count = 2
+  };
   for (int f = 0; f < funcs::Count; f++) {
+    double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock(
+        f == funcs::State ? total_state_instances_runtime
+                          : total_current_instances_runtime);
     for (int m = 0; m < neurox::mechanisms_count_; m++) {
       Mechanism* mech = neurox::mechanisms_[m];
       Memb_list* ml = &b->mechs_instances_[m];
@@ -364,25 +421,36 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           &b->mechs_instances_parallel_[m];
 
       /* compute the number of instances per thread thread */
-      double instance_runtime = f == funcs::State ? mech->state_func_runtime_
-                                                  : mech->current_func_runtime_;
+      double instance_runtime =
+          f == funcs::State ? state_func_runtime[m] : current_func_runtime[m];
 
-      int cluster_size = 0, cluster_count = 1;
+      int cluster_size = ml->nodecount, cluster_count = 1;
       /* if instance_runtime==0, then mod-function is not defined */
-      /* if ml->nodecount==0, there is no instances of this mechanism here */
       if (instance_runtime > 0 && ml->nodecount > 0) {
-        /* cluster size is the number of instances that fits the max workload */
+        // cluster size is the number of instances that fits the max workload
+        //(that fully utilize the processor cache line size)
         cluster_size = std::ceil(max_workload / instance_runtime);
         assert(cluster_size > 0);
+        if (cluster_size % parallel_simd_instructions_count != 0)
+          cluster_size += parallel_simd_instructions_count -
+                          cluster_size % parallel_simd_instructions_count;
+        assert(cluster_size % parallel_simd_instructions_count == 0);
 
-        /* cluster count is the number of parallel threads to be spawned */
+        if (cluster_size > ml->nodecount) cluster_size = ml->nodecount;
+
         cluster_count = std::ceil((double)ml->nodecount / (double)cluster_size);
+
+        // cluster count is the number of parallel threads to be spawned
         assert(cluster_count > 0);
       }
-
       //#ifndef NDEBUG
-      printf("neuron gid %d, mech %d: cluster_size %d, cluster_count %d\n",
-             b->soma_->gid_, mech->type_, cluster_size, cluster_count);
+      assert(ml->nodecount <= cluster_size * cluster_count);
+      assert(ml->nodecount >= cluster_size * (cluster_count - 1));
+      printf(
+          "neuron gid %d, mech %d, %s: node_count %d, cluster_size %d, "
+          "cluster_count %d\n",
+          b->soma_->gid_, mech->type_, f == funcs::State ? "state" : "current",
+          ml->nodecount, cluster_size, cluster_count);
       //#endif
 
       /* if cluster_count==1, does not need threaded execution */
@@ -438,10 +506,12 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           /* graph-parallelism */
           b->mechs_graph_
           /* not CaDynamics_E2 (no updates in cur function) */
-          && mech->type_ != MechanismTypes::kCaDynamics_E2
-          /* not ion (updates in nrn_cur_ion function) */
-          && !mech->is_ion_
-          /* not capacitance-only current function */
+          &&
+          mech->type_ != MechanismTypes::kCaDynamics_E2
+              /* not ion (updates in nrn_cur_ion function) */
+          &&
+          !mech->is_ion_
+           /* not capacitance-only current function */
           &&
           !(mech->type_ == MechanismTypes::kCapacitance && f == funcs::Current);
 

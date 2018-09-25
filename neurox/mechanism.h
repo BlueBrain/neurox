@@ -76,10 +76,6 @@ class Mechanism {
 
   int dependency_ion_index_;  ///> index of parent ion (if any)
 
-  // Variables for mechanism-instances parallelism
-  double current_func_runtime_;  ///> runtime of current function
-  double state_func_runtime_;    ///> runtime of state function
-
   // from memb_func.h (before after functions not used on BBP models)
   Memb_func memb_func_;
   mod_f_t before_after_functions_[BEFORE_AFTER_SIZE];  ///>mechanism functions
@@ -101,7 +97,7 @@ class Mechanism {
     int count_;         ///> number of cvode state variables
     int *var_offsets_;  ///>offset of state vars in ml->data
     int *dv_offsets_;   ///> offset of dx/dV for state vars
-  } * state_vars_;
+  } *state_vars_;
 
   enum ModFunctions {
     // BA functions start here (of size BEFORE_AFTER_SIZE)
@@ -136,11 +132,12 @@ class Mechanism {
 
   Mechanism::IonTypes GetIonIndex();
 
-  void CallModFunction(
-      const void *branch, const Mechanism::ModFunctions function_id,
-      Memb_list *other_ml = nullptr,    // user-provided Memb_list (if any)
-      const NetconX *netcon = nullptr,  // net_receive only
-      const floble_t tt = 0);           // net_receive only
+  void CallModFunction(const void *branch,
+                       const Mechanism::ModFunctions function_id,
+                       Memb_list *other_ml =
+                           nullptr,  // user-provided Memb_list (if any)
+                       const NetconX *netcon = nullptr,  // net_receive only
+                       const floble_t tt = 0);           // net_receive only
 
   /// argument to mech-instances threaded calls
   typedef struct MembListThreadArgsStruct {
@@ -158,6 +155,10 @@ class Mechanism {
     mod_acc_f_t acc_di_dv;
     void *acc_args;
   } MembListThreadArgs;
+
+  /// counter for execution time allocated to mechanisms execution
+  static double time_spent_in_mechs_;
+  static hpx_t time_spent_in_mechs_mutex_;
 
  private:
   /// thread function for an instance-parallel call of current function

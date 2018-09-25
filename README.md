@@ -39,6 +39,7 @@ export PATH=$NEUROX_INSTALL_PATH/bin:$PATH
 ```
 
 ## Compilation
+
 ```
 cmake .. -DCMAKE_INSTALL_PREFIX=$NEUROX_INSTALL_PATH
 ```
@@ -53,6 +54,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
          -DCORENEURON_OPENMP=OFF \
          -DDISABLE_NRN_TIMEOUT=ON\
          -DENABLE_DEV_FILES_INSTALLATION=ON \
+         -DCMAKE_CXX_FLAGS="-std=c++11" \  
          \
          -DENABLE_CUDA_MODULES=OFF \
          -DENABLE_NET_RECEIVE_BUFFERING=OFF \
@@ -64,6 +66,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release \
 ```
 
 ## Execution
+
 ```
 ./neurox --help for execution parameters
 ./neurox -d <input-data-folder> -e <execution-time-milisecs> for execution with minimum parameters
@@ -82,6 +85,11 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 ```
 
 - Documentation follows the doxygen (www.doxygen.org) notation and can be exported with `make doc`; 
+
+- Developer note: to collect CPU hotspots with inter VTune (`amplxe-cl --help` for details):
+```
+amplxe-cl -collect hotspots -r r000hs srun -n 1 ./bin/neurox_exec -d /gpfs/bbp.cscs.ch/project/proj16/bmagalha/Circuits/PCP/1/coreneuron_input
+```
 
 ## Copyright
 

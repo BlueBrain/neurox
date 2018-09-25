@@ -8,6 +8,9 @@ using namespace std;
 using namespace neurox;
 using namespace neurox::interpolators;
 
+double Mechanism::time_spent_in_mechs_ = 0;
+hpx_t Mechanism::time_spent_in_mechs_mutex_ = HPX_NULL;
+
 Mechanism::Mechanism(const int type, const short int data_size,
                      const short int pdata_size, const char is_artificial,
                      char pnt_map, const char is_ion,
@@ -32,9 +35,7 @@ Mechanism::Mechanism(const int type, const short int data_size,
       ode_matsol_(nullptr),
       ode_spec_(nullptr),
       div_capacity_(nullptr),
-      mul_capacity_(nullptr),
-      current_func_runtime_(-1),
-      state_func_runtime_(-1) {
+      mul_capacity_(nullptr) {
   // to be set by neuronx::UpdateMechanismsDependencies
   this->dependency_ion_index_ = Mechanism::IonTypes::kNoIon;
 
@@ -166,7 +167,7 @@ void Mechanism::CallModFunction(
     Memb_list *other_ml,    // other Memb_list (if any)
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
-) {
+    ) {
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -249,9 +250,11 @@ void Mechanism::CallModFunction(
                 /* graph-parallelism */
                 branch->mechs_graph_
                 /* not CaDynamics_E2 (no updates in cur function) */
-                && this->type_ != MechanismTypes::kCaDynamics_E2
-                /* not ion (updates in nrn_cur_ion function) */
-                && (!this->is_ion_);
+                &&
+                this->type_ != MechanismTypes::kCaDynamics_E2
+                    /* not ion (updates in nrn_cur_ion function) */
+                &&
+                (!this->is_ion_);
 
             if (requires_shadow_vectors) {
               mod_acc_f_t acc_rhs_d =

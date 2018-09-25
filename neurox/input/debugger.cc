@@ -335,9 +335,20 @@ void Debugger::CompareBranch2(Branch *branch) {
 
   // make sure netcons are correct
   size_t netconsCount = 0;
-  for (auto nc_it : branch->netcons_) {
-    int srcGid = nc_it.first;
-    netconsCount += nc_it.second.size();
+
+  if (branch->netcons_linear_) {
+    NetconX *ncs;
+    size_t nc_count;
+    auto ncl = branch->netcons_linear_;
+    for (int i = 0; i < ncl->Count(); i++) {
+      ncl->At(ncl->Keys()[i], nc_count, ncs);
+      netconsCount += nc_count;
+    }
+  } else {
+    for (auto nc_it : branch->netcons_) {
+      int srcGid = nc_it.first;
+      netconsCount += nc_it.second.size();
+    }
   }
   assert(nt.n_netcon == netconsCount);
 
@@ -449,7 +460,7 @@ int Debugger::CompareBranch_handler() {
       input_params_->load_balancing_ ||
       input_params_->interpolator_ != InterpolatorIds::kBackwardEuler)
     return neurox::wrappers::MemoryUnpin(target);
-  CompareBranch2(local);  // not implemented for branch-parallelism
+  CompareBranch2(local);
   return neurox::wrappers::MemoryUnpin(target);
 }
 

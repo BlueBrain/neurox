@@ -61,6 +61,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                           "level (better for small cluster).",
                                           cmd, false);
 
+    TCLAP::SwitchArg neurons_scheduler(
+        "H", "scheduler", "last neuron goes first scheduler", cmd, false);
+
     TCLAP::SwitchArg graph_mechs_parallelism(
         "G", "graph-parallelism",
         "activates graph-based parallelism of mechanisms.", cmd, false);
@@ -93,6 +96,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "block (for mech-instance parallelism)",
         false, 0.1, "floble_t");
     cmd.add(mech_instance_percent_per_block);
+
+    TCLAP::ValueArg<int> processor_cache_line_size_l1(
+        "", "L1", "processor Level-1 cache line size", false, 64, "int");
+    cmd.add(processor_cache_line_size_l1);
 
     TCLAP::SwitchArg mech_instances_parallelism(
         "M", "mech-parallelism", "parallelism of mechanisms instances", cmd,
@@ -207,6 +214,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->graph_mechs_parallelism_ = graph_mechs_parallelism.getValue();
     this->mech_instances_parallelism_ = mech_instances_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
+    this->neurons_scheduler_ = neurons_scheduler.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_ = branch_parallelism.getValue();
     this->synchronizer_ =
@@ -220,6 +228,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->subsection_complexity = subsection_complexity.getValue();
     this->mech_instance_percent_per_block =
         mech_instance_percent_per_block.getValue();
+    this->processor_cache_line_size_l1_ =
+        processor_cache_line_size_l1.getValue();
 
     if (this->tstop_ <= 0)
       throw TCLAP::ArgException(
@@ -283,8 +293,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
           "-C or --comm-reduce");
       this->locality_comm_reduce_ = true;
     }
-
-  } catch (TCLAP::ArgException& e) {
+  }
+  catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
     exit(1);
   }

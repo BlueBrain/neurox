@@ -43,11 +43,9 @@ class LoadBalancing {
   static double GetMaxWorkPerBranchSubSection(const double neuron_time,
                                               const int my_neurons_count);
 
-  /// sums given runtime to variable total_mech_instances_runtime_
-  static void AddToTotalMechInstancesRuntime(double);
-
   /// returns the workload assigned to each cluster of mech instances
-  static double GetWorkloadPerMechInstancesBlock();
+  static double GetWorkloadPerMechInstancesBlock(
+      const double total_mech_instances_runtime);
 
   /// register all HPX actions related to this class;
   static void RegisterHpxActions();
@@ -58,9 +56,6 @@ class LoadBalancing {
 
   /// mutex for loadBalancingTable
   static hpx_t load_balancing_mutex_;
-
-  /// total time spent on current+state mechanisms execution
-  static double total_mech_instances_runtime_;
 };
 
 };  // namespace tools
