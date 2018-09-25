@@ -266,7 +266,7 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     } else {
 #ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
       if (has_scheduler)
-        printf("step_scheduler,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
+        printf("step,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
                local->soma_->gid_, t, tpause, tpause - t);
 #endif
       spikes_lco = interpolator->StepTo(local, tpause);
@@ -289,8 +289,8 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-#ifndef NDEBUG
-  // TODO it needs to inform others, to be sure they can step!
+#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
+  // TODO it needs to inform others, to be sure they can step?
   printf("## Neuron %d finished.\n", local->soma_->gid_);
 #endif
   NEUROX_MEM_UNPIN;

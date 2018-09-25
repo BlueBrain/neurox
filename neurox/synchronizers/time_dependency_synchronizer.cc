@@ -198,7 +198,6 @@ void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
   // if no dependencies, walk to the end of the simulation
-  // TODO this only works if This is the first sync in the benchmarks (tstop?)
   if (dependencies_max_time_allowed_.empty()) return input_params_->tstop_;
 
   return std::min_element(dependencies_max_time_allowed_.begin(),
@@ -286,21 +285,13 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b) {
-  // TODO if it deadlocks, i changed this:
-  // return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
-  floble_t dt = std::min(input_params_->tstop_ - b->nt_->_t,
-                         neurox::min_synaptic_delay_ - 0.0001);
-  return WaitForTimeDependencyNeurons(b, dt);
+  return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.empty()) {
-#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
-    printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
-           b->soma_->gid_, b->nt_->_t, b->nt_->_t + dt, dt);
-#endif
     return;
   }
 
@@ -332,11 +323,6 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
            GetDependenciesMinTime());
 #endif
   } else {
-#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
-    floble_t dep_time = GetDependenciesMinTime();
-    printf("step_neuron,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
-           b->nt_->id, t, dep_time, dep_time - t);
-#endif
 #ifdef PRINT_TIME_DEPENDENCY
     printf("== %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
            gid, GetDependenciesMinTime(), t + dt);
