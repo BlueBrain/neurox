@@ -2,8 +2,8 @@
 #include "hpx/hpx.h"
 
 // debug flags
-// #define PRINT_TIME_DEPENDENCY
-#define PRINT_TIME_DEPENDENCY_STEP_SIZE
+#define PRINT_TIME_DEPENDENCY
+//#define PRINT_TIME_DEPENDENCY_STEP_SIZE
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
