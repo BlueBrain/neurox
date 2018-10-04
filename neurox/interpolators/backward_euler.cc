@@ -63,6 +63,7 @@ hpx_t BackwardEuler::Step(Branch *branch, bool benchmark) {
 
       // Soma waits for AIS to have threshold V value updated
       floble_t threshold_v = HinesSolver::GetAxonInitialSegmentVoltage(branch);
+
       if (branch->soma_->CheckAPthresholdAndTransmissionFlag(threshold_v))
         spikes_lco = branch->soma_->SendSpikes(nt->_t);
     }

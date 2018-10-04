@@ -46,16 +46,17 @@ Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
   this->next_notification_time_ =
       input_params_->tstart_ + teps + this->min_delay_ * notification_ratio;
-  this->previous_notif_lco_ = hpx_lco_future_new(0);
+  this->previous_synapse_lco_ = hpx_lco_future_new(0);
   // starts LCOs as set and will be reset when synapses happen
-  hpx_lco_set_rsync(this->previous_notif_lco_, 0, NULL);
-//#ifndef NDEBUG
+  hpx_lco_set_rsync(this->previous_synapse_lco_, 0, NULL);
+  //#ifndef NDEBUG
   this->destination_gid_ = destination_gid;
-//#endif
+  //#endif
 }
 
 Neuron::Synapse::~Synapse() {
-  if (previous_notif_lco_ != HPX_NULL) hpx_lco_delete_sync(previous_notif_lco_);
+  if (previous_synapse_lco_ != HPX_NULL)
+    hpx_lco_delete_sync(previous_synapse_lco_);
 }
 
 size_t Neuron::GetSynapsesCount() {
@@ -77,8 +78,8 @@ void Neuron::AddSynapse(Synapse* syn) {
 void Neuron::LinearizeSynapses() {
   size_t size = linear::Vector<Synapse>::Size(synapses_.size());
   synapses_linear_ = (linear::Vector<Synapse>*)new unsigned char[size];
-  new (synapses_linear_)
-      linear::Vector<Synapse>(synapses_, (unsigned char*)synapses_linear_);
+  new (synapses_linear_) linear::Vector<Synapse>(
+      synapses_, (unsigned char*)synapses_linear_);
 #ifndef NDEBUG
   assert(synapses_.size() == synapses_linear_->Count());
   size_t syn_count = GetSynapsesCount();
@@ -90,7 +91,7 @@ void Neuron::LinearizeSynapses() {
     Neuron::Synapse* s2 = synapses_linear_->At(i);
     assert(s1->branch_addr_ == s2->branch_addr_);
     assert(s1->min_delay_ == s2->min_delay_);
-    assert(s1->previous_notif_lco_ == s2->previous_notif_lco_);
+    assert(s1->previous_synapse_lco_ == s2->previous_synapse_lco_);
     assert(s1->soma_or_locality_addr_ == s2->soma_or_locality_addr_);
   }
 #endif
@@ -117,7 +118,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   const spike_time_t tt =
       (spike_time_t)t + 1e-10;  // Coreneuron logic, do not change!
 #if !defined(NDEBUG)
-  printf("== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
+  fprintf(stderr, "== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
   if (GetSynapsesCount() == 0) return HPX_NULL;

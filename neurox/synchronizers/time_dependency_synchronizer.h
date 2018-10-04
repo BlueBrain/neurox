@@ -30,6 +30,9 @@ class TimeDependencySynchronizer : public Synchronizer {
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
                           spike_time_t dependency_time) override;
 
+  //// For debugging purposes: outputs dependencies of given branch
+  static double PrintDependencies(Branch*);
+
   static hpx_action_t UpdateTimeDependency;
   static hpx_action_t UpdateTimeDependencyLocality;
 
@@ -61,6 +64,9 @@ class TimeDependencySynchronizer : public Synchronizer {
     /// increase time of all dependencies by 't'
     void IncreseDependenciesTime(floble_t t);
 
+    //// For debugging purposes: outputs dependencies of given branch
+    static double PrintDependencies(Branch*);
+
     /// ratio of notification interval (0,1]
     static constexpr const floble_t kNotificationIntervalRatio = 1;
 
@@ -90,9 +96,9 @@ class TimeDependencySynchronizer : public Synchronizer {
   };
 
  private:
-  static int UpdateTimeDependency_handler(const int, const void* [],
+  static int UpdateTimeDependency_handler(const int, const void * [],
                                           const size_t[]);
-  static int UpdateTimeDependencyLocality_handler(const int, const void* [],
+  static int UpdateTimeDependencyLocality_handler(const int, const void * [],
                                                   const size_t[]);
 };
 

@@ -106,7 +106,7 @@ class Branch {
     static void AccumulateIandDIDV(NrnThread* nt, Memb_list* ml, int,
                                    void* args);
 
-  } * mechs_graph_;  ///> parallel computation graph of mechanisms
+  }* mechs_graph_;  ///> parallel computation graph of mechanisms
 
   class BranchTree {
    public:
@@ -150,7 +150,7 @@ class Branch {
 
     static hpx_action_t InitLCOs;  ///> Initializes neuronTree
     static int InitLCOs_handler();
-  } * branch_tree_;  ///> represents the tree structure (or NULL if none)
+  }* branch_tree_;  ///> represents the tree structure (or NULL if none)
 
   /// map of incoming netcons per pre-synaptic gid
   std::map<neuron_id_t, std::vector<NetconX*> > netcons_;
@@ -159,8 +159,7 @@ class Branch {
 
   /// priority queue of incoming events sorted per delivery time
   std::priority_queue<TimedEvent, std::vector<TimedEvent>,
-                      std::greater_equal<TimedEvent> >
-      events_queue_;
+                      std::greater_equal<TimedEvent> > events_queue_;
 
   /// for a neuron_id_t, gives the next Event* on the list
   /// (we use Event* cause it points to data structs thar are linearized)
@@ -204,13 +203,13 @@ class Branch {
   interpolators::Interpolator* interpolator_;
 
  private:
-  static int Init_handler(const int, const void* [], const size_t[]);
+  static int Init_handler(const int, const void * [], const size_t[]);
   static int InitMechanismsGraph_handler();
   static int InitMechParallelism_handler();
   static int Initialize_handler();
   static int Clear_handler();
-  static int AddSpikeEvent_handler(const int, const void* [], const size_t[]);
-  static int AddSpikeEventLocality_handler(const int, const void* [],
+  static int AddSpikeEvent_handler(const int, const void * [], const size_t[]);
+  static int AddSpikeEventLocality_handler(const int, const void * [],
                                            const size_t[]);
   static int ThreadTableCheck_handler();
   static int SetSyncStepTrigger_handler(const hpx_t*, const size_t);

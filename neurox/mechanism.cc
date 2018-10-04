@@ -167,7 +167,7 @@ void Mechanism::CallModFunction(
     Memb_list *other_ml,    // other Memb_list (if any)
     const NetconX *netcon,  // for net_receive only
     const floble_t tt       // for net_receive only
-) {
+    ) {
   const Branch *branch = (Branch *)branch_ptr;
   assert(branch);
   NrnThread *nt = branch->nt_;
@@ -250,9 +250,11 @@ void Mechanism::CallModFunction(
                 /* graph-parallelism */
                 branch->mechs_graph_
                 /* not CaDynamics_E2 (no updates in cur function) */
-                && this->type_ != MechanismTypes::kCaDynamics_E2
-                /* not ion (updates in nrn_cur_ion function) */
-                && (!this->is_ion_);
+                &&
+                this->type_ != MechanismTypes::kCaDynamics_E2
+                    /* not ion (updates in nrn_cur_ion function) */
+                &&
+                (!this->is_ion_);
 
             if (requires_shadow_vectors) {
               mod_acc_f_t acc_rhs_d =

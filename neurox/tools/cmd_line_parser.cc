@@ -293,8 +293,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
           "-C or --comm-reduce");
       this->locality_comm_reduce_ = true;
     }
-
-  } catch (TCLAP::ArgException& e) {
+  }
+  catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
     exit(1);
   }

@@ -49,9 +49,9 @@ class Neuron {
     /// address of top-branch (soma) or locality of destination neuron
     hpx_t soma_or_locality_addr_;
 
-//#if !defined(NDEBUG) || defined(PRINT_TIME_DEPENDENCY)
+    //#if !defined(NDEBUG) || defined(PRINT_TIME_DEPENDENCY)
     int destination_gid_;
-//#endif
+    //#endif
 
     ///  next time this post-syn neuron needs to be informed of my actual time
     floble_t next_notification_time_;
@@ -59,7 +59,7 @@ class Neuron {
     /// interval  of notification in case of no spykes (fastest Netcon from
     /// current neuron to dependant-neuron or dependant-locality)
     floble_t min_delay_;
-    hpx_t previous_notif_lco_;  ///>lco controlling spikes delivery
+    hpx_t previous_synapse_lco_;  ///>lco controlling spikes delivery
   };
 
   /// fires AP, returns LCO for sent synapses

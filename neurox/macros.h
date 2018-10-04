@@ -47,12 +47,12 @@
   }
 
 // hpx wrappers to call methods in all neurons (no args, or only static args)
-#define NEUROX_CALL_ALL_NEURONS(Func, ...)                                   \
-  hpx_par_for_sync(                                                          \
-      [&](int i, void *) -> int {                                            \
-        hpx_call_sync(neurox::neurons[i], Func, HPX_NULL, 0, ##__VA_ARGS__); \
-      },                                                                     \
-      0, neurox::neurons_count, NULL);
+#define NEUROX_CALL_ALL_NEURONS(Func, ...)                                \
+  hpx_par_for_sync([&](int i, void *)->int {                              \
+                     hpx_call_sync(neurox::neurons[i], Func, HPX_NULL, 0, \
+                                   ##__VA_ARGS__);                        \
+                   },                                                     \
+                   0, neurox::neurons_count, NULL);
 
 // hpx wrappers to call methods in all neurons (witg args args)
 #define NEUROX_CALL_ALL_NEURONS_LCO(Func, ...)                \

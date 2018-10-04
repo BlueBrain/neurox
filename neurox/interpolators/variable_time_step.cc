@@ -1,6 +1,6 @@
 #include "neurox/interpolators/variable_time_step.h"
 
-#include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver      */
+#include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver */
 #include "cvodes/cvodes.h"
 
 #include "cvodes/cvodes_spils.h"

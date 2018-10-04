@@ -12,9 +12,9 @@
 
 // For Dense Matrix resolutions
 #include <cvodes/cvodes_direct.h>    /* access to CVDls interface            */
-#include <sundials/sundials_types.h> /* defs. of realtype, sunindextype      */
-#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
-#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
+#include <sundials/sundials_types.h> /* defs. of realtype, sunindextype */
+#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver */
+#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix */
 
 // For Pre-conditioned matrix solvers
 #include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
