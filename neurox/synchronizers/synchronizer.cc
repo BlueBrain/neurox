@@ -159,7 +159,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
         last_neuron_time = last_neuron->first;
         last_neuron_addr = last_neuron->second;
 #ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr, "## scheduler launches set %d %.4f\n",
+        fprintf(stderr, "## %d.%d ## scheduler launches set %d %.4f\n",
+                wrappers::MyRankId(), wrappers::MyThreadId(),
                 locality::from_hpx_to_gid->at(last_neuron_addr),
                 last_neuron_time);
 #endif
@@ -174,7 +175,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
             locality::neurons_progress_queue_->push(last_neuron->second);
             locality::neurons_progress_->erase(last_neuron);
 #ifdef PRINT_TIME_DEPENDENCY
-            fprintf(stderr, "## scheduler queues %d %.12f\n",
+            fprintf(stderr, "## %d.%d ## scheduler queues %d %.12f\n",
+                    wrappers::MyRankId(), wrappers::MyThreadId(),
                     locality::from_hpx_to_gid->at(last_neuron->second),
                     last_neuron->first);
 #endif
@@ -183,7 +185,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
         last_neuron_addr = locality::neurons_progress_queue_->front();
         locality::neurons_progress_queue_->pop();
 #ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr, "## scheduler launches queue %d %.4f (size queue %d)\n",
+        fprintf(stderr, "## %d.%d ## scheduler launches queue %d %.4f (size queue %d)\n",
+                wrappers::MyRankId(), wrappers::MyThreadId(),
                 locality::from_hpx_to_gid->at(last_neuron_addr),
                 last_neuron_time, locality::neurons_progress_queue_->size());
 #endif
@@ -286,7 +289,8 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
         hpx_lco_sema_p(locality::neurons_progress_mutex_);
 #ifdef PRINT_TIME_DEPENDENCY
         fprintf(stderr,
-                "## neuron %d back to neurons priority queue with time  %.4f\n",
+                "## %d.%d ## neuron %d back to neurons priority queue with time  %.4f\n",
+                wrappers::MyRankId(), wrappers::MyThreadId(),
                 local->soma_->gid_, nt->_t);
         TimeDependencySynchronizer::PrintDependencies(local);
 #endif
@@ -308,10 +312,12 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
+#if defined(PRINT_TIME_DEPENDENCY_STEP_SIZE) or defined(PRINT_TIME_DEPENDENCY)
   if (input_params_->neurons_scheduler_)
     // TODO it needs to inform others, to be sure they can step?
-    fprintf(stderr, "## Neuron %d finished.\n", local->soma_->gid_);
+    fprintf(stderr, "## %d.%d ## Neuron %d finished.\n", 
+            wrappers::MyRankId(), wrappers::MyThreadId(),
+            local->soma_->gid_);
 #endif
   NEUROX_MEM_UNPIN;
 }
