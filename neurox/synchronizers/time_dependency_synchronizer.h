@@ -18,6 +18,7 @@ class TimeDependencySynchronizer : public Synchronizer {
   const char* GetString() override;
 
   void InitNeuron(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
   void ClearLocality() override;
 
   double GetNeuronMaxStep(Branch*) override;

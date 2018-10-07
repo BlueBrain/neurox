@@ -135,8 +135,9 @@ static void RegisterAllReduceReduceAction(hpx_action_t& action,
 }
 
 /// get running thread Id
-//inline int MyThreadId() { return hpx_thread_get_tls_id(); } //lightweight thread id
 inline int MyThreadId() { return hpx_get_my_thread_id(); }
+
+inline int MyLightWeightThreadId() { return hpx_thread_get_tls_id(); } 
 
 /// get current locality Id on the network
 inline int MyRankId() { return hpx_get_my_rank(); }

@@ -2,7 +2,8 @@
 #include "hpx/hpx.h"
 
 // debug flags
-#define PRINT_TIME_DEPENDENCY
+//#define PRINT_TIME_DEPENDENCY
+//#define PRINT_TIME_DEPENDENCY_MUTEX
 //#define PRINT_TIME_DEPENDENCY_STEP_SIZE
 
 // typedefs
