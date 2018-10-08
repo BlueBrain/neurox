@@ -524,12 +524,10 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 
   Neuron* neuron = b->soma_;
 
-/*
 #ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr, "-- %d.%d -- neuron %d before sending spikes\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(), neuron->gid_);
+      fprintf(stderr, "-- %d.%d.%d -- neuron %d before sending spikes\n",
+              wrappers::MyRankId(), wrappers::MyThreadId(), wrappers::MyLightWeightThreadId(), neuron->gid_);
 #endif
-*/
 
   // TODO: avoid sending messages that are too close
   // if (t - this->last_notification_time_ < neurox::min_synaptic_delay/2)
