@@ -24,11 +24,15 @@ neurox::synchronizers::Synchronizer *synchronizer_ = nullptr;
 std::vector<hpx_t> *locality::neurons_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_branches_ = nullptr;
 map<neuron_id_t, vector<hpx_t>> *locality::netcons_somas_ = nullptr;
-set<pair<floble_t, hpx_t>> *locality::neurons_progress_ = nullptr;
-std::queue<hpx_t> *locality::neurons_progress_queue_ = nullptr;
-hpx_t locality::neurons_progress_mutex_ = HPX_NULL;
-hpx_t locality::neurons_scheduler_sema_ = HPX_NULL;
+set<pair<floble_t, hpx_t>> *locality::scheduler_neurons_ = nullptr;
+libhpx_mutex_t locality::scheduler_lock_ = HPX_NULL;
+libhpx_cond_t locality::scheduler_wait_condition_ = HPX_NULL;
+hpx_t locality::scheduler_neurons_sema_ = HPX_NULL;
+unsigned locality::scheduler_remaining_neurons_=-1;
+
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
 std::map<hpx_t, neuron_id_t> *locality::from_hpx_to_gid = nullptr;
+#endif
 
 Mechanism *GetMechanismFromType(int type) {
   assert(mechanisms_map_[type] != -1);
@@ -150,7 +154,8 @@ static int Main_handler() {
 
   double total_elapsed_time = hpx_time_elapsed_ms(total_time_now) / 1e3;
   DebugMessage(string("neurox::total time: " +
-                      std::to_string(total_elapsed_time) + " secs\n").c_str());
+                      std::to_string(total_elapsed_time) + " secs\n")
+                   .c_str());
   hpx_exit(0, NULL);
 }
 

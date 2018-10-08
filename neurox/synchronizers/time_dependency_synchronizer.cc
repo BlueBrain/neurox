@@ -28,41 +28,37 @@ const char* TimeDependencySynchronizer::GetString() {
 void TimeDependencySynchronizer::ClearLocality() {}
 
 void TimeDependencySynchronizer::InitNeuron(Branch* b) {
-  if (!b->soma_)
-    return ;
+  if (!b->soma_) return;
 
-    TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+  TimeDependencies* time_dependencies =
+      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
-    /* fixes crash for Synchronizer::All when TimeDependency
-     * synchronizer starts at t=inputParams->tend*2 increase
-     * notification and dependencies time */
-    if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
-      Neuron* neuron = b->soma_;
-      size_t syn_count = neuron->GetSynapsesCount();
-      for (int i = 0; i < syn_count; i++) {
-        Neuron::Synapse* s = neuron->synapses_linear_
-                                 ? neuron->synapses_linear_->At(i)
-                                 : neuron->synapses_.at(i);
-        s->next_notification_time_ += b->nt_->_t;
-      }
-      time_dependencies->IncreseDependenciesTime(b->nt_->_t);
+  /* fixes crash for Synchronizer::All when TimeDependency
+   * synchronizer starts at t=inputParams->tend*2 increase
+   * notification and dependencies time */
+  if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
+    Neuron* neuron = b->soma_;
+    size_t syn_count = neuron->GetSynapsesCount();
+    for (int i = 0; i < syn_count; i++) {
+      Neuron::Synapse* s = neuron->synapses_linear_
+                               ? neuron->synapses_linear_->At(i)
+                               : neuron->synapses_.at(i);
+      s->next_notification_time_ += b->nt_->_t;
     }
+    time_dependencies->IncreseDependenciesTime(b->nt_->_t);
+  }
 }
 
-void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t)
-{
-  if (!b->soma_)
-    return ;
-
-  /* informs all of my end step; tries to fix bug of circular dependency
-   * where neurons would wait for messages from pre-syn and no pre-syn could
-   * walk because they waited for messages from their pre-syns */
-  const bool has_scheduler = b->soma_->synchronizer_step_trigger_;
+void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
+  if (!b->soma_) return;
+  const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   if (has_scheduler) {
     TimeDependencies* time_dependencies =
-      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+    // inform Im at end of step (inside waits for any syn that occured)
     time_dependencies->SendSteppingNotification(b);
+    // wait until min step is allowed (inside it re-adds itself to queue)
+    time_dependencies->WaitForTimeDependencyNeurons(b, kSchedulerMinStep);
   }
 }
 
@@ -76,15 +72,16 @@ double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
   double dependencies_min_time = time_dependencies->GetDependenciesMinTime();
-  fprintf(stderr, "-- %d.%d -- neuron %d t=%.4f, GetDependenciesMinTime()=%.4f\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(),
-          b->soma_->gid_, b->nt_->_t, dependencies_min_time);
+  fprintf(stderr,
+          "-- %d.%d -- neuron %d t=%.4f, GetDependenciesMinTime()=%.4f\n",
+          wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
+          b->nt_->_t, dependencies_min_time);
 
   for (std::pair<neuron_id_t, floble_t> id_time :
        time_dependencies->dependencies_max_time_allowed_)
     printf("   -- pre-syn neuron id %d allows stepping to %.4f ms\n",
-           wrappers::MyRankId(), wrappers::MyThreadId(),
-           id_time.first, id_time.second);
+           wrappers::MyRankId(), wrappers::MyThreadId(), id_time.first,
+           id_time.second);
   for (Neuron::Synapse* s : b->soma_->synapses_)
     printf("  -- post-syn neuron %d, notif time %.4f\n", s->destination_gid_,
            s->next_notification_time_);
@@ -94,22 +91,22 @@ double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
 
 void TimeDependencySynchronizer::StepSync(Branch* b, const floble_t dt) {
   assert(b->soma_);
+  /*if scheduler, send the last step only, and wait for sent spikes.*/
   TimeDependencies* time_dependencies =
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-
-  /* inform time dependants that must be notified in this step */
   time_dependencies->SendSteppingNotification(b, dt);
-
-  /* wait until Im sure I can start and finalize this step at t+dt: */
-  const bool has_scheduler = b->soma_->synchronizer_step_trigger_;
-  if (!has_scheduler) time_dependencies->WaitForTimeDependencyNeurons(b);
+  const bool has_scheduler = b->soma_->scheduler_step_trigger_;
+  if (!has_scheduler) {
+    /* wait until Im sure I can start and finalize this step at t+dt */
+    time_dependencies->WaitForTimeDependencyNeurons(b, dt);
+  }
 }
 
 double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   // at every step we check for notification intervals
   assert(b->soma_);
 
-  const bool has_scheduler = b->soma_->synchronizer_step_trigger_;
+  const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   if (!has_scheduler) return input_params_->tstop_;
 
   /* if a scheduler exists, it steps the last neuron until maximum possible
@@ -118,52 +115,40 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
       (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
   // get or wait for a time to step to value, that is higher than current time
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ neuron %d before libhpx_mutex_lock(&time_dependencies->dependencies_lock_) 10\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ neuron %d before
+  libhpx_mutex_lock(&time_dependencies->dependencies_lock_) 10\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
+  #endif
+  */
   libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ neuron %d after libhpx_mutex_lock(&time_dependencies->dependencies_lock_) 10\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ neuron %d after
+  libhpx_mutex_lock(&time_dependencies->dependencies_lock_) 10\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
+  #endif
+  */
   double dep_min_time = time_dependencies->GetDependenciesMinTime();
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ neuron %d before libhpx_mutex_unlock(&time_dependencies->dependencies_lock_) 11\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ neuron %d before
+  libhpx_mutex_unlock(&time_dependencies->dependencies_lock_) 11\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
+  #endif
+  */
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ neuron %d after libhpx_mutex_unlock(&time_dependencies->dependencies_lock_) 11\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ neuron %d after
+  libhpx_mutex_unlock(&time_dependencies->dependencies_lock_) 11\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
+  #endif
+  */
   // step can be zero if notifications from dependencies didn't arrive yet!
   double step_size = dep_min_time - b->nt_->_t;
-  if (step_size <= 0.000001) {
-    fprintf(stderr,
-            "WARNING: Neuron %d, t %.4f, step_size %.8f. Probably waiting for "
-            "notifs.\n",
-            b->soma_->gid_, b->nt_->_t, step_size);
-
-#ifdef PRINT_TIME_DEPENDENCY
-    PrintDependencies(b);
-
-    fprintf(stderr, "++ %d.%d ++ Neurons progress (%d):\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(),
-            locality::neurons_progress_->size());
-    for (auto& p : *locality::neurons_progress_)
-      fprintf(stderr, "   ++ %ld %.12f\n",
-              locality::from_hpx_to_gid->at(p.second), p.first);
-#endif
-  }
+  assert(step_size >= kSchedulerMinStep);
   return step_size;
 }
 
@@ -206,11 +191,11 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
         t + teps + neuron->refractory_period_;
 
 #ifdef PRINT_TIME_DEPENDENCY
-    fprintf(
-        stderr,
-        "-- %d.%d -- neuron %d notifies %d. spikes at time %.4f. next notif time %.4f\n",
-        wrappers::MyRankId(), wrappers::MyThreadId(),
-        neuron->gid_, s->destination_gid_, t, s->next_notification_time_);
+    fprintf(stderr,
+            "-- %d.%d -- neuron %d notifies %d. spikes at time %.4f. next "
+            "notif time %.4f\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), neuron->gid_,
+            s->destination_gid_, t, s->next_notification_time_);
 #endif
 
     /* reset LCO to be used next. any spike or step notification
@@ -225,12 +210,12 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
              &min_time_before_spiking, sizeof(spike_time_t));
 
 #ifdef PRINT_TIME_DEPENDENCY
-    fprintf(
-        stderr,
-        "-- %d.%d -- neuron gid %d spikes at time %.3f, informs gid %d of next notif "
-        "time =%.3f\n",
-        wrappers::MyRankId(), wrappers::MyThreadId(),
-        neuron->gid_, tt, s->destination_gid_, t, s->next_notification_time_);
+    fprintf(stderr,
+            "-- %d.%d -- neuron gid %d spikes at time %.3f, informs gid %d of "
+            "next notif "
+            "time =%.3f\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), neuron->gid_, tt,
+            s->destination_gid_, t, s->next_notification_time_);
 #endif
   }
   return HPX_NULL;
@@ -256,23 +241,31 @@ TimeDependencySynchronizer::TimeDependencies::~TimeDependencies() {
 size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
   size_t size = -1;
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_lock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   size = dependencies_max_time_allowed_.size();
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_unlock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   return size;
 }
@@ -280,24 +273,32 @@ size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
 void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
     floble_t t) {
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_lock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   for (auto& dependency : dependencies_max_time_allowed_)
     dependency.second += t;
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_unlock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
 }
 
@@ -311,25 +312,26 @@ TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
                           [](pair<neuron_id_t, floble_t> const& lhs,
                              pair<neuron_id_t, floble_t> const& rhs) {
                             return lhs.second < rhs.second;
-                          })->second;
+                          })
+      ->second;
 }
 
 void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     neuron_id_t src_gid, floble_t dependency_time, neuron_id_t my_gid,
     bool init_phase) {
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_lock(&this->dependencies_lock_) 16\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ before
+  libhpx_mutex_lock(&this->dependencies_lock_) 16\n", wrappers::MyRankId(),
+  wrappers::MyThreadId()); #endif
+  */
   libhpx_mutex_lock(&this->dependencies_lock_);
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_lock(&this->dependencies_lock_) 16\n",
-          wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ after
+  libhpx_mutex_lock(&this->dependencies_lock_) 16\n", wrappers::MyRankId(),
+  wrappers::MyThreadId()); #endif
+  */
 
   /* Reminder: if init_phase is true: dependency_time is the min delay
    * otherwise: dependency_time is the step time or spike time + refraction
@@ -363,24 +365,24 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     // order of msgs is not guaranteed so take only last update (highest time)
     if (max_time_allowed > dependencies_max_time_allowed_.at(src_gid)) {
       dependencies_max_time_allowed_.at(src_gid) = max_time_allowed;
-/*
+      /*
+      #ifdef PRINT_TIME_DEPENDENCY
+            fprintf(stderr,
+                    "-- %d.%d -- %d (msg from %d) updates "
+                    "dependencies_max_time_allowed_(%d)=%.11f, notif "
+                    "time=%.11f, getDependenciesMinTime()=%.11f\n",
+                    wrappers::MyRankId(), wrappers::MyThreadId(),
+                    my_gid, src_gid, src_gid,
+                    dependencies_max_time_allowed_.at(src_gid),
+      max_time_allowed, GetDependenciesMinTime()); #endif
+      */
+    }
+    /* else {
 #ifdef PRINT_TIME_DEPENDENCY
       fprintf(stderr,
-              "-- %d.%d -- %d (msg from %d) updates "
-              "dependencies_max_time_allowed_(%d)=%.11f, notif "
-              "time=%.11f, getDependenciesMinTime()=%.11f\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(),
-              my_gid, src_gid, src_gid,
-              dependencies_max_time_allowed_.at(src_gid), max_time_allowed,
-              GetDependenciesMinTime());
-#endif
-*/
-    } /* else {
-#ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr,
-          "-- %d.%d -- %d (msg from %d) DOES NOT UPDATE dependenciesMap(%d)=%.11f, "
-          "notif time=%.11f, getDependenciesMinTime()=%.11f\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(),
+          "-- %d.%d -- %d (msg from %d) DOES NOT UPDATE
+dependenciesMap(%d)=%.11f, " "notif time=%.11f,
+getDependenciesMinTime()=%.11f\n", wrappers::MyRankId(), wrappers::MyThreadId(),
           my_gid, src_gid, src_gid, dependenciesMap.at(src_gid),
           max_time_allowed, GetDependenciesMinTime());
 #endif
@@ -390,96 +392,123 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     if (dependencies_time_neuron_waits_for_ > 0)
       // and new min time allows neuron to proceed
       if (GetDependenciesMinTime() >= dependencies_time_neuron_waits_for_) {
-/*
-#ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr,
-                "-- %d.%d -- %d (msg from %d) wakes up producer, "
-                "GetDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
-                wrappers::MyRankId(), wrappers::MyThreadId(),
-                my_gid, src_gid, GetDependenciesMinTime(),
-                dependencies_time_neuron_waits_for_);
-#endif
-*/
+        /*
+        #ifdef PRINT_TIME_DEPENDENCY
+                fprintf(stderr,
+                        "-- %d.%d -- %d (msg from %d) wakes up producer, "
+                        "GetDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
+                        wrappers::MyRankId(), wrappers::MyThreadId(),
+                        my_gid, src_gid, GetDependenciesMinTime(),
+                        dependencies_time_neuron_waits_for_);
+        #endif
+        */
         // mark neuron as not asleep anymore
         dependencies_time_neuron_waits_for_ = 0;
         // wake up neuron
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ neuron %d before libhpx_cond_broadcast(&this->dependencies_wait_condition_) 17\n",
-                wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
+        fprintf(
+            stderr,
+            "~~ %d.%d ~~ neuron %d before "
+            "libhpx_cond_broadcast(&this->dependencies_wait_condition_) 17\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
 #endif
         libhpx_cond_broadcast(&this->dependencies_wait_condition_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ neuron %d after libhpx_cond_broadcast(&this->dependencies_wait_condition_) 17\n",
-                wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
+        fprintf(
+            stderr,
+            "~~ %d.%d ~~ neuron %d after "
+            "libhpx_cond_broadcast(&this->dependencies_wait_condition_) 17\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
 #endif
       }
   }
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ neuron %d before libhpx_mutex_unlock(&this->dependencies_lock_) 18\n",
-                wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+          fprintf(stderr, "~~ %d.%d ~~ neuron %d before
+  libhpx_mutex_unlock(&this->dependencies_lock_) 18\n", wrappers::MyRankId(),
+  wrappers::MyThreadId(), my_gid); #endif
+  */
   libhpx_mutex_unlock(&this->dependencies_lock_);
-/*
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ neuron %d after libhpx_mutex_unlock(&this->dependencies_lock_) 18\n",
-                wrappers::MyRankId(), wrappers::MyThreadId(), my_gid);
-#endif
-*/
-
-}
-
-void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
-    Branch* b) {
-  return WaitForTimeDependencyNeurons(b, b->nt_->_dt);
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
+          fprintf(stderr, "~~ %d.%d ~~ neuron %d after
+  libhpx_mutex_unlock(&this->dependencies_lock_) 18\n", wrappers::MyRankId(),
+  wrappers::MyThreadId(), my_gid); #endif
+  */
 }
 
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
-
   // if neuron has no dependencies... no need to wait
   if (dependencies_max_time_allowed_.empty()) {
     return;
   }
 
-  // if this is an "end of execution notification"... no need to wait
+  const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   const floble_t t = b->nt_->_t;
+
+  // if this is an "end of execution notification"... no need to wait
   if (fabs(t - input_params_->tstop_) < 0.0001) return;
 
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_lock(&this->dependencies_lock_) 19\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_lock(&this->dependencies_lock_) 19\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_lock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_lock(&this->dependencies_lock_) 19\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(stderr,
+          "~~ %d.%d ~~ after libhpx_mutex_lock(&this->dependencies_lock_) 19\n",
+          wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   if (GetDependenciesMinTime() + kTEps < t + dt)  // if I cant proceed
   {
 #ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr,
-            "== %d.%d == %d cant proceed and sleeps: GetDependenciesMinTime()=%.11f < "
+            "== %d.%d == %d cant proceed and sleeps: "
+            "GetDependenciesMinTime()=%.11f < "
             "t+dt=%.11f\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(),
-            b->soma_->gid_, GetDependenciesMinTime(), t + dt);
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
+            GetDependenciesMinTime(), t + dt);
     PrintDependencies(b);
 #endif
     // mark this neuron as asleep waiting for a given min dependencies time
     dependencies_time_neuron_waits_for_ = t + dt;
-    // release dependenciesLock and sleep until woken up by
-    // TimeDependencies::dependenciesWaitCondition
+    // release dependenciesLock and sleep until woken up
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ before libhpx_cond_wait(&this->dependencies_wait_condition_, &this->dependencies_lock_); 20\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+    fprintf(stderr,
+            "~~ %d.%d ~~ before "
+            "libhpx_cond_wait(&this->dependencies_wait_condition_, "
+            "&this->dependencies_lock_); 20\n",
+            wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
     libhpx_cond_wait(&this->dependencies_wait_condition_,
                      &this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ after libhpx_cond_wait(&this->dependencies_wait_condition_, &this->dependencies_lock_); 20\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+    fprintf(stderr,
+            "~~ %d.%d ~~ after "
+            "libhpx_cond_wait(&this->dependencies_wait_condition_, "
+            "&this->dependencies_lock_); 20\n",
+            wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
+    // if has scheduler: add itself to the set of neurons to be run
+    // and inform scheduler
+    if (has_scheduler) {
+      libhpx_mutex_lock(&locality::scheduler_lock_);
+      locality::scheduler_neurons_->insert(
+          std::make_pair(t, b->soma_->scheduler_step_trigger_));
+      libhpx_cond_broadcast(&locality::scheduler_wait_condition_);
+      libhpx_mutex_unlock(&locality::scheduler_lock_);
+#ifdef PRINT_TIME_DEPENDENCY
+      fprintf(stderr,
+              "-- %d.%d -- neuron %d goes back to set with time  %.4f\n",
+              wrappers::MyRankId(), wrappers::MyThreadId(), local->soma_->gid_,
+              nt->_t);
+      TimeDependencySynchronizer::PrintDependencies(local);
+#endif
+    }
+
 #ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr, "== %d.%d == %d wakes up: getDependenciesMinTime()=%.11f\n",
             wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
@@ -488,45 +517,50 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
   } else {
 #ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr,
-            "== %d.%d == %d proceeds: getDependenciesMinTime()=%.11f >= t+dt=%.11f\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(),
-            b->soma_->gid_, GetDependenciesMinTime(), t + dt);
+            "== %d.%d == %d proceeds: getDependenciesMinTime()=%.11f >= "
+            "t+dt=%.11f\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
+            GetDependenciesMinTime(), t + dt);
 #endif
   }
   assert(GetDependenciesMinTime() + kTEps >= t + dt);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 21\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 21\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
   libhpx_mutex_unlock(&this->dependencies_lock_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-        fprintf(stderr, "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 21\n",
-                wrappers::MyRankId(), wrappers::MyThreadId());
+  fprintf(
+      stderr,
+      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 21\n",
+      wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     Branch* b) {
-  return SendSteppingNotification(b, -1); //-1 means send anyway
+  return SendSteppingNotification(b, -1);  //-1 means send anyway
 }
 
 void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     Branch* b, const floble_t dt) {
-
   if (b->soma_->GetSynapsesCount() == 0) return;
 
   const floble_t t = b->nt_->_t;
-  const neuron_id_t gid = b->soma_->gid_;
 
   // avoid sending repeated notifications
   // (useful on var dt or fixed dt with synchronizer when doest step)
   if (t == this->last_notification_time_) return;
 
   Neuron* neuron = b->soma_;
+  const neuron_id_t gid = b->soma_->gid_;
 
 #ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr, "-- %d.%d.%d -- neuron %d before sending spikes\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(), wrappers::MyLightWeightThreadId(), neuron->gid_);
+  fprintf(stderr, "-- %d.%d.%d -- neuron %d before sending spikes\n",
+          wrappers::MyRankId(), wrappers::MyThreadId(),
+          wrappers::MyLightWeightThreadId(), gid);
 #endif
 
   // TODO: avoid sending messages that are too close
@@ -549,26 +583,25 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) ;
      * -1 is a flag, means send anyway */
-    if (dt ==-1 || s->next_notification_time_ - kTEps <= t + dt) {
+    if (dt == -1 || s->next_notification_time_ - kTEps <= t + dt) {
       s->next_notification_time_ =
           t + s->min_delay_ * TimeDependencies::kNotificationIntervalRatio;
 
-// commented: for variable dt, one can jump ahead of notification time
-// assert(s->next_notification_time_ >= t);
+      // commented: for variable dt, one can jump ahead of notification time
+      // assert(s->next_notification_time_ >= t);
 
       // Wait for previous synapse to be delivered, if any (does not reset)
       hpx_lco_wait(s->previous_synapse_lco_);
       hpx_call(s->soma_or_locality_addr_, update_time_dep_action, HPX_NULL,
                &gid, sizeof(neuron_id_t), &t, sizeof(spike_time_t));
-
     }
   }
-/*
-#ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr, "-- %d.%d -- neuron %d after sending spikes/notification)\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(), neuron->gid_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY
+        fprintf(stderr, "-- %d.%d -- neuron %d after sending
+  spikes/notification)\n", wrappers::MyRankId(), wrappers::MyThreadId(),
+  gid); #endif
+  */
 }
 
 hpx_action_t TimeDependencySynchronizer::UpdateTimeDependency = 0;
@@ -585,14 +618,14 @@ int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
   const spike_time_t dependency_time = *(const spike_time_t*)args[1];
   const bool init_phase = nargs == 3 ? *(const bool*)args[2] : false;
 
-/*
-#ifdef PRINT_TIME_DEPENDENCY
-  fprintf(stderr, "-- %d.%d -- neuron %d is notified by %d of time %.4f\n",
-          wrappers::MyRankId(), wrappers::MyThreadId(),
-          local->soma_->gid_, pre_neuron_id, dependency_time);
-  assert(local->soma_ && local->soma_->synchronizer_neuron_info_);
-#endif
-*/
+  /*
+  #ifdef PRINT_TIME_DEPENDENCY
+    fprintf(stderr, "-- %d.%d -- neuron %d is notified by %d of time %.4f\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(),
+            local->soma_->gid_, pre_neuron_id, dependency_time);
+    assert(local->soma_ && local->soma_->synchronizer_neuron_info_);
+  #endif
+  */
   TimeDependencies* time_dependencies =
       (TimeDependencies*)local->soma_->synchronizer_neuron_info_;
   time_dependencies->UpdateTimeDependency(

@@ -10,11 +10,11 @@ using namespace neurox::input;
 
 class neurox::NetconX;
 
-Compartment::~Compartment() {};
+Compartment::~Compartment(){};
 
 Compartment::Compartment(offset_t id, floble_t a, floble_t b, floble_t d,
                          floble_t v, floble_t rhs, floble_t area, offset_t p)
-    : id_(id), a_(a), b_(b), d_(d), v_(v), rhs_(rhs), area_(area), p_(p) {};
+    : id_(id), a_(a), b_(b), d_(d), v_(v), rhs_(rhs), area_(area), p_(p){};
 
 void Compartment::AddChild(Compartment *child) { branches_.push_back(child); }
 

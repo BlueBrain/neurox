@@ -111,12 +111,13 @@ static void RegisterSingleVarAction(hpx_action_t& action,
 
 /// register hpx-action and handlers for action with multiples variables
 static void RegisterMultipleVarAction(hpx_action_t& action,
-                                      int (*handler)(const int, const void * [],
+                                      int (*handler)(const int, const void* [],
                                                      const size_t[]),
                                       bool compressed = false) {
-  HPX_REGISTER_ACTION(HPX_DEFAULT, HPX_MARSHALLED | HPX_VECTORED |
-                                       (compressed ? HPX_COMPRESSED : 0),
-                      action, handler, HPX_INT, HPX_POINTER, HPX_POINTER);
+  HPX_REGISTER_ACTION(
+      HPX_DEFAULT,
+      HPX_MARSHALLED | HPX_VECTORED | (compressed ? HPX_COMPRESSED : 0), action,
+      handler, HPX_INT, HPX_POINTER, HPX_POINTER);
 }
 
 /// register hpx-action and handlers for an AllReduce init action
@@ -137,7 +138,7 @@ static void RegisterAllReduceReduceAction(hpx_action_t& action,
 /// get running thread Id
 inline int MyThreadId() { return hpx_get_my_thread_id(); }
 
-inline int MyLightWeightThreadId() { return hpx_thread_get_tls_id(); } 
+inline int MyLightWeightThreadId() { return hpx_thread_get_tls_id(); }
 
 /// get current locality Id on the network
 inline int MyRankId() { return hpx_get_my_rank(); }

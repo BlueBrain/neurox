@@ -66,7 +66,7 @@ class Neuron {
   hpx_t SendSpikes(floble_t t);
 
   /// returns whether progress of neuron is handled by a scheduler
-  inline bool HasScheduler() { return synchronizer_step_trigger_ != HPX_NULL; }
+  inline bool HasScheduler() { return scheduler_step_trigger_ != HPX_NULL; }
 
   /// add hpx address of post-synaptic branch
   void AddSynapse(Synapse*);
@@ -87,7 +87,7 @@ class Neuron {
   synchronizers::SynchronizerNeuronInfo* synchronizer_neuron_info_;
 
   /// and-gate (trigger) for time-based synchronization of stepping
-  hpx_t synchronizer_step_trigger_;
+  hpx_t scheduler_step_trigger_;
 
  private:
   hpx_t synapses_mutex_;  ///> mutex protecting synapses

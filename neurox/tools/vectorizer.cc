@@ -178,7 +178,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     Memb_list** ml_no_capacitors_ptr,  // out (optional)
     Memb_list** ml_capacitors_ptr,     // out (optional)
     std::set<int>* capacitor_ids_ptr   // in  (optional)
-    ) {
+) {
   // if not provided, build list of capacitor ids
   std::set<int> new_capacitor_ids;
   if (capacitor_ids_ptr == nullptr) {
@@ -404,11 +404,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
   b->mechs_instances_parallel_ =
       new Mechanism::MembListThreadArgs[mechanisms_count_];
 
-  enum funcs {
-    State = 0,
-    Current = 1,
-    Count = 2
-  };
+  enum funcs { State = 0, Current = 1, Count = 2 };
   for (int f = 0; f < funcs::Count; f++) {
     double max_workload = LoadBalancing::GetWorkloadPerMechInstancesBlock(
         f == funcs::State ? total_state_instances_runtime
@@ -506,12 +502,10 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           /* graph-parallelism */
           b->mechs_graph_
           /* not CaDynamics_E2 (no updates in cur function) */
-          &&
-          mech->type_ != MechanismTypes::kCaDynamics_E2
-              /* not ion (updates in nrn_cur_ion function) */
-          &&
-          !mech->is_ion_
-           /* not capacitance-only current function */
+          && mech->type_ != MechanismTypes::kCaDynamics_E2
+          /* not ion (updates in nrn_cur_ion function) */
+          && !mech->is_ion_
+          /* not capacitance-only current function */
           &&
           !(mech->type_ == MechanismTypes::kCapacitance && f == funcs::Current);
 
