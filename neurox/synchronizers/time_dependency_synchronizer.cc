@@ -55,14 +55,11 @@ void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   const bool finished =
       b->nt_->_t > input_params_->tstop_ - TimeDependencies::kTEps;
 
-  if (!has_scheduler)
-  {
+  if (!has_scheduler) {
 #ifdef PRINT_TIME_DEPEPENCY_NEURON_FINISHED
-      if (finished)
-    fprintf(stderr, "-- Neuron %d finished.\n",
-            wrappers::MyLightWeightThreadId(), b->soma_->gid_);
+    if (finished) fprintf(stderr, "-- Neuron %d finished.\n", b->soma_->gid_);
 #endif
-      return;
+    return;
   }
 
   TimeDependencies* time_dependencies =
@@ -99,7 +96,7 @@ void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   if (finished) {
     locality::scheduler_remaining_neurons_--;
 #ifdef PRINT_TIME_DEPEPENCY_NEURON_FINISHED
-    fprintf(stderr, "-- Neuron %d finished. Remaining %d.\n",
+    fprintf(stderr, "-- Neuron %d finished. Remaining %d.\n", b->soma_->gid_,
             locality::scheduler_remaining_neurons_);
 #endif
   } else {
