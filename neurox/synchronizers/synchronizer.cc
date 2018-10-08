@@ -140,7 +140,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
                neurons_lco, tstop_ptr, sizeof(double));
 
     libhpx_mutex_lock(&locality::scheduler_lock_);
-    while (locality::scheduler_remaining_neurons_ > 0) {
+    while (locality::scheduler_remaining_neurons_ > 1) {
       libhpx_mutex_unlock(&locality::scheduler_lock_);
 
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
