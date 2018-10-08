@@ -746,7 +746,10 @@ int DataLoader::Init_handler() {
     locality::neurons_ = new vector<hpx_t>();
     locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
     locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
     locality::from_hpx_to_gid = new map<hpx_t, neuron_id_t>();
+#endif
   }
 
   NEUROX_MEM_UNPIN;

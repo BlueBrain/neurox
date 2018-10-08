@@ -2,10 +2,11 @@
 #include "hpx/hpx.h"
 #include "libhpx/libhpx.h"
 
-// debug flags
-//#define PRINT_TIME_DEPENDENCY
-#define PRINT_TIME_DEPENDENCY_MUTEX
-//#define PRINT_TIME_DEPENDENCY_STEP_SIZE
+// debug flags for time-dependency based synchronizer
+// #define PRINT_TIME_DEPENDENCY
+// #define PRINT_TIME_DEPENDENCY_MUTEX
+// #define PRINT_TIME_DEPENDENCY_STEP_SIZE
+#define PRINT_TIME_DEPEPENCY_NEURON_FINISHED
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)
@@ -62,7 +63,7 @@ typedef hpx_addr_t hpx_t;  ///> hpx address (just rephrased with shorter naming)
 namespace neurox {
 
 /// Global minimum synaptic delay
-extern double min_synaptic_delay_;
+constexpr double min_synaptic_delay_ = 0.1;
 
 ///  hpx address of all neurons
 extern hpx_t *neurons_;
@@ -113,9 +114,11 @@ extern std::map<neuron_id_t, std::vector<hpx_t>> *netcons_somas_;
  * Useful for locality based TimeDependency-based synchronizer */
 extern set<pair<floble_t, hpx_t>> *scheduler_neurons_;
 
-#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
-//for debug purposes only
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
+// for debug purposes only
 extern std::map<hpx_t, neuron_id_t> *from_hpx_to_gid;
+extern int scheduler_sema_counter_;
 #endif
 
 /** mutex to locality::neurons_progress_ */

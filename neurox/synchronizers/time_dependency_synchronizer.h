@@ -30,7 +30,7 @@ class TimeDependencySynchronizer : public Synchronizer {
                           spike_time_t dependency_time) override;
 
   /// minimum step allows by scheduler
-  static constexpr const floble_t kSchedulerMinStep = 0.025;
+  static constexpr const floble_t kSchedulerMinStep = 0.1;
 
   //// For debugging purposes: outputs dependencies of given branch
   static double PrintDependencies(Branch*);

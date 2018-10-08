@@ -1,8 +1,5 @@
 #include "neurox/neurox.h"
 
-// TODO delete
-int sema_counter;
-
 using namespace neurox;
 using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
@@ -67,7 +64,10 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
     const int max_jobs = std::min(thread_count, locality::neurons_->size());
     assert(max_jobs > 0);
     locality::scheduler_neurons_sema_ = hpx_lco_sema_new(max_jobs);
-    sema_counter = max_jobs;
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
+    locality::scheduler_sema_counter_ = max_jobs;
+#endif
 
     // neurons progress and its mutex
     libhpx_cond_init(&locality::scheduler_wait_condition_);
@@ -133,14 +133,14 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   } else if (reduction_dt == -1)  // scheduler ON: step last-neuron first
   {
     // Launch neurons async. (they wait for the trigger to continue)
-    locality::scheduler_remaining_neurons_= locality::neurons_->size();
+    locality::scheduler_remaining_neurons_ = locality::neurons_->size();
     hpx_t neurons_lco = hpx_lco_and_new(locality::scheduler_remaining_neurons_);
     for (size_t i = 0; i < locality::scheduler_remaining_neurons_; i++)
       hpx_call(neurox::locality::neurons_->at(i), Synchronizer::RunNeuron,
                neurons_lco, tstop_ptr, sizeof(double));
 
     libhpx_mutex_lock(&locality::scheduler_lock_);
-    while (locality::scheduler_remaining_neurons_>0) {
+    while (locality::scheduler_remaining_neurons_ > 0) {
       libhpx_mutex_unlock(&locality::scheduler_lock_);
 
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
@@ -148,7 +148,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
               "## %d.%d.%d ## before "
               "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 1\n",
               wrappers::MyRankId(), wrappers::MyThreadId(),
-              wrappers::MyLightWeightThreadId(), sema_counter);
+              wrappers::MyLightWeightThreadId(),
+              locality::scheduler_sema_counter_);
 #endif
       hpx_lco_sema_p(locality::scheduler_neurons_sema_);
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
@@ -156,7 +157,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
               "## %d.%d.%d ## after  "
               "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 1\n",
               wrappers::MyRankId(), wrappers::MyThreadId(),
-              wrappers::MyLightWeightThreadId(), --sema_counter);
+              wrappers::MyLightWeightThreadId(),
+              --locality::scheduler_sema_counter_);
 #endif
 
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
@@ -171,8 +173,7 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
       if (locality::scheduler_neurons_->empty())
         libhpx_cond_wait(&locality::scheduler_wait_condition_,
                          &locality::scheduler_lock_);
-      if (!locality::scheduler_neurons_->empty())
-      {
+      if (!locality::scheduler_neurons_->empty()) {
         auto next_neuron = locality::scheduler_neurons_->begin();
         locality::scheduler_neurons_->erase(next_neuron);
 
@@ -255,7 +256,8 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
             "~~ %d.%d.%d ~~ before "
             "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 4\n",
             wrappers::MyRankId(), wrappers::MyThreadId(),
-            wrappers::MyLightWeightThreadId(), sema_counter);
+            wrappers::MyLightWeightThreadId(),
+            locality::scheduler_sema_counter_);
 #endif
     // if scheduler is active: wait for scheduler signal to proceed
     if (has_scheduler) hpx_lco_wait_reset(step_trigger);
@@ -274,42 +276,6 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
     // do after-step operations e.g. wait for spike delivery
     synchronizer_->NeuronSyncEnd(local, spikes_lco);
     // if (fmod(t, dt_io) == 0) {  /*output*/ }
-
-    if (has_scheduler) {
-      //if finished, decrement variable
-      if (t >= tstop - 0.00001)
-      {
-          libhpx_mutex_lock(&locality::scheduler_lock_);
-          locality::scheduler_remaining_neurons_--;
-#if defined(PRINT_TIME_DEPENDENCY_STEP_SIZE) or \
-    defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX)
-          fprintf(stderr, "-- %d.%d.%d -- Neuron %d finished. Remaining %d.\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(),
-            wrappers::MyLightWeightThreadId(), local->soma_->gid_, locality::scheduler_remaining_neurons_);
-#endif
-          //inform scheduler that he shouldnt wait for job in queue
-          libhpx_cond_broadcast(&locality::scheduler_wait_condition_);
-          libhpx_mutex_unlock(&locality::scheduler_lock_);
-      }
-
-      // increment scheduler counter to allow it to look for next job
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-      fprintf(stderr,
-              "~~ %d.%d.%d ~~ before "
-              "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 7\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(),
-              wrappers::MyLightWeightThreadId(), sema_counter);
-#endif
-      hpx_lco_sema_v_sync(locality::scheduler_neurons_sema_);
-      // hpx_lco_sema_v(locality::scheduler_neurons_sema_, HPX_NULL);
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-      fprintf(stderr,
-              "~~ %d.%d.%d ~~ after "
-              "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 7\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(),
-              wrappers::MyLightWeightThreadId(), ++sema_counter);
-#endif
-    }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
   NEUROX_MEM_UNPIN;

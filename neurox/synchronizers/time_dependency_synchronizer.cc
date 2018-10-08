@@ -52,14 +52,70 @@ void TimeDependencySynchronizer::InitNeuron(Branch* b) {
 void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   if (!b->soma_) return;
   const bool has_scheduler = b->soma_->scheduler_step_trigger_;
-  if (has_scheduler) {
-    TimeDependencies* time_dependencies =
-        (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-    // inform Im at end of step (inside waits for any syn that occured)
-    time_dependencies->SendSteppingNotification(b);
-    // wait until min step is allowed (inside it re-adds itself to queue)
-    time_dependencies->WaitForTimeDependencyNeurons(b, kSchedulerMinStep);
+  const bool finished =
+      b->nt_->_t > input_params_->tstop_ - TimeDependencies::kTEps;
+
+  if (!has_scheduler)
+  {
+#ifdef PRINT_TIME_DEPEPENCY_NEURON_FINISHED
+      if (finished)
+    fprintf(stderr, "-- Neuron %d finished.\n",
+            wrappers::MyLightWeightThreadId(), b->soma_->gid_);
+#endif
+      return;
   }
+
+  TimeDependencies* time_dependencies =
+      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+  // inform Im at end of step (inside waits for any syn that occured)
+  time_dependencies->SendSteppingNotification(b);
+
+  // allow scheduler to pick new job
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+  fprintf(stderr,
+          "~~ %d.%d.%d ~~ before "
+          "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 7\n",
+          wrappers::MyRankId(), wrappers::MyThreadId(),
+          wrappers::MyLightWeightThreadId(), locality::scheduler_sema_counter_);
+#endif
+  // allow scheduler to pick another neuron
+  hpx_lco_sema_v_sync(locality::scheduler_neurons_sema_);
+  // hpx_lco_sema_v(locality::scheduler_neurons_sema_, HPX_NULL);
+
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+  fprintf(stderr,
+          "~~ %d.%d.%d ~~ after "
+          "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 7\n",
+          wrappers::MyRankId(), wrappers::MyThreadId(),
+          wrappers::MyLightWeightThreadId(),
+          ++locality::scheduler_sema_counter_);
+#endif
+
+  if (!finished)
+    // wait until min step is allowed
+    time_dependencies->WaitForTimeDependencyNeurons(b, kSchedulerMinStep);
+
+  libhpx_mutex_lock(&locality::scheduler_lock_);
+  if (finished) {
+    locality::scheduler_remaining_neurons_--;
+#ifdef PRINT_TIME_DEPEPENCY_NEURON_FINISHED
+    fprintf(stderr, "-- Neuron %d finished. Remaining %d.\n",
+            locality::scheduler_remaining_neurons_);
+#endif
+  } else {
+    // add itself to the set of neurons to be run and inform scheduler
+    locality::scheduler_neurons_->insert(
+        std::make_pair(t, b->soma_->scheduler_step_trigger_));
+#ifdef PRINT_TIME_DEPENDENCY
+    fprintf(stderr, "-- %d.%d -- neuron %d goes back to set with time  %.4f\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(), local->soma_->gid_,
+            nt->_t);
+    TimeDependencySynchronizer::PrintDependencies(local);
+#endif
+  }
+  // inform scheduler that i finished or Im back in the queue
+  libhpx_cond_broadcast(&locality::scheduler_wait_condition_);
+  libhpx_mutex_unlock(&locality::scheduler_lock_);
 }
 
 double TimeDependencySynchronizer::PrintDependencies(Branch* b) {
@@ -440,15 +496,12 @@ getDependenciesMinTime()=%.11f\n", wrappers::MyRankId(), wrappers::MyThreadId(),
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
-  if (dependencies_max_time_allowed_.empty()) {
-    return;
-  }
+  if (dependencies_max_time_allowed_.empty()) return;
 
-  const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   const floble_t t = b->nt_->_t;
 
   // if this is an "end of execution notification"... no need to wait
-  if (fabs(t - input_params_->tstop_) < 0.0001) return;
+  if (t > input_params_->tstop_ - TimeDependencies::kTEps) return;
 
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
   fprintf(
@@ -483,8 +536,11 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
             "&this->dependencies_lock_); 20\n",
             wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
+
+    // wait until my dependencies allow me to step
     libhpx_cond_wait(&this->dependencies_wait_condition_,
                      &this->dependencies_lock_);
+
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
     fprintf(stderr,
             "~~ %d.%d ~~ after "
@@ -492,22 +548,6 @@ void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
             "&this->dependencies_lock_); 20\n",
             wrappers::MyRankId(), wrappers::MyThreadId());
 #endif
-    // if has scheduler: add itself to the set of neurons to be run
-    // and inform scheduler
-    if (has_scheduler) {
-      libhpx_mutex_lock(&locality::scheduler_lock_);
-      locality::scheduler_neurons_->insert(
-          std::make_pair(t, b->soma_->scheduler_step_trigger_));
-      libhpx_cond_broadcast(&locality::scheduler_wait_condition_);
-      libhpx_mutex_unlock(&locality::scheduler_lock_);
-#ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr,
-              "-- %d.%d -- neuron %d goes back to set with time  %.4f\n",
-              wrappers::MyRankId(), wrappers::MyThreadId(), local->soma_->gid_,
-              nt->_t);
-      TimeDependencySynchronizer::PrintDependencies(local);
-#endif
-    }
 
 #ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr, "== %d.%d == %d wakes up: getDependenciesMinTime()=%.11f\n",
@@ -612,7 +652,8 @@ int TimeDependencySynchronizer::UpdateTimeDependency_handler(const int nargs,
   assert(nargs == 2 || nargs == 3);
 
   // if this neurons already finished, discard dependency step notifications
-  if (local->nt_->_t > input_params_->tstop_ - 0.00001) NEUROX_MEM_UNPIN;
+  if (local->nt_->_t > input_params_->tstop_ - TimeDependencies::kTEps)
+    NEUROX_MEM_UNPIN;
 
   const neuron_id_t pre_neuron_id = *(const neuron_id_t*)args[0];
   const spike_time_t dependency_time = *(const spike_time_t*)args[1];

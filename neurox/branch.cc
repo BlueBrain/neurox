@@ -894,7 +894,8 @@ int Branch::SetSyncStepTrigger_handler(const hpx_t *step_trigger_ptr,
   assert(local->soma_);
   local->soma_->scheduler_step_trigger_ = *step_trigger_ptr;
 
-#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
   libhpx_mutex_lock(&locality::scheduler_lock_);
   (*locality::from_hpx_to_gid)[*step_trigger_ptr] = local->soma_->gid_;
   libhpx_mutex_unlock(&locality::scheduler_lock_);
