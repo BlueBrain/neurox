@@ -112,19 +112,17 @@ class DataLoader {
       vector<DataLoader::IonInstancesInfo> &ions_instances_info,
       vector<map<int, int>> *mech_instance_map = NULL);
 
-  static void GetVecPlayBranchData(const deque<Compartment *> &compartments,
-                                   vector<floble_t> &vecplay_t_data,
-                                   vector<floble_t> &vecplay_y_data,
-                                   vector<PointProcInfo> &vecplay_info,
-                                   vector<map<int, int>> *mech_instance_map =
-                                       NULL);
+  static void GetVecPlayBranchData(
+      const deque<Compartment *> &compartments,
+      vector<floble_t> &vecplay_t_data, vector<floble_t> &vecplay_y_data,
+      vector<PointProcInfo> &vecplay_info,
+      vector<map<int, int>> *mech_instance_map = NULL);
 
-  static void GetNetConsBranchData(const deque<Compartment *> &compartments,
-                                   vector<NetconX> &branch_netcons,
-                                   vector<neuron_id_t> &branch_netcons_pre_id,
-                                   vector<floble_t> &branch_netcons_args,
-                                   vector<map<int, int>> *mech_instance_map =
-                                       NULL);
+  static void GetNetConsBranchData(
+      const deque<Compartment *> &compartments, vector<NetconX> &branch_netcons,
+      vector<neuron_id_t> &branch_netcons_pre_id,
+      vector<floble_t> &branch_netcons_args,
+      vector<map<int, int>> *mech_instance_map = NULL);
 
   static void GetSubSectionFromCompartment(deque<Compartment *> &sub_section,
                                            Compartment *top_compartment);
@@ -150,10 +148,10 @@ class DataLoader {
 
   static int CreateNeuron(int neuron_idx, void *);
   static int GetMyNrnThreadsCount();
-  static int AddSynapse_handler(const int, const void * [], const size_t[]);
+  static int AddSynapse_handler(const int, const void *[], const size_t[]);
   static int FilterRepeatedAndLinearizeSynapses_handler();
-  static int AddNeurons_handler(const int, const void * [], const size_t[]);
-  static int SetMechanisms_handler(const int, const void * [], const size_t[]);
+  static int AddNeurons_handler(const int, const void *[], const size_t[]);
+  static int SetMechanisms_handler(const int, const void *[], const size_t[]);
   static int Init_handler();
   static int InitMechanisms_handler();
   static int InitNeurons_handler();

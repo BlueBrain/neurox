@@ -61,30 +61,30 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
       input_params_->neurons_scheduler_) {
     // scheduler semaphore (controls how many parallel jobs can run)
     size_t thread_count = hpx_get_num_threads();
-    // Note: i tried thread_count*2, not good: it does not process
-    // pending messages RPCs
     const int max_jobs = std::min(thread_count, locality::neurons_->size());
-    locality::neurons_scheduler_sema_ = hpx_lco_sema_new(max_jobs);
     assert(max_jobs > 0);
+    locality::scheduler_neurons_sema_ = hpx_lco_sema_new(max_jobs);
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
+    locality::scheduler_sema_counter_ = max_jobs;
+#endif
 
     // neurons progress and its mutex
-    locality::neurons_progress_mutex_ = hpx_lco_sema_new(1);
-    locality::neurons_progress_ = new set<pair<floble_t, hpx_t>>();
-    locality::neurons_progress_queue_ = new std::queue<hpx_t>();
+    libhpx_cond_init(&locality::scheduler_wait_condition_);
+    libhpx_mutex_init(&locality::scheduler_lock_);
+
+    locality::scheduler_neurons_ = new set<pair<floble_t, hpx_t>>();
 
     // create a trigger for each neuron, and broadcast it
     hpx_t lco = hpx_lco_and_new(neurox::locality::neurons_->size());
     const double tstart = input_params_->tstart_;
     for (hpx_t neuron_addr : *neurox::locality::neurons_) {
-      // create an and-gate for stepping
       hpx_t step_trigger = hpx_lco_and_new(1);
-
-      // inform neuron to add its information
       hpx_call(neuron_addr, Branch::SetSyncStepTrigger, lco, &step_trigger,
                sizeof(hpx_t));
 
-      // set this value in the ordered set of neurons stepping
-      locality::neurons_progress_->insert(std::make_pair(tstart, step_trigger));
+      // set this value in the set of next neurons stepping
+      locality::scheduler_neurons_->insert(make_pair(tstart, step_trigger));
     }
     hpx_lco_wait(lco);
     hpx_lco_delete(lco, HPX_NULL);
@@ -120,12 +120,12 @@ hpx_action_t Synchronizer::RunLocality = 0;
 int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
-  if (locality::neurons_->empty()) NEUROX_MEM_UNPIN;
+  if (locality::neurons_->empty()) NEUROX_MEM_UNPIN;  // no neurons... no run!
 
   const double tstop = *tstop_ptr;
   const double tstart = tstop - input_params_->tstop_;  // for all-benchmark
-
   const double reduction_dt = synchronizer_->LocalitySyncInterval();
+
   if (reduction_dt == 0)  // no reduction, launch neurons independently
   {
     wrappers::CallLocalNeurons(Synchronizer::RunNeuron, tstop_ptr,
@@ -133,66 +133,66 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
   } else if (reduction_dt == -1)  // scheduler ON: step last-neuron first
   {
     // Launch neurons async. (they wait for the trigger to continue)
-    const double tstop = *tstop_ptr;
-    const size_t neurons_count = neurox::locality::neurons_->size();
-    hpx_t neurons_lco = hpx_lco_and_new(neurons_count);
-
-    for (size_t i = 0; i < neurons_count; i++)
+    locality::scheduler_remaining_neurons_ = locality::neurons_->size();
+    hpx_t neurons_lco = hpx_lco_and_new(locality::scheduler_remaining_neurons_);
+    for (size_t i = 0; i < locality::scheduler_remaining_neurons_; i++)
       hpx_call(neurox::locality::neurons_->at(i), Synchronizer::RunNeuron,
                neurons_lco, tstop_ptr, sizeof(double));
 
-    // number of simultaneous neuron to launch (1 per thread)
-    auto last_neuron = locality::neurons_progress_->begin();
-    double last_neuron_time = last_neuron->first;
-    hpx_t last_neuron_addr = last_neuron->second;
+    libhpx_mutex_lock(&locality::scheduler_lock_);
+    while (locality::scheduler_remaining_neurons_ > 1) {
+      libhpx_mutex_unlock(&locality::scheduler_lock_);
 
-    // While last neuron is not done (ie all done)
-    while (last_neuron_time < tstop - 0.00001) {
-      // wait if all allowed neurons are running
-      hpx_lco_sema_p(locality::neurons_scheduler_sema_);
-
-      // get trigger of last neuron and launch it
-      //(delete it from set of jobs, will be added by neuron later)
-      hpx_lco_sema_p(locality::neurons_progress_mutex_);
-      if (locality::neurons_progress_queue_->empty()) {
-        last_neuron = locality::neurons_progress_->begin();
-        last_neuron_time = last_neuron->first;
-        last_neuron_addr = last_neuron->second;
-#ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr, "## scheduler launches set %d %.4f\n",
-                locality::from_hpx_to_gid->at(last_neuron_addr),
-                last_neuron_time);
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+      fprintf(stderr,
+              "## %d.%d.%d ## before "
+              "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 1\n",
+              wrappers::MyRankId(), wrappers::MyThreadId(),
+              wrappers::MyLightWeightThreadId(),
+              locality::scheduler_sema_counter_);
 #endif
-        locality::neurons_progress_->erase(last_neuron);
-
-        // Call all neurons in a similar time instant
-        // Otherwise it would crash is dependencies are not picked
-        if (last_neuron_time > input_params_->tstart_)
-          while (std::fabs(locality::neurons_progress_->begin()->first -
-                           last_neuron_time) < 0.01) {
-            last_neuron = locality::neurons_progress_->begin();
-            locality::neurons_progress_queue_->push(last_neuron->second);
-            locality::neurons_progress_->erase(last_neuron);
-#ifdef PRINT_TIME_DEPENDENCY
-            fprintf(stderr, "## scheduler queues %d %.12f\n",
-                    locality::from_hpx_to_gid->at(last_neuron->second),
-                    last_neuron->first);
+      hpx_lco_sema_p(locality::scheduler_neurons_sema_);
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+      fprintf(stderr,
+              "## %d.%d.%d ## after  "
+              "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 1\n",
+              wrappers::MyRankId(), wrappers::MyThreadId(),
+              wrappers::MyLightWeightThreadId(),
+              --locality::scheduler_sema_counter_);
 #endif
-          }
-      } else {
-        last_neuron_addr = locality::neurons_progress_queue_->front();
-        locality::neurons_progress_queue_->pop();
+
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+      fprintf(stderr,
+              "## %d.%d ## before "
+              "libhpx_mutex_lock(&locality::scheduler_lock_) 2\n",
+              wrappers::MyRankId(), wrappers::MyThreadId());
+#endif
+      // mark this thread sleep until there's an entry in set
+      // or until one neuron has finished (search libhpx_cond_broadcast)
+      libhpx_mutex_lock(&locality::scheduler_lock_);
+      if (locality::scheduler_neurons_->empty())
+        libhpx_cond_wait(&locality::scheduler_wait_condition_,
+                         &locality::scheduler_lock_);
+      if (!locality::scheduler_neurons_->empty()) {
+        auto next_neuron = locality::scheduler_neurons_->begin();
+        locality::scheduler_neurons_->erase(next_neuron);
+
+        // launch the last neuron in time or queued
+        hpx_lco_set(next_neuron->second, 0, nullptr, HPX_NULL, HPX_NULL);
 #ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr, "## scheduler launches queue %d %.4f (size queue %d)\n",
-                locality::from_hpx_to_gid->at(last_neuron_addr),
-                last_neuron_time, locality::neurons_progress_queue_->size());
+        fprintf(stderr, "## %d.%d ## scheduler adds to queue %d %.12f\n",
+                wrappers::MyRankId(), wrappers::MyThreadId(),
+                locality::from_hpx_to_gid->at(last_neuron->second),
+                last_neuron->first);
 #endif
       }
-      hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-
-      // launch the last neuron in time or queued
-      hpx_lco_set(last_neuron_addr, 0, nullptr, HPX_NULL, HPX_NULL);
     }
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "## %d.%d.%d ## scheduler waiting for neurons_lco 99\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(),
+            wrappers::MyLightWeightThreadId());
+#endif
+    libhpx_mutex_unlock(&locality::scheduler_lock_);
     hpx_lco_wait_reset(neurons_lco);
     hpx_lco_delete_sync(neurons_lco);
   } else  // positive comm-reduce interval
@@ -235,9 +235,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
    * - it waits for job scheduler (last-neuron first)
    * - it performs outgoing spikes handling
    */
-  floble_t tpause = -1, dtp = -1;
+  floble_t tpause = -1, dt_pause = -1;
   hpx_t spikes_lco = HPX_NULL;
-  const hpx_t step_trigger = local->soma_->synchronizer_step_trigger_;
+  const hpx_t step_trigger = local->soma_->scheduler_step_trigger_;
   const bool has_scheduler = step_trigger != HPX_NULL;
   NrnThread* nt = local->nt_;
   double& t = nt->_t;
@@ -245,74 +245,39 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
   while (t < tstop - 0.00001) {
     // do before-step operations e.g. mark step in all-reduces
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr, "~~ %d.%d ~~ before NeuronSyncInit 3\n",
+            wrappers::MyRankId(), wrappers::MyThreadId());
+#endif
     synchronizer_->NeuronSyncInit(local);
 
+#ifdef PRINT_TIME_DEPENDENCY_MUTEX
+    fprintf(stderr,
+            "~~ %d.%d.%d ~~ before "
+            "hpx_lco_sema(locality::neurons_scheduler_sema_ %d) 4\n",
+            wrappers::MyRankId(), wrappers::MyThreadId(),
+            wrappers::MyLightWeightThreadId(),
+            locality::scheduler_sema_counter_);
+#endif
     // if scheduler is active: wait for scheduler signal to proceed
     if (has_scheduler) hpx_lco_wait_reset(step_trigger);
 
-    // step to the next possible time instant or wait for one
-    // if size too small or zero, wait to be awake again
-    // (while it waits, allow scheduler to start a new job)
-    dtp = synchronizer_->GetNeuronMaxStep(local);
-    tpause = std::min(t + dtp, tstop);
+    // step to the next possible time instant or wait for one if not scheduler
+    dt_pause = synchronizer_->GetNeuronMaxStep(local);
+    tpause = std::min(t + dt_pause, tstop);
 
-    // It may happen that notifications from dependencies haven't
-    // arrived yet. In that case, go back to the queue of next neurons
-    // to be picked up
-    if (tpause < t + 0.000001)  // if step too small or zero
-    {
-      hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
-      hpx_lco_sema_p(locality::neurons_progress_mutex_);
-      locality::neurons_progress_queue_->push(step_trigger);
-      hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-    } else {
 #ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
-      if (has_scheduler)
-        fprintf(stderr, "step,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
-                local->soma_->gid_, t, tpause, tpause - t);
+    if (has_scheduler)
+      fprintf(stderr, "step,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
+              local->soma_->gid_, t, tpause, tpause - t);
 #endif
-      spikes_lco = interpolator->StepTo(local, tpause);
+    spikes_lco = interpolator->StepTo(local, tpause);
 
-      // do after-step operations e.g. wait for spike delivery
-      synchronizer_->NeuronSyncEnd(local, spikes_lco);
-      // if (fmod(t, dt_io) == 0) {  /*output*/ }
-
-      // decrement scheduler semaphore (wake up if necessary)
-      if (has_scheduler) {
-        // increment scheduler counter to allow it to look for next job
-        hpx_lco_sema_v_sync(locality::neurons_scheduler_sema_);
-
-        // re-add this job to queue, to be picked up again later
-        hpx_lco_sema_p(locality::neurons_progress_mutex_);
-#ifdef PRINT_TIME_DEPENDENCY
-        fprintf(stderr,
-                "## neuron %d back to neurons priority queue with time  %.4f\n",
-                local->soma_->gid_, nt->_t);
-        TimeDependencySynchronizer::PrintDependencies(local);
-#endif
-        // end of stepping phase: announce my step
-        //(fixes the bug where first neuron in queue couldnt proceed and
-        //notification
-        // time was ahead of GetDepenendeciesMinDelay() so it wouldnt notify)
-        TimeDependencySynchronizer::TimeDependencies* time_dependencies =
-            (TimeDependencySynchronizer::TimeDependencies*)
-            local->soma_->synchronizer_neuron_info_;
-
-        // inform time dependants that must be notified in this step
-        time_dependencies->SendSteppingNotification(local, 100);
-
-        locality::neurons_progress_->insert(
-            std::make_pair(nt->_t, step_trigger));
-        hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-      }
-    }
+    // do after-step operations e.g. wait for spike delivery
+    synchronizer_->NeuronSyncEnd(local, spikes_lco);
+    // if (fmod(t, dt_io) == 0) {  /*output*/ }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
-#ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
-  if (input_params_->neurons_scheduler_)
-    // TODO it needs to inform others, to be sure they can step?
-    fprintf(stderr, "## Neuron %d finished.\n", local->soma_->gid_);
-#endif
   NEUROX_MEM_UNPIN;
 }
 
@@ -322,10 +287,11 @@ int Synchronizer::CallClearLocality_handler() {
 
   if (input_params_->locality_comm_reduce_ &&
       synchronizer_->LocalitySyncInterval() == -1) {
-    hpx_lco_delete_sync(neurox::locality::neurons_progress_mutex_);
-    hpx_lco_delete_sync(neurox::locality::neurons_scheduler_sema_);
+    libhpx_cond_destroy(&locality::scheduler_wait_condition_);
+    libhpx_mutex_destroy(&locality::scheduler_lock_);
+    hpx_lco_delete_sync(locality::scheduler_neurons_sema_);
 
-    for (auto& neuron_it : *locality::neurons_progress_)
+    for (auto& neuron_it : *locality::scheduler_neurons_)
       hpx_lco_delete_sync(neuron_it.second);
 
     // set step trigger to HPX_NULL in all branches
@@ -337,12 +303,9 @@ int Synchronizer::CallClearLocality_handler() {
     hpx_lco_wait(lco);
     hpx_lco_delete(lco, HPX_NULL);
 
-    (*neurox::locality::neurons_progress_).clear();
-    delete neurox::locality::neurons_progress_;
-    std::queue<hpx_t> empty_queue;
-    std::swap(*neurox::locality::neurons_progress_queue_, empty_queue);
-    delete neurox::locality::neurons_progress_queue_;
-    neurox::locality::neurons_progress_ = nullptr;
+    (*neurox::locality::scheduler_neurons_).clear();
+    delete neurox::locality::scheduler_neurons_;
+    neurox::locality::scheduler_neurons_ = nullptr;
   }
   neurox::synchronizer_->ClearLocality();
   delete neurox::synchronizer_;

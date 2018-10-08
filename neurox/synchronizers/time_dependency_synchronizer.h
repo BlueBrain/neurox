@@ -1,8 +1,6 @@
 #pragma once
 #include "neurox.h"
 
-#include "libhpx/libhpx.h"
-
 using namespace neurox;
 
 namespace neurox {
@@ -18,6 +16,7 @@ class TimeDependencySynchronizer : public Synchronizer {
   const char* GetString() override;
 
   void InitNeuron(Branch*) override;
+  void NeuronSyncEnd(Branch*, hpx_t) override;
   void ClearLocality() override;
 
   double GetNeuronMaxStep(Branch*) override;
@@ -29,6 +28,9 @@ class TimeDependencySynchronizer : public Synchronizer {
   void AfterReceiveSpikes(Branch* local, hpx_t target,
                           neuron_id_t pre_neuron_id, spike_time_t spike_time,
                           spike_time_t dependency_time) override;
+
+  /// minimum step allows by scheduler
+  static constexpr const floble_t kSchedulerMinStep = 0.1;
 
   //// For debugging purposes: outputs dependencies of given branch
   static double PrintDependencies(Branch*);
@@ -44,7 +46,6 @@ class TimeDependencySynchronizer : public Synchronizer {
     TimeDependencies();
     ~TimeDependencies();
 
-    void WaitForTimeDependencyNeurons(Branch* b);
     void WaitForTimeDependencyNeurons(Branch* b, const floble_t dt);
 
     /// inform my outgoing-connection neurons that I stepped
@@ -96,9 +97,9 @@ class TimeDependencySynchronizer : public Synchronizer {
   };
 
  private:
-  static int UpdateTimeDependency_handler(const int, const void * [],
+  static int UpdateTimeDependency_handler(const int, const void* [],
                                           const size_t[]);
-  static int UpdateTimeDependencyLocality_handler(const int, const void * [],
+  static int UpdateTimeDependencyLocality_handler(const int, const void* [],
                                                   const size_t[]);
 };
 

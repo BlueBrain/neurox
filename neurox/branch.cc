@@ -228,15 +228,17 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   nt->cj = (input_params_->second_order_ ? 2.0 : 1.0) / nt->_dt;
   nt->end = n;
 
-  nt->_data = data_count == 0 ? nullptr : Vectorizer::New<floble_t>(
-                                              data_count, buffer_, buffer_size_,
+  nt->_data = data_count == 0
+                  ? nullptr
+                  : Vectorizer::New<floble_t>(data_count, buffer_, buffer_size_,
                                               buffer_it);
   memcpy(nt->_data, data, data_count * sizeof(floble_t));
   nt->_ndata = data_count;
 
-  nt->weights = weights_count == 0 ? nullptr : Vectorizer::New<floble_t>(
-                                                   weights_count, buffer_,
-                                                   buffer_size_, buffer_it);
+  nt->weights = weights_count == 0
+                    ? nullptr
+                    : Vectorizer::New<floble_t>(weights_count, buffer_,
+                                                buffer_size_, buffer_it);
   memcpy(nt->weights, weights, sizeof(floble_t) * weights_count);
   nt->n_weight = weights_count;
 
@@ -452,12 +454,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
       shadow_size = this->mechs_instances_[m].nodecount;
 
     Memb_list *ml = &mechs_instances_[m];
-    ml->_shadow_d = shadow_size == 0 ? nullptr : Vectorizer::New<double>(
-                                                     shadow_size, buffer_,
-                                                     buffer_size_, buffer_it);
-    ml->_shadow_rhs = shadow_size == 0 ? nullptr : Vectorizer::New<double>(
-                                                       shadow_size, buffer_,
-                                                       buffer_size_, buffer_it);
+    ml->_shadow_d = shadow_size == 0
+                        ? nullptr
+                        : Vectorizer::New<double>(shadow_size, buffer_,
+                                                  buffer_size_, buffer_it);
+    ml->_shadow_rhs = shadow_size == 0
+                          ? nullptr
+                          : Vectorizer::New<double>(shadow_size, buffer_,
+                                                    buffer_size_, buffer_it);
 
     for (int i = 0; i < shadow_size; i++) {
       ml->_shadow_d[i] = 0;
@@ -468,9 +472,10 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         Mechanism::IonTypes::kSizeWriteableIons)
       shadow_size = 0;  //> only mechanisms with parent ions update I and DI/DV
 
-    ml->_shadow_i = shadow_size == 0 ? nullptr : Vectorizer::New<double>(
-                                                     shadow_size, buffer_,
-                                                     buffer_size_, buffer_it);
+    ml->_shadow_i = shadow_size == 0
+                        ? nullptr
+                        : Vectorizer::New<double>(shadow_size, buffer_,
+                                                  buffer_size_, buffer_it);
     ml->_shadow_didv = shadow_size == 0
                            ? nullptr
                            : Vectorizer::New<double>(shadow_size, buffer_,
@@ -521,8 +526,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
-    new (netcons_linear_) linear::Map<neuron_id_t, NetconX>(
-        netcons_, &buffer_[buffer_it]);
+    new (netcons_linear_)
+        linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
 #ifndef NDEBUG
     assert(netcons_.size() == netcons_linear_->Count());
     NetconX *ncs2;
@@ -722,8 +727,8 @@ void Branch::CallModFunction(const Mechanism::ModFunctions function_id,
       function_id == Mechanism::ModFunctions::kJacobCapacitance ||
       function_id == Mechanism::ModFunctions::kMulCapacity ||
       function_id == Mechanism::ModFunctions::kDivCapacity) {
-    mechanisms_[mechanisms_map_[CAP]]
-        ->CallModFunction(this, function_id, other_ml);
+    mechanisms_[mechanisms_map_[CAP]]->CallModFunction(this, function_id,
+                                                       other_ml);
   }
   // for all others except capacitance (mechanisms graph)
   else {
@@ -887,11 +892,14 @@ int Branch::SetSyncStepTrigger_handler(const hpx_t *step_trigger_ptr,
                                        const size_t) {
   NEUROX_MEM_PIN(Branch);
   assert(local->soma_);
-  // TODO delete
-  hpx_lco_sema_p(locality::neurons_progress_mutex_);
+  local->soma_->scheduler_step_trigger_ = *step_trigger_ptr;
+
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
+  libhpx_mutex_lock(&locality::scheduler_lock_);
   (*locality::from_hpx_to_gid)[*step_trigger_ptr] = local->soma_->gid_;
-  hpx_lco_sema_v_sync(locality::neurons_progress_mutex_);
-  local->soma_->synchronizer_step_trigger_ = *step_trigger_ptr;
+  libhpx_mutex_unlock(&locality::scheduler_lock_);
+#endif
   NEUROX_MEM_UNPIN
 }
 
@@ -1087,8 +1095,8 @@ int Branch::MechanismsGraph::MechFunction_handler(const int *mech_type_ptr,
       hpx_lco_set(local->mechs_graph_->end_lco_, 0, NULL, HPX_NULL, HPX_NULL);
     else
       for (int c = 0; c < mech->successors_count_; c++)
-        hpx_lco_set(local->mechs_graph_->mechs_lcos_
-                        [mechanisms_map_[mech->successors_[c]]],
+        hpx_lco_set(local->mechs_graph_
+                        ->mechs_lcos_[mechanisms_map_[mech->successors_[c]]],
                     sizeof(function_id), &function_id, HPX_NULL, HPX_NULL);
   }
   NEUROX_MEM_UNPIN;

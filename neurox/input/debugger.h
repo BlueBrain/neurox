@@ -23,7 +23,7 @@ class Debugger {
 
   static void CompareAllBranches();  ///> compares all branches wth Coreneuron
   static void CompareBranch2(Branch *branch);  ///> compares a branch to
-                                               ///Coreneuron data structures
+                                               /// Coreneuron data structures
   static void CompareMechanismsFunctions();
 
   /// compares a branch to CoreNeuron data structures

@@ -13,7 +13,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
       threshold_(ap_threshold),
       synapses_linear_(nullptr),
       synchronizer_neuron_info_(nullptr),
-      synchronizer_step_trigger_(HPX_NULL) {
+      scheduler_step_trigger_(HPX_NULL) {
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
@@ -30,8 +30,8 @@ Neuron::~Neuron() {
   for (Synapse*& s : synapses_) delete s;
   delete synchronizer_neuron_info_;
   if (synapses_mutex_ != HPX_NULL) hpx_lco_delete_sync(synapses_mutex_);
-  if (synchronizer_step_trigger_ != HPX_NULL)
-    hpx_lco_delete_sync(synchronizer_step_trigger_);
+  if (scheduler_step_trigger_ != HPX_NULL)
+    hpx_lco_delete_sync(scheduler_step_trigger_);
 
   delete synapses_linear_;
 }
@@ -78,8 +78,8 @@ void Neuron::AddSynapse(Synapse* syn) {
 void Neuron::LinearizeSynapses() {
   size_t size = linear::Vector<Synapse>::Size(synapses_.size());
   synapses_linear_ = (linear::Vector<Synapse>*)new unsigned char[size];
-  new (synapses_linear_) linear::Vector<Synapse>(
-      synapses_, (unsigned char*)synapses_linear_);
+  new (synapses_linear_)
+      linear::Vector<Synapse>(synapses_, (unsigned char*)synapses_linear_);
 #ifndef NDEBUG
   assert(synapses_.size() == synapses_linear_->Count());
   size_t syn_count = GetSynapsesCount();
@@ -118,7 +118,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
   const spike_time_t tt =
       (spike_time_t)t + 1e-10;  // Coreneuron logic, do not change!
 #if !defined(NDEBUG)
-  fprintf(stderr, "== Neuron %d spiked at %.3f ms\n", this->gid_, tt);
+  fprintf(stderr, "-- Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
   if (GetSynapsesCount() == 0) return HPX_NULL;

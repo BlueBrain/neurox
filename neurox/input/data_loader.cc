@@ -723,8 +723,7 @@ int DataLoader::Init_handler() {
 
   if (neurox::ParallelExecution()  // disable output of netcons for parallel
                                    // loading
-      &&
-      input_params_->output_netcons_dot) {
+      && input_params_->output_netcons_dot) {
     input_params_->output_netcons_dot = false;
     if (hpx_get_my_rank() == 0)
       printf("Warning: output of netcons.dot disabled for parallel loading\n");
@@ -747,7 +746,10 @@ int DataLoader::Init_handler() {
     locality::neurons_ = new vector<hpx_t>();
     locality::netcons_branches_ = new map<neuron_id_t, vector<hpx_t>>();
     locality::netcons_somas_ = new map<neuron_id_t, vector<hpx_t>>();
+#if defined(PRINT_TIME_DEPENDENCY) or defined(PRINT_TIME_DEPENDENCY_MUTEX) or \
+    defined(PRINT_TIME_DEPENDENCY_STEP_SIZE)
     locality::from_hpx_to_gid = new map<hpx_t, neuron_id_t>();
+#endif
   }
 
   NEUROX_MEM_UNPIN;
@@ -765,10 +767,10 @@ int DataLoader::InitNeurons_handler() {
   if (input_params_->output_compartments_dot_) {
     for (int i = 0; i < my_nrn_threads_count; i++) {
       neuron_id_t neuron_id = GetNeuronIdFromNrnThreadId(i);
-      FILE *file_compartments =
-          fopen(string("compartments_" + to_string(neuron_id) +
-                       "_NrnThread.dot").c_str(),
-                "wt");
+      FILE *file_compartments = fopen(
+          string("compartments_" + to_string(neuron_id) + "_NrnThread.dot")
+              .c_str(),
+          "wt");
       fprintf(file_compartments, "graph G%d\n{  node [shape=cylinder];\n",
               neuron_id);
 
@@ -1139,8 +1141,9 @@ void DataLoader::GetNetConsBranchData(
   // convert mech instance id from neuron to branch level
   if (mech_instances_map)
     for (NetconX &nc : branch_netcons)
-      nc.mech_instance_ = (*mech_instances_map)
-          [neurox::mechanisms_map_[nc.mech_type_]][nc.mech_instance_];
+      nc.mech_instance_ =
+          (*mech_instances_map)[neurox::mechanisms_map_[nc.mech_type_]]
+                               [nc.mech_instance_];
 }
 
 void DataLoader::GetVecPlayBranchData(
@@ -1160,8 +1163,9 @@ void DataLoader::GetVecPlayBranchData(
 
     for (int p = 0; p < vecplay_info.size(); p++) {
       PointProcInfo &ppi = vecplay_info[p];
-      ppi.mech_instance = (offset_t)(*mech_instances_map)
-          [neurox::mechanisms_map_[ppi.mech_type]][ppi.mech_instance];
+      ppi.mech_instance = (offset_t)(
+          *mech_instances_map)[neurox::mechanisms_map_[ppi.mech_type]]
+                              [ppi.mech_instance];
       ppi.node_id = from_old_to_new_compartment_id[ppi.node_id];
     }
   }
@@ -1250,9 +1254,9 @@ int DataLoader::GetBranchData(
       assert(mech_offset >= 0 && mech_offset < mechanisms_count_);
       Mechanism *mech = mechanisms_[mech_offset];
 
-      data_mechs[mech_offset]
-          .insert(data_mechs[mech_offset].end(), &comp->data[comp_data_offset],
-                  &comp->data[comp_data_offset + mech->data_size_]);
+      data_mechs[mech_offset].insert(
+          data_mechs[mech_offset].end(), &comp->data[comp_data_offset],
+          &comp->data[comp_data_offset + mech->data_size_]);
       pdata_mechs[mech_offset].insert(
           pdata_mechs[mech_offset].end(), &comp->pdata[comp_pdata_offset],
           &comp->pdata[comp_pdata_offset + mech->pdata_size_]);
@@ -1296,8 +1300,8 @@ int DataLoader::GetBranchData(
       // set look-up map with beginning of data instance offset
       if (mech->is_ion_ && input_params_->branch_parallelism_) {
         assert(!mech_has_no_instances);
-        ion_instance_to_data_offset
-            [make_pair(mech->type_, nodes_indices_mechs[m][i])] = data.size();
+        ion_instance_to_data_offset[make_pair(
+            mech->type_, nodes_indices_mechs[m][i])] = data.size();
       }
 
       // insert data (TODO this was before the previous condition)
@@ -1669,7 +1673,7 @@ hpx_t DataLoader::CreateBranch(
 
       assert(0);  // TODO double check
                   /* TODO: check: soma and AIS cant be split due to AP threshold
-       * communication */
+                   * communication */
 
       //#ifndef NDEBUG
       if (is_soma)
@@ -1684,10 +1688,9 @@ hpx_t DataLoader::CreateBranch(
           /* assign remaining arborization to different locality if it fits in
            * the max runtime per locality and is not too small (to reduce number
            * of remote small branches)*/
-          ||
-          (max_work_per_subsection > 0 &&
-           assigned_locality == hpx_get_my_rank() &&
-           subsection_runtime < max_work_per_subsection)) {
+          || (max_work_per_subsection > 0 &&
+              assigned_locality == hpx_get_my_rank() &&
+              subsection_runtime < max_work_per_subsection)) {
         // subsection_runtime < max_work_per_locality &&
         // subsection_runtime > max_work_per_locality * 0.5) {
         /* ask master rank where to allocate this arborization, update table*/

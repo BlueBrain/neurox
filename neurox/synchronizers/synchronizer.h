@@ -38,8 +38,8 @@ class SynchronizerNeuronInfo {
  */
 class Synchronizer {
  public:
-  Synchronizer() {};
-  virtual ~Synchronizer() {};
+  Synchronizer(){};
+  virtual ~Synchronizer(){};
 
   /*************** Methods specific to Synchronizer: ****************/
 
@@ -94,10 +94,8 @@ class Synchronizer {
   /*************** Methods specific to individual steps ******************/
 
   /// to be called inside each individual step, after dt being set
-  virtual void StepSync(Branch* b, const floble_t dt) {};
-  virtual void StepSync(Branch* b) {
-    return StepSync(b, b->nt_->_dt);
-  };
+  virtual void StepSync(Branch* b, const floble_t dt){};
+  virtual void StepSync(Branch* b) { return StepSync(b, b->nt_->_dt); };
 
   /// spikes handling: how it hadles outgoing spikes after Action-Potential
   virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
@@ -131,7 +129,7 @@ class Synchronizer {
   static int NeuronInfoConstructor_handler(const int*, const size_t);
   static int NeuronInfoDestructor_handler();
 
-  static int CallAllNeuronsAux_handler(const int, const void * [],
+  static int CallAllNeuronsAux_handler(const int, const void* [],
                                        const size_t[]);
 };
 
