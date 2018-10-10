@@ -308,6 +308,8 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // Compartment *no_instances_compartment =
   //   new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
   Compartment *no_instances_compartment = compartments.at(0);
+  bool silence_p_ptr_warning = false;
+  bool silence_queue_item_warning = false;
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -407,7 +409,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                  ppn->_type == pp->_type);
           compartment->AddSerializedVData((unsigned char *)(void *)pp,
                                           sizeof(Point_process));
-          fprintf(stderr, "Added vdata mech %d, Point_process, size %d\n", type, sizeof(Point_process));
           point_proc_total_offset++;
         }
 
@@ -425,7 +426,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
             assert(rng != NULL);
             compartment->AddSerializedVData((unsigned char *)(void *)rng,
                                             sizeof(nrnran123_State));
-            fprintf(stderr, "Added vdata mech %d, nrnran123_State, size %d\n", type, sizeof(nrnran123_State));
         }
 
         int queue_item_offset_in_pdata = HardCodedQueueItemOffsetInPdata(type);
@@ -433,9 +433,19 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         {
             //TODO copy value not pointer
            void * q_item_ptr = nt->_vdata[pdata[queue_item_offset_in_pdata]];
+           if (q_item_ptr==nullptr)
+           {
+               if (!silence_queue_item_warning)
+               {
+                 fprintf(stderr, "Warning: NrnThread id %d, mech %d has NULL TQItem (void*)\n", nt->id, type);
+                 silence_queue_item_warning = true;
+               }
+               //work around, put something which is 8 bytes long
+               q_item_ptr = new unsigned char[sizeof(void*)];
+               memset(q_item_ptr, 0, sizeof(void*));
+           }
            compartment->AddSerializedVData((unsigned char *)(void *)q_item_ptr,
                                             sizeof(void*));
-            fprintf(stderr, "Added vdata mech %d, TQItem (void*), size %d\n", type, sizeof(void*));
         }
 
         int p_ptr_offset_in_pdata = HardCodedPPtrOffsetInPdata(type);
@@ -443,13 +453,22 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
         {
             //TODO copy value not pointer
            void * p_ptr = nt->_vdata[pdata[p_ptr_offset_in_pdata]];
+           if (p_ptr==nullptr)
+           {
+               if (!silence_p_ptr_warning)
+               {
+                   fprintf(stderr, "Warning: NrnThread id %d, mech %d has NULL p_ptr (void*)\n", nt->id, type);
+                 silence_p_ptr_warning = true;
+               }
+               //work around, put something which is 8 bytes long
+               p_ptr = new unsigned char[sizeof(void*)];
+               memset(p_ptr, 0, sizeof(void*));
+           }
            compartment->AddSerializedVData((unsigned char *)(void *)p_ptr,
                                             sizeof(void*));
-            fprintf(stderr, "Added vdata mech %d, p_ptr (void*), size %d\n", type, sizeof(void*));
         }
 
         vdata_total_offset += (unsigned)mech->vdata_size_;
-        fprintf(stderr, "vdata_total_offset = %d\n", vdata_total_offset);
       }
     }
     data_total_offset += mech->data_size_ * ml->nodecount;

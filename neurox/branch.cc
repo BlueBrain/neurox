@@ -622,14 +622,14 @@ void Branch::ClearNrnThread(NrnThread *&nt) {
 Branch::~Branch() {
   hpx_lco_delete_sync(this->events_queue_mutex_);
 
+  ClearMembList(this->mechs_instances_);
+  ClearNrnThread(this->nt_);
+
   if (buffer_) {  // SynchronizerIds::kTimeDependency
     delete[] buffer_;
     buffer_ = nullptr;
     return;
   }
-
-  ClearMembList(this->mechs_instances_);
-  ClearNrnThread(this->nt_);
 
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
