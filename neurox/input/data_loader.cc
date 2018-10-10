@@ -1842,8 +1842,7 @@ int DataLoader::InitNetcons_handler() {
         netcons.push_back(make_pair(src_addr, min_delay));
 
         // add this pre-syn neuron as my time-dependency
-        if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll ||
-            input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+        if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
           dependencies.push_back(make_pair(src_gid, min_delay));
         }
       }

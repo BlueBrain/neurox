@@ -27,28 +27,6 @@ const char* TimeDependencySynchronizer::GetString() {
 
 void TimeDependencySynchronizer::ClearLocality() {}
 
-void TimeDependencySynchronizer::InitNeuron(Branch* b) {
-  if (!b->soma_) return;
-
-  TimeDependencies* time_dependencies =
-      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-
-  /* fixes crash for Synchronizer::All when TimeDependency
-   * synchronizer starts at t=inputParams->tend*2 increase
-   * notification and dependencies time */
-  if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
-    Neuron* neuron = b->soma_;
-    size_t syn_count = neuron->GetSynapsesCount();
-    for (int i = 0; i < syn_count; i++) {
-      Neuron::Synapse* s = neuron->synapses_linear_
-                               ? neuron->synapses_linear_->At(i)
-                               : neuron->synapses_.at(i);
-      s->next_notification_time_ += b->nt_->_t;
-    }
-    time_dependencies->IncreseDependenciesTime(b->nt_->_t);
-  }
-}
-
 void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   if (!b->soma_) return;
   const bool has_scheduler = b->soma_->scheduler_step_trigger_;

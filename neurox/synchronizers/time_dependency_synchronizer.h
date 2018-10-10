@@ -15,7 +15,6 @@ class TimeDependencySynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void InitNeuron(Branch*) override;
   void NeuronSyncEnd(Branch*, hpx_t) override;
   void ClearLocality() override;
 

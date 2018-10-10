@@ -89,65 +89,49 @@ static int Main_handler() {
 #endif
 
   // iterator through all synchronizers (if many) and run
-  const int synchronizer = (int)input_params_->synchronizer_;
-  const bool run_all = synchronizer == (int)SynchronizerIds::kBenchmarkAll;
-  const int init_sync = run_all ? 0 : synchronizer;
-  const int end_sync =
-      run_all ? (int)SynchronizerIds::kSynchronizersCount : synchronizer + 1;
+  const int synchronizer_id = (int)input_params_->synchronizer_;
   double tstop = input_params_->tstop_;
 
-  printf("neurox::%s::%d neurons::starting...\n",
-         input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll
-             ? "benchmark all"
-             : synchronizer_->GetString(),
+  printf("neurox::%s::%d neurons::starting...\n", synchronizer_->GetString(),
          neurox::neurons_count_);
 
-  for (int sync = init_sync; sync < end_sync; sync++) {
-    CallAllNeurons(Synchronizer::NeuronInfoConstructor, &sync, sizeof(sync));
-    CallAllLocalities(Synchronizer::CallInitLocality, &sync, sizeof(sync));
-    CallAllNeurons(Synchronizer::CallInitNeuron);
+  CallAllLocalities(Synchronizer::CallInitLocality, &synchronizer_id,
+                    sizeof(synchronizer_id));
+  CallAllNeurons(Synchronizer::CallInitNeuron);
 
-    hpx_time_t time_now = hpx_time_now();
-    if (input_params_->locality_comm_reduce_ ||
-        input_params_->neurons_scheduler_)
-      CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
-    else
-      CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
-    double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
+  hpx_time_t time_now = hpx_time_now();
+  if (input_params_->locality_comm_reduce_ || input_params_->neurons_scheduler_)
+    CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
+  else
+    CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
+  double time_elapsed = hpx_time_elapsed_ms(time_now) / 1e3;
 
-    printf(
-        "neurox::%s: %d neurons, biological time: %.04f secs, solver time: "
-        "%.02f secs\n",
-        synchronizer_->GetString(), neurox::neurons_count_,
-        input_params_->tstop_ / 1000., time_elapsed);
+  printf(
+      "neurox::%s: %d neurons, biological time: %.04f secs, solver time: "
+      "%.02f secs\n",
+      synchronizer_->GetString(), neurox::neurons_count_,
+      input_params_->tstop_ / 1000., time_elapsed);
 
 #ifdef NDEBUG
-    // output benchmark info
-    printf(
-        "csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",
-        neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
-        neurox::neurons_count_ / (double)hpx_get_num_ranks(),
-        input_params_->tstop_, synchronizer_->GetId(),
-        input_params_->graph_mechs_parallelism_ ? 1 : 0,
-        input_params_->mech_instances_parallelism_ ? 1 : 0,
-        input_params_->mech_instance_percent_per_block,
-        input_params_->branch_parallelism_ ? 1 : 0,
-        input_params_->subtree_complexity,
-        input_params_->load_balancing_ ? 1 : 0,
-        input_params_->subsection_complexity,
-        input_params_->locality_comm_reduce_ ? 1 : 0,
-        Mechanism::time_spent_in_mechs_ / 1e9,  // nano secs to secs
-        time_elapsed);
-    fflush(stdout);
+  // output benchmark info
+  printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",
+         neurox::neurons_count_, hpx_get_num_ranks(), hpx_get_num_threads(),
+         neurox::neurons_count_ / (double)hpx_get_num_ranks(),
+         input_params_->tstop_, synchronizer_->GetId(),
+         input_params_->graph_mechs_parallelism_ ? 1 : 0,
+         input_params_->mech_instances_parallelism_ ? 1 : 0,
+         input_params_->mech_instance_percent_per_block,
+         input_params_->branch_parallelism_ ? 1 : 0,
+         input_params_->subtree_complexity,
+         input_params_->load_balancing_ ? 1 : 0,
+         input_params_->subsection_complexity,
+         input_params_->locality_comm_reduce_ ? 1 : 0,
+         Mechanism::time_spent_in_mechs_ / 1e9,  // nano secs to secs
+         time_elapsed);
+  fflush(stdout);
 #endif
-    CallAllNeurons(Synchronizer::CallClearNeuron);
-    CallAllLocalities(Synchronizer::CallClearLocality);
-    CallAllNeurons(Synchronizer::NeuronInfoDestructor);
-
-    // if running all methods, run the next one for the same time
-    if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll)
-      tstop += input_params_->tstop_;
-  }
+  CallAllNeurons(Synchronizer::CallClearNeuron);
+  CallAllLocalities(Synchronizer::CallClearLocality);
 
   input::Debugger::RunCoreneuronAndCompareAllBranches();
   CallAllNeurons(Branch::Clear);

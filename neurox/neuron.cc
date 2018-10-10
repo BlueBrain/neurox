@@ -17,12 +17,7 @@ Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
   this->synapses_transmission_flag_ = false;
   this->synapses_mutex_ = hpx_lco_sema_new(1);
   this->refractory_period_ = 0;
-
-  /* Some synchronizers (eg Time Dependency) populate neuron
-   * info during DataLoader, so must be instantiated now */
   SynchronizerIds id = (SynchronizerIds)input_params_->synchronizer_;
-  if (id == SynchronizerIds::kBenchmarkAll)
-    id = SynchronizerIds::kTimeDependency;  // First in Benchmark
   this->synchronizer_neuron_info_ = SynchronizerNeuronInfo::New(id);
 }
 

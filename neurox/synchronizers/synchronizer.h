@@ -16,8 +16,7 @@ enum class SynchronizerIds : int {
   kSlidingTimeWindow = 2,
   kCoreneuron = 3,
   kSynchronizersCount = 3,
-  kDebug = 8,        // For debug only
-  kBenchmarkAll = 9  // Benchmark of all non-debug modes
+  kDebug = 8  // For debug only
 };
 
 /**
@@ -110,8 +109,6 @@ class Synchronizer {
   static hpx_action_t RunLocality;
   static hpx_action_t CallClearLocality;
   static hpx_action_t CallClearNeuron;
-  static hpx_action_t NeuronInfoConstructor;
-  static hpx_action_t NeuronInfoDestructor;
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
@@ -126,8 +123,6 @@ class Synchronizer {
   static int RunLocality_handler(const double*, const size_t);
   static int CallClearLocality_handler();
   static int CallClearNeuron_handler();
-  static int NeuronInfoConstructor_handler(const int*, const size_t);
-  static int NeuronInfoDestructor_handler();
 
   static int CallAllNeuronsAux_handler(const int, const void* [],
                                        const size_t[]);
