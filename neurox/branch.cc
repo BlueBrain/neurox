@@ -49,7 +49,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   size_t buffer_it = 0;
   size_t netcons_linear_size = 0;
   size_t events_queue_linear_size = 0;
-  size_t *max_events_per_key = nullptr;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT == 0
     assert(0);
@@ -152,7 +151,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     //  min_delay_per_post_gid[syn->destination_gid_] = syn->min_delay_;
 
     size_t *netcons_count_per_key = new size_t[netcons_vals_per_key.size()];
-    max_events_per_key = new size_t[netcons_vals_per_key.size()];
+    size_t *max_events_per_key = new size_t[netcons_vals_per_key.size()];
     int i = 0;
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
@@ -183,6 +182,11 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
     // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
     // buffer_size_);
+
+    buffer_size_ += Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_));
+
+    delete [] netcons_count_per_key;
+    delete [] max_events_per_key;
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -523,6 +527,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
      */
     events_queue_linear_ = nullptr;
     buffer_it += events_queue_linear_size;
+    delete [] pre_gids;
     // events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
@@ -579,8 +584,8 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // TODO missing this on cache efficient serialization!
   // (only for variable time-step, Backward Euler has no variables)
-  interpolator_ = Interpolator::New(input_params_->interpolator_);
-
+  interpolator_ = Interpolator::New(input_params_->interpolator_, buffer_ ? &buffer_[buffer_it] : nullptr);
+  buffer_it += buffer_  ? Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_)): 0;
   assert(buffer_size_ == buffer_it);
 }
 
@@ -601,41 +606,40 @@ void Branch::ClearMembList(Memb_list *&mechs_instances) {
     Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
     Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
   }
-  delete[] mechs_instances;
+  Vectorizer::Delete(mechs_instances);
   mechs_instances = nullptr;
 }
 
 void Branch::ClearNrnThread(NrnThread *&nt) {
-  delete[] nt->weights;
+  Vectorizer::Delete(nt->weights);
   Vectorizer::Delete(nt->_data);
   Vectorizer::Delete(nt->_v_parent_index);
-  delete[] nt->_ml_list;
-  delete[] nt->_vdata;
+  Vectorizer::Delete(nt->_ml_list);
+  Vectorizer::Delete(nt->_vdata);
 
   for (int i = 0; i < nt->n_vecplay; i++)
-    delete (VecplayContinuousX *)nt->_vecplay[i];
-  delete[] nt->_vecplay;
+    Vectorizer::Delete(nt->_vecplay[i]);
+  Vectorizer::Delete(nt->_vecplay);
 
-  free(nt);
+  Vectorizer::Delete(nt);
 }
 
 Branch::~Branch() {
   hpx_lco_delete_sync(this->events_queue_mutex_);
+  delete branch_tree_;
+
+  if (buffer_) {  // SynchronizerIds::kTimeDependency
+    delete[] buffer_;
+    return;
+  }
 
   ClearMembList(this->mechs_instances_);
   ClearNrnThread(this->nt_);
 
-  if (buffer_) {  // SynchronizerIds::kTimeDependency
-    delete[] buffer_;
-    buffer_ = nullptr;
-    return;
-  }
-
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
 
-  delete soma_;
-  delete branch_tree_;
+  Vectorizer::Delete(soma_);
   delete mechs_graph_;
   delete interpolator_;
 

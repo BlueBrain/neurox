@@ -33,8 +33,8 @@ void VecplayContinuousX::PlayInit(Branch* branch) {
 }
 
 VecplayContinuousX::~VecplayContinuousX() {
-  delete[] y_;
-  delete[] t_;
+  Vectorizer::Delete(y_);
+  Vectorizer::Delete(t_);
 }
 
 void VecplayContinuousX::Continuous(double tt) { *pd_ = Interpolate(tt); }
