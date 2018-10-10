@@ -21,9 +21,10 @@ class SynchronizerNeuronInfo;
 class Neuron {
  public:
   Neuron() = delete;
-  ~Neuron();
-
   Neuron(neuron_id_t neuron_id, floble_t ap_threshold);
+  ~Neuron();
+  unsigned char* containers_buffer_;
+  size_t containers_buffer_size_;
 
   neuron_id_t gid_;     ///> neuron global id
   floble_t threshold_;  ///> Action Potential threshold (PreSyn->_threshold)
@@ -72,10 +73,13 @@ class Neuron {
   void AddSynapse(Synapse*);
 
   /// copy data from synapses_ to synapses_linear_
-  void LinearizeSynapses();
+  void LinearizeContainers();
 
   /// get size of vector synapse
-  size_t GetSynapsesCount();
+  inline size_t GetSynapsesCount();
+
+  /// get Synapse at offset
+  inline Neuron::Synapse* GetSynapseAtOffset(size_t);
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;

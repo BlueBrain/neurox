@@ -1898,8 +1898,8 @@ int DataLoader::AddSynapse_handler(const int nargs, const void *args[],
   NEUROX_MEM_UNPIN
 }
 
-hpx_action_t DataLoader::FilterRepeatedAndLinearizeSynapses = 0;
-int DataLoader::FilterRepeatedAndLinearizeSynapses_handler() {
+hpx_action_t DataLoader::FilterRepeatedAndLinearizeContainers = 0;
+int DataLoader::FilterRepeatedAndLinearizeContainers_handler() {
   NEUROX_MEM_PIN(Branch);
 
   if (input_params_->locality_comm_reduce_) {
@@ -1933,15 +1933,15 @@ int DataLoader::FilterRepeatedAndLinearizeSynapses_handler() {
 
   // convert synapses to linear synapses representation
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
-    local->soma_->LinearizeSynapses();
+    local->soma_->LinearizeContainers();
 
   NEUROX_MEM_UNPIN
 }
 
 void DataLoader::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(
-      DataLoader::FilterRepeatedAndLinearizeSynapses,
-      DataLoader::FilterRepeatedAndLinearizeSynapses_handler);
+      DataLoader::FilterRepeatedAndLinearizeContainers,
+      DataLoader::FilterRepeatedAndLinearizeContainers_handler);
   wrappers::RegisterZeroVarAction(DataLoader::Init, DataLoader::Init_handler);
   wrappers::RegisterZeroVarAction(DataLoader::InitMechanisms,
                                   DataLoader::InitMechanisms_handler);

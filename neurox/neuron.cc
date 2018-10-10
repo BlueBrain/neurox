@@ -9,7 +9,9 @@ using namespace neurox::synchronizers;
 using namespace neurox::interpolators;
 
 Neuron::Neuron(neuron_id_t neuron_id, floble_t ap_threshold)
-    : gid_(neuron_id),
+    : containers_buffer_(nullptr),
+      containers_buffer_size_(0),
+      gid_(neuron_id),
       threshold_(ap_threshold),
       synapses_linear_(nullptr),
       synchronizer_neuron_info_(nullptr),
@@ -28,7 +30,7 @@ Neuron::~Neuron() {
   if (scheduler_step_trigger_ != HPX_NULL)
     hpx_lco_delete_sync(scheduler_step_trigger_);
 
-  delete synapses_linear_;
+  if (containers_buffer_) delete containers_buffer_;
 }
 
 Neuron::Synapse::Synapse(hpx_t branch_addr, floble_t min_delay,
@@ -61,6 +63,10 @@ size_t Neuron::GetSynapsesCount() {
   return size;
 }
 
+Neuron::Synapse* Neuron::GetSynapseAtOffset(size_t i) {
+  return synapses_linear_ ? synapses_linear_->At(i) : synapses_.at(i);
+}
+
 void Neuron::AddSynapse(Synapse* syn) {
   /* for locality-based reduction, repeated synapses
    * will be filtered by DataLoader::Finalize */
@@ -70,18 +76,51 @@ void Neuron::AddSynapse(Synapse* syn) {
   hpx_lco_sema_v_sync(synapses_mutex_);
 }
 
-void Neuron::LinearizeSynapses() {
-  size_t size = linear::Vector<Synapse>::Size(synapses_.size());
-  synapses_linear_ = (linear::Vector<Synapse>*)new unsigned char[size];
-  new (synapses_linear_)
-      linear::Vector<Synapse>(synapses_, (unsigned char*)synapses_linear_);
+void Neuron::LinearizeContainers() {
+  assert(input_params_->synchronizer_ == SynchronizerIds::kTimeDependency);
+  TimeDependencySynchronizer::TimeDependencies* td =
+      (TimeDependencySynchronizer::TimeDependencies*)this
+          ->synchronizer_neuron_info_;
+
+  assert(td->dependencies_min_delay_.size() ==
+         td->dependencies_max_time_allowed_.size());
+
+  containers_buffer_size_ = 0;
+  containers_buffer_size_ +=
+      Vectorizer::SizeOf(linear::Vector<Synapse>::Size(synapses_.size()));
+  containers_buffer_size_ +=
+      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
+          td->dependencies_min_delay_.size()));
+  containers_buffer_size_ +=
+      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
+          td->dependencies_max_time_allowed_.size()));
+  containers_buffer_ = new unsigned char[containers_buffer_size_];
+
+  size_t containers_buffer_it = 0;
+  new (synapses_linear_) linear::Vector<Synapse>(
+      synapses_, (unsigned char*)&containers_buffer_[containers_buffer_it]);
+  containers_buffer_it +=
+      Vectorizer::SizeOf(linear::Vector<Synapse>::Size(synapses_.size()));
+  new (td->dependencies_max_time_allowed_linear_)
+      linear::Map<neuron_id_t, floble_t>(
+          td->dependencies_max_time_allowed_,
+          (unsigned char*)&containers_buffer_[containers_buffer_it]);
+  containers_buffer_it +=
+      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
+          td->dependencies_max_time_allowed_.size()));
+  new (td->dependencies_min_delay_linear_) linear::Map<neuron_id_t, floble_t>(
+      td->dependencies_min_delay_,
+      (unsigned char*)&containers_buffer_[containers_buffer_it]);
+  containers_buffer_it +=
+      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
+          td->dependencies_min_delay_.size()));
+  assert(containers_buffer_it == containers_buffer_size_);
+
 #ifndef NDEBUG
   assert(synapses_.size() == synapses_linear_->Count());
   size_t syn_count = GetSynapsesCount();
   for (int i = 0; i < syn_count; i++) {
-    Neuron::Synapse* s =
-        synapses_linear_ ? synapses_linear_->At(i) : synapses_.at(i);
-
+    Neuron::Synapse* s = GetSynapseAtOffset(i);
     Neuron::Synapse* s1 = synapses_.at(i);
     Neuron::Synapse* s2 = synapses_linear_->At(i);
     assert(s1->branch_addr_ == s2->branch_addr_);
@@ -91,6 +130,8 @@ void Neuron::LinearizeSynapses() {
   }
 #endif
   synapses_.clear();
+  td->dependencies_max_time_allowed_.clear();
+  td->dependencies_min_delay_.clear();
 }
 
 // netcvode.cpp::static bool pscheck(...)

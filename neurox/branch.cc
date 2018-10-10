@@ -529,7 +529,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
 #ifndef NDEBUG
-    assert(netcons_.size() == netcons_linear_->Count());
+    assert(netcons_.size() == netcons_linear_->KeysCount());
     NetconX *ncs2;
     size_t nc2_count = -1;
     neuron_id_t nc_key_it = 0;
