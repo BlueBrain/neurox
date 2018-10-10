@@ -101,6 +101,12 @@ void Neuron::LinearizeContainers() {
       synapses_, (unsigned char*)&containers_buffer_[containers_buffer_it]);
   containers_buffer_it +=
       Vectorizer::SizeOf(linear::Vector<Synapse>::Size(synapses_.size()));
+  new (td->dependencies_min_delay_linear_) linear::Map<neuron_id_t, floble_t>(
+      td->dependencies_min_delay_,
+      (unsigned char*)&containers_buffer_[containers_buffer_it]);
+  containers_buffer_it +=
+      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
+          td->dependencies_min_delay_.size()));
   new (td->dependencies_max_time_allowed_linear_)
       linear::Map<neuron_id_t, floble_t>(
           td->dependencies_max_time_allowed_,
@@ -108,12 +114,6 @@ void Neuron::LinearizeContainers() {
   containers_buffer_it +=
       Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
           td->dependencies_max_time_allowed_.size()));
-  new (td->dependencies_min_delay_linear_) linear::Map<neuron_id_t, floble_t>(
-      td->dependencies_min_delay_,
-      (unsigned char*)&containers_buffer_[containers_buffer_it]);
-  containers_buffer_it +=
-      Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
-          td->dependencies_min_delay_.size()));
   assert(containers_buffer_it == containers_buffer_size_);
 
 #ifndef NDEBUG

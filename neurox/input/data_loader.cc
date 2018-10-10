@@ -38,62 +38,28 @@ int DataLoader::HardCodedVdataSize(int type) {
   assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
   int total_vdata_size = 0;
 
-  if (GetMechanismFromType(type)->pnt_map_ > 0)
-    total_vdata_size +=
-        sizeof(Point_process);  // always ppvar[1], dicated by nrn_setup.cpp
-
-  if (type == MechanismTypes::kGluSynapse ||        //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kNetStim ||           //_p_donotuse, ppvar[2]
-      type == MechanismTypes::kProbAMPANMDA_EMS ||  //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kProbGABAAB_EMS ||    //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kStochKv ||           //_p_rng, ppvar[3]
-      type == MechanismTypes::kStochKv3)            //_p_rng, ppvar[3]
-    total_vdata_size += sizeof(nrnran123_State);
-
-  if (type == MechanismTypes::kBinReportHelper ||  //_tqitem, ppvar[2]
-      type == MechanismTypes::kBinReports ||       //_p_ptr, ppvar[2]
-      type == MechanismTypes::kGluSynapse ||       //_tqitem, ppvar[3]
-      type == MechanismTypes::kNetStim ||          //_tqitem, ppvar[3]
-      type == MechanismTypes::kPatternStim ||      //_p_ptr, ppvar[2] + _tqitem,
-                                                   // ppvar[3]
-      type == MechanismTypes::kVecStim ||          //_tqitem, ppvar[2]
-      type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
-    // TODO its not void* we should have a copy of the object, not a copy of
-    // pointer!
-    total_vdata_size += sizeof(void *);
-
-  if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
-    total_vdata_size += sizeof(void *);  // it has 2 pointers, see above
+  if (HardCodedPntProcOffsetInPdata(type) != -1)
+      total_vdata_size += sizeof(Point_process);
+  if (HardCodedRNGOffsetInPdata(type) != -1)
+      total_vdata_size += sizeof(nrnran123_State);
+  if (HardCodedQueueItemOffsetInPdata(type) != -1)
+      total_vdata_size += sizeof(void*);
+  if (HardCodedPPtrOffsetInPdata(type) != -1)
+      total_vdata_size += sizeof(void*);
   return total_vdata_size;
 }
 
 int DataLoader::HardCodedVdataCount(int type, char pnt_map) {
   assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
   int total_vdata_count = 0;
-
-  if (pnt_map > 0) total_vdata_count++;  // Point_Process *
-
-  if (type == MechanismTypes::kGluSynapse ||        //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kNetStim ||           //_p_donotuse, ppvar[2]
-      type == MechanismTypes::kProbAMPANMDA_EMS ||  //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kProbGABAAB_EMS ||    //_p_rng_rel, ppvar[2]
-      type == MechanismTypes::kStochKv ||           //_p_rng, ppvar[3]
-      type == MechanismTypes::kStochKv3)            //_p_rng, ppvar[3]
-    total_vdata_count++;
-
-  if (type == MechanismTypes::kBinReportHelper ||  //_tqitem, ppvar[2]
-      type == MechanismTypes::kBinReports ||       //_p_ptr, ppvar[2]
-      type == MechanismTypes::kGluSynapse ||       //_tqitem, ppvar[3]
-      type == MechanismTypes::kNetStim ||          //_tqitem, ppvar[3]
-      type == MechanismTypes::kPatternStim ||      //_p_ptr, ppvar[2] + _tqitem,
-                                                   // ppvar[3]
-      type == MechanismTypes::kVecStim ||          //_tqitem, ppvar[2]
-      type == MechanismTypes::kALU)  //_p_ptr, ppvar[2] + _tqitem, ppvar[3]
-    total_vdata_count++;
-
-  if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
-    total_vdata_count++;
-
+  if (pnt_map >0)
+      total_vdata_count++;
+  if (HardCodedRNGOffsetInPdata(type) != -1)
+      total_vdata_count++;
+  if (HardCodedQueueItemOffsetInPdata(type) != -1)
+      total_vdata_count++;
+  if (HardCodedPPtrOffsetInPdata(type) != -1)
+      total_vdata_count++;
   return total_vdata_count;
 }
 
@@ -127,11 +93,34 @@ int DataLoader::HardCodedRNGOffsetInPdata(int type) {
 
 int DataLoader::HardCodedRNGOffsetInVdata(int type) {
   assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
+
   int offset_rng_in_vdata = 0;
   // return type == MechanismTypes::kStochKv ? 0 : 1;
   if (GetMechanismFromType(type)->pnt_map_ > 0)
     offset_rng_in_vdata++;  // include offset for Point_process*
   return offset_rng_in_vdata;
+}
+
+int DataLoader::HardCodedQueueItemOffsetInPdata(int type) {
+
+  if (type == MechanismTypes::kBinReportHelper || // &(_nt->_vdata[_ppvar[2*_STRIDE]])
+      type == MechanismTypes::kVecStim )
+    return 2;
+  if (type == MechanismTypes::kALU ||  //&(_nt->_vdata[_ppvar[3*_STRIDE]])
+      type == MechanismTypes::kGluSynapse ||
+      type == MechanismTypes::kNetStim ||
+      type == MechanismTypes::kPatternStim)
+    return 3;
+  if (type == MechanismTypes::kInhPoissonStim)  //&(_nt->_vdata[_ppvar[6*_STRIDE]])
+    return 6;
+  return -1;  // means unexistent
+}
+
+int DataLoader::HardCodedPPtrOffsetInPdata(int type) {
+  if (type == MechanismTypes::kPatternStim ||
+      type == MechanismTypes::kALU)
+      return 2;
+  return -1;  // means unexistent
 }
 
 bool DataLoader::HardCodedMechanismHasNoInstances(int type) {
@@ -418,6 +407,7 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
                  ppn->_type == pp->_type);
           compartment->AddSerializedVData((unsigned char *)(void *)pp,
                                           sizeof(Point_process));
+          fprintf(stderr, "Added vdata mech %d, Point_process, size %d\n", type, sizeof(Point_process));
           point_proc_total_offset++;
         }
 
@@ -432,25 +422,41 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
               (nrnran123_State *)nt->_vdata[pdata[rng_offset_in_pdata]];
           assert(rng->c == rng2->c && rng->r == rng2->r &&
                  rng->which_ == rng2->which_);
-
-          // TODO: hard-coded manual hack: StochKv's current state has NULL
-          // pointers, why?
-          if (rng == NULL && type == MechanismTypes::kStochKv)
-            compartment->AddSerializedVData(
-                (unsigned char *)new nrnran123_State, sizeof(nrnran123_State));
-          else {
             assert(rng != NULL);
             compartment->AddSerializedVData((unsigned char *)(void *)rng,
                                             sizeof(nrnran123_State));
-          }
+            fprintf(stderr, "Added vdata mech %d, nrnran123_State, size %d\n", type, sizeof(nrnran123_State));
         }
+
+        int queue_item_offset_in_pdata = HardCodedQueueItemOffsetInPdata(type);
+        if (queue_item_offset_in_pdata != -1)
+        {
+            //TODO copy value not pointer
+           void * q_item_ptr = nt->_vdata[pdata[queue_item_offset_in_pdata]];
+           compartment->AddSerializedVData((unsigned char *)(void *)q_item_ptr,
+                                            sizeof(void*));
+            fprintf(stderr, "Added vdata mech %d, TQItem (void*), size %d\n", type, sizeof(void*));
+        }
+
+        int p_ptr_offset_in_pdata = HardCodedPPtrOffsetInPdata(type);
+        if (p_ptr_offset_in_pdata != -1)
+        {
+            //TODO copy value not pointer
+           void * p_ptr = nt->_vdata[pdata[p_ptr_offset_in_pdata]];
+           compartment->AddSerializedVData((unsigned char *)(void *)p_ptr,
+                                            sizeof(void*));
+            fprintf(stderr, "Added vdata mech %d, p_ptr (void*), size %d\n", type, sizeof(void*));
+        }
+
         vdata_total_offset += (unsigned)mech->vdata_size_;
+        fprintf(stderr, "vdata_total_offset = %d\n", vdata_total_offset);
       }
     }
     data_total_offset += mech->data_size_ * ml->nodecount;
     data_total_padded_offset +=
         mech->data_size_ * Vectorizer::SizeOf(ml->nodecount);
   }
+  assert(nt->_nvdata == vdata_total_offset);
 
   // assert(DELETE_TEST == nt->_ndata);
   // assert(DELETE_TEST_nodes == nt->_ndata - N * 6);
@@ -1270,9 +1276,16 @@ int DataLoader::GetBranchData(
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
         size_t total_vdata_size = HardCodedVdataSize(mech->type_);
+        for (int vi=comp_vdata_offset; vi<comp_vdata_offset+total_vdata_size; vi++)
+        {
+            assert(vi<comp->vdata_serialized_.size());
+            vdata_mechs[mech_offset].push_back(comp->vdata_serialized_.at(vi));
+        }
+        /* //TODO put it back
         vdata_mechs[mech_offset].insert(
             vdata_mechs[mech_offset].end(), &comp->vdata_[comp_vdata_offset],
             &comp->vdata_[comp_vdata_offset + total_vdata_size]);
+        */
         comp_vdata_offset += total_vdata_size;
       }
     }

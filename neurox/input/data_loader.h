@@ -63,6 +63,8 @@ class DataLoader {
   static int HardCodedVdataCount(int type, char pnt_map);
   static int HardCodedPntProcOffsetInPdata(int type);
   static int HardCodedPntProcOffsetInVdata(int type);
+  static int HardCodedQueueItemOffsetInPdata(int type);
+  static int HardCodedPPtrOffsetInPdata(int type);
   static int HardCodedRNGOffsetInPdata(int type);
   static int HardCodedRNGOffsetInVdata(int type);
   static bool HardCodedMechanismHasNoInstances(int index);
