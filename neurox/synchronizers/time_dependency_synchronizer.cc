@@ -34,7 +34,7 @@ void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
       b->nt_->_t > input_params_->tstop_ - TimeDependencies::kTEps;
 
   if (!has_scheduler) {
-#ifdef PRINT_TIME_DEPEPENCY_NEURON_FINISHED
+#ifdef PRINT_TIME_DEPENDENCY_NEURON_FINISHED
     if (finished) fprintf(stderr, "-- Neuron %d finished.\n", b->soma_->gid_);
 #endif
     return;
@@ -83,9 +83,9 @@ void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
         std::make_pair(t, b->soma_->scheduler_step_trigger_));
 #ifdef PRINT_TIME_DEPENDENCY
     fprintf(stderr, "-- %d.%d -- neuron %d goes back to set with time  %.4f\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(), local->soma_->gid_,
-            nt->_t);
-    TimeDependencySynchronizer::PrintDependencies(local);
+            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
+            b->nt_->_t);
+    TimeDependencySynchronizer::PrintDependencies(b);
 #endif
   }
   // inform scheduler that i finished or Im back in the queue
@@ -161,21 +161,7 @@ double TimeDependencySynchronizer::GetNeuronMaxStep(Branch* b) {
   #endif
   */
   libhpx_mutex_lock(&time_dependencies->dependencies_lock_);
-  /*
-  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-    fprintf(stderr, "~~ %d.%d ~~ neuron %d after
-  libhpx_mutex_lock(&time_dependencies->dependencies_lock_) 10\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-  #endif
-  */
   double dep_min_time = time_dependencies->GetDependenciesMinTime();
-  /*
-  #ifdef PRINT_TIME_DEPENDENCY_MUTEX
-    fprintf(stderr, "~~ %d.%d ~~ neuron %d before
-  libhpx_mutex_unlock(&time_dependencies->dependencies_lock_) 11\n",
-            wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_);
-  #endif
-  */
   libhpx_mutex_unlock(&time_dependencies->dependencies_lock_);
   /*
   #ifdef PRINT_TIME_DEPENDENCY_MUTEX
@@ -314,13 +300,11 @@ TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
 }
 
 size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
-  libhpx_mutex_lock(&this->dependencies_lock_);
   size_t size = dependencies_min_delay_linear_
                     ? dependencies_min_delay_linear_->KeysCount()
                     : dependencies_min_delay_.size();
   assert(dependencies_min_delay_.size() ==
          dependencies_max_time_allowed_.size());
-  libhpx_mutex_unlock(&this->dependencies_lock_);
   return size;
 }
 

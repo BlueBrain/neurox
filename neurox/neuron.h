@@ -76,10 +76,10 @@ class Neuron {
   void LinearizeContainers();
 
   /// get size of vector synapse
-  inline size_t GetSynapsesCount();
+  size_t GetSynapsesCount();
 
   /// get Synapse at offset
-  inline Neuron::Synapse* GetSynapseAtOffset(size_t);
+  Neuron::Synapse* GetSynapseAtOffset(size_t);
 
   /// the outgoing neuron connections:
   std::vector<Synapse*> synapses_;
