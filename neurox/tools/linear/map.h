@@ -17,23 +17,42 @@ class Map {
 
   /// Constructor for key to single-values
   Map(std::map<Key, Val>& map1, unsigned char* buffer) {
-    // wraps single value in vectors of single size
-    // and calls regular constructor
+    // needs to be called with placement-new where buffer*
+    assert((void*)buffer == this);
 
-    std::map<Key, std::vector<Val*> > map2;
+    keys_count_ = map1.size();
+    vals_count_ = keys_count_; //single-val per key
+    size_t offset = sizeof(Map<Key, Val>);
+    keys_ = (Key*)&(buffer[offset]);
+    offset += sizeof(Key) * keys_count_;
+    vals_per_key_ = (size_t*)&(buffer[offset]);
+    offset += sizeof(size_t) * keys_count_;
+    vals_ = (Val**)&(buffer[offset]);
+    offset += sizeof(Val*) * keys_count_;
+
+    int i = 0;
     for (auto key_val : map1) {
-      Key key = key_val.first;
-      std::vector<Val*> vals = {&key_val.second};
-      map2.insert(make_pair(key, vals));
+      keys_[i] = key_val.first;
+      vals_per_key_[i] = 1;
+      vals_[i] = (Val*)&(buffer[offset]);
+      memcpy(&(vals_[i][0]), &(key_val.second), sizeof(Val));
+      offset += sizeof(Val);
+      i++;
     }
+    assert(offset == Size(keys_count_));
 
-    Map(map2, buffer);
+    // make sure keys are sorted and not identical
+    for (int i = 1; i < keys_count_; i++) {
+      assert(keys_[i] > keys_[i - 1]);
+      if (keys_[i] <= keys_[i - 1])
+        throw std::runtime_error(
+            std::string("Keys for linear map are not sorted."));
+    }
   }
 
   /// Constructor for key array of values
   Map(std::map<Key, std::vector<Val*> >& map1, unsigned char* buffer) {
     // needs to be called with placement-new where buffer*
-    // is the start of the data structure
     assert((void*)buffer == this);
 
     keys_count_ = map1.size();

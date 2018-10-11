@@ -49,6 +49,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   size_t buffer_it = 0;
   size_t netcons_linear_size = 0;
   size_t events_queue_linear_size = 0;
+  size_t *max_events_per_key = nullptr;
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
 #if LAYOUT == 0
     assert(0);
@@ -151,7 +152,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     //  min_delay_per_post_gid[syn->destination_gid_] = syn->min_delay_;
 
     size_t *netcons_count_per_key = new size_t[netcons_vals_per_key.size()];
-    size_t *max_events_per_key = new size_t[netcons_vals_per_key.size()];
+    max_events_per_key = new size_t[netcons_vals_per_key.size()];
     int i = 0;
     for (auto it : netcons_vals_per_key) {
       netcons_count_per_key[i] = it.second;
@@ -187,7 +188,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_));
 
     delete[] netcons_count_per_key;
-    delete[] max_events_per_key;
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -519,17 +519,18 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
-    /* TODO
+    events_queue_linear_ = nullptr;
+    /*
     events_queue_linear_ =
         (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, max_events_per_key,
         &buffer_[buffer_it]);
-     */
-    events_queue_linear_ = nullptr;
+    */
     buffer_it += events_queue_linear_size;
     delete[] pre_gids;
-    // events_queue_.clear();
+    delete[] max_events_per_key;
+    // TODO this should still work: events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
