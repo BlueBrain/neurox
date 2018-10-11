@@ -55,33 +55,22 @@ class TimeDependencySynchronizer : public Synchronizer {
     void UpdateTimeDependency(neuron_id_t src_gid, floble_t dependency_time,
                               neuron_id_t my_gid = -1, bool init = false);
 
-    /// get dependency min delay
-    inline floble_t GetDependencyMinDelay(neuron_id_t gid);
-
-    /// get max time allowed by dependencies
-    inline floble_t GetDependencyMaxTimeAllowed(neuron_id_t gid);
-    inline void SetDependencyMaxTimeAllowed(neuron_id_t gid, floble_t v);
+    /// controls sleep and waking of neurons after dependencies time-update
+    libhpx_mutex_t dependencies_lock_;
 
     /// get smallest time across all dependencies
     floble_t GetDependenciesMinTime();
 
-    /// get number of dependencies
-    size_t GetDependenciesCount();
-    inline neuron_id_t GetDependenciesKeyAtOffset(size_t d);
-
     //// For debugging purposes: outputs dependencies of given branch
     static double PrintDependencies(Branch*);
+
+    /// time-epsilon to correct events delivery due to floating point rounding
+    static constexpr const double kTEps = 1e-8;
 
     /// ratio of notification interval (0,1]
     static constexpr const floble_t kNotificationIntervalRatio = 1;
 
-    /// time-epsilon to correct wrong delivery of events due to floating point
-    /// rounding
-    static constexpr const double kTEps = 1e-8;
-
-    /// controls sleep and waking of neurons after dependencies time-update
-    libhpx_mutex_t dependencies_lock_;
-
+    //TODO these structs should be private, only Neuron uses them to linearize
     ///> map of synaptic delay per pre-synaptic id
     std::map<neuron_id_t, floble_t> dependencies_min_delay_;
     linear::Map<neuron_id_t, floble_t>* dependencies_min_delay_linear_;
@@ -90,7 +79,18 @@ class TimeDependencySynchronizer : public Synchronizer {
     std::map<neuron_id_t, floble_t> dependencies_max_time_allowed_;
     linear::Map<neuron_id_t, floble_t>* dependencies_max_time_allowed_linear_;
 
-   private:
+  private:
+    /// get dependency min delay
+    inline floble_t GetDependencyMinDelay(neuron_id_t gid);
+
+    /// get max time allowed by dependencies
+    inline floble_t GetDependencyMaxTimeAllowed(neuron_id_t gid);
+    inline void SetDependencyMaxTimeAllowed(neuron_id_t gid, floble_t v);
+
+    /// get number of dependencies
+    size_t GetDependenciesCount();
+    inline neuron_id_t GetDependenciesKeyAtOffset(size_t d);
+
     /// wait condition that wakes dependencies_lock_
     libhpx_cond_t dependencies_wait_condition_;
 

@@ -168,8 +168,8 @@ int Synchronizer::RunLocality_handler(const double* tstop_ptr, const size_t) {
 #ifdef PRINT_TIME_DEPENDENCY
         fprintf(stderr, "## %d.%d ## scheduler adds to queue %d %.12f\n",
                 wrappers::MyRankId(), wrappers::MyThreadId(),
-                locality::from_hpx_to_gid->at(last_neuron->second),
-                last_neuron->first);
+                locality::from_hpx_to_gid->at(next_neuron->second),
+                next_neuron->first);
 #endif
       }
     }
