@@ -27,28 +27,6 @@ const char* TimeDependencySynchronizer::GetString() {
 
 void TimeDependencySynchronizer::ClearLocality() {}
 
-void TimeDependencySynchronizer::InitNeuron(Branch* b) {
-  if (!b->soma_) return;
-
-  TimeDependencies* time_dependencies =
-      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
-
-  /* fixes crash for Synchronizer::All when TimeDependency
-   * synchronizer starts at t=inputParams->tend*2 increase
-   * notification and dependencies time */
-  if (input_params_->synchronizer_ == SynchronizerIds::kBenchmarkAll) {
-    Neuron* neuron = b->soma_;
-    size_t syn_count = neuron->GetSynapsesCount();
-    for (int i = 0; i < syn_count; i++) {
-      Neuron::Synapse* s = neuron->synapses_linear_
-                               ? neuron->synapses_linear_->At(i)
-                               : neuron->synapses_.at(i);
-      s->next_notification_time_ += b->nt_->_t;
-    }
-    time_dependencies->IncreseDependenciesTime(b->nt_->_t);
-  }
-}
-
 void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   if (!b->soma_) return;
   const bool has_scheduler = b->soma_->scheduler_step_trigger_;
@@ -121,23 +99,30 @@ double TimeDependencySynchronizer::PrintDependencies(Branch* b) {
 
 double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
     Branch* b) {
-  TimeDependencies* time_dependencies =
-      (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
+  TimeDependencies* td = (TimeDependencies*)b->soma_->synchronizer_neuron_info_;
 
-  double dependencies_min_time = time_dependencies->GetDependenciesMinTime();
+  double dependencies_min_time = td->GetDependenciesMinTime();
   fprintf(stderr,
           "-- %d.%d -- neuron %d t=%.4f, GetDependenciesMinTime()=%.4f\n",
           wrappers::MyRankId(), wrappers::MyThreadId(), b->soma_->gid_,
           b->nt_->_t, dependencies_min_time);
 
-  for (std::pair<neuron_id_t, floble_t> id_time :
-       time_dependencies->dependencies_max_time_allowed_)
-    printf("   -- pre-syn neuron id %d allows stepping to %.4f ms\n",
-           wrappers::MyRankId(), wrappers::MyThreadId(), id_time.first,
-           id_time.second);
-  for (Neuron::Synapse* s : b->soma_->synapses_)
+  for (size_t d = 0; d < td->GetDependenciesCount(); d++) {
+    neuron_id_t gid = td->GetDependenciesKeyAtOffset(d);
+    floble_t min_delay = td->GetDependencyMinDelay(gid);
+    floble_t max_time = td->GetDependencyMaxTimeAllowed(gid);
+    printf(
+        "   -- pre-syn neuron id %d min delay %.4f allows stepping to %.4f "
+        "ms\n",
+        wrappers::MyRankId(), wrappers::MyThreadId(), gid, min_delay, max_time);
+  }
+
+  size_t syn_count = b->soma_->GetSynapsesCount();
+  for (int i = 0; i < syn_count; i++) {
+    Neuron::Synapse* s = b->soma_->GetSynapseAtOffset(i);
     printf("  -- post-syn neuron %d, notif time %.4f\n", s->destination_gid_,
            s->next_notification_time_);
+  }
 
   return dependencies_min_time;
 }
@@ -233,9 +218,7 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 
   size_t syn_count = neuron->GetSynapsesCount();
   for (int i = 0; i < syn_count; i++) {
-    Neuron::Synapse* s = neuron->synapses_linear_
-                             ? neuron->synapses_linear_->At(i)
-                             : neuron->synapses_.at(i);
+    Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 
     /* reminder, s->min_delay_ is the syn. min-delay to branch or locality*/
     s->next_notification_time_ =
@@ -279,7 +262,9 @@ double TimeDependencySynchronizer::LocalitySyncInterval() {
   return input_params_->neurons_scheduler_ ? -1 : 0;
 }
 
-TimeDependencySynchronizer::TimeDependencies::TimeDependencies() {
+TimeDependencySynchronizer::TimeDependencies::TimeDependencies()
+    : dependencies_min_delay_linear_(nullptr),
+      dependencies_max_time_allowed_linear_(nullptr) {
   libhpx_cond_init(&this->dependencies_wait_condition_);
   libhpx_mutex_init(&this->dependencies_lock_);
   this->dependencies_time_neuron_waits_for_ = 0;  // 0 means not waiting
@@ -291,75 +276,65 @@ TimeDependencySynchronizer::TimeDependencies::~TimeDependencies() {
   libhpx_mutex_destroy(&this->dependencies_lock_);
 }
 
-size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
-  size_t size = -1;
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-  libhpx_mutex_lock(&this->dependencies_lock_);
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 12\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-  size = dependencies_max_time_allowed_.size();
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-  libhpx_mutex_unlock(&this->dependencies_lock_);
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 13\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-  return size;
+floble_t TimeDependencySynchronizer::TimeDependencies::GetDependencyMinDelay(
+    neuron_id_t gid) {
+  return dependencies_min_delay_linear_
+             ? *dependencies_min_delay_linear_->At(gid)
+             : dependencies_min_delay_.at(gid);
 }
 
-void TimeDependencySynchronizer::TimeDependencies::IncreseDependenciesTime(
-    floble_t t) {
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
+void TimeDependencySynchronizer::TimeDependencies::SetDependencyMaxTimeAllowed(
+    neuron_id_t gid, floble_t v) {
+  if (dependencies_max_time_allowed_linear_)
+    *dependencies_max_time_allowed_linear_->At(gid) = v;
+  else
+    dependencies_max_time_allowed_.at(gid) = v;
+}
+
+floble_t
+TimeDependencySynchronizer::TimeDependencies::GetDependencyMaxTimeAllowed(
+    neuron_id_t gid) {
+  return dependencies_max_time_allowed_linear_
+             ? *dependencies_max_time_allowed_linear_->At(gid)
+             : dependencies_max_time_allowed_.at(gid);
+}
+
+neuron_id_t
+TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
+    size_t d) {
+  if (dependencies_max_time_allowed_linear_) {
+    assert(dependencies_max_time_allowed_linear_->KeysCount() ==
+           dependencies_max_time_allowed_linear_->KeysCount());
+    return dependencies_max_time_allowed_linear_->Keys()[d];
+  }
+
+  assert(dependencies_max_time_allowed_.size() ==
+         dependencies_min_delay_.size());
+  return std::next(dependencies_max_time_allowed_.begin(), d)->first;
+}
+
+size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
   libhpx_mutex_lock(&this->dependencies_lock_);
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 14\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
-  for (auto& dependency : dependencies_max_time_allowed_)
-    dependency.second += t;
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ before libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
+  size_t size = dependencies_min_delay_linear_
+                    ? dependencies_min_delay_linear_->KeysCount()
+                    : dependencies_min_delay_.size();
+  assert(dependencies_min_delay_.size() ==
+         dependencies_max_time_allowed_.size());
   libhpx_mutex_unlock(&this->dependencies_lock_);
-#ifdef PRINT_TIME_DEPENDENCY_MUTEX
-  fprintf(
-      stderr,
-      "~~ %d.%d ~~ after libhpx_mutex_unlock(&this->dependencies_lock_) 15\n",
-      wrappers::MyRankId(), wrappers::MyThreadId());
-#endif
+  return size;
 }
 
 floble_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesMinTime() {
   // if no dependencies, walk to the end of the simulation
-  if (dependencies_max_time_allowed_.empty()) return input_params_->tstop_;
+  if (GetDependenciesCount() == 0) return input_params_->tstop_;
 
+  if (dependencies_max_time_allowed_linear_) {
+    floble_t* max_times = dependencies_max_time_allowed_linear_->Values();
+    return *std::min_element(
+        max_times,
+        max_times + dependencies_max_time_allowed_linear_->ValuesCount());
+  }
   return std::min_element(dependencies_max_time_allowed_.begin(),
                           dependencies_max_time_allowed_.end(),
                           [](pair<neuron_id_t, floble_t> const& lhs,
@@ -393,6 +368,9 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
    */
 
   if (init_phase) {
+    // only non-linear structs are available during data loading
+    assert(dependencies_max_time_allowed_linear_ == nullptr);
+    assert(dependencies_min_delay_linear_ == nullptr);
     const floble_t max_time_allowed =
         input_params_->tstart_ + dependency_time + kTEps;
 
@@ -411,13 +389,11 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
     }
   } else {
     const floble_t max_time_allowed =
-        dependency_time + dependencies_min_delay_.at(src_gid) + kTEps;
+        dependency_time + GetDependencyMinDelay(src_gid) + kTEps;
 
-    assert(dependencies_max_time_allowed_.find(src_gid) !=
-           dependencies_max_time_allowed_.end());
     // order of msgs is not guaranteed so take only last update (highest time)
-    if (max_time_allowed > dependencies_max_time_allowed_.at(src_gid)) {
-      dependencies_max_time_allowed_.at(src_gid) = max_time_allowed;
+    if (max_time_allowed > GetDependencyMaxTimeAllowed(src_gid)) {
+      SetDependencyMaxTimeAllowed(src_gid, max_time_allowed);
       /*
       #ifdef PRINT_TIME_DEPENDENCY
             fprintf(stderr,
@@ -426,20 +402,10 @@ void TimeDependencySynchronizer::TimeDependencies::UpdateTimeDependency(
                     "time=%.11f, getDependenciesMinTime()=%.11f\n",
                     wrappers::MyRankId(), wrappers::MyThreadId(),
                     my_gid, src_gid, src_gid,
-                    dependencies_max_time_allowed_.at(src_gid),
+                    GetDependenciesMaxTimeAlllowed(src_gid),
       max_time_allowed, GetDependenciesMinTime()); #endif
       */
     }
-    /* else {
-#ifdef PRINT_TIME_DEPENDENCY
-      fprintf(stderr,
-          "-- %d.%d -- %d (msg from %d) DOES NOT UPDATE
-dependenciesMap(%d)=%.11f, " "notif time=%.11f,
-getDependenciesMinTime()=%.11f\n", wrappers::MyRankId(), wrappers::MyThreadId(),
-          my_gid, src_gid, src_gid, dependenciesMap.at(src_gid),
-          max_time_allowed, GetDependenciesMinTime());
-#endif
-    } */
 
     // if neuron is waiting for a dependencies time update
     if (dependencies_time_neuron_waits_for_ > 0)
@@ -493,7 +459,7 @@ getDependenciesMinTime()=%.11f\n", wrappers::MyRankId(), wrappers::MyThreadId(),
 void TimeDependencySynchronizer::TimeDependencies::WaitForTimeDependencyNeurons(
     Branch* b, const floble_t dt) {
   // if neuron has no dependencies... no need to wait
-  if (dependencies_max_time_allowed_.empty()) return;
+  if (GetDependenciesCount() == 0) return;
 
   const floble_t t = b->nt_->_t;
 
@@ -613,9 +579,7 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
 
   size_t syn_count = neuron->GetSynapsesCount();
   for (int i = 0; i < syn_count; i++) {
-    Neuron::Synapse* s = neuron->synapses_linear_
-                             ? neuron->synapses_linear_->At(i)
-                             : neuron->synapses_.at(i);
+    Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 
     /* if in this time step (-teps to give or take few nanosecs for
      * correction of floating point time roundings) ;

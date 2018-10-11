@@ -40,8 +40,8 @@ void Compartment::AddVecplay(double *t, double *y, PointProcInfo &ppi) {
   }
 }
 
-void Compartment::AddSerializedVData(unsigned char *data, size_t size) {
-  for (size_t i = 0; i < size; i++) this->vdata_.push_back(data[i]);
+void Compartment::AddSerializedVData(unsigned char *vdata, size_t size) {
+  for (size_t i = 0; i < size; i++) this->vdata_serialized_.push_back(vdata[i]);
 }
 
 void Compartment::AddNetcon(int pre_syn_nrn_thread_id, NetconX *nc,
@@ -63,7 +63,7 @@ void Compartment::ShrinkToFit() {
   vecplay_info_.shrink_to_fit();
   vecplay_tdata_.shrink_to_fit();
   vecplay_ydata_.shrink_to_fit();
-  vdata_.shrink_to_fit();
+  vdata_serialized_.shrink_to_fit();
   netcons_.shrink_to_fit();
   netcons_weights_.shrink_to_fit();
   netcons_pre_syn_ids_.shrink_to_fit();

@@ -29,7 +29,8 @@ class Interpolator {
   virtual void Clear(Branch*) {}
 
   /// Returns an instantiated class of the given type
-  static Interpolator* New(InterpolatorIds);
+  static Interpolator* New(InterpolatorIds, void* = nullptr);
+  static size_t Size(InterpolatorIds);
 };
 };  // namespace interpolators
 

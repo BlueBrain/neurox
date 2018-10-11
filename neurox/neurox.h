@@ -2,11 +2,13 @@
 #include "hpx/hpx.h"
 #include "libhpx/libhpx.h"
 
-// debug flags for time-dependency based synchronizer
+// debug flags for time-dependency based synchronizer, and output of spikes
 // #define PRINT_TIME_DEPENDENCY
 // #define PRINT_TIME_DEPENDENCY_MUTEX
 // #define PRINT_TIME_DEPENDENCY_STEP_SIZE
+#define DISABLE_LINEAR_PRIORITY_QUEUE
 #define PRINT_TIME_DEPEPENCY_NEURON_FINISHED
+#define PRINT_NEURON_SPIKED
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)

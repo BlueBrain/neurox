@@ -39,7 +39,7 @@ class Compartment {
   vector<floble_t> vecplay_ydata_;
 
   // vdata (serialized)
-  vector<unsigned char> vdata_;
+  vector<unsigned char> vdata_serialized_;
 
   // netcons
   vector<NetconX> netcons_;

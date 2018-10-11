@@ -175,14 +175,21 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     buffer_size_ += netcons_linear_size;
     // fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
 
+#ifndef DISABLE_LINEAR_PRIORITY_QUEUE
     events_queue_linear_size =
         Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, TimedEvent>::Size(
             keys_count, max_events_per_key));
     buffer_size_ += events_queue_linear_size;
     // fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
+#endif
 
     // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
     // buffer_size_);
+
+    buffer_size_ +=
+        Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_));
+
+    delete[] netcons_count_per_key;
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -514,22 +521,23 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
-    /* TODO
+#ifndef DISABLE_LINEAR_PRIORITY_QUEUE
     events_queue_linear_ =
         (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, max_events_per_key,
         &buffer_[buffer_it]);
-     */
-    events_queue_linear_ = nullptr;
     buffer_it += events_queue_linear_size;
-    // events_queue_.clear();
+#endif
+    delete[] pre_gids;
+    delete[] max_events_per_key;
+    // TODO this should still work: events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
 #ifndef NDEBUG
-    assert(netcons_.size() == netcons_linear_->Count());
+    assert(netcons_.size() == netcons_linear_->KeysCount());
     NetconX *ncs2;
     size_t nc2_count = -1;
     neuron_id_t nc_key_it = 0;
@@ -579,8 +587,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // TODO missing this on cache efficient serialization!
   // (only for variable time-step, Backward Euler has no variables)
-  interpolator_ = Interpolator::New(input_params_->interpolator_);
-
+  interpolator_ = Interpolator::New(input_params_->interpolator_,
+                                    buffer_ ? &buffer_[buffer_it] : nullptr);
+  buffer_it +=
+      buffer_
+          ? Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_))
+          : 0;
   assert(buffer_size_ == buffer_it);
 }
 
@@ -601,30 +613,29 @@ void Branch::ClearMembList(Memb_list *&mechs_instances) {
     Vectorizer::Delete(mechs_instances[m]._shadow_rhs);
     Vectorizer::Delete(mechs_instances[m]._shadow_i_offsets);
   }
-  delete[] mechs_instances;
+  Vectorizer::Delete(mechs_instances);
   mechs_instances = nullptr;
 }
 
 void Branch::ClearNrnThread(NrnThread *&nt) {
-  delete[] nt->weights;
+  Vectorizer::Delete(nt->weights);
   Vectorizer::Delete(nt->_data);
   Vectorizer::Delete(nt->_v_parent_index);
-  delete[] nt->_ml_list;
-  delete[] nt->_vdata;
+  Vectorizer::Delete(nt->_ml_list);
+  Vectorizer::Delete(nt->_vdata);
 
-  for (int i = 0; i < nt->n_vecplay; i++)
-    delete (VecplayContinuousX *)nt->_vecplay[i];
-  delete[] nt->_vecplay;
+  for (int i = 0; i < nt->n_vecplay; i++) Vectorizer::Delete(nt->_vecplay[i]);
+  Vectorizer::Delete(nt->_vecplay);
 
-  free(nt);
+  Vectorizer::Delete(nt);
 }
 
 Branch::~Branch() {
   hpx_lco_delete_sync(this->events_queue_mutex_);
+  delete branch_tree_;
 
   if (buffer_) {  // SynchronizerIds::kTimeDependency
     delete[] buffer_;
-    buffer_ = nullptr;
     return;
   }
 
@@ -634,8 +645,7 @@ Branch::~Branch() {
   for (auto &nc_pair : this->netcons_)
     for (auto &nc : nc_pair.second) delete nc;
 
-  delete soma_;
-  delete branch_tree_;
+  Vectorizer::Delete(soma_);
   delete mechs_graph_;
   delete interpolator_;
 

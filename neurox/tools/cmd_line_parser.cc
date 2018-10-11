@@ -284,8 +284,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
      * call to WaitForTimeDependencies. This condition enforces it.
      */
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler &&
-        (this->synchronizer_ == SynchronizerIds::kTimeDependency ||
-         this->synchronizer_ == SynchronizerIds::kBenchmarkAll) &&
+        this->synchronizer_ == SynchronizerIds::kTimeDependency &&
         this->locality_comm_reduce_ == false) {
       throw TCLAP::ArgException(
           "variable time-step size with time-dependency synchronizer "

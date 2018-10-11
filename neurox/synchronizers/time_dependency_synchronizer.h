@@ -15,7 +15,6 @@ class TimeDependencySynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void InitNeuron(Branch*) override;
   void NeuronSyncEnd(Branch*, hpx_t) override;
   void ClearLocality() override;
 
@@ -56,14 +55,19 @@ class TimeDependencySynchronizer : public Synchronizer {
     void UpdateTimeDependency(neuron_id_t src_gid, floble_t dependency_time,
                               neuron_id_t my_gid = -1, bool init = false);
 
+    /// get dependency min delay
+    inline floble_t GetDependencyMinDelay(neuron_id_t gid);
+
+    /// get max time allowed by dependencies
+    inline floble_t GetDependencyMaxTimeAllowed(neuron_id_t gid);
+    inline void SetDependencyMaxTimeAllowed(neuron_id_t gid, floble_t v);
+
     /// get smallest time across all dependencies
     floble_t GetDependenciesMinTime();
 
     /// get number of dependencies
     size_t GetDependenciesCount();
-
-    /// increase time of all dependencies by 't'
-    void IncreseDependenciesTime(floble_t t);
+    inline neuron_id_t GetDependenciesKeyAtOffset(size_t d);
 
     //// For debugging purposes: outputs dependencies of given branch
     static double PrintDependencies(Branch*);
@@ -80,9 +84,11 @@ class TimeDependencySynchronizer : public Synchronizer {
 
     ///> map of synaptic delay per pre-synaptic id
     std::map<neuron_id_t, floble_t> dependencies_min_delay_;
+    linear::Map<neuron_id_t, floble_t>* dependencies_min_delay_linear_;
 
     ///> map of actual time per dependency if
     std::map<neuron_id_t, floble_t> dependencies_max_time_allowed_;
+    linear::Map<neuron_id_t, floble_t>* dependencies_max_time_allowed_linear_;
 
    private:
     /// wait condition that wakes dependencies_lock_
