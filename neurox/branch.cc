@@ -175,11 +175,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     buffer_size_ += netcons_linear_size;
     // fprintf(stderr, "Buffer size netcons linear = %d\n", buffer_size_);
 
+#ifndef DISABLE_LINEAR_PRIORITY_QUEUE
     events_queue_linear_size =
         Vectorizer::SizeOf(linear::PriorityQueue<neuron_id_t, TimedEvent>::Size(
             keys_count, max_events_per_key));
     buffer_size_ += events_queue_linear_size;
     // fprintf(stderr, "Buffer size events linear = %d\n", buffer_size_);
+#endif
 
     // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
     // buffer_size_);
@@ -519,15 +521,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     int i = 0;
     for (auto it : this->netcons_) pre_gids[i++] = it.first;
 
-    events_queue_linear_ = nullptr;
-    /*
+#ifndef DISABLE_LINEAR_PRIORITY_QUEUE
     events_queue_linear_ =
         (linear::PriorityQueue<neuron_id_t, TimedEvent> *)&buffer_[buffer_it];
     new (events_queue_linear_) linear::PriorityQueue<neuron_id_t, TimedEvent>(
         (size_t)netcons_.size(), pre_gids, max_events_per_key,
         &buffer_[buffer_it]);
-    */
     buffer_it += events_queue_linear_size;
+#endif
     delete[] pre_gids;
     delete[] max_events_per_key;
     // TODO this should still work: events_queue_.clear();
