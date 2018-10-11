@@ -3,18 +3,22 @@
 using namespace neurox;
 using namespace neurox::interpolators;
 
-Interpolator* Interpolator::New(InterpolatorIds type, void * mem_addr) {
+Interpolator* Interpolator::New(InterpolatorIds type, void* mem_addr) {
   switch (type) {
     case InterpolatorIds::kCvodeDenseMatrix:
-      return mem_addr ? new(mem_addr) VariableTimeStep() : new VariableTimeStep();
+      return mem_addr ? new (mem_addr) VariableTimeStep()
+                      : new VariableTimeStep();
     case InterpolatorIds::kCvodeDiagonalMatrix:
-      return mem_addr ? new(mem_addr) VariableTimeStep() : new VariableTimeStep();
+      return mem_addr ? new (mem_addr) VariableTimeStep()
+                      : new VariableTimeStep();
     case InterpolatorIds::kCvodePreConditionedDiagSolver:
-      return mem_addr ? new(mem_addr) VariableTimeStep() : new VariableTimeStep();
+      return mem_addr ? new (mem_addr) VariableTimeStep()
+                      : new VariableTimeStep();
     case InterpolatorIds::kCvodeSparseMatrix:
-      return mem_addr ? new(mem_addr) VariableTimeStep() : new VariableTimeStep();
+      return mem_addr ? new (mem_addr) VariableTimeStep()
+                      : new VariableTimeStep();
     case InterpolatorIds::kBackwardEuler:
-      return mem_addr ? new(mem_addr) BackwardEuler() : new BackwardEuler();
+      return mem_addr ? new (mem_addr) BackwardEuler() : new BackwardEuler();
     default:
       return nullptr;
   }

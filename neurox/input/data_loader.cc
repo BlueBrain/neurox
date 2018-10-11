@@ -32,6 +32,8 @@ std::vector<hpx_t> *DataLoader::my_neurons_addr_ = nullptr;
 std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
 tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
+bool silence_p_ptr_warning = false;
+bool silence_queue_item_warning = false;
 
 // TODO: hard-coded procedures
 int DataLoader::HardCodedVdataSize(int type) {
@@ -39,27 +41,23 @@ int DataLoader::HardCodedVdataSize(int type) {
   int total_vdata_size = 0;
 
   if (HardCodedPntProcOffsetInPdata(type) != -1)
-      total_vdata_size += sizeof(Point_process);
+    total_vdata_size += sizeof(Point_process);
   if (HardCodedRNGOffsetInPdata(type) != -1)
-      total_vdata_size += sizeof(nrnran123_State);
+    total_vdata_size += sizeof(nrnran123_State);
   if (HardCodedQueueItemOffsetInPdata(type) != -1)
-      total_vdata_size += sizeof(void*);
+    total_vdata_size += sizeof(void *);
   if (HardCodedPPtrOffsetInPdata(type) != -1)
-      total_vdata_size += sizeof(void*);
+    total_vdata_size += sizeof(void *);
   return total_vdata_size;
 }
 
 int DataLoader::HardCodedVdataCount(int type, char pnt_map) {
   assert(type != MechanismTypes::kInhPoissonStim);  // not supported yet
   int total_vdata_count = 0;
-  if (pnt_map >0)
-      total_vdata_count++;
-  if (HardCodedRNGOffsetInPdata(type) != -1)
-      total_vdata_count++;
-  if (HardCodedQueueItemOffsetInPdata(type) != -1)
-      total_vdata_count++;
-  if (HardCodedPPtrOffsetInPdata(type) != -1)
-      total_vdata_count++;
+  if (pnt_map > 0) total_vdata_count++;
+  if (HardCodedRNGOffsetInPdata(type) != -1) total_vdata_count++;
+  if (HardCodedQueueItemOffsetInPdata(type) != -1) total_vdata_count++;
+  if (HardCodedPPtrOffsetInPdata(type) != -1) total_vdata_count++;
   return total_vdata_count;
 }
 
@@ -102,24 +100,23 @@ int DataLoader::HardCodedRNGOffsetInVdata(int type) {
 }
 
 int DataLoader::HardCodedQueueItemOffsetInPdata(int type) {
-
-  if (type == MechanismTypes::kBinReportHelper || // &(_nt->_vdata[_ppvar[2*_STRIDE]])
-      type == MechanismTypes::kVecStim )
+  if (type == MechanismTypes::
+                  kBinReportHelper ||  // &(_nt->_vdata[_ppvar[2*_STRIDE]])
+      type == MechanismTypes::kVecStim)
     return 2;
   if (type == MechanismTypes::kALU ||  //&(_nt->_vdata[_ppvar[3*_STRIDE]])
-      type == MechanismTypes::kGluSynapse ||
-      type == MechanismTypes::kNetStim ||
+      type == MechanismTypes::kGluSynapse || type == MechanismTypes::kNetStim ||
       type == MechanismTypes::kPatternStim)
     return 3;
-  if (type == MechanismTypes::kInhPoissonStim)  //&(_nt->_vdata[_ppvar[6*_STRIDE]])
+  if (type ==
+      MechanismTypes::kInhPoissonStim)  //&(_nt->_vdata[_ppvar[6*_STRIDE]])
     return 6;
   return -1;  // means unexistent
 }
 
 int DataLoader::HardCodedPPtrOffsetInPdata(int type) {
-  if (type == MechanismTypes::kPatternStim ||
-      type == MechanismTypes::kALU)
-      return 2;
+  if (type == MechanismTypes::kPatternStim || type == MechanismTypes::kALU)
+    return 2;
   return -1;  // means unexistent
 }
 
@@ -308,8 +305,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
   // Compartment *no_instances_compartment =
   //   new Compartment(-1, -1, -1, -1, -1, -1, -1, -1);
   Compartment *no_instances_compartment = compartments.at(0);
-  bool silence_p_ptr_warning = false;
-  bool silence_queue_item_warning = false;
   for (NrnThreadMembList *tml = nt->tml; tml != NULL;
        tml = tml->next)  // For every mechanism
   {
@@ -423,49 +418,47 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
               (nrnran123_State *)nt->_vdata[pdata[rng_offset_in_pdata]];
           assert(rng->c == rng2->c && rng->r == rng2->r &&
                  rng->which_ == rng2->which_);
-            assert(rng != NULL);
-            compartment->AddSerializedVData((unsigned char *)(void *)rng,
-                                            sizeof(nrnran123_State));
+          assert(rng != NULL);
+          compartment->AddSerializedVData((unsigned char *)(void *)rng,
+                                          sizeof(nrnran123_State));
         }
 
         int queue_item_offset_in_pdata = HardCodedQueueItemOffsetInPdata(type);
-        if (queue_item_offset_in_pdata != -1)
-        {
-            //TODO copy value not pointer
-           void * q_item_ptr = nt->_vdata[pdata[queue_item_offset_in_pdata]];
-           if (q_item_ptr==nullptr)
-           {
-               if (!silence_queue_item_warning)
-               {
-                 fprintf(stderr, "Warning: NrnThread id %d, mech %d has NULL TQItem (void*)\n", nt->id, type);
-                 silence_queue_item_warning = true;
-               }
-               //work around, put something which is 8 bytes long
-               q_item_ptr = new unsigned char[sizeof(void*)];
-               memset(q_item_ptr, 0, sizeof(void*));
-           }
-           compartment->AddSerializedVData((unsigned char *)(void *)q_item_ptr,
-                                            sizeof(void*));
+        if (queue_item_offset_in_pdata != -1) {
+          // TODO copy value not pointer
+          void *q_item_ptr = nt->_vdata[pdata[queue_item_offset_in_pdata]];
+          if (q_item_ptr == nullptr) {
+            if (!silence_queue_item_warning) {
+              fprintf(stderr,
+                      "Warning: Locality %d, mech %d has NULL TQItem (void*)\n",
+                      wrappers::MyRankId(), type);
+              silence_queue_item_warning = true;
+            }
+            // work around, put something which is 8 bytes long
+            q_item_ptr = new unsigned char[sizeof(void *)];
+            memset(q_item_ptr, 0, sizeof(void *));
+          }
+          compartment->AddSerializedVData((unsigned char *)(void *)q_item_ptr,
+                                          sizeof(void *));
         }
 
         int p_ptr_offset_in_pdata = HardCodedPPtrOffsetInPdata(type);
-        if (p_ptr_offset_in_pdata != -1)
-        {
-            //TODO copy value not pointer
-           void * p_ptr = nt->_vdata[pdata[p_ptr_offset_in_pdata]];
-           if (p_ptr==nullptr)
-           {
-               if (!silence_p_ptr_warning)
-               {
-                   fprintf(stderr, "Warning: NrnThread id %d, mech %d has NULL p_ptr (void*)\n", nt->id, type);
-                 silence_p_ptr_warning = true;
-               }
-               //work around, put something which is 8 bytes long
-               p_ptr = new unsigned char[sizeof(void*)];
-               memset(p_ptr, 0, sizeof(void*));
-           }
-           compartment->AddSerializedVData((unsigned char *)(void *)p_ptr,
-                                            sizeof(void*));
+        if (p_ptr_offset_in_pdata != -1) {
+          // TODO copy value not pointer
+          void *p_ptr = nt->_vdata[pdata[p_ptr_offset_in_pdata]];
+          if (p_ptr == nullptr) {
+            if (!silence_p_ptr_warning) {
+              fprintf(stderr,
+                      "Warning: Locality %d, mech %d has NULL p_ptr (void*)\n",
+                      wrappers::MyRankId(), type);
+              silence_p_ptr_warning = true;
+            }
+            // work around, put something which is 8 bytes long
+            p_ptr = new unsigned char[sizeof(void *)];
+            memset(p_ptr, 0, sizeof(void *));
+          }
+          compartment->AddSerializedVData((unsigned char *)(void *)p_ptr,
+                                          sizeof(void *));
         }
 
         vdata_total_offset += (unsigned)mech->vdata_size_;
@@ -1295,10 +1288,10 @@ int DataLoader::GetBranchData(
 
       if (mech->pnt_map_ > 0 || mech->vdata_size_ > 0) {
         size_t total_vdata_size = HardCodedVdataSize(mech->type_);
-        for (int vi=comp_vdata_offset; vi<comp_vdata_offset+total_vdata_size; vi++)
-        {
-            assert(vi<comp->vdata_serialized_.size());
-            vdata_mechs[mech_offset].push_back(comp->vdata_serialized_.at(vi));
+        for (int vi = comp_vdata_offset;
+             vi < comp_vdata_offset + total_vdata_size; vi++) {
+          assert(vi < comp->vdata_serialized_.size());
+          vdata_mechs[mech_offset].push_back(comp->vdata_serialized_.at(vi));
         }
         /* //TODO put it back
         vdata_mechs[mech_offset].insert(

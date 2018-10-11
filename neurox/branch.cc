@@ -183,10 +183,11 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     // fprintf(stderr, "NEURON %d, cache size %d.\n", nrn_thread_id,
     // buffer_size_);
 
-    buffer_size_ += Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_));
+    buffer_size_ +=
+        Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_));
 
-    delete [] netcons_count_per_key;
-    delete [] max_events_per_key;
+    delete[] netcons_count_per_key;
+    delete[] max_events_per_key;
     buffer_ = new unsigned char[buffer_size_];
   }
 
@@ -527,7 +528,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
      */
     events_queue_linear_ = nullptr;
     buffer_it += events_queue_linear_size;
-    delete [] pre_gids;
+    delete[] pre_gids;
     // events_queue_.clear();
 
     netcons_linear_ = (linear::Map<neuron_id_t, NetconX> *)&buffer_[buffer_it];
@@ -584,8 +585,12 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 
   // TODO missing this on cache efficient serialization!
   // (only for variable time-step, Backward Euler has no variables)
-  interpolator_ = Interpolator::New(input_params_->interpolator_, buffer_ ? &buffer_[buffer_it] : nullptr);
-  buffer_it += buffer_  ? Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_)): 0;
+  interpolator_ = Interpolator::New(input_params_->interpolator_,
+                                    buffer_ ? &buffer_[buffer_it] : nullptr);
+  buffer_it +=
+      buffer_
+          ? Vectorizer::SizeOf(Interpolator::Size(input_params_->interpolator_))
+          : 0;
   assert(buffer_size_ == buffer_it);
 }
 
@@ -617,8 +622,7 @@ void Branch::ClearNrnThread(NrnThread *&nt) {
   Vectorizer::Delete(nt->_ml_list);
   Vectorizer::Delete(nt->_vdata);
 
-  for (int i = 0; i < nt->n_vecplay; i++)
-    Vectorizer::Delete(nt->_vecplay[i]);
+  for (int i = 0; i < nt->n_vecplay; i++) Vectorizer::Delete(nt->_vecplay[i]);
   Vectorizer::Delete(nt->_vecplay);
 
   Vectorizer::Delete(nt);

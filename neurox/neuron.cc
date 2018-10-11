@@ -153,7 +153,7 @@ hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
 {
   const spike_time_t tt =
       (spike_time_t)t + 1e-10;  // Coreneuron logic, do not change!
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) or defined(PRINT_NEURON_SPIKED)
   fprintf(stderr, "-- Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
