@@ -50,9 +50,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   size_t netcons_linear_size = 0;
   size_t events_queue_linear_size = 0;
   size_t *max_events_per_key = nullptr;
+#ifdef DISABLE_LINEARIZATION
+  if (false) {
+#else
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+#endif
+
 #if LAYOUT == 0
-    assert(0);
+    assert(0); //linearization not implemented for SoA yet!
 #endif
     int vdata_ptrs_count = 0;
     buffer_size_ += is_soma ? Vectorizer::SizeOf(sizeof(Neuron)) : 0;
@@ -515,7 +520,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     weights_offset += netcons[nc].weights_count_;
   }
 
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+  if (buffer_) { //if linearization
     neuron_id_t *pre_gids = new neuron_id_t[netcons_.size()];
 
     int i = 0;
@@ -573,15 +578,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
 #if LAYOUT == 0
-  // if using vector data structures, convert now
-  // TODO for now we only support LAYOUT==1
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
-    fprintf(stderr,
-            "LAYOUT=0 (SoA) and Time-Dependency synchronizer not implemented "
-            "yet\n");
-    assert(0);  // not supported yet
-    exit(1);
-  }
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
