@@ -39,12 +39,12 @@ ELSE()
   link_directories(${HPX_LIBRARY_DIRS})
 ENDIF()
 
-# Include CVODES (Cmake/FindCVODES.cmake)
-find_package(CVODES 3.1.0 REQUIRED)
-include_directories(${CVODES_INCLUDE_DIRS})
-link_directories(${CVODES_LIBRARIES})
-#message(STATUS "  CVODES_INCLUDE_DIRS: ${CVODES_INCLUDE_DIRS}")
-#message(STATUS "  CVODES_LIBRARIES: ${CVODES_LIBRARIES}")
+# Include CVODE (Cmake/FindCVODE.cmake)
+find_package(CVODE 3.1.0 REQUIRED)
+include_directories(${CVODE_INCLUDE_DIRS})
+link_directories(${CVODE_LIBRARIES})
+#message(STATUS "  CVODE_INCLUDE_DIRS: ${CVODE_INCLUDE_DIRS}")
+#message(STATUS "  CVODE_LIBRARIES: ${CVODE_LIBRARIES}")
 
 #binary (copy from apps/CMakeLists.txt)
 include_directories(
@@ -68,7 +68,7 @@ add_compile_options("-DVERSION_STRING=\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERS
 
 add_library(neurox ${COMPILE_LIBRARY_TYPE} ${neurox_all_headers} ${neurox_all_templates} ${neurox_all_c_files} )
 
-target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODES_LIBRARIES})
+target_link_libraries(neurox coreneuron ${HPX_LIBRARIES} ${CVODE_LIBRARIES})
 
 set_target_properties(neurox PROPERTIES
                              VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
