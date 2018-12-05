@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <cassert>
+#include <cstring> //memcpy
 
 namespace neurox {
 namespace tools {
