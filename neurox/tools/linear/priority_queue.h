@@ -1,6 +1,7 @@
 #pragma once
 
-#include "neurox/neurox.h"
+#include <cstring>	    //memcpy
+#include <algorithm>    // std::sort
 
 namespace neurox {
 namespace tools {
@@ -17,7 +18,7 @@ static const int vecplay_event_id = 999999999;
 /**
  * @brief The Linear (max fixed size) PriorityQueue class
  */
-template <class Key, class Val>
+template <class Key, class Time, class Val>
 class PriorityQueue {
  public:
   // needs to be called with placement-new where buffer*
@@ -31,8 +32,8 @@ class PriorityQueue {
     if (add_vecplay_continuousx_entry) {
       Key* keys2 = new Key[keys_count + 1];
       size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-      memcpy(keys2, keys, sizeof(Key) * keys_count);
-      memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
+      std::memcpy(keys2, keys, sizeof(Key) * keys_count);
+      std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
       keys2[keys_count] = (Key)vecplay_event_id;
       max_vals_per_key2[keys_count] = vecplay_max_vals;
       keys = keys2;
@@ -41,16 +42,16 @@ class PriorityQueue {
     }
 
     keys_count_ = keys_count;
-    size_t offset = sizeof(PriorityQueue<Key, Val>);
+    size_t offset = sizeof(PriorityQueue<Key, Time, Val>);
 
     // keys_
     keys_ = (Key*)&(buffer[offset]);
-    memcpy(keys_, keys, sizeof(Key) * keys_count);
+    std::memcpy(keys_, keys, sizeof(Key) * keys_count);
     offset += sizeof(Key) * keys_count;
 
     // count of values per key (size of circular array)
     max_vals_per_key_ = (size_t*)&(buffer[offset]);
-    memcpy(max_vals_per_key_, max_vals_per_key, sizeof(size_t) * keys_count);
+    std::memcpy(max_vals_per_key_, max_vals_per_key, sizeof(size_t) * keys_count);
     offset += sizeof(size_t) * keys_count;
 
     // current offset of each circular array
@@ -71,7 +72,7 @@ class PriorityQueue {
       vals_[i] = (Val*)&(buffer[offset]);
       Val dummy_val;
       for (int j = 0; j < max_vals_per_key[i]; j++) {
-        memcpy(&(vals_[i][j]), &dummy_val, sizeof(Val));
+        std::memcpy(&(vals_[i][j]), &dummy_val, sizeof(Val));
         offset += sizeof(Val);
       }
     }
@@ -97,13 +98,13 @@ class PriorityQueue {
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
     if (add_vecplay_continuousx_entry) {
       size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-      memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
+      std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
       max_vals_per_key2[keys_count] = vecplay_max_vals;
       max_vals_per_key = max_vals_per_key2;
       keys_count++;
     }
 
-    size_t size = sizeof(PriorityQueue<Key, Val>);
+    size_t size = sizeof(PriorityQueue<Key, Time, Val>);
     size += sizeof(Key) * keys_count;     // keys
     size += sizeof(size_t) * keys_count;  // vals per key
     size += sizeof(size_t) * keys_count;  // pop offsets per key
@@ -117,7 +118,7 @@ class PriorityQueue {
   void Push(Key key, Val timed_event) {
     Key* key_ptr =
         (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_, sizeof(Key),
-                           PriorityQueue<Key, Val>::CompareKeyPtrs);
+                           PriorityQueue<Key, Time, Val>::CompareKeyPtrs);
     if (key_ptr == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear priority queue: " + key));
@@ -126,11 +127,11 @@ class PriorityQueue {
     const size_t k = key_ptr - keys_;
     const size_t max_vals = max_vals_per_key_[k];
     size_t& offset_push = offsets_push_[k];
-    memcpy(&(vals_[k][offset_push]), &timed_event, sizeof(Val));
+    std::memcpy(&(vals_[k][offset_push]), &timed_event, sizeof(Val));
     if (++offset_push == max_vals) offset_push = 0;
   }
 
-  void PopAllBeforeTime(floble_t t, std::vector<Val>& events) {
+  void PopAllBeforeTime(Time t, std::vector<Val>& events) {
     for (int k = 0; k < keys_count_; k++) {
       const size_t max_vals = max_vals_per_key_[k];
       const size_t offset_push = offsets_push_[k];

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <map>
-#include "neurox/neurox.h"
+#include <vector>
+#include <cassert>
 
 namespace neurox {
 namespace tools {
