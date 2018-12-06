@@ -132,6 +132,7 @@ class PriorityQueue {
   }
 
   void PopAllBeforeTime(Time t, std::vector<Val>& events) {
+    events.clear();
     for (int k = 0; k < keys_count_; k++) {
       const size_t max_vals = max_vals_per_key_[k];
       const size_t offset_push = offsets_push_[k];

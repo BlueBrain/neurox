@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-//#define LINEAR
+#define LINEAR
 
 #ifdef LINEAR
   #include "map.h"
@@ -15,7 +15,7 @@
 
 typedef double Synapse;
 typedef double Event;
-typedef unsigned NetconX; //offset to element in data array
+typedef double NetconX;
 typedef std::pair<double, Event*> TimedEvent;
 typedef double Time;
 typedef int neuron_id_t;
@@ -145,6 +145,17 @@ void benchmark(const Neuron *neurons,
                const Time sim_time)
 {
 
+#ifdef LINEAR
+    neuron_id_t *m_keys, *n_keys;
+    size_t m_key_count, n_key_count;
+    size_t m_count;
+    NetconX *m_val;
+    std::vector<TimedEvent> q_events;
+
+    linear::Map<neuron_id_t, NetconX> * map_m;
+    linear::Map<neuron_id_t, NetconX> * map_n;
+#endif
+
     // For a fair comparison of structs, we will
     //benchmark 4 steps per iteration interval.
     double dumb;
@@ -155,6 +166,14 @@ void benchmark(const Neuron *neurons,
       for (int n=0; n<neuron_count; n++)
       {
         const Neuron * neuron = &neurons[n];
+#ifdef LINEAR
+        m_key_count = neuron->m->KeysCount();
+        m_keys = neuron->m->Keys();
+        n_key_count = neuron->n->KeysCount();
+        n_keys = neuron->n->Keys();
+        map_m = neuron->m;
+        map_n = neuron->n;
+#endif
 
         for (Time t=time; t<time+0.1; t+=dt)
         {
@@ -162,33 +181,33 @@ void benchmark(const Neuron *neurons,
           {
             // V: if 10 ms have past (outgoing spike)
 #ifdef LINEAR
-            for (auto & v_it : &(neuron->v))
-                dumb += v_it;
+            for (int i=0; i< neuron->v->Count(); i++)
+                dumb += *neuron->v->At(i);
 #else
-            for (auto & v_it : neuron->v)
-                dumb += *v_it;
+            for (int i=0; i< neuron->v.size(); i++)
+                dumb += *neuron->v.at(i);
 #endif
 
             // M: f 10 ms have past (incoming netcon)
 #ifdef LINEAR
+            for (int k=0; k<m_key_count; k++)
+            {
+              map_m->At(m_keys[k], m_count, m_val);
+              for (int i=0; i<m_count; i++)
+                  dumb += m_val[i];
+            }
+#else
             for (auto & id_nc_it : neuron->m)
                 for (auto & nc : id_nc_it.second)
                   dumb += *nc;
-#else
-            while (!neuron->q.empty() &&
-                   neuron->q.top().first <= t+dt) {
-              auto q_it = neuron->q.top();
-              dumb += q_it.first  + *q_it.second;
-            }
 #endif
           }
-
 
           // N: time or pre-synaptic id (4 arrays)
           for (int x=0; x<4; x++)
 #ifdef LINEAR
-            for (auto & n_it : neuron->n)
-                 dumb += n_it.first + n_it.second;
+            for (int k=0; k<n_key_count; k++)
+                dumb += *map_n->At(n_keys[n]);
 #else
             for (auto & n_it : neuron->n)
                  dumb += n_it.first + n_it.second;
@@ -197,11 +216,17 @@ void benchmark(const Neuron *neurons,
           // Q: deliver events for next step
           for (int x=0; x<4; x++)
 #ifdef LINEAR
-            for (auto & n_it : neuron->n)
-                 dumb += n_it.first + n_it.second;
+          {
+            neuron->q->PopAllBeforeTime(t+dt, q_events);
+            for (auto q_it : q_events)
+              dumb += q_it.first + *q_it.second;
+          }
 #else
-            for (auto & n_it : neuron->n)
-                 dumb += n_it.first + n_it.second;
+            while (!neuron->q.empty() &&
+                   neuron->q.top().first <= t+dt) {
+              auto q_it = neuron->q.top();
+              dumb += q_it.first  + *q_it.second;
+            }
 #endif
         }
       }
