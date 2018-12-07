@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstring>	    //memcpy
+#include <cstring>	//memcpy
 #include <algorithm>    // std::sort
 
 namespace neurox {
@@ -25,133 +25,97 @@ class PriorityQueue {
   // is the start of the data structure
   PriorityQueue() = delete;
 
+  typedef struct KeyInfoStruct {
+    Key key_;
+    size_t max_size_;  // max size of circular array
+    size_t offset_pop_;       // one circular array per key
+    size_t offset_push_;      // one circular array per key
+    Val* vals_; //Values
+  } KeyInfo;
+
   PriorityQueue(size_t keys_count, Key* keys, size_t* max_vals_per_key,
                 unsigned char* buffer) {
     assert((void*)buffer == this);
 
-    size_t * delete_ptr = nullptr;
-    if (add_vecplay_continuousx_entry) {
-      Key* keys2 = new Key[keys_count + 1];
-      size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-      delete_ptr = max_vals_per_key2; //fix mem leak
-      std::memcpy(keys2, keys, sizeof(Key) * keys_count);
-      std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
-      keys2[keys_count] = (Key)vecplay_event_id;
-      max_vals_per_key2[keys_count] = vecplay_max_vals;
-      keys = keys2;
-      max_vals_per_key = max_vals_per_key2;
-      keys_count++;
-    }
+    this->keys_count_ = keys_count + (add_vecplay_continuousx_entry? 1 : 0);
 
-    keys_count_ = keys_count;
     size_t offset = sizeof(PriorityQueue<Key, Time, Val>);
+    this->keys_info_ = (KeyInfo*) &(buffer[offset]);
+    for (int k=0; k<keys_count_; k++)
+    {
+      KeyInfo * ki = &keys_info_[k];
+      if (k==keys_count_-1 && add_vecplay_continuousx_entry)
+      {
+        ki->key_ = (Key)vecplay_event_id;
+        ki->max_size_=vecplay_max_vals;
+      }
+      else
+      {
+        ki->key_=keys[k];
+        ki->max_size_=max_vals_per_key[k];
+      }
+      ki->offset_push_=0;
+      ki->offset_pop_=0;
+    }
+    offset += sizeof(KeyInfo) * keys_count_;
 
-    // keys_
-    keys_ = (Key*)&(buffer[offset]);
-    std::memcpy(keys_, keys, sizeof(Key) * keys_count);
-    offset += sizeof(Key) * keys_count;
-
-    // count of values per key (size of circular array)
-    max_vals_per_key_ = (size_t*)&(buffer[offset]);
-    std::memcpy(max_vals_per_key_, max_vals_per_key, sizeof(size_t) * keys_count);
-    offset += sizeof(size_t) * keys_count;
-
-    // current offset of each circular array
-    offsets_pop_ = (size_t*)&(buffer[offset]);
-    for (int i = 0; i < keys_count; i++) offsets_pop_[i] = 0;
-    offset += sizeof(size_t) * keys_count;
-
-    offsets_push_ = (size_t*)&(buffer[offset]);
-    for (int i = 0; i < keys_count; i++) offsets_push_[i] = 0;
-    offset += sizeof(size_t) * keys_count;
-
-    // values array of pointers
-    vals_ = (Val**)&(buffer[offset]);
-    offset += sizeof(Val*) * keys_count;
-
-    // values
-    for (int i = 0; i < keys_count; i++) {
-      vals_[i] = (Val*)&(buffer[offset]);
-      Val dummy_val;
-      for (int j = 0; j < max_vals_per_key[i]; j++) {
-        std::memcpy(&(vals_[i][j]), &dummy_val, sizeof(Val));
+    Val dummy_val;
+    for (int k=0; k<keys_count_; k++)
+    {
+      KeyInfo * ki = &keys_info_[k];
+      ki->vals_ = (Val*) &(buffer[offset]);
+      for (int j = 0; j < ki->max_size_; j++) {
+        std::memcpy(&(ki->vals_[j]), &dummy_val, sizeof(Val));
         offset += sizeof(Val);
       }
     }
 
     // make sure keys are sorted and not identical
-    for (int i = 1; i < keys_count_; i++) {
-      assert(keys_[i] > keys_[i - 1]);
-      if (keys_[i] <= keys_[i - 1])
+    for (int k = 1; k < keys_count_; k++) {
+      assert(keys_info_[k].key_ > keys_info_[k-1].key_ );
+      if (keys_info_[k].key_ <= keys_info_[k-1].key_ )
         throw std::runtime_error(
             std::string("Keys for linear priority queue are not sorted."));
     }
-
-    if (delete_ptr)
-      delete [] delete_ptr;
   }
 
   ~PriorityQueue() {
-    delete[] keys_;
-    delete[] max_vals_per_key_;
-    delete[] offsets_push_;
-    delete[] offsets_pop_;
-    for (int i = 0; i < keys_count_; i++) delete[] vals_[i];
-    delete[] vals_;
+    for (int k = 0; k < keys_count_; k++) delete[] keys_info_[k]->vals_;
+    delete[] keys_info_;
   }
 
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
-    size_t * delete_ptr = nullptr;
-    if (add_vecplay_continuousx_entry) {
-      size_t* max_vals_per_key2 = new size_t[keys_count + 1];
-      delete_ptr = max_vals_per_key2; //mem leak
-      std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
-      max_vals_per_key2[keys_count] = vecplay_max_vals;
-      max_vals_per_key = max_vals_per_key2;
-      keys_count++;
-    }
-
-    size_t size = sizeof(PriorityQueue<Key, Time, Val>);
-    size += sizeof(Key) * keys_count;     // keys
-    size += sizeof(size_t) * keys_count;  // vals per key
-    size += sizeof(size_t) * keys_count;  // pop offsets per key
-    size += sizeof(size_t) * keys_count;  // push offsets per key
-    size += sizeof(Val*) * keys_count;    // values pointers
+    size_t size = sizeof(PriorityQueue<Key, Time, Val>) + sizeof(KeyInfo)*keys_count;
     for (int i = 0; i < keys_count; i++)
       size += max_vals_per_key[i] * sizeof(Val);
 
-    if (delete_ptr)
-      delete [] delete_ptr;
+    if (add_vecplay_continuousx_entry) 
+      size += sizeof(KeyInfo) + vecplay_max_vals*sizeof(Val);
     return size;
   }
 
   void Push(Key key, Val timed_event) {
-    Key* key_ptr =
-        (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_, sizeof(Key),
+    KeyInfo* ki =
+        (KeyInfo*)std::bsearch((void*)&key, (void*)keys_info_, keys_count_, sizeof(Key),
                            PriorityQueue<Key, Time, Val>::CompareKeyPtrs);
-    if (key_ptr == nullptr)
+    if (ki == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear priority queue: " + key));
-    assert(*key_ptr == key);
+    assert(ki->key_ == key);
 
-    const size_t k = key_ptr - keys_;
-    const size_t max_vals = max_vals_per_key_[k];
-    size_t& offset_push = offsets_push_[k];
-    std::memcpy(&(vals_[k][offset_push]), &timed_event, sizeof(Val));
-    if (++offset_push == max_vals) offset_push = 0;
+    size_t& offset_push = ki->offset_push_;
+    std::memcpy(&(ki->vals_[offset_push]), &timed_event, sizeof(Val));
+    if (++offset_push == ki->max_size_) offset_push = 0;
   }
 
   void PopAllBeforeTime(Time t, std::vector<Val>& events) {
     size_t max_vals, offset_push, offset_pop;
     Val * vals_k;
     for (int k = 0; k < keys_count_; k++) {
-      max_vals = max_vals_per_key_[k];
-      offset_push = offsets_push_[k];
-      offset_pop = offsets_pop_[k];
-      vals_k = vals_[k];
-      while (offset_pop != offset_push && vals_k[offset_pop].first <= t) {
-        events.push_back(vals_[k][offset_pop]);
-        if (++offset_pop == max_vals) offset_pop = 0;
+      KeyInfo * ki = &keys_info_[k];
+      while (ki->offset_pop_ != ki->offset_push_ && ki->vals_[offset_pop].first <= t) {
+        events.push_back(ki->vals_[offset_pop]);
+        if (++ki->offset_pop_ == ki->max_size_) ki->offset_pop_ = 0;
       }
     }
     std::sort(events.begin(), events.end());
@@ -159,25 +123,26 @@ class PriorityQueue {
 
   bool Empty() {
     for (int i = 0; i < keys_count_; i++)
-      if (offsets_push_[i] > offsets_pop_[i]) return false;
+    {
+      KeyInfo * ki = &keys_info_[i];
+      if (ki->offset_push_ > ki->offset_pop_[i]) return false;
+    }
     return true;
   }
 
-  Key* Keys() { return keys_; }
+  KeyInfo* KeysInfo() { return keys_info_; }
   size_t Count() { return keys_count_; }
 
  private:
-  static int CompareKeyPtrs(const void* pa, const void* pb) {
-    const Key a = *(const Key*)pa;
-    const Key b = *(const Key*)pb;
-    return a < b ? -1 : (a == b ? 0 : 1);
-  }
   size_t keys_count_;
-  Key* keys_;
-  size_t* max_vals_per_key_;  // max size of circular array
-  size_t* offsets_pop_;       // one circular array per key
-  size_t* offsets_push_;      // one circular array per key
-  Val** vals_;
+  
+  KeyInfo *keys_info_;
+
+  static int CompareKeyPtrs(const void* pa, const void* pb) {
+    const KeyInfo *a = (const KeyInfo *)pa;
+    const KeyInfo *b = (const KeyInfo *)pb;
+    return a->key_ < b->key_ ? -1 : (a->key_ == b->key_ ? 0 : 1);
+  }
 };  // class PriorityQueue
 
 };  // namespace linear
