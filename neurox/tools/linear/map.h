@@ -120,13 +120,14 @@ class Map {
 
   /// single-value At
   inline Val* At(Key key) {
-    size_t count = -1;
-    Val* vals;
-    At(key, count, vals);
-    if (count != 1)
+    Key* key_ptr = (Key*)std::bsearch((void*)&key, (void*)keys_, keys_count_,
+                                      sizeof(Key), Map::CompareKeyPtrs);
+    if (key_ptr == nullptr)
       throw std::runtime_error(
-          std::string("called wrong At() function on multi-value array"));
-    return vals;
+          std::string("Key not found in linear map: " + key));
+    assert(*key_ptr == key);
+    const size_t k = key_ptr - keys_;
+    return vals_[k];
   }
 
   /// multiple-value At

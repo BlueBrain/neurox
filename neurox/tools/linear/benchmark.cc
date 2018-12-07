@@ -20,7 +20,7 @@ typedef double Time;
 typedef std::pair<Time, Event*> TimedEvent;
 typedef int neuron_id_t;
 
-const double sample = -1;
+const double sample = 1;
 
 class Neuron
 {
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
     printf("Benchark starting (std data structs) with %d neurons\n", (int) neuron_count);
 #endif
 
-    const size_t buffer_size = 4*1024*1024; //4MB
+    const size_t buffer_size = 0; //4MB
     const Time sim_time=10; //ms
     const float netcons_per_syn=5;
 
