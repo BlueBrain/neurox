@@ -4,6 +4,20 @@
 #include <ctime>        // std::time
 #include <cstdlib>      // std::rand, std::srand
 
+// This block enables compilation of the code with and without LIKWID in place
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
+#endif
+
 #define LINEAR
 
 #ifdef LINEAR
@@ -172,6 +186,11 @@ double benchmark(Neuron **neurons,
       {
         neuron = neurons[n];
 
+        //run through dataset to make sure it wont stay in cache
+        for (size_t b=0; b<buffer_size; b+=256)
+          dumb++;
+
+        LIKWID_MARKER_START("benchmark");
 #ifdef LINEAR
 	map_m = neuron->m;
 	map_n = neuron->n;
@@ -258,6 +277,7 @@ double benchmark(Neuron **neurons,
 	  }
 #endif
         } //end of 4 time steps
+        LIKWID_MARKER_STOP("benchmark");
       } //end of neurons
     } //end of comm step
     return dumb;
@@ -271,6 +291,7 @@ int main(int argc, char** argv)
       printf("Usage: %s <neuron-count>\n", argv[0]);
       exit(1);
     }
+    LIKWID_MARKER_INIT;
     const size_t neuron_count = atoi(argv[1]);
 #ifdef LINEAR
     printf("Benchark starting (LINEAR data structs) with %d neurons\n", (int) neuron_count);
@@ -355,5 +376,6 @@ int main(int argc, char** argv)
       for (auto & neuron : neurons)
           delete neuron;
 
+    LIKWID_MARKER_CLOSE;
     return 0;
 }
