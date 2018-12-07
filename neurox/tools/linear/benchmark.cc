@@ -51,13 +51,8 @@ class Neuron
     Neuron() {};
 
     ~Neuron() {
-        delete [] buffer;
-#ifdef LINEAR
-        delete v;
-        delete m;
-        delete n;
-        delete q;
-#else
+        delete [] buffer; //for Linear case it deletes all structures
+#ifndef LINEAR
         v.clear();
         m.clear();
         n.clear();
@@ -69,10 +64,10 @@ class Neuron
 #ifndef LINEAR
     Neuron(size_t buffer_size)
     {
-        buffer = new unsigned char[buffer_size];
+        buffer = new unsigned char[buffer_size]();
         //remaining vars are set externally
     }
-#else LINEAR
+#else 
     Neuron(size_t buffer_size,
            std::vector<Synapse*> vv,
            std::map<neuron_id_t, std::vector<NetconX*> >& mm,
@@ -91,12 +86,13 @@ class Neuron
              count_per_key[i++]=key_val.second.size();
         size_t m_size = SizeOf(linear::Map<neuron_id_t, NetconX>::Size(
                           keys_count, count_per_key));
+	delete [] count_per_key;
 
         size_t n_size = SizeOf(linear::Map<neuron_id_t, Time>::Size(
                         nn.size()));
 
         size_t q_size = SizeOf(linear::PriorityQueue<neuron_id_t, Time, TimedEvent>::Size(
-                        q_keys_count, q_max_vals_per_key));;
+                        q_keys_count, q_max_vals_per_key));; 
 
         unsigned int buffer_it=buffer_size;
         buffer_size += q_size + v_size + m_size + n_size;
@@ -162,7 +158,7 @@ void benchmark(Neuron **neurons,
 
     // For a fair comparison of structs, we will
     //benchmark 4 steps per iteration interval.
-    double dumb;
+    double dumb=0;
     const Time dt = 0.025;
     int comm_it=0;
     for (Time time=0; time<sim_time; time+=0.1, comm_it++)
@@ -212,7 +208,22 @@ void benchmark(Neuron **neurons,
 #endif
           }
 
-          //at every 3 ms, create events
+
+
+          // N: time or pre-synaptic id (4 arrays)
+          for (int x=0; x<4; x++)
+	  {
+#ifdef LINEAR
+            for (int k=0; k<n_key_count; k++)
+                dumb += n_keys[k] + *map_n->At(n_keys[k]);
+#else
+            for (auto & n_it : neuron->n)
+                 dumb += n_it.first + n_it.second;
+#endif
+	  }
+
+
+          // Q: at every 3 ms, create events
           if (comm_it + n % 30 == 0)
           {
             for (size_t i=0; i<synapse_count; i++)
@@ -227,24 +238,14 @@ void benchmark(Neuron **neurons,
             }
           }
 
-          // N: time or pre-synaptic id (4 arrays)
-          for (int x=0; x<4; x++)
-#ifdef LINEAR
-            for (int k=0; k<n_key_count; k++)
-                dumb += *map_n->At(n_keys[n]);
-#else
-            for (auto & n_it : neuron->n)
-                 dumb += n_it.first + n_it.second;
-#endif
 
           // Q: deliver events for next step
           for (int x=0; x<4; x++)
+	  {
 #ifdef LINEAR
-          {
             neuron->q->PopAllBeforeTime(t+dt, q_events);
             for (auto q_it : q_events)
               dumb += q_it.first + *q_it.second;
-          }
 #else
             while (!neuron->q.empty() &&
                    neuron->q.top().first <= t+dt) {
@@ -253,27 +254,32 @@ void benchmark(Neuron **neurons,
               neuron->q.pop();
             }
 #endif
+	  }
         }
       }
     }
+
     printf("Dumb=%f\n", dumb);
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc!=2)
+    {
+      printf("Usage: %s <neuron-count>\n", argv[0]);
+      exit(1);
+    }
+    const size_t neuron_count = atoi(argv[1]);
 #ifdef LINEAR
-    printf("Benchark starting (LINEAR data structs)\n");
+    printf("Benchark starting (LINEAR data structs) with %d neurons\n", (int) neuron_count);
 #else
-    printf("Benchark starting (std data structs)\n");
+    printf("Benchark starting (std data structs) with %d neurons\n", (int) neuron_count);
 #endif
 
     const size_t buffer_size = 4*1024*1024; //4MB
     const Time sim_time=10; //ms
     const float netcons_per_syn=5;
 
-    for (int scale=1; scale<=1; scale*=2)
-    {
-      const size_t neuron_count = 10*scale; //min 2
       const size_t synapse_count = std::min(0.8*(double)neuron_count, 10000./(double)netcons_per_syn);
 
       std::vector<Neuron*> neurons(neuron_count);
@@ -333,12 +339,11 @@ int main()
                              );
 #endif
       }
-      printf("Running scale %d\n", scale);
+      printf("Running ...\n");
       benchmark(neurons.data(), neurons.size(), sim_time, synapse_count, buffer_size);
 
       for (auto & neuron : neurons)
           delete neuron;
-    }
 
     return 0;
 }

@@ -11,7 +11,7 @@ namespace linear {
  * id, so we give it a very large one. vecplay_max_vals
  * should be 1 (?), but we set to 10 to keep initial
  * events that are to be delivered at negative times */
-static const bool add_vecplay_continuousx_entry = true;
+static const bool add_vecplay_continuousx_entry = false;
 static const int vecplay_max_vals = 10;
 static const int vecplay_event_id = 999999999;
 
@@ -29,9 +29,11 @@ class PriorityQueue {
                 unsigned char* buffer) {
     assert((void*)buffer == this);
 
+    size_t * delete_ptr = nullptr;
     if (add_vecplay_continuousx_entry) {
       Key* keys2 = new Key[keys_count + 1];
       size_t* max_vals_per_key2 = new size_t[keys_count + 1];
+      delete_ptr = max_vals_per_key2; //fix mem leak
       std::memcpy(keys2, keys, sizeof(Key) * keys_count);
       std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
       keys2[keys_count] = (Key)vecplay_event_id;
@@ -84,6 +86,9 @@ class PriorityQueue {
         throw std::runtime_error(
             std::string("Keys for linear priority queue are not sorted."));
     }
+
+    if (delete_ptr)
+      delete [] delete_ptr;
   }
 
   ~PriorityQueue() {
@@ -96,8 +101,10 @@ class PriorityQueue {
   }
 
   static size_t Size(size_t keys_count, size_t* max_vals_per_key) {
+    size_t * delete_ptr = nullptr;
     if (add_vecplay_continuousx_entry) {
       size_t* max_vals_per_key2 = new size_t[keys_count + 1];
+      delete_ptr = max_vals_per_key2; //mem leak
       std::memcpy(max_vals_per_key2, max_vals_per_key, sizeof(size_t) * keys_count);
       max_vals_per_key2[keys_count] = vecplay_max_vals;
       max_vals_per_key = max_vals_per_key2;
@@ -112,6 +119,9 @@ class PriorityQueue {
     size += sizeof(Val*) * keys_count;    // values pointers
     for (int i = 0; i < keys_count; i++)
       size += max_vals_per_key[i] * sizeof(Val);
+
+    if (delete_ptr)
+      delete [] delete_ptr;
     return size;
   }
 
