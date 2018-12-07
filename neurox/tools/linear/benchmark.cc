@@ -285,7 +285,7 @@ int main(int argc, char** argv)
     std::random_shuffle ( random_ids.begin(), random_ids.end() );
 
     const size_t buffer_size = 4*1024*1024; //4MB
-    const Time sim_time=10; //ms
+    const Time sim_time=1; //ms
     const float netcons_per_syn=5;
 
       std::vector<Neuron*> neurons(neuron_count);

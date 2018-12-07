@@ -138,7 +138,6 @@ class PriorityQueue {
 
  private:
   size_t keys_count_;
-  
   KeyInfo *keys_info_;
 
   static int CompareKeyInfoPtrs(const void* pa, const void* pb) {
