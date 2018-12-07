@@ -190,7 +190,6 @@ double benchmark(Neuron **neurons,
         for (size_t b=0; b<buffer_size; b+=256)
           dumb += neuron->buffer[b];
 
-        LIKWID_MARKER_START("benchmark");
 #ifdef LINEAR
 	map_m = neuron->m;
 	map_n = neuron->n;
@@ -199,6 +198,7 @@ double benchmark(Neuron **neurons,
         map_n = &neuron->n;
 #endif
 
+        LIKWID_MARKER_START("benchmark");
         for (Time t=time; t<time+0.1; t+=dt)
         {
             // M: handle one random incoming netcon per neuron per step
