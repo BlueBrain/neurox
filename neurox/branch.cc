@@ -542,13 +542,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
 #ifndef NDEBUG
-    assert(netcons_.size() == netcons_linear_->KeysCount());
+    assert(netcons_.size() == netcons_linear_->Count());
     NetconX *ncs2;
     size_t nc2_count = -1;
     neuron_id_t nc_key_it = 0;
     for (auto gid_vec_it : netcons_) {
       neuron_id_t pre_gid = gid_vec_it.first;
-      assert(pre_gid == netcons_linear_->Keys()[nc_key_it]);
+      assert(pre_gid == netcons_linear_->KeyAt(nc_key_it));
       std::vector<NetconX *> ncs1 = gid_vec_it.second;
       netcons_linear_->At(pre_gid, nc2_count, ncs2);
       assert(ncs1.size() == nc2_count);

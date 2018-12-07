@@ -28,7 +28,9 @@ class Map {
     // needs to be called with placement-new where buffer*
     assert((void*)buffer == this);
 
+    vals_count_=0;
     keys_count_ = map1.size();
+    assert(keys_count_>0);
     size_t offset = sizeof(Map<Key, Val>) + sizeof(KeyInfo)* keys_count_;
 
     int k = 0;
@@ -38,8 +40,9 @@ class Map {
       ki->key_ = key_val.first;
       ki->size_ = 1;
       ki->vals_ = (Val*)&(buffer[offset]);
-      memcpy(ki->vals_, &(key_val.second), sizeof(Val)* ki->size_);
-      offset += sizeof(Val) * ki->size_;
+      memcpy(ki->vals_, &(key_val.second), sizeof(Val));
+      offset += sizeof(Val);
+      vals_count_++;
       k++;
     }
 
@@ -57,7 +60,9 @@ class Map {
     // needs to be called with placement-new where buffer*
     assert((void*)buffer == this);
 
+    vals_count_=0;
     keys_count_ = map1.size();
+    assert(keys_count_>0);
     size_t offset = sizeof(Map<Key, Val>) + sizeof(KeyInfo) * keys_count_;
 
     int k=0, j=0;
@@ -71,6 +76,7 @@ class Map {
       for (auto val_ptr : key_val.second)
         memcpy(&(ki->vals_[j++]), val_ptr, sizeof(Val));
       offset += sizeof(Val) * ki->size_;
+      vals_count_+=ki->size_;
       k++;
     }
 
@@ -128,9 +134,13 @@ class Map {
 
   KeyInfo* KeysInfo() { return keys_info_; }
   size_t Count() { return keys_count_; }
+  Key KeyAt(size_t i) { assert(i<keys_count_); return keys_info_[i].key_; }
+  Val* Values() { return keys_info_[0].vals_;} //values are serialized
+  size_t ValuesCount() {return vals_count_;}
 
  private:
   size_t keys_count_;
+  size_t vals_count_;
   KeyInfo *keys_info_;
 
   static int CompareKeyInfoPtrs(const void* pa, const void* pb) {

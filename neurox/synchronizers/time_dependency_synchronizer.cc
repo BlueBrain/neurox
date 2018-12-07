@@ -289,9 +289,9 @@ neuron_id_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
     size_t d) {
   if (dependencies_max_time_allowed_linear_) {
-    assert(dependencies_max_time_allowed_linear_->KeysCount() ==
-           dependencies_max_time_allowed_linear_->KeysCount());
-    return dependencies_max_time_allowed_linear_->Keys()[d];
+    assert(dependencies_max_time_allowed_linear_->Count() ==
+           dependencies_max_time_allowed_linear_->Count());
+    return dependencies_max_time_allowed_linear_->KeyAt(d);
   }
 
   assert(dependencies_max_time_allowed_.size() ==
@@ -301,7 +301,7 @@ TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
 
 size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
   size_t size = dependencies_min_delay_linear_
-                    ? dependencies_min_delay_linear_->KeysCount()
+                    ? dependencies_min_delay_linear_->Count()
                     : dependencies_min_delay_.size();
   assert(dependencies_min_delay_.size() ==
          dependencies_max_time_allowed_.size());
