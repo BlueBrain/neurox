@@ -1,6 +1,10 @@
 #include <stdlib.h>
+#include <algorithm>    // std::random_shuffle
+#include <vector>       // std::vector
+#include <ctime>        // std::time
+#include <cstdlib>      // std::rand, std::srand
 
-//#define LINEAR
+#define LINEAR
 
 #ifdef LINEAR
   #include "map.h"
@@ -118,12 +122,6 @@ class Neuron
     }
 #endif
 
-    /// Random integer number between min and max
-    static int irand(int min, int max)
-    {
-        return min+ (std::rand() % (max-min + 1));
-    }
-
   private:
     template <int chunk>
     inline int soa_padded_size(int cnt, int layout) {
@@ -138,28 +136,33 @@ class Neuron
     }
 };
 
+
 double benchmark(Neuron **neurons,
                const size_t neuron_count,
                const Time sim_time,
-               const size_t synapse_count,
-               const size_t buffer_size)
+               const size_t buffer_size,
+	       const size_t * random_ids)
 {
 
 #ifdef LINEAR
     neuron_id_t *m_keys, *n_keys;
-    size_t m_key_count, n_key_count;
     size_t m_count;
     NetconX *m_val;
     std::vector<TimedEvent> q_events;
 
     linear::Map<neuron_id_t, NetconX> * map_m;
     linear::Map<neuron_id_t, NetconX> * map_n;
+#else
+    std::map<neuron_id_t, std::vector<NetconX*> > * map_m;
+    std::map<neuron_id_t, Time > * map_n;
+    std::vector<NetconX*> * m_val;
 #endif
 
     // For a fair comparison of structs, we will
     //benchmark 4 steps per iteration interval.
     double dumb=0;
     const Time dt = 0.025;
+    const size_t netcons_per_step=3; 
     int comm_it=0;
     Neuron * neuron;
     neuron_id_t post_id = 0;
@@ -170,19 +173,33 @@ double benchmark(Neuron **neurons,
         neuron = neurons[n];
 
 #ifdef LINEAR
-        m_key_count = neuron->m->KeysCount();
-        m_keys = neuron->m->Keys();
-        n_key_count = neuron->n->KeysCount();
-        n_keys = neuron->n->Keys();
-        map_m = neuron->m;
-        map_n = neuron->n;
+	map_m = neuron->m;
+	map_n = neuron->n;
+#else
+	map_m = &neuron->m;
+        map_n = &neuron->n;
 #endif
 
         for (Time t=time; t<time+0.1; t+=dt)
         {
-          if (comm_it % 100 == 0)
-          {
-            // V: if 10 ms have past (outgoing spike)
+            // M: handle one random incoming netcon per neuron per step
+            for (size_t i=0; i<neuron_count; i++)
+            {
+	      neuron_id_t id = random_ids[i];
+#ifdef LINEAR
+              map_m->At(id, m_count, m_val);
+              for (int j=0; j<m_count; j++)
+                dumb += m_val[j];
+#else
+	      m_val = &map_m->at(id);
+	      for (int j=0; j<m_val->size(); j++)
+                dumb += *m_val->at(j);
+#endif
+	    }
+
+          // one spike at every 10 ms
+          if (comm_it % 10 == 0)
+	  {
 #ifdef LINEAR
             for (int i=0; i< neuron->v->Count(); i++)
                 dumb += *neuron->v->At(i);
@@ -190,47 +207,36 @@ double benchmark(Neuron **neurons,
             for (int i=0; i< neuron->v.size(); i++)
                 dumb += *neuron->v.at(i);
 #endif
-
-            // M: f 10 ms have past (incoming netcon)
-#ifdef LINEAR
-            for (int k=0; k<m_key_count; k++)
-            {
-              map_m->At(m_keys[k], m_count, m_val);
-              for (int i=0; i<m_count; i++)
-                  dumb += m_val[i];
-            }
-#else
-            for (std::pair<neuron_id_t, std::vector<NetconX*> > id_nc_it : neuron->m)
-                for (NetconX *& nc : id_nc_it.second)
-                  dumb += *nc;
-#endif
-          }
-
-
-          // N: time or pre-synaptic id (4 arrays)
-          for (int x=0; x<4; x++)
-	  {
-#ifdef LINEAR
-            for (int k=0; k<n_key_count; k++)
-                dumb += n_keys[k] ;//+ *map_n->At(n_keys[k]);
-#else
-            for (auto & n_it : neuron->n)
-                 dumb += n_it.first; // + n_it.second;
-#endif
 	  }
 
 
-          // Q: at every step, create events
-          if (comm_it % 1 == 0)
+          // N: time of pre-synaptic pre-synaptic random id (4 arrays)
+          for (int x=0; x<4; x++)
+	  {
+            for (int k=0; k<neuron_count; k++)
+	    {
+	      neuron_id_t id = random_ids[k];
+#ifdef LINEAR
+              dumb += *map_n->At(id);
+#else
+              dumb += map_n->at(id);
+#endif
+	    }
+	  }
+
+
+          // Q: at every 1ms, create events
+          if (comm_it % 10 == 0)
           {
-            for (size_t i=0; i<synapse_count/4; i++)
+            for (size_t i=0; i<neuron_count; i++)
             {
               //create events at "random" positions in queue
-              Time til = t + dt + i*0.000001*(i%2==0 ? -1 : 1);
+              Time til = t + dt + i*0.01*(i%2==0 ? -1 : 1);
+	      neuron_id_t id = random_ids[i];
 #ifdef LINEAR
-              neurons[n]->q->Push(n+i, std::make_pair(til, (Event*)&sample));
+              neurons[id]->q->Push(n, std::make_pair(til, (Event*)&sample));
 #else
-              neurons[n]->q.push(std::make_pair(til, (Event*) &sample));
+              neurons[id]->q.push(std::make_pair(til, (Event*) &sample));
 #endif
 	      dumb++;
             }
@@ -238,18 +244,18 @@ double benchmark(Neuron **neurons,
 
           // Q: deliver events for next step
 #ifdef LINEAR
-            neuron->q->PopAllBeforeTime(t+dt, q_events);
-            for (auto q_it : q_events)
-	    {
-              dumb += q_it.first + *q_it.second;
-	    }
+          neuron->q->PopAllBeforeTime(t+dt, q_events);
+          for (auto q_it : q_events)
+	  {
+            dumb += q_it.first + *q_it.second;
+	  }
 #else
-            while (!neuron->q.empty() &&
-                   neuron->q.top().first <= t+dt) {
-              auto q_it = neuron->q.top();
-              dumb += q_it.first  + *q_it.second;
-              neuron->q.pop();
-	    }
+          while (!neuron->q.empty() &&
+                 neuron->q.top().first <= t+dt) {
+            auto q_it = neuron->q.top();
+            dumb += q_it.first  + *q_it.second;
+            neuron->q.pop();
+	  }
 #endif
         } //end of 4 time steps
       } //end of neurons
@@ -259,6 +265,7 @@ double benchmark(Neuron **neurons,
 
 int main(int argc, char** argv)
 {
+
     if (argc!=2)
     {
       printf("Usage: %s <neuron-count>\n", argv[0]);
@@ -271,19 +278,23 @@ int main(int argc, char** argv)
     printf("Benchark starting (std data structs) with %d neurons\n", (int) neuron_count);
 #endif
 
+    //shuffled list of elements;
+    std::srand ( unsigned ( std::time(0) ) );    
+    std::vector<size_t> random_ids(neuron_count);
+    for (int id=0; id<neuron_count;  id++) random_ids[id]=id;
+    std::random_shuffle ( random_ids.begin(), random_ids.end() );
+
     const size_t buffer_size = 4*1024*1024; //4MB
     const Time sim_time=10; //ms
     const float netcons_per_syn=5;
-
-      const size_t synapse_count = std::min(0.8*(double)neuron_count, 10000./(double)netcons_per_syn);
 
       std::vector<Neuron*> neurons(neuron_count);
 
       for (int n=0; n<neuron_count; n++)
       {
-        //synapses to outgoing neurons at random times
-        std::vector<Synapse*> vv(synapse_count);
-        for (int i=0; i<synapse_count; i++)
+        //synapses to outgoing (all) neurons at random times
+        std::vector<Synapse*> vv(neuron_count);
+        for (int i=0; i<neuron_count; i++)
           vv.at(i) = (Synapse*)&sample;
 
 #ifndef LINEAR
@@ -297,7 +308,7 @@ int main(int argc, char** argv)
         //map of incoming netcons per neurons and dependencies time
         std::map<neuron_id_t, std::vector<NetconX*> > mm;
 
-        for (int i=0; i<synapse_count; i++)
+        for (int i=0; i<neuron_count; i++)
         {
           mm[i] = std::vector<NetconX*>(netcons_per_syn);
           for (int j=0; j<netcons_per_syn; j++)
@@ -312,7 +323,7 @@ int main(int argc, char** argv)
 #endif
         //map of dependencies time
         std::map<neuron_id_t, Time> nn;
-        for (int i=0; i<synapse_count; i++)
+        for (int i=0; i<neuron_count; i++)
           nn[i] = -1;
 
 #ifndef LINEAR
@@ -320,15 +331,15 @@ int main(int argc, char** argv)
 #else
         std::vector<neuron_id_t> q_keys;
         std::vector<size_t> q_max_vals_per_key;
-        for (int i=0; i<synapse_count; i++)
+        for (int i=0; i<neuron_count; i++)
         {
-          q_keys.push_back(n+i);
-          q_max_vals_per_key.push_back(neuron_count*0.3);
+          q_keys.push_back(i);
+          q_max_vals_per_key.push_back(neuron_count);
         }
 
         neurons.at(n)=new Neuron(buffer_size,
                              vv, mm, nn,
-                             synapse_count, //q_keys_count
+                             neuron_count, //q_keys_count
                              q_keys.data(),
                              q_max_vals_per_key.data()
                              );
@@ -336,7 +347,7 @@ int main(int argc, char** argv)
       }
       printf("Running %f msecs...\n", sim_time);
       clock_t begin = clock();
-      double dumb = benchmark(neurons.data(), neurons.size(), sim_time, synapse_count, buffer_size);
+      double dumb = benchmark(neurons.data(), neurons.size(), sim_time, buffer_size, random_ids.data());
       clock_t end = clock();
       double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
       printf("Finished: %f secs. Sum check=%.4f\n", time_spent, dumb);
