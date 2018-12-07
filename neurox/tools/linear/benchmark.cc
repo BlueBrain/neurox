@@ -166,7 +166,6 @@ double benchmark(Neuron **neurons,
     {
       for (int n=0; n<neuron_count; n++)
       {
-	q_events.clear();
         neuron = neurons[n];
 
         //run through the structure
@@ -174,6 +173,7 @@ double benchmark(Neuron **neurons,
         //    dumb+= neuron->buffer[b];
 
 #ifdef LINEAR
+        q_events.clear();
         m_key_count = neuron->m->KeysCount();
         m_keys = neuron->m->Keys();
         n_key_count = neuron->n->KeysCount();
