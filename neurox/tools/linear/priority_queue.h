@@ -110,6 +110,7 @@ class PriorityQueue {
   }
 
   void PopAllBeforeTime(Time t, std::vector<Val>& events) {
+    events.clear();
     KeyInfo * ki = nullptr;
     for (int k = 0; k < keys_count_; k++) {
       ki = &keys_info_[k];
