@@ -18,7 +18,7 @@
 #define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
 #endif
 
-#define LINEAR
+//#define LINEAR
 
 #ifdef LINEAR
   #include "map.h"
@@ -188,7 +188,7 @@ double benchmark(Neuron **neurons,
 
         //run through dataset to make sure it wont stay in cache
         for (size_t b=0; b<buffer_size; b+=256)
-          dumb++;
+          dumb += neuron->buffer[b];
 
         LIKWID_MARKER_START("benchmark");
 #ifdef LINEAR
@@ -305,7 +305,7 @@ int main(int argc, char** argv)
     for (int id=0; id<neuron_count;  id++) random_ids[id]=id;
     std::random_shuffle ( random_ids.begin(), random_ids.end() );
 
-    const size_t buffer_size = 4*1024*1024; //4MB
+    const size_t buffer_size = 32*1024*1024; //4MB
     const Time sim_time=10; //ms
     const float netcons_per_syn=5;
 
