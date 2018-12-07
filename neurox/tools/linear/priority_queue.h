@@ -71,6 +71,7 @@ class PriorityQueue {
       }
     }
 
+#ifndef NDEBUG
     // make sure keys are sorted and not identical
     for (int k = 1; k < keys_count_; k++) {
       assert(keys_info_[k].key_ > keys_info_[k-1].key_ );
@@ -78,6 +79,7 @@ class PriorityQueue {
         throw std::runtime_error(
             std::string("Keys for linear priority queue are not sorted."));
     }
+#endif
   }
 
   ~PriorityQueue() {
@@ -99,17 +101,19 @@ class PriorityQueue {
     KeyInfo* ki =
         (KeyInfo*)std::bsearch((void*)&key, (void*)keys_info_, keys_count_, sizeof(KeyInfo),
                            PriorityQueue<Key, Time, Val>::CompareKeyInfoPtrs);
+#ifndef NDEBUG
     if (ki == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear priority queue: " + key));
     assert(ki->key_ == key);
+#endif
 
     size_t& offset_push = ki->offset_push_;
     std::memcpy(&(ki->vals_[offset_push]), &timed_event, sizeof(Val));
     if (++offset_push == ki->max_size_) offset_push = 0;
   }
 
-  void PopAllBeforeTime(Time t, std::vector<Val>& events) {
+  inline void PopAllBeforeTime(Time t, std::vector<Val>& events) {
     events.clear();
     KeyInfo * ki = nullptr;
     for (int k = 0; k < keys_count_; k++) {
@@ -123,12 +127,12 @@ class PriorityQueue {
     std::sort(events.begin(), events.end());
   }
 
-  bool Empty() {
+  inline bool Empty() {
     KeyInfo * ki = nullptr;
     for (int i = 0; i < keys_count_; i++)
     {
       ki = &keys_info_[i];
-      if (ki->offset_push_ > ki->offset_pop_[i]) return false;
+      if (ki->offset_push_ != ki->offset_pop_[i]) return false;
     }
     return true;
   }

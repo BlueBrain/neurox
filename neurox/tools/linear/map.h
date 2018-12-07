@@ -31,7 +31,9 @@ class Map {
     vals_count_=0;
     keys_count_ = map1.size();
     assert(keys_count_>0);
-    size_t offset = sizeof(Map<Key, Val>) + sizeof(KeyInfo)* keys_count_;
+    size_t offset = sizeof(Map<Key, Val>);
+    keys_info_ = (KeyInfo*) &(buffer[offset]);
+    offset += sizeof(KeyInfo) * keys_count_;
 
     int k = 0;
     KeyInfo *ki=nullptr;
@@ -46,6 +48,7 @@ class Map {
       k++;
     }
 
+#ifndef NDEBUG
     // make sure keys are sorted and not identical
     for (size_t k=1; k<keys_count_; k++) {
       assert(keys_info_[k].key_ > keys_info_[k-1].key_);
@@ -53,6 +56,7 @@ class Map {
         throw std::runtime_error(
             std::string("Keys for linear map are not sorted."));
     }
+#endif
   }
 
   /// Constructor for key array of values
@@ -63,7 +67,9 @@ class Map {
     vals_count_=0;
     keys_count_ = map1.size();
     assert(keys_count_>0);
-    size_t offset = sizeof(Map<Key, Val>) + sizeof(KeyInfo) * keys_count_;
+    size_t offset = sizeof(Map<Key, Val>);
+    keys_info_ = (KeyInfo*) &(buffer[offset]);
+    offset += sizeof(KeyInfo) * keys_count_;
 
     int k=0, j=0;
     KeyInfo *ki=nullptr;
@@ -80,6 +86,7 @@ class Map {
       k++;
     }
 
+#ifndef NDEBUG
     // make sure keys are sorted and not identical
     for (size_t k=1; k<keys_count_; k++) {
       assert(keys_info_[k].key_ > keys_info_[k-1].key_);
@@ -87,6 +94,7 @@ class Map {
         throw std::runtime_error(
             std::string("Keys for linear map are not sorted."));
     }
+#endif
   }
 
   ~Map() {
@@ -113,10 +121,11 @@ class Map {
   inline Val* At(Key key) {
     KeyInfo* ki = (KeyInfo*)std::bsearch((void*)&key, (void*)keys_info_, keys_count_,
                                       sizeof(KeyInfo), Map::CompareKeyInfoPtrs);
+#ifndef NDEBUG
     if (ki == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear map: " + key));
-
+#endif
     return ki->vals_; //i.e. &ki->vals_[0]
   }
 
@@ -124,10 +133,11 @@ class Map {
   inline void At(Key key, size_t& count, Val*& vals) {
     KeyInfo* ki = (KeyInfo*)std::bsearch((void*)&key, (void*)keys_info_, keys_count_,
                                       sizeof(KeyInfo), Map::CompareKeyInfoPtrs);
+#ifndef NDEBUG
     if (ki == nullptr)
       throw std::runtime_error(
           std::string("Key not found in linear map: " + key));
-
+#endif
     count = ki->size_;
     vals = ki->vals_;
   }

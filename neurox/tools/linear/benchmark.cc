@@ -294,13 +294,14 @@ int main(int argc, char** argv)
     LIKWID_MARKER_INIT;
     const size_t neuron_count = atoi(argv[1]);
 #ifdef LINEAR
-    printf("Benchark starting (LINEAR data structs) with %d neurons\n", (int) neuron_count);
+    printf("Benchmark starting (LINEAR data structs) with %d neurons\n", (int) neuron_count);
 #else
-    printf("Benchark starting (std data structs) with %d neurons\n", (int) neuron_count);
+    printf("Benchmark starting (std data structs) with %d neurons\n", (int) neuron_count);
 #endif
 
     //shuffled list of elements;
-    std::srand ( unsigned ( std::time(0) ) );    
+    std::srand ( unsigned (12345) );
+    //std::srand ( unsigned ( std::time(0) ) );
     std::vector<size_t> random_ids(neuron_count);
     for (int id=0; id<neuron_count;  id++) random_ids[id]=id;
     std::random_shuffle ( random_ids.begin(), random_ids.end() );
