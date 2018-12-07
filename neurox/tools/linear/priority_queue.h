@@ -142,12 +142,14 @@ class PriorityQueue {
   }
 
   void PopAllBeforeTime(Time t, std::vector<Val>& events) {
-    events.clear();
+    size_t max_vals, offset_push, offset_pop;
+    Val * vals_k;
     for (int k = 0; k < keys_count_; k++) {
-      const size_t max_vals = max_vals_per_key_[k];
-      const size_t offset_push = offsets_push_[k];
-      size_t& offset_pop = offsets_pop_[k];
-      while (offset_pop != offset_push && vals_[k][offset_pop].first <= t) {
+      max_vals = max_vals_per_key_[k];
+      offset_push = offsets_push_[k];
+      offset_pop = offsets_pop_[k];
+      vals_k = vals_[k];
+      while (offset_pop != offset_push && vals_k[offset_pop].first <= t) {
         events.push_back(vals_[k][offset_pop]);
         if (++offset_pop == max_vals) offset_pop = 0;
       }

@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-//#define LINEAR
+#define LINEAR
 
 #ifdef LINEAR
   #include "map.h"
@@ -138,7 +138,7 @@ class Neuron
     }
 };
 
-void benchmark(Neuron **neurons,
+double benchmark(Neuron **neurons,
                const size_t neuron_count,
                const Time sim_time,
                const size_t synapse_count,
@@ -161,15 +161,17 @@ void benchmark(Neuron **neurons,
     double dumb=0;
     const Time dt = 0.025;
     int comm_it=0;
+    Neuron * neuron;
     for (Time time=0; time<sim_time; time+=0.1, comm_it++)
     {
       for (int n=0; n<neuron_count; n++)
       {
-        Neuron * neuron = neurons[n];
+	q_events.clear();
+        neuron = neurons[n];
 
         //run through the structure
-        for (size_t b=0; b<buffer_size; b+=256)
-            dumb+= neuron->buffer[b];
+        //for (size_t b=0; b<buffer_size; b+=256)
+        //    dumb+= neuron->buffer[b];
 
 #ifdef LINEAR
         m_key_count = neuron->m->KeysCount();
@@ -240,8 +242,6 @@ void benchmark(Neuron **neurons,
 
 
           // Q: deliver events for next step
-          for (int x=0; x<4; x++)
-	  {
 #ifdef LINEAR
             neuron->q->PopAllBeforeTime(t+dt, q_events);
             for (auto q_it : q_events)
@@ -252,14 +252,12 @@ void benchmark(Neuron **neurons,
               auto q_it = neuron->q.top();
               dumb += q_it.first  + *q_it.second;
               neuron->q.pop();
-            }
+	    }
 #endif
-	  }
         }
       }
     }
-
-    printf("Dumb=%f\n", dumb);
+    return dumb;
 }
 
 int main(int argc, char** argv)
@@ -339,8 +337,12 @@ int main(int argc, char** argv)
                              );
 #endif
       }
-      printf("Running ...\n");
-      benchmark(neurons.data(), neurons.size(), sim_time, synapse_count, buffer_size);
+      printf("Running %f msecs...\n", sim_time);
+      clock_t begin = clock();
+      double dumb = benchmark(neurons.data(), neurons.size(), sim_time, synapse_count, buffer_size);
+      clock_t end = clock();
+      double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+      printf("Finished: %f secs. Sum check=%.4f\n", time_spent, dumb);
 
       for (auto & neuron : neurons)
           delete neuron;
