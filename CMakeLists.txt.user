@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.5.2, 2018-12-07T00:40:14. -->
+<!-- Written by QtCreator 4.5.2, 2018-12-12T19:36:42. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -226,7 +226,7 @@
     </valuelist>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">10</value>
+    <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Arguments">100</value>
     <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.Executable">/home/bmagalha/Workspace/neurox-withcoreneuron/neurox/tools/linear/a.out</value>
     <value type="QString" key="ProjectExplorer.CustomExecutableRunConfiguration.WorkingDirectory">%{buildDir}</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Run /home/bmagalha/Workspace/neurox-withcoreneuron/neurox/tools/linear/a.out</value>
