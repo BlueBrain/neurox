@@ -3,6 +3,9 @@
 #include <vector>       // std::vector
 #include <ctime>        // std::time
 #include <cstdlib>      // std::rand, std::srand
+#include <math.h> 	// fmod
+#include <iterator>	// std::distance
+#include <cstdlib> 	// abs
 
 // This block enables compilation of the code with and without LIKWID in place
 #ifdef LIKWID_PERFMON
@@ -18,7 +21,8 @@
 #define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
 #endif
 
-//#define LINEAR
+#define LINEAR
+#define SCHEDULER
 
 #ifdef LINEAR
   #include "map.h"
@@ -151,6 +155,11 @@ class Neuron
 };
 
 
+int irand(int userBeg, int userEnd)
+{
+  return rand() % ((userEnd - userBeg) + 1) + userBeg; 
+}
+
 double benchmark(Neuron **neurons,
                const size_t neuron_count,
                const Time sim_time,
@@ -177,10 +186,11 @@ double benchmark(Neuron **neurons,
     double dumb=0;
     const Time dt = 0.025;
     const size_t netcons_per_step=3; 
-    int comm_it=0;
     Neuron * neuron;
     neuron_id_t post_id = 0;
-    for (Time time=0; time<sim_time; time+=0.1, comm_it++)
+
+#ifndef SCHEDULER
+    for (Time time=0; time<sim_time; time+=0.1)
     {
       for (int n=0; n<neuron_count; n++)
       {
@@ -189,6 +199,40 @@ double benchmark(Neuron **neurons,
         //run through dataset to make sure it wont stay in cache
         for (size_t b=0; b<buffer_size; b+=256)
           dumb += neuron->buffer[b];
+
+#else
+
+    std::vector<double> neuron_times(neuron_count);
+    for (size_t n=0; n<neuron_count; n++)
+      neuron_times.at(n)=0;
+
+    while (true)
+    {
+      int min_e = std::distance(neuron_times.begin(), std::min_element(neuron_times.begin(), neuron_times.end()));
+      int max_e = std::distance(neuron_times.begin(), std::max_element(neuron_times.begin(), neuron_times.end()));
+      Time min_time = neuron_times.at(min_e);
+      Time max_time = neuron_times.at(max_e);
+
+      if (min_time == max_time && fabs(sim_time-min_time) < 0.001)
+        break; //end of execution
+
+      int n = min_e;
+      Time time = min_time;
+      neuron = neurons[n];
+      double step_count = (double) irand(4,20);
+      if (neuron_times[n] + step_count * dt > sim_time)
+        step_count = (sim_time - neuron_times[n]) / dt;
+      double step_end_time = neuron_times[n] + step_count * dt;
+      printf("---- neuron %d does %.1f steps from %f to %f\n", n, step_count, neuron_times.at(n), step_end_time);
+      neuron_times[n] = step_end_time;
+
+      //run through dataset to make sure it wont stay in cache
+      for (size_t b=0; b<buffer_size; b+=256)
+        dumb += neuron->buffer[b];
+
+      for (; time<step_end_time; time+=dt)
+      {
+#endif
 
 #ifdef LINEAR
 	map_m = neuron->m;
@@ -216,8 +260,8 @@ double benchmark(Neuron **neurons,
 #endif
 	    }
 
-          // one spike at every 10 ms
-          if (comm_it % 10 == 0)
+          // one spike check at every 1 ms
+          if (abs(fmod(time,1.)) < 0.001)
 	  {
 #ifdef LINEAR
             for (int i=0; i< neuron->v->Count(); i++)
@@ -245,7 +289,7 @@ double benchmark(Neuron **neurons,
 
 
           // Q: at every 1ms, create events
-          if (comm_it % 10 == 0)
+          if (abs(fmod(time,1.)) < 0.001)
           {
             for (size_t i=0; i<neuron_count; i++)
             {
