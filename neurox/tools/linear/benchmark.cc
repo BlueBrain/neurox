@@ -191,15 +191,25 @@ double benchmark(Neuron **neurons,
 
 #ifndef SCHEDULER
     for (Time time=0; time<sim_time; time+=0.1)
-    {
       for (int n=0; n<neuron_count; n++)
       {
         neuron = neurons[n];
+
+#ifdef LINEAR
+        map_m = neuron->m;
+        map_n = neuron->n;
+#else
+        map_m = &neuron->m;
+        map_n = &neuron->n;
+#endif
 
         //run through dataset to make sure it wont stay in cache
         for (size_t b=0; b<buffer_size; b+=256)
           dumb += neuron->buffer[b];
 
+        LIKWID_MARKER_START("benchmark");
+        for (Time t=time; t<time+0.1; t+=dt)
+        {
 #else
 
     std::vector<double> neuron_times(neuron_count);
@@ -217,51 +227,49 @@ double benchmark(Neuron **neurons,
         break; //end of execution
 
       int n = min_e;
-      Time time = min_time;
+      Time t = min_time;
       neuron = neurons[n];
       double step_count = (double) irand(4,20);
       if (neuron_times[n] + step_count * dt > sim_time)
         step_count = (sim_time - neuron_times[n]) / dt;
       double step_end_time = neuron_times[n] + step_count * dt;
-      printf("---- neuron %d does %.1f steps from %f to %f\n", n, step_count, neuron_times.at(n), step_end_time);
+      //printf("---- neuron %d does %.1f steps from %f to %f\n", n, step_count, neuron_times.at(n), step_end_time);
       neuron_times[n] = step_end_time;
+
+#ifdef LINEAR
+      map_m = neuron->m;
+      map_n = neuron->n;
+#else
+      map_m = &neuron->m;
+      map_n = &neuron->n;
+#endif
 
       //run through dataset to make sure it wont stay in cache
       for (size_t b=0; b<buffer_size; b+=256)
         dumb += neuron->buffer[b];
 
-      for (; time<step_end_time; time+=dt)
+      LIKWID_MARKER_START("benchmark");
+      for (; t<step_end_time; t+=dt)
       {
 #endif
 
+          // M: handle one random incoming netcon per neuron per step
+          for (size_t i=0; i<neuron_count; i++)
+          {
+	    neuron_id_t id = random_ids[i];
 #ifdef LINEAR
-	map_m = neuron->m;
-	map_n = neuron->n;
+            map_m->At(id, m_count, m_val);
+            for (int j=0; j<m_count; j++)
+              dumb += m_val[j];
 #else
-	map_m = &neuron->m;
-        map_n = &neuron->n;
+	    m_val = &map_m->at(id);
+	    for (int j=0; j<m_val->size(); j++)
+              dumb += *m_val->at(j);
 #endif
-
-        LIKWID_MARKER_START("benchmark");
-        for (Time t=time; t<time+0.1; t+=dt)
-        {
-            // M: handle one random incoming netcon per neuron per step
-            for (size_t i=0; i<neuron_count; i++)
-            {
-	      neuron_id_t id = random_ids[i];
-#ifdef LINEAR
-              map_m->At(id, m_count, m_val);
-              for (int j=0; j<m_count; j++)
-                dumb += m_val[j];
-#else
-	      m_val = &map_m->at(id);
-	      for (int j=0; j<m_val->size(); j++)
-                dumb += *m_val->at(j);
-#endif
-	    }
+	  }
 
           // one spike check at every 1 ms
-          if (abs(fmod(time,1.)) < 0.001)
+          if (abs(fmod(t,1.)) < 0.001)
 	  {
 #ifdef LINEAR
             for (int i=0; i< neuron->v->Count(); i++)
@@ -289,7 +297,7 @@ double benchmark(Neuron **neurons,
 
 
           // Q: at every 1ms, create events
-          if (abs(fmod(time,1.)) < 0.001)
+          if (abs(fmod(t,1.)) < 0.001)
           {
             for (size_t i=0; i<neuron_count; i++)
             {
@@ -320,10 +328,9 @@ double benchmark(Neuron **neurons,
             neuron->q.pop();
 	  }
 #endif
-        } //end of 4 time steps
+        } //end of steping
         LIKWID_MARKER_STOP("benchmark");
-      } //end of neurons
-    } //end of comm step
+    } 
     return dumb;
 }
 
