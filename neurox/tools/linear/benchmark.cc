@@ -195,10 +195,11 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
   Neuron *neuron;
   size_t *neuron_it = new size_t[neuron_count]();
   neuron_id_t neuron_id = -1;
+  size_t i,j;
 
 #ifndef SCHEDULER
   for (Time time = 0; time < sim_time; time += 0.1)
-    for (int n = 0; n < neuron_count; n++) {
+    for (size_t n = 0; n < neuron_count; n++) {
       neuron = neurons[n];
 
       map_m = Neuron::get_m(neuron);
@@ -227,7 +228,7 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
     if (min_time == max_time && fabs(sim_time - min_time) < 0.001)
       break;  // end of execution
 
-    int n = min_e;
+    size_t n = min_e;
     Time t = min_time;
     neuron = neurons[n];
     double step_count = (double)irand(4, 20);
@@ -249,31 +250,31 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
 #endif
 
         // M: handle one random incoming netcon per neuron per step
-        for (size_t i = 0; i < neuron_count; i++) {
+        for (i = 0; i < neuron_count; i++) {
           neuron_id = random_ids[i];
 #ifdef LINEAR
           map_m->At(neuron_id, m_count, m_val);
-          for (int j = 0; j < m_count; j++) dumb += m_val[j];
+          for (j = 0; j < m_count; j++) dumb += m_val[j];
 #else
         m_val = &map_m->at(neuron_id);
-        for (int j = 0; j < m_val->size(); j++) dumb += *m_val->at(j);
+        for (j = 0; j < m_val->size(); j++) dumb += *m_val->at(j);
 #endif
         }
 
         // one spike check at every 1 ms
         if (neuron_it[n] % 40 == 0) {
 #ifdef LINEAR
-          for (int i = 0; i < neuron->v->Count(); i++)
+          for (i = 0; i < neuron->v->Count(); i++)
             dumb += *neuron->v->At(i);
 #else
-        for (int i = 0; i < neuron->v.size(); i++) dumb += *neuron->v.at(i);
+        for (i = 0; i < neuron->v.size(); i++) dumb += *neuron->v.at(i);
 #endif
         }
 
         // N: time of pre-synaptic pre-synaptic random id (4 arrays)
-        for (int x = 0; x < 4; x++) {
-          for (int k = 0; k < neuron_count; k++) {
-            neuron_id = random_ids[k];
+        for (i = 0; i < 4; i++) {
+          for (j = 0; j < neuron_count; j++) {
+            neuron_id = random_ids[j];
 #ifdef LINEAR
             dumb += *map_n->At(neuron_id);
 #else
@@ -284,7 +285,7 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
 
         // Q: at every 1ms, create events
         if (neuron_it[n] % 40 == 0) {
-          for (size_t i = 0; i < neuron_count; i++) {
+          for (i = 0; i < neuron_count; i++) {
             // create events at "random" positions in queue
             Time til = t + dt + i * 0.01 * (i % 2 == 0 ? -1 : 1);
             neuron_id_t id = random_ids[i];
