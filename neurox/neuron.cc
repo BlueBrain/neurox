@@ -87,7 +87,7 @@ void Neuron::LinearizeContainers() {
 
   containers_buffer_size_ = 0;
 
-  //in-place constructors
+  // in-place constructors
   containers_buffer_size_ +=
       Vectorizer::SizeOf(linear::Vector<Synapse>::Size(synapses_.size()));
   containers_buffer_size_ +=
@@ -99,25 +99,30 @@ void Neuron::LinearizeContainers() {
   containers_buffer_ = new unsigned char[containers_buffer_size_];
 
   size_t containers_buffer_it = 0;
-  synapses_linear_ = (linear::Vector<Synapse>*) &containers_buffer_[containers_buffer_it];
-  new (synapses_linear_) linear::Vector<Synapse>(
-      synapses_, (unsigned char*)synapses_linear_);
+  synapses_linear_ =
+      (linear::Vector<Synapse>*)&containers_buffer_[containers_buffer_it];
+  new (synapses_linear_)
+      linear::Vector<Synapse>(synapses_, (unsigned char*)synapses_linear_);
   containers_buffer_it +=
       Vectorizer::SizeOf(linear::Vector<Synapse>::Size(synapses_.size()));
 
-  td->dependencies_min_delay_linear_ = (linear::Map<neuron_id_t, floble_t>*) &containers_buffer_[containers_buffer_it];
+  td->dependencies_min_delay_linear_ =
+      (linear::Map<neuron_id_t,
+                   floble_t>*)&containers_buffer_[containers_buffer_it];
   new (td->dependencies_min_delay_linear_) linear::Map<neuron_id_t, floble_t>(
       td->dependencies_min_delay_,
-      (unsigned char*) td->dependencies_min_delay_linear_);
+      (unsigned char*)td->dependencies_min_delay_linear_);
   containers_buffer_it +=
       Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
           td->dependencies_min_delay_.size()));
 
-  td->dependencies_max_time_allowed_linear_ = (linear::Map<neuron_id_t, floble_t>*) &containers_buffer_[containers_buffer_it];
+  td->dependencies_max_time_allowed_linear_ =
+      (linear::Map<neuron_id_t,
+                   floble_t>*)&containers_buffer_[containers_buffer_it];
   new (td->dependencies_max_time_allowed_linear_)
       linear::Map<neuron_id_t, floble_t>(
           td->dependencies_max_time_allowed_,
-          (unsigned char*) td->dependencies_max_time_allowed_linear_);
+          (unsigned char*)td->dependencies_max_time_allowed_linear_);
   containers_buffer_it +=
       Vectorizer::SizeOf(linear::Map<neuron_id_t, floble_t>::Size(
           td->dependencies_max_time_allowed_.size()));

@@ -48,6 +48,9 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
                                            const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
+  if (input_params_->output_comm_count_)
+    Statistics::CommCount::mutex = hpx_lco_sema_new(1);
+
   // delete previous synchronizer (if any)
   delete neurox::synchronizer_;
 
@@ -270,6 +273,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 hpx_action_t Synchronizer::CallClearLocality = 0;
 int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
+
+  if (input_params_->output_comm_count_)
+    hpx_lco_delete_sync(Statistics::CommCount::mutex);
 
   if (input_params_->locality_comm_reduce_ &&
       synchronizer_->LocalitySyncInterval() == -1) {

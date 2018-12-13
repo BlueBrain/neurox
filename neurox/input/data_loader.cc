@@ -732,8 +732,6 @@ int DataLoader::Init_handler() {
   NEUROX_MEM_PIN(uint64_t);
   all_neurons_gids_ = new std::vector<int>();
   locality_mutex_ = hpx_lco_sema_new(1);
-  if (input_params_->output_comm_count_)
-    Statistics::CommCount::mutex = hpx_lco_sema_new(1);
 
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
@@ -1101,8 +1099,6 @@ int DataLoader::Finalize_handler() {
   }
 
   hpx_lco_delete_sync(locality_mutex_);
-  if (input_params_->output_comm_count_)
-    hpx_lco_delete_sync(Statistics::CommCount::mutex);
   return neurox::wrappers::MemoryUnpin(target);
 }
 

@@ -56,8 +56,7 @@ hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
                                   ? Branch::AddSpikeEventLocality
                                   : Branch::AddSpikeEvent;
   size_t syn_count = neuron->GetSynapsesCount();
-  if (input_params_->output_comm_count_)
-  {
+  if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
     Statistics::CommCount::point_to_point_count += syn_count;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
@@ -78,8 +77,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   if (input_params_->locality_comm_reduce_) return;
   assert(branch->soma_);
 
-  if (input_params_->output_comm_count_)
-  {
+  if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
     Statistics::CommCount::reduce_count++;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
@@ -180,8 +178,7 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
   // if no reduction at locality level, reduction is done by neurons
   if (!input_params_->locality_comm_reduce_) return;
 
-  if (input_params_->output_comm_count_)
-  {
+  if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
     Statistics::CommCount::reduce_count++;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);

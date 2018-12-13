@@ -195,7 +195,7 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
   Neuron *neuron;
   size_t *neuron_it = new size_t[neuron_count]();
   neuron_id_t neuron_id = -1;
-  size_t i,j;
+  size_t i, j;
 
 #ifndef SCHEDULER
   for (Time time = 0; time < sim_time; time += 0.1)
@@ -264,8 +264,7 @@ double benchmark(Neuron **neurons, const size_t neuron_count,
         // one spike check at every 1 ms
         if (neuron_it[n] % 40 == 0) {
 #ifdef LINEAR
-          for (i = 0; i < neuron->v->Count(); i++)
-            dumb += *neuron->v->At(i);
+          for (i = 0; i < neuron->v->Count(); i++) dumb += *neuron->v->At(i);
 #else
         for (i = 0; i < neuron->v.size(); i++) dumb += *neuron->v.at(i);
 #endif

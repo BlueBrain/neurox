@@ -57,7 +57,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
 #endif
 
 #if LAYOUT == 0
-    assert(0); //linearization not implemented for SoA yet!
+    assert(0);  // linearization not implemented for SoA yet!
 #endif
     int vdata_ptrs_count = 0;
     buffer_size_ += is_soma ? Vectorizer::SizeOf(sizeof(Neuron)) : 0;
@@ -520,7 +520,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     weights_offset += netcons[nc].weights_count_;
   }
 
-  if (buffer_) { //if linearization
+  if (buffer_) {  // if linearization
     neuron_id_t *pre_gids = new neuron_id_t[netcons_.size()];
 
     int i = 0;

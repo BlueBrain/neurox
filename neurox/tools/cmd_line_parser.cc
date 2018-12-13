@@ -45,7 +45,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
         cmd, false);
     TCLAP::SwitchArg output_comm_count(
         "4", "output-comm-count",
-        "outputs final information about number of point-to-point and reduce operation.",
+        "outputs final information about number of point-to-point and reduce "
+        "operation.",
         cmd, false);
     TCLAP::SwitchArg output_compartments_dot(
         "3", "output-compartments",
