@@ -5,6 +5,75 @@
 using namespace neurox;
 using namespace neurox::tools;
 
+unsigned Statistics::CommCount::point_to_point_count = 0;
+unsigned Statistics::CommCount::reduce_count = 0;
+hpx_t Statistics::CommCount::mutex = HPX_NULL;
+hpx_t Statistics::CommCount::allreduce_future = HPX_NULL;
+hpx_t Statistics::CommCount::allreduce_lco = HPX_NULL;
+int Statistics::CommCount::allreduce_id = -1;
+
+hpx_action_t Statistics::CommCount::Subscribe = 0;
+int Statistics::CommCount::Subscribe_handler(
+        const hpx_t* allreduce, const size_t) {
+      NEUROX_MEM_PIN(uint64_t);
+      assert(input_params_->output_comm_count_);
+      CommCount::allreduce_lco = *allreduce;
+      CommCount::allreduce_future = hpx_lco_future_new(sizeof(unsigned));
+      CommCount::allreduce_id = hpx_process_collective_allreduce_subscribe(*allreduce, hpx_lco_set_action, allreduce_future);
+      return neurox::wrappers::MemoryUnpin(target);
+    }
+
+hpx_action_t Statistics::CommCount::Unsubscribe = 0;
+int Statistics::CommCount::Unsubscribe_handler(
+    const hpx_t* allreduce, const size_t) {
+  NEUROX_MEM_PIN(uint64_t);
+  assert(input_params_->output_comm_count_);
+  hpx_process_collective_allreduce_unsubscribe(*allreduce,
+                                               allreduce_id);
+  hpx_lco_delete_sync(allreduce_future);
+  return neurox::wrappers::MemoryUnpin(target);
+}
+
+hpx_action_t Statistics::CommCount::Init = 0;
+void Statistics::CommCount::Init_handler(unsigned *var, const size_t) {
+    *var =0;
+}
+
+hpx_action_t Statistics::CommCount::Reduce = 0;
+void Statistics::CommCount::Reduce_handler(unsigned* lhs,
+                                           const unsigned* rhs,
+                                           const size_t)
+{
+*lhs += *rhs;
+}
+
+
+int Statistics::CommCount::ReduceCommCounts(unsigned & p2p_count, unsigned & reduce_count)
+{
+    hpx_t comm_count_reduce =
+    hpx_process_collective_allreduce_new(
+                sizeof(unsigned),
+                Statistics::CommCount::Init,
+                Statistics::CommCount::Reduce);
+    hpx_bcast_rsync(Statistics::CommCount::Subscribe, &comm_count_reduce,
+                    sizeof(hpx_t));
+    hpx_process_collective_allreduce_join(Statistics::CommCount::allreduce_lco,
+                                          Statistics::CommCount::allreduce_id,
+                                          sizeof(unsigned),
+                                          &Statistics::CommCount::point_to_point_count);
+    hpx_process_collective_allreduce_join(Statistics::CommCount::allreduce_lco,
+                                          Statistics::CommCount::allreduce_id,
+                                          sizeof(unsigned),
+                                          &Statistics::CommCount::reduce_count);
+    hpx_bcast_rsync(Statistics::CommCount::Unsubscribe, &comm_count_reduce,
+                    sizeof(hpx_t));
+    hpx_process_collective_allreduce_delete(comm_count_reduce);
+    p2p_count = CommCount::point_to_point_count;
+    reduce_count = CommCount::reduce_count;
+    assert(0); //check: are the counts ok?
+}
+
+
 Statistics::SizeInfo::SizeInfo()
     : neuron_id_(0),
       morphologies_(0),
@@ -288,4 +357,14 @@ void Statistics::RegisterHpxActions() {
   wrappers::RegisterZeroVarAction(
       Statistics::GetNeuronMechanismsDistribution,
       Statistics::GetNeuronMechanismsDistribution_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(
+      Statistics::CommCount::Subscribe,
+      Statistics::CommCount::Subscribe_handler);
+  wrappers::RegisterSingleVarAction<hpx_t>(
+              Statistics::CommCount::Unsubscribe,
+              Statistics::CommCount::Unsubscribe_handler);
+  wrappers::RegisterAllReduceReduceAction<unsigned>(
+      Statistics::CommCount::Reduce, Statistics::CommCount::Reduce_handler);
+  wrappers::RegisterAllReduceInitAction<unsigned>(
+      Statistics::CommCount::Init, Statistics::CommCount::Init_handler);
 }

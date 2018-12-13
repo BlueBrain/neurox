@@ -112,6 +112,13 @@ static int Main_handler() {
       synchronizer_->GetString(), neurox::neurons_count_,
       input_params_->tstop_ / 1000., time_elapsed);
 
+  if (input_params_->output_comm_count_)
+  {
+       unsigned p2p_comm_count, reduce_comm_count;
+       Statistics::CommCount::ReduceCommCounts(p2p_comm_count, reduce_comm_count);
+       printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d\n",
+              p2p_comm_count, reduce_comm_count);
+  }
 #ifdef NDEBUG
   // output benchmark info
   printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",

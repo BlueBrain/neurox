@@ -43,6 +43,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
         cmd, false);
+    TCLAP::SwitchArg output_comm_count(
+        "4", "output-comm-count",
+        "outputs final information about number of point-to-point and reduce operation.",
+        cmd, false);
     TCLAP::SwitchArg output_compartments_dot(
         "3", "output-compartments",
         "outputs compartments_*.dot files displaying neurons morpholgies.", cmd,
@@ -208,6 +212,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->celsius_ = DEF_celsius;
 
     this->output_statistics_ = output_statistics.getValue();
+    this->output_comm_count_ = output_comm_count.getValue();
     this->output_mechanisms_dot_ = output_mechanisms_dot.getValue();
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot_ = output_compartments_dot.getValue();

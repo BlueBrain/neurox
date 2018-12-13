@@ -51,15 +51,24 @@ void AllreduceSynchronizer::NeuronSyncEnd(Branch* b, hpx_t spikesLco) {
   WaitForSpikesDelivery(b, spikesLco);
 }
 
-hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, double tt) {
-  hpx_t new_synapses_lco = hpx_lco_and_new(neuron->synapses_.size());
+hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
   hpx_action_t spike_action = input_params_->locality_comm_reduce_
                                   ? Branch::AddSpikeEventLocality
                                   : Branch::AddSpikeEvent;
+  size_t syn_count = neuron->GetSynapsesCount();
+  if (input_params_->output_comm_count_)
+  {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::point_to_point_count += syn_count;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
 
-  for (Neuron::Synapse*& s : neuron->synapses_)
+  hpx_t new_synapses_lco = hpx_lco_and_new(syn_count);
+  for (int i = 0; i < syn_count; i++) {
+    Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
     hpx_call(s->branch_addr_, spike_action, new_synapses_lco, &neuron->gid_,
              sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
+  }
   return new_synapses_lco;
 }
 
@@ -68,6 +77,13 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
   // if locality-reduction is on, neurons no not participate n reduction
   if (input_params_->locality_comm_reduce_) return;
   assert(branch->soma_);
+
+  if (input_params_->output_comm_count_)
+  {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::reduce_count++;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)branch->soma_->synchronizer_neuron_info_;
@@ -163,6 +179,13 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
     int allreduces_count) {
   // if no reduction at locality level, reduction is done by neurons
   if (!input_params_->locality_comm_reduce_) return;
+
+  if (input_params_->output_comm_count_)
+  {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::reduce_count++;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
 
   // if reduction id < 0, it's still on the first comm-window
   // within first comm-window, synchronizer does not wait

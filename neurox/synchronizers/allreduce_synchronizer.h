@@ -33,7 +33,7 @@ class AllreduceSynchronizer : public Synchronizer {
   static void NeuronReduce(const Branch*, const int);
   static double NeuronReduceInterval2(const Branch*, const int);
   static double LocalityReduceInterval2(const double);
-  static hpx_t SendSpikes2(Neuron*, double);
+  static hpx_t SendSpikes2(Neuron*, spike_time_t);
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 

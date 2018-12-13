@@ -203,6 +203,14 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
 
   size_t syn_count = neuron->GetSynapsesCount();
+
+  if (input_params_->output_comm_count_)
+  {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::point_to_point_count += syn_count;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
+
   for (int i = 0; i < syn_count; i++) {
     Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 
@@ -562,6 +570,13 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
   size_t syn_count = neuron->GetSynapsesCount();
+  if (input_params_->output_comm_count_)
+  {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::point_to_point_count += syn_count;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
+
   for (int i = 0; i < syn_count; i++) {
     Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 

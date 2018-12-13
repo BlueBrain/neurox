@@ -11,6 +11,28 @@ namespace tools {
  */
 class Statistics {
  public:
+  /// count of communication when cmd line flag "output comm counts" is enabled
+  class CommCount{
+    public:
+      static unsigned point_to_point_count;
+      static unsigned reduce_count;
+      static hpx_t mutex;
+      static hpx_t allreduce_lco;
+      static hpx_t allreduce_future;
+      static int   allreduce_id;
+
+      static hpx_action_t Init;
+      static hpx_action_t Reduce;
+      static hpx_action_t Subscribe;
+      static hpx_action_t Unsubscribe;
+      static void Init_handler(unsigned*, const size_t);
+      static void Reduce_handler(unsigned*, const unsigned*, const size_t);
+      static int Subscribe_handler(const hpx_t*, const size_t);
+      static int Unsubscribe_handler(const hpx_t*, const size_t);
+
+      static int ReduceCommCounts(unsigned & p2p_count, unsigned & reduce_count);
+  };
+
   class SizeInfo {
    public:
     SizeInfo();
