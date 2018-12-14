@@ -112,12 +112,6 @@ static int Main_handler() {
       synchronizer_->GetString(), neurox::neurons_count_,
       input_params_->tstop_ / 1000., time_elapsed);
 
-  if (input_params_->output_comm_count_) {
-    unsigned p2p_comm_count = Statistics::CommCount::ReducePointToPointCount();
-    printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s\n",
-           p2p_comm_count, Statistics::CommCount::reduce_count,
-           input_params_->locality_comm_reduce_ ? "comm-reduce" : "");
-  }
 #ifdef NDEBUG
   // output benchmark info
   printf("csv,%d,%d,%d,%.1f,%.1f,%d,%d,%d,%.2f,%d,%.2f,%d,%.2f,%d,%.3f,%.3f\n",
@@ -136,6 +130,14 @@ static int Main_handler() {
          time_elapsed);
   fflush(stdout);
 #endif
+
+  if (input_params_->output_comm_count_) {
+    unsigned p2p_comm_count = Statistics::CommCount::ReducePointToPointCount();
+    printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s\n",
+           p2p_comm_count, Statistics::CommCount::reduce_count,
+           input_params_->locality_comm_reduce_ ? "comm-reduce" : "");
+  }
+
   CallAllNeurons(Synchronizer::CallClearNeuron);
   CallAllLocalities(Synchronizer::CallClearLocality);
 
