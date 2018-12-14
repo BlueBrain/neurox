@@ -24,10 +24,12 @@ class Statistics {
     static hpx_action_t Init;
     static hpx_action_t Reduce;
     static hpx_action_t Subscribe;
+    static hpx_action_t Join;
     static hpx_action_t Unsubscribe;
     static void Init_handler(unsigned*, const size_t);
     static void Reduce_handler(unsigned*, const unsigned*, const size_t);
     static int Subscribe_handler(const hpx_t*, const size_t);
+    static int Join_handler();
     static int Unsubscribe_handler(const hpx_t*, const size_t);
 
     static unsigned ReducePointToPointCount();
