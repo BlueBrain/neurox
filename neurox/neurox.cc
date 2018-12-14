@@ -113,10 +113,10 @@ static int Main_handler() {
       input_params_->tstop_ / 1000., time_elapsed);
 
   if (input_params_->output_comm_count_) {
-    unsigned p2p_comm_count, reduce_comm_count;
-    Statistics::CommCount::ReduceCommCounts(p2p_comm_count, reduce_comm_count);
-    printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d\n",
-           p2p_comm_count, reduce_comm_count);
+    unsigned p2p_comm_count = Statistics::CommCount::ReducePointToPointCount();
+    printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s\n",
+           p2p_comm_count, Statistics::CommCount::reduce_count,
+           input_params_->locality_comm_reduce_ ? "comm-reduce" : "");
   }
 #ifdef NDEBUG
   // output benchmark info

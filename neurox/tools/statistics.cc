@@ -45,8 +45,8 @@ void Statistics::CommCount::Reduce_handler(unsigned* lhs, const unsigned* rhs,
   *lhs += *rhs;
 }
 
-int Statistics::CommCount::ReduceCommCounts(unsigned& p2p_count,
-                                            unsigned& reduce_count) {
+unsigned Statistics::CommCount::ReducePointToPointCount() {
+  unsigned p2p_count;
   hpx_t comm_count_reduce = hpx_process_collective_allreduce_new(
       sizeof(unsigned), CommCount::Init, CommCount::Reduce);
   hpx_bcast_rsync(CommCount::Subscribe, &comm_count_reduce, sizeof(hpx_t));
@@ -54,13 +54,9 @@ int Statistics::CommCount::ReduceCommCounts(unsigned& p2p_count,
       CommCount::allreduce_lco, CommCount::allreduce_id, sizeof(unsigned),
       &CommCount::point_to_point_count);
   hpx_lco_get_reset(CommCount::allreduce_future, sizeof(p2p_count), &p2p_count);
-  hpx_process_collective_allreduce_join(
-      CommCount::allreduce_lco, CommCount::allreduce_id, sizeof(unsigned),
-      &CommCount::reduce_count);
-  hpx_lco_get_reset(CommCount::allreduce_future, sizeof(reduce_count),
-                    &reduce_count);
   hpx_bcast_rsync(CommCount::Unsubscribe, &comm_count_reduce, sizeof(hpx_t));
   hpx_process_collective_allreduce_delete(comm_count_reduce);
+  return p2p_count;
 }
 
 Statistics::SizeInfo::SizeInfo()

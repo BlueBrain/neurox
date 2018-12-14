@@ -30,7 +30,7 @@ class Statistics {
     static int Subscribe_handler(const hpx_t*, const size_t);
     static int Unsubscribe_handler(const hpx_t*, const size_t);
 
-    static int ReduceCommCounts(unsigned& p2p_count, unsigned& reduce_count);
+    static unsigned ReducePointToPointCount();
   };
 
   class SizeInfo {
