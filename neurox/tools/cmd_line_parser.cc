@@ -39,6 +39,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // neurox only command line arguments
     //(NOTE: SwitchArg does not require cmd.add())
+    TCLAP::SwitchArg linearize_containers(
+        "W", "linearize-containers",
+        "use linear represnetation containers",
+        cmd, false);
     TCLAP::SwitchArg output_statistics(
         "S", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
@@ -212,6 +216,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->rev_dt_ = 1 / dt.getValue();
     this->celsius_ = DEF_celsius;
 
+    this->linearize_containers_ = linearize_containers.getValue();
     this->output_statistics_ = output_statistics.getValue();
     this->output_comm_count_ = output_comm_count.getValue();
     this->output_mechanisms_dot_ = output_mechanisms_dot.getValue();

@@ -44,6 +44,7 @@ class CmdLineParser {
                             /// output_spikes.h format raster file.)
 
   // neurox specific options
+  bool linearize_containers_;        ///> linearize containers
   bool output_statistics_;           ///> outputs statistics file
   bool output_comm_count_;           ///> outputs communication count
   bool output_mechanisms_dot_;       ///> outputs mechanisms.dot file

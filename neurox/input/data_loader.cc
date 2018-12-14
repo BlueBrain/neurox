@@ -1957,7 +1957,7 @@ int DataLoader::FilterRepeatedAndLinearizeContainers_handler() {
   }
 
   // convert synapses to linear synapses representation
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
+  if (input_params_->linearize_containers_)
     local->soma_->LinearizeContainers();
 
   NEUROX_MEM_UNPIN
