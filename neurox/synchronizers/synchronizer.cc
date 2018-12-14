@@ -60,7 +60,7 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
   neurox::synchronizer_->InitLocality();
 
   // if we use "last neuron advances first" methodology
-  if (input_params_->locality_comm_reduce_ ||
+  if (//input_params_->locality_comm_reduce_ ||
       input_params_->neurons_scheduler_) {
     // scheduler semaphore (controls how many parallel jobs can run)
     size_t thread_count = hpx_get_num_threads();
