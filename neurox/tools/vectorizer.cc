@@ -216,23 +216,33 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism* mech = neurox::mechanisms_[m];
     Memb_list* instances = &branch->mechs_instances_[m];
+    int data_size = mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
 
     // neuron: "only point processes with currents are possibilities"
-    bool mech_has_no_instances = input::DataLoader::HardCodedMechanismHasNoInstances(mech->type_);
+    if (input::DataLoader::HardCodedMechanismHasNoInstances(mech->type_))
+    {
+        ml_no_capacitors[m].nodecount=0;
+        ml_no_capacitors[m]._nodecount_padded=0;
+        ml_no_capacitors[m].nodeindices=nullptr;
+        ml_no_capacitors[m].data = nullptr;
+        ml_no_capacitors[m].nodeindices = nullptr;
+        ml_no_capacitors[m].pdata = nullptr;
+        total_data_offset += data_size;
+        continue;
+    }
+
     bool mech_valid_in_phase_1 = mech->pnt_map_ && mech->memb_func_.current;
 
     int n_new = 0;
-    int data_size = mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
     int pdata_size =
         mech->pdata_size_ * Vectorizer::SizeOf(instances->nodecount);
 
     vector<double> data_new(data_size, 0);
     vector<int> pdata_new(pdata_size, -1);
-    vector<int> nodeindices_new(mech_has_no_instances ? 0 : instances->nodecount);
+    vector<int> nodeindices_new(instances->nodecount);
     ml_no_capacitors[m].nodecount = 0;
 
     // first non-capacitors' instances, then capacitors
-    if (!mech_has_no_instances)
     for (int phase = 1; phase <= 2; phase++) {
       for (int n = 0; n < instances->nodecount; n++) {
         int node_id = instances->nodeindices[n];

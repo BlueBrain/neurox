@@ -212,12 +212,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     }
     assert(tml->ml->data != NULL);
     assert(nt->ncell == 1);
-    /*
-    printf("HELLO neuron id %d, mech %d, data %d, data*nodecount %d, instances?
-    %d\n", nt->id, tml->index, GetMechanismFromType(tml->index)->data_size_,
-           GetMechanismFromType(tml->index)->data_size_*tml->ml->nodecount,
-           HardCodedMechanismHasNoInstances(tml->index));
-    */
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
   }
@@ -1593,6 +1587,8 @@ hpx_t DataLoader::CreateBranch(
 
     /* compute total runtime of neuron */
     neuron_runtime =
+        input_params_->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler ?
+        -1 : //disable for CVODE
         BenchmarkSubSection(N, all_compartments, ions_instances_info);
   }
 
