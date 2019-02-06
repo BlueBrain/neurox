@@ -128,7 +128,8 @@ bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type) {
   // BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
   // have nodecount 1 but no data and no nodeindices
   return (type == kBinReports || type == kBinReportHelper ||
-          type == kCoreConfig || type == kMemUsage || type == kProfileHelper);
+          type == kCoreConfig || type == kMemUsage ||
+          type == kMemUsage || type == kProfileHelper);
 }
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
@@ -866,7 +867,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
     if (input_params_->locality_comm_reduce_ ||
-        input_params_->neurons_scheduler_) {
+        input_params_->scheduler_) {
       assert(locality::neurons_->size() == 0);
       locality::neurons_->insert(locality::neurons_->end(), neurons_addr,
                                  neurons_addr + recv_neurons_count);

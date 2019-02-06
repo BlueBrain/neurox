@@ -100,7 +100,7 @@ static int Main_handler() {
   CallAllNeurons(Synchronizer::CallInitNeuron);
 
   hpx_time_t time_now = hpx_time_now();
-  if (input_params_->locality_comm_reduce_ || input_params_->neurons_scheduler_)
+  if (input_params_->locality_comm_reduce_ || input_params_->scheduler_)
     CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
   else
     CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
@@ -161,7 +161,7 @@ int Clear_handler() {
   delete synchronizer_;
 
   if (input_params_->locality_comm_reduce_ ||
-      input_params_->neurons_scheduler_) {
+      input_params_->scheduler_) {
     (*neurox::locality::neurons_).clear();
     (*neurox::locality::netcons_branches_).clear();
     (*neurox::locality::netcons_somas_).clear();

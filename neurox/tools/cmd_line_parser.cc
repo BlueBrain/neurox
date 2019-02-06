@@ -44,7 +44,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "use linear represnetation containers",
         cmd, false);
     TCLAP::SwitchArg output_statistics(
-        "S", "output-statistics",
+        "5", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
         cmd, false);
     TCLAP::SwitchArg output_comm_count(
@@ -71,7 +71,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                           cmd, false);
 
     TCLAP::SwitchArg neurons_scheduler(
-        "H", "scheduler", "last neuron goes first scheduler", cmd, false);
+        "S", "scheduler", "last neuron goes first scheduler", cmd, false);
 
     TCLAP::SwitchArg graph_mechs_parallelism(
         "G", "graph-parallelism",
@@ -121,8 +121,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[1] All-reduce barrier (default)\
 \n[2] Sliding Time Window\
 \n[3] MPI-based (a la Coreneuron)\
-\n[8] Sequential Single-step Barrier (debug  only)\
-\n[9] All methods sequentially (NOTE: neurons data does not reset)",
+\n[8] Sequential Single-step Barrier (debug  only)",
         false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");
     cmd.add(synchronizer);
 
@@ -225,7 +224,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->graph_mechs_parallelism_ = graph_mechs_parallelism.getValue();
     this->mech_instances_parallelism_ = mech_instances_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
-    this->neurons_scheduler_ = neurons_scheduler.getValue();
+    this->scheduler_ = neurons_scheduler.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_ = branch_parallelism.getValue();
     this->synchronizer_ =
@@ -294,15 +293,16 @@ void CmdLineParser::Parse(int argc, char** argv) {
      * dependency which is closest in time, so no need to perform the
      * call to WaitForTimeDependencies. This condition enforces it.
      */
+    /* //TODO
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler &&
         this->synchronizer_ == SynchronizerIds::kTimeDependency &&
-        this->locality_comm_reduce_ == false) {
+        this->scheduler_ == false) {
       throw TCLAP::ArgException(
           "variable time-step size with time-dependency synchronizer "
-          "requires locality-level communication reduction",
-          "-C or --comm-reduce");
-      this->locality_comm_reduce_ = true;
+          "requires neurons scheduler",
+          "-S or --scheduler");
     }
+    */
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
     exit(1);

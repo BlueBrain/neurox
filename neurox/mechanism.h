@@ -23,6 +23,7 @@ enum MechanismTypes {
   kBinReportHelper = 26,
   kBinReports = 27,
   kCoreConfig = 56,
+  kMemAccess = 130,
   kMemUsage = 131,
   kProfileHelper = 162,
   kVecStim = 181,

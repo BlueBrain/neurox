@@ -251,8 +251,8 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 }
 
 double TimeDependencySynchronizer::LocalitySyncInterval() {
-  // -1 means advance last neuron first
-  return input_params_->neurons_scheduler_ ? -1 : 0;
+  // -1 means scheduler advances last neuron first
+  return input_params_->scheduler_ ? -1 : 0;
 }
 
 TimeDependencySynchronizer::TimeDependencies::TimeDependencies()
