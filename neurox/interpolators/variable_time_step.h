@@ -82,10 +82,10 @@ class VariableTimeStep : public Interpolator {
   constexpr static double kRelativeTolerance = 1e-3;
 
   /// CVODES Absolute tolerance for voltage values (NEURON=1e-8)
-  constexpr static double kAbsToleranceVoltage = 1e-6;
+  constexpr static double kAbsToleranceVoltage = kRelativeTolerance; //1e-6;
 
   /// CVODES Absolute tolerance for mechanism states (NEURON=1e-8)
-  constexpr static double kAbsToleranceMechStates = 1e-3;
+  constexpr static double kAbsToleranceMechStates = kRelativeTolerance; //1e-3;
 
   /// Time-window size for grouping of events to be delivered
   /// simmultaneously (0 for no grouping, Coreneuron=0.0125)
