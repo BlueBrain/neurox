@@ -86,8 +86,12 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
+  //TODO:
+  // - set tolerances in .h file to 10-3
+  // -set this h value to input_params_->dt/2
+
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? 1e-8 : h;
+  nt->_dt = h == 0 ? /* OLD: 1e-8 */ input_params_->dt_/2 : h;
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
