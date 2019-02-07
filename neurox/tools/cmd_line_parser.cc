@@ -158,6 +158,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, DEF_dt, "floble_t");
     cmd.add(dt);
 
+    TCLAP::ValueArg<floble_t> cvode_rtol("","rtol", "absolute tolerance for variable timestepping. Default (NEURON) value is 1e-3.",false,1e-3,"floble_t");
+
+    TCLAP::ValueArg<floble_t> cvode_atol("","atol", "absolute tolerance for voltages and states in variable timestepping. Default (NEURON) value is 0.",false,0,"floble_t");
+
+    TCLAP::ValueArg<floble_t> cvode_event_group("","queue_group", "mscs of grouping of close events in time. Default (NEURON) value is 0.",false,1e-12,"floble_t");
+
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
         0.1, "floble_t");
@@ -263,6 +269,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // handling of default dt for variable-step interpolations
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler) {
+      this->cvode_rtol_ = cvode_rtol.getValue();
+      this->cvode_atol_v_ = cvode_atol.getValue();
+      this->cvode_atol_states_ = cvode_atol.getValue();
+      this->cvode_event_group_ = cvode_event_group.getValue();
       if (!dt.isSet())  // if not user-provided
       {
         switch (this->interpolator_) {
@@ -279,8 +289,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
             this->dt_ = 1e-4;
         }
       }
-    } else  // ... for fixed-step interpolation
-    {
       if (this->dt_ <= 0)
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");

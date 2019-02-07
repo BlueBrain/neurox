@@ -86,12 +86,8 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
-  //TODO:
-  // - set tolerances in .h file to 10-3
-  // -set this h value to input_params_->dt/2
-
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? /* OLD: 1e-8 */ input_params_->dt_/2 : h;
+  nt->_dt = h == 0 ? 1e-8 : h; //TODO set 1e-8 to input_params_->dt/2
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
@@ -428,7 +424,7 @@ void VariableTimeStep::Init(Branch *branch) {
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++) {
-    double tol = i < cap_count ? kAbsToleranceVoltage : kAbsToleranceMechStates;
+    double tol = i < cap_count ? input_params_->cvode_atol_v_ : input_params_->cvode_atol_states_;
     NV_Ith_S(vardt->absolute_tolerance_, i) = tol;
   }
 
@@ -445,7 +441,7 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
-  flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance,
+  flag = CVodeSVtolerances(cvode_mem, input_params_->cvode_rtol_,
                            vardt->absolute_tolerance_);
   assert(flag == CV_SUCCESS);
 
@@ -500,9 +496,7 @@ void VariableTimeStep::Init(Branch *branch) {
       flag = CVDiag(cvode_mem);
       break;
     case InterpolatorIds::kCvodeSparseMatrix:
-      // TODO
       assert(0);
-
       // Requires installation of Superlumt or KLU
       // flag = CVSlsSetSparseJacFn(cvode_mem, nullptr);
       // int nnz = equations_count * equations_count;
@@ -569,14 +563,15 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
-  hpx_t spikes_lco = HPX_NULL;
+  hpx_t spikes_lco = HPX_NULL;/
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
+  floble_t event_group_ms = input_params_->cvode_event_group_ + 1e-12;
 
   double cvode_tstop = -1;
   while (nt->_t < tstop) {
     // delivers all events whithin the next delivery-time-window
-    branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
+    branch->DeliverEvents(nt->_t + event_group_ms);
 
     // get tout as time of next undelivered event (if any)
     hpx_lco_sema_p(branch->events_queue_mutex_);

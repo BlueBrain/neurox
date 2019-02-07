@@ -78,19 +78,6 @@ class VariableTimeStep : public Interpolator {
   /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Relative torelance (NEURON=1e-3 or 1e-4)
-  constexpr static double kRelativeTolerance = 1e-3;
-
-  /// CVODES Absolute tolerance for voltage values (NEURON=1e-8)
-  constexpr static double kAbsToleranceVoltage = kRelativeTolerance; //1e-6;
-
-  /// CVODES Absolute tolerance for mechanism states (NEURON=1e-8)
-  constexpr static double kAbsToleranceMechStates = kRelativeTolerance; //1e-3;
-
-  /// Time-window size for grouping of events to be delivered
-  /// simmultaneously (0 for no grouping, Coreneuron=0.0125)
-  constexpr static double kEventsDeliveryTimeWindow = 0.0125;
-
   /// copy CVODES y to NrnThread->data (V and m)
   inline static void ScatterY(Branch *branch, N_Vector y);
 
