@@ -86,6 +86,13 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
+  printf("\nBRUNO BEFORE t=%f fun_thread\n", nt->_t);
+  for (int i=0; i<NV_CONTENT_S(y)->length; i++)
+      printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+  if (ydot)
+    for (int i=0; i<NV_CONTENT_S(ydot)->length; i++)
+      printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+
   const double h = vardt->cvode_mem_->cv_h;
   nt->_dt = h == 0 ? 1e-8 : h; //TODO set 1e-8 to input_params_->dt/2
   nt->cj = 1 / nt->_dt;
@@ -135,6 +142,13 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   // copies dV/dt (RHS) and state-vars-derivative to CVODES
   VariableTimeStep::GatherYdot(branch, ydot);
+
+  printf("\nBRUNO AFTER t=%f fun_thread\n", nt->_t);
+  for (int i=0; i<NV_CONTENT_S(y)->length; i++)
+      printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+  if (ydot)
+    for (int i=0; i<NV_CONTENT_S(ydot)->length; i++)
+      printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
 
   return CV_SUCCESS;
 }
@@ -563,7 +577,7 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
-  hpx_t spikes_lco = HPX_NULL;/
+  hpx_t spikes_lco = HPX_NULL;
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
   floble_t event_group_ms = input_params_->cvode_event_group_ + 1e-12;
