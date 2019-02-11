@@ -435,6 +435,9 @@ void VariableTimeStep::Init(Branch *branch) {
   vardt->y_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
+  for (int i=0; i<NV_CONTENT_S(vardt->y_)->length; i++)
+      printf("BRUNO INIT y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
+
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++) {
