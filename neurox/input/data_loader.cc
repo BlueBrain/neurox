@@ -128,8 +128,8 @@ bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type) {
   // BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
   // have nodecount 1 but no data and no nodeindices
   return (type == kBinReports || type == kBinReportHelper ||
-          type == kCoreConfig || type == kMemUsage ||
-          type == kMemUsage || type == kProfileHelper);
+          type == kCoreConfig || type == kMemUsage || type == kMemUsage ||
+          type == kProfileHelper);
 }
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
@@ -860,8 +860,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    if (input_params_->locality_comm_reduce_ ||
-        input_params_->scheduler_) {
+    if (input_params_->locality_comm_reduce_ || input_params_->scheduler_) {
       assert(locality::neurons_->size() == 0);
       locality::neurons_->insert(locality::neurons_->end(), neurons_addr,
                                  neurons_addr + recv_neurons_count);
@@ -1587,9 +1586,11 @@ hpx_t DataLoader::CreateBranch(
 
     /* compute total runtime of neuron */
     neuron_runtime =
-        input_params_->interpolator_ != interpolators::InterpolatorIds::kBackwardEuler ?
-        -1 : //disable for CVODE
-        BenchmarkSubSection(N, all_compartments, ions_instances_info);
+        input_params_->interpolator_ !=
+                interpolators::InterpolatorIds::kBackwardEuler
+            ? -1
+            :  // disable for CVODE
+            BenchmarkSubSection(N, all_compartments, ions_instances_info);
   }
 
   /* No branch-parallelism (a la Coreneuron) */
@@ -1954,8 +1955,7 @@ int DataLoader::FilterRepeatedAndLinearizeContainers_handler() {
   }
 
   // convert synapses to linear synapses representation
-  if (input_params_->linearize_containers_)
-    local->soma_->LinearizeContainers();
+  if (input_params_->linearize_containers_) local->soma_->LinearizeContainers();
 
   NEUROX_MEM_UNPIN
 }

@@ -40,8 +40,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     // neurox only command line arguments
     //(NOTE: SwitchArg does not require cmd.add())
     TCLAP::SwitchArg linearize_containers(
-        "W", "linearize-containers",
-        "use linear represnetation containers",
+        "W", "linearize-containers", "use linear represnetation containers",
         cmd, false);
     TCLAP::SwitchArg output_statistics(
         "5", "output-statistics",
@@ -158,11 +157,29 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, DEF_dt, "floble_t");
     cmd.add(dt);
 
-    TCLAP::ValueArg<floble_t> cvode_rtol("","rtol", "absolute tolerance for variable timestepping. Default (NEURON) value is 1e-3.",false,1e-3,"floble_t");
+    /* From CVODE 4.0.2 manual:
+     * The scalar relative tolerance reltol is to be set to control relative
+     * errors. So reltol=1e−4 means that errors are controlled to .01%. We do
+     * not recommend using reltol larger than 1e−3. On the other hand, reltol
+     * should not be so small that it is comparable to the unit roundoff of the
+     * machine arithmetic (generally around 1.0E-15). */
+    TCLAP::ValueArg<floble_t> cvode_rtol(
+        "", "rtol",
+        "relative tolerance for variable timestepping. Default value is 1e-4. "
+        "NEURON value (not recommended by CVODE manual) is 0.",
+        false, 1e-6, "floble_t");
 
-    TCLAP::ValueArg<floble_t> cvode_atol("","atol", "absolute tolerance for voltages and states in variable timestepping. Default (NEURON) value is 0.",false,0,"floble_t");
+    TCLAP::ValueArg<floble_t> cvode_atol(
+        "", "atol",
+        "absolute tolerance for voltages and states in variable timestepping. "
+        "Default (NEURON) value is 1e-3.",
+        false, 1e-3, "floble_t");
 
-    TCLAP::ValueArg<floble_t> cvode_event_group("","queue_group", "mscs of grouping of close events in time. Default (NEURON) value is 0.",false,1e-12,"floble_t");
+    TCLAP::ValueArg<floble_t> cvode_event_group(
+        "", "queue_group",
+        "mscs of grouping of close events in time. Default (NEURON) value is "
+        "0.",
+        false, 1e-12, "floble_t");
 
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,

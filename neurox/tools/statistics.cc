@@ -353,9 +353,8 @@ void Statistics::RegisterHpxActions() {
   wrappers::RegisterSingleVarAction<hpx_t>(
       Statistics::CommCount::Subscribe,
       Statistics::CommCount::Subscribe_handler);
-  wrappers::RegisterZeroVarAction(
-      Statistics::CommCount::Join,
-      Statistics::CommCount::Join_handler);
+  wrappers::RegisterZeroVarAction(Statistics::CommCount::Join,
+                                  Statistics::CommCount::Join_handler);
   wrappers::RegisterSingleVarAction<hpx_t>(
       Statistics::CommCount::Unsubscribe,
       Statistics::CommCount::Unsubscribe_handler);

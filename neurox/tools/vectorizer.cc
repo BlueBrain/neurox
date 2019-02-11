@@ -219,16 +219,15 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
     int data_size = mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
 
     // neuron: "only point processes with currents are possibilities"
-    if (input::DataLoader::HardCodedMechanismHasNoInstances(mech->type_))
-    {
-        ml_no_capacitors[m].nodecount=0;
-        ml_no_capacitors[m]._nodecount_padded=0;
-        ml_no_capacitors[m].nodeindices=nullptr;
-        ml_no_capacitors[m].data = nullptr;
-        ml_no_capacitors[m].nodeindices = nullptr;
-        ml_no_capacitors[m].pdata = nullptr;
-        total_data_offset += data_size;
-        continue;
+    if (input::DataLoader::HardCodedMechanismHasNoInstances(mech->type_)) {
+      ml_no_capacitors[m].nodecount = 0;
+      ml_no_capacitors[m]._nodecount_padded = 0;
+      ml_no_capacitors[m].nodeindices = nullptr;
+      ml_no_capacitors[m].data = nullptr;
+      ml_no_capacitors[m].nodeindices = nullptr;
+      ml_no_capacitors[m].pdata = nullptr;
+      total_data_offset += data_size;
+      continue;
     }
 
     bool mech_valid_in_phase_1 = mech->pnt_map_ && mech->memb_func_.current;
@@ -289,7 +288,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
               Vectorizer::SizeOf(instances->nodecount) * i + n_new;
 #endif
           int old_pdata = instances->pdata[old_pdata_offset];
-          assert( old_pdata >= -1);
+          assert(old_pdata >= -1);
 
           // if it points to an ion, get new pdata position
           int ptype = memb_func[mech->type_].dparam_semantics[i];

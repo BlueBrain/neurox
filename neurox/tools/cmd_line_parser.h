@@ -39,10 +39,12 @@ class CmdLineParser {
   floble_t forwardSkip_;   ///> forward skip time
 
   // Execution parameters for CVODE
-  floble_t cvode_atol_v_;        ///> CVODE absolute tolerance for voltage variables
-  floble_t cvode_atol_states_;   ///> CVODE absolute tolerance for state variables
-  floble_t cvode_rtol_;          ///> CVODE relative tolerance
-  floble_t cvode_event_group_;   ///> CVODE interval of grouping of proximal events (ms)
+  floble_t cvode_atol_v_;  ///> CVODE absolute tolerance for voltage variables
+  floble_t
+      cvode_atol_states_;  ///> CVODE absolute tolerance for state variables
+  floble_t cvode_rtol_;    ///> CVODE relative tolerance
+  floble_t cvode_event_group_;  ///> CVODE interval of grouping of proximal
+                                /// events (ms)
 
   char input_path_[512];    ///> path of input directory
   char output_path_[512];   ///> path of output directory
@@ -59,7 +61,7 @@ class CmdLineParser {
   bool graph_mechs_parallelism_;     ///> graph-based parallelism of mechanisms
   bool mech_instances_parallelism_;  ///> mechanisms parallelism
   bool locality_comm_reduce_;        ///> locality-based communication reduction
-  bool scheduler_;           ///> last neuron goest first scheduler
+  bool scheduler_;                   ///> last neuron goest first scheduler
 
   /// Whether to perform dynamic load balancing of nodes and branches
   bool load_balancing_;

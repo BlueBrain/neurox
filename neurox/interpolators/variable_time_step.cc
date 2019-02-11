@@ -87,14 +87,14 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
   printf("\nBRUNO BEFORE t=%f fun_thread\n", nt->_t);
-  for (int i=0; i<NV_CONTENT_S(y)->length; i++)
-      printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+  for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
+    printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
   if (ydot)
-    for (int i=0; i<NV_CONTENT_S(ydot)->length; i++)
+    for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
       printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
 
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? 1e-8 : h; //TODO set 1e-8 to input_params_->dt/2
+  nt->_dt = h == 0 ? 1e-8 : h;  // TODO set 1e-8 to input_params_->dt/2
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
@@ -144,10 +144,10 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::GatherYdot(branch, ydot);
 
   printf("\nBRUNO AFTER t=%f fun_thread\n", nt->_t);
-  for (int i=0; i<NV_CONTENT_S(y)->length; i++)
-      printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+  for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
+    printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
   if (ydot)
-    for (int i=0; i<NV_CONTENT_S(ydot)->length; i++)
+    for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
       printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
 
   return CV_SUCCESS;
@@ -435,13 +435,14 @@ void VariableTimeStep::Init(Branch *branch) {
   vardt->y_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
-  for (int i=0; i<NV_CONTENT_S(vardt->y_)->length; i++)
-      printf("BRUNO INIT y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
+  for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
+    printf("BRUNO INIT y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
 
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++) {
-    double tol = i < cap_count ? input_params_->cvode_atol_v_ : input_params_->cvode_atol_states_;
+    double tol = i < cap_count ? input_params_->cvode_atol_v_
+                               : input_params_->cvode_atol_states_;
     NV_Ith_S(vardt->absolute_tolerance_, i) = tol;
   }
 
@@ -526,7 +527,7 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
-  CVodeSetMaxStep(cvode_mem, neurox::min_synaptic_delay_);
+  CVodeSetMaxStep(cvode_mem, input_params_->tstop_);
   CVodeSetStopTime(cvode_mem, input_params_->tstop_);
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
 }

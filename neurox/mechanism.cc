@@ -78,21 +78,18 @@ Mechanism::Mechanism(const int type, const short int data_size,
     if (!this->is_ion_ && this->type_ != MechanismTypes::kCapacitance) {
       // get state variables count, values and offsets
       state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
-      if (stf != NULL)
-      {
-      stf(&this->state_vars_->count_, &this->state_vars_->var_offsets_,
-          &this->state_vars_->dv_offsets_);
+      if (stf != NULL) {
+        stf(&this->state_vars_->count_, &this->state_vars_->var_offsets_,
+            &this->state_vars_->dv_offsets_);
 
-      // state variables diagonal at given point
-      this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
+        // state variables diagonal at given point
+        this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
 
-      // derivative description
-      this->ode_spec_ = get_ode_spec_function(this->memb_func_.sym);
-      }
-      else
-      {
-          fprintf(stderr,"Mechanism %d (%s) has no state variables.\n",
-                  this->type_, this->memb_func_.sym);
+        // derivative description
+        this->ode_spec_ = get_ode_spec_function(this->memb_func_.sym);
+      } else {
+        fprintf(stderr, "Mechanism %d (%s) has no state variables.\n",
+                this->type_, this->memb_func_.sym);
       }
     }
   }

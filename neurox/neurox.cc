@@ -160,8 +160,7 @@ int Clear_handler() {
   delete[] neurox::mechanisms_map_;
   delete synchronizer_;
 
-  if (input_params_->locality_comm_reduce_ ||
-      input_params_->scheduler_) {
+  if (input_params_->locality_comm_reduce_ || input_params_->scheduler_) {
     (*neurox::locality::neurons_).clear();
     (*neurox::locality::netcons_branches_).clear();
     (*neurox::locality::netcons_somas_).clear();
