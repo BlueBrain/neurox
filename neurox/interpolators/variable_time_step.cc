@@ -86,12 +86,14 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
+#ifndef NDEBUG
   printf("\nBRUNO BEFORE t=%f fun_thread\n", nt->_t);
   for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
     printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
   if (ydot)
     for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
       printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+#endif
 
   const double h = vardt->cvode_mem_->cv_h;
   nt->_dt = h == 0 ? 1e-8 : h;  // TODO set 1e-8 to input_params_->dt/2
@@ -143,12 +145,14 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // copies dV/dt (RHS) and state-vars-derivative to CVODES
   VariableTimeStep::GatherYdot(branch, ydot);
 
+#ifndef NDEBUG
   printf("\nBRUNO AFTER t=%f fun_thread\n", nt->_t);
   for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
     printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
   if (ydot)
     for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
       printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+#endif
 
   return CV_SUCCESS;
 }
@@ -435,8 +439,10 @@ void VariableTimeStep::Init(Branch *branch) {
   vardt->y_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
+#ifndef NDEBUG
   for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
     printf("BRUNO INIT y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
+#endif
 
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
