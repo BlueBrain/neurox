@@ -168,18 +168,21 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "relative tolerance for variable timestepping. Default value is 1e-4. "
         "NEURON value (not recommended by CVODE manual) is 0.",
         false, 1e-6, "floble_t");
+    cmd.add(cvode_rtol);
 
     TCLAP::ValueArg<floble_t> cvode_atol(
         "", "atol",
         "absolute tolerance for voltages and states in variable timestepping. "
         "Default (NEURON) value is 1e-3.",
         false, 1e-3, "floble_t");
+    cmd.add(cvode_atol);
 
     TCLAP::ValueArg<floble_t> cvode_event_group(
         "", "queue_group",
         "mscs of grouping of close events in time. Default (NEURON) value is "
         "0.",
         false, 1e-12, "floble_t");
+    cmd.add(cvode_event_group);
 
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
@@ -209,11 +212,13 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Apply patternstim with the spike file. No default value", false, "",
         "string");
     cmd.add(pattern_stim);
+
     TCLAP::ValueArg<std::string> output_path(
         "o", "outputpath",
         "Path to output directory. The default value is ./output", false,
         "./output", "string");
     cmd.add(output_path);
+
     TCLAP::ValueArg<std::string> input_path("d", "inputpath",
                                             "Path to input files directory",
                                             true, "./input", "string");
