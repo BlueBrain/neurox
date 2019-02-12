@@ -127,10 +127,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
         "\
-[0] CVODES with Preconditioned Diagonal Jacobian (a la NEURON)\
-\n[1] CVODES with Dense Jacobian\
-\n[2] CVODES with Diagonal Jacobian\
-\n[3] CVODES with Sparse Jacobian\
+[0] CVODE with Preconditioned Diagonal Jacobian (a la NEURON)\
+\n[1] CVODE with Dense Jacobian\
+\n[2] CVODE with Diagonal Jacobian\
+\n[3] CVODE with Sparse Jacobian\
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
     cmd.add(interpolator);
@@ -149,10 +149,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<floble_t> dt(
         "t", "dt",
         "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
-\n - CVODES with Diagonal Jacobian solver: default 0.0001 msecs\
-\n - CVODES with Dense Jacobian: default 0.001 msecs\
-\n - CVODES with Diagonal Jacobian solver: default 0.00001 msecs\
-\n - CVODES with Sparse Jacobian solver: default 0.0001 msecs\
+\n - CVODE with Preconditioned Diagonal Jacobian solver: default 0.0001 msecs\
+\n - CVODE with Dense Jacobian: default 0.001 msecs\
+\n - CVODE with Diagonal Jacobian solver: default 0.00001 msecs\
+\n - CVODE with Sparse Jacobian solver: default 0.0001 msecs\
 \n - Backward Euler: default 0.025",
         false, DEF_dt, "floble_t");
     cmd.add(dt);
@@ -179,8 +179,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     TCLAP::ValueArg<floble_t> cvode_event_group(
         "", "queue_group",
-        "mscs of grouping of close events in time. Default (NEURON) value is "
-        "0.",
+        "interval (msecs) for grouping of events in variable timestepping. "
+        "Default (NEURON) value is 0.",
         false, 1e-12, "floble_t");
     cmd.add(cvode_event_group);
 
