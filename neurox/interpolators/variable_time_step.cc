@@ -159,9 +159,8 @@ approximation of the Newton matrix, I - gamma J, where J = df/dy,
 and the rhs-vector b is an input. Called once per newton, thus
 several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
 int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
-                                                   N_Vector weight,
-                                                   N_Vector ycur,
-                                                   N_Vector fcur) {
+                                                   N_Vector, N_Vector,
+                                                   N_Vector) {
 
   if (cv_mem->cv_gamma==0.) return 0; // i.e. (I - gamma * J)*x = b means x = b
 
@@ -181,6 +180,11 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
+#ifndef NDEBUG
+  for (int i = 0; i < 900; i+=1)
+      printf("BRUNO JacBefore b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+#endif
+
   ScatterYdot(branch, b);
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
   HinesSolver::ResetRHSNoCapacitors(branch);
@@ -188,6 +192,10 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   HinesSolver::ForwardSubstitution(branch);
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatSol);
   GatherYdot(branch, b);
+#ifndef NDEBUG
+  for (int i = 0; i < 900; i+=1)
+      printf("BRUNO JacAfter  b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+#endif
   return CV_SUCCESS;
 }
 
