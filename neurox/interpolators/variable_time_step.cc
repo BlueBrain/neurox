@@ -162,13 +162,16 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
                                                    N_Vector weight,
                                                    N_Vector ycur,
                                                    N_Vector fcur) {
+
+  if (cv_mem->cv_gamma==0.) return 0; // i.e. (I - gamma * J)*x = b means x = b
+
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
   Branch *branch = (Branch *)cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
+  nt->cj = 1. / cv_mem->cv_gamma;
   nt->_dt = cv_mem->cv_gamma;
-  nt->cj = 1.0 / nt->_dt;
 
   // Cvode::lhs()
   HinesSolver::ResetArray(branch, nt->_actual_d);
@@ -183,7 +186,7 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   HinesSolver::ResetRHSNoCapacitors(branch);
   HinesSolver::BackwardTriangulation(branch);
   HinesSolver::ForwardSubstitution(branch);
-  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatSol);
   GatherYdot(branch, b);
   return CV_SUCCESS;
 }
@@ -436,11 +439,6 @@ void VariableTimeStep::Init(Branch *branch) {
   vardt->y_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
-#ifndef NDEBUG
-  for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
-    printf("BRUNO INIT BEGIN y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
-#endif
-
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++) {
@@ -458,11 +456,6 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
-#ifndef NDEBUG
-  printf("RTOL=%.12f\n", input_params_->cvode_rtol_);
-  for (int i = 0; i < NV_LENGTH_S(vardt->absolute_tolerance_); i+=1)
-    printf("ATOL[%d]=%f\n", i, NV_CONTENT_S(vardt->absolute_tolerance_)->data[i]);
-#endif
   flag = CVodeSVtolerances(cvode_mem, input_params_->cvode_rtol_,
                            vardt->absolute_tolerance_);
   assert(flag == CV_SUCCESS);
@@ -472,9 +465,9 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
-  CVodeSetMaxStep(cvode_mem,  1e9 /*input_params_->tstop_*/); //a la NEURON
+  CVodeSetMaxStep(cvode_mem,  kNEURONMaxStep /*input_params_->tstop_*/);
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
-  CVodeSetStopTime(cvode_mem, input_params_->tstop_); // a la NEURON
+  CVodeSetStopTime(cvode_mem, kNEURONStopTime /*input_params_->tstop_*/);
   //CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
 
   // from cvodeobj.cpp :: cvode_init()
@@ -545,12 +538,6 @@ void VariableTimeStep::Init(Branch *branch) {
   CVodeSetRootDirection(cvode_mem, roots_direction);
   assert(flag == CV_SUCCESS);
   */
-
-#ifndef NDEBUG
-  for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
-    printf("BRUNO INIT END y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
-#endif
-
 }
 
 void VariableTimeStep::Clear(Branch *branch) {
@@ -625,7 +612,7 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
       //flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
       // ======== IMPORTANT ==========
       // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
-      flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
+      flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {

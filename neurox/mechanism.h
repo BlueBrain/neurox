@@ -126,7 +126,7 @@ class Mechanism {
     kNetReceiveInit = 18,
     // CVODE-specific methods
     kODESpec = 19,
-    kODEMatsol = 20,
+    kODEMatSol = 20,
     kDivCapacity = 21,
     kMulCapacity = 22
   };

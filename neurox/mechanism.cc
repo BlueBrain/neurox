@@ -321,7 +321,7 @@ void Mechanism::CallModFunction(
         if (memb_func_.thread_cleanup_)
           memb_func_.thread_cleanup_(memb_list->_thread);
         break;
-      case Mechanism::ModFunctions::kODEMatsol:  // CVODE-specific
+      case Mechanism::ModFunctions::kODEMatSol:  // CVODE-specific
         if (this->ode_matsol_ && this->state_vars_->count_ > 0)
           tools::Vectorizer::CallVecFunction(this->ode_matsol_, nt, memb_list,
                                              type_);
