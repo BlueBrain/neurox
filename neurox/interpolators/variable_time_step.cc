@@ -61,13 +61,14 @@ void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  CopyState(branch, ydot, CopyOps::kGatherYdot);
+  if (ydot)
+      CopyState(branch, ydot, CopyOps::kGatherYdot);
+  //this if is a safeguard for first execution called from CVode::Init() -> RHSFuntion()
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
                                    void *user_data) {
   Branch *branch = (Branch *)user_data;
-
   // get offset and voltage of Axon Initial Segment
   int ais_offset = branch->thvar_ptr_ - branch->nt_->_actual_v;
   double v_ais = NV_Ith_S(y, ais_offset);
@@ -86,17 +87,16 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
+  if (t>0.1) assert(0);
+
 #ifndef NDEBUG
-  printf("\nBRUNO BEFORE t=%f fun_thread\n", nt->_t);
-  for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
-    printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
-  if (ydot)
-    for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
-      printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+  printf("BRUNO RHS t=%f\n", t);
+  for (int i = 0; i < 900; i+=1)
+    printf("BRUNO RHS y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
 #endif
 
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? 1e-8 : h;  // TODO set 1e-8 to input_params_->dt/2
+  nt->_dt = h == 0 ? 1e-8 : h; //important for events (?)
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
@@ -146,12 +146,9 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::GatherYdot(branch, ydot);
 
 #ifndef NDEBUG
-  printf("\nBRUNO AFTER t=%f fun_thread\n", nt->_t);
-  for (int i = 0; i < NV_CONTENT_S(y)->length; i++)
-    printf("BRUNO y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
   if (ydot)
-    for (int i = 0; i < NV_CONTENT_S(ydot)->length; i++)
-      printf("BRUNO y'[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+    for (int i = 0; i < 900; i+=1)
+      printf("BRUNO RHS ydot[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
 #endif
 
   return CV_SUCCESS;
@@ -441,7 +438,7 @@ void VariableTimeStep::Init(Branch *branch) {
 
 #ifndef NDEBUG
   for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
-    printf("BRUNO INIT y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
+    printf("BRUNO INIT BEGIN y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
 #endif
 
   // absolute tolerance array (low for voltages, high for mech states)
@@ -455,16 +452,17 @@ void VariableTimeStep::Init(Branch *branch) {
   // Allocate mem block for BDF or Adams, with Newton solver (for stiff sol.)
   cvode_mem = (CVodeMem)CVodeCreate(CV_BDF, CV_NEWTON);
 
-  // from cvodeobj.cpp :: cvode_init()
-  vardt->cvode_mem_->cv_gamma = 0.;
-  vardt->cvode_mem_->cv_h = 0.;
-
   // CVodeInit allocates and initializes memory for a problem
   double t0 = input_params_->tstart_;
   flag = CVodeInit(cvode_mem, VariableTimeStep::RHSFunction, t0, vardt->y_);
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
+#ifndef NDEBUG
+  printf("RTOL=%.12f\n", input_params_->cvode_rtol_);
+  for (int i = 0; i < NV_LENGTH_S(vardt->absolute_tolerance_); i+=1)
+    printf("ATOL[%d]=%f\n", i, NV_CONTENT_S(vardt->absolute_tolerance_)->data[i]);
+#endif
   flag = CVodeSVtolerances(cvode_mem, input_params_->cvode_rtol_,
                            vardt->absolute_tolerance_);
   assert(flag == CV_SUCCESS);
@@ -473,11 +471,15 @@ void VariableTimeStep::Init(Branch *branch) {
   flag = CVodeSetUserData(cvode_mem, branch);
   assert(flag == CV_SUCCESS);
 
-  // specify root func. and roots (AP-threshold reached from below)
-  int roots_direction[1] = {1};
-  flag = CVodeRootInit(cvode_mem, 1, VariableTimeStep::RootFunction);
-  CVodeSetRootDirection(cvode_mem, roots_direction);
-  assert(flag == CV_SUCCESS);
+  CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
+  CVodeSetMaxStep(cvode_mem,  1e9 /*input_params_->tstop_*/); //a la NEURON
+  CVodeSetMinStep(cvode_mem, input_params_->dt_);
+  CVodeSetStopTime(cvode_mem, input_params_->tstop_); // a la NEURON
+  //CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
+
+  // from cvodeobj.cpp :: cvode_init()
+  vardt->cvode_mem_->cv_gamma = 0.;
+  vardt->cvode_mem_->cv_h = 0.;
 
   // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
@@ -532,10 +534,23 @@ void VariableTimeStep::Init(Branch *branch) {
   }
   assert(flag == CV_SUCCESS);
 
-  CVodeSetMinStep(cvode_mem, input_params_->dt_);
-  CVodeSetMaxStep(cvode_mem, input_params_->tstop_);
-  CVodeSetStopTime(cvode_mem, input_params_->tstop_);
-  CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
+  //TODO dont understand why NEURON does one step at initialization
+  // cvodeobj.cpp :: cvode_init()
+  // RHSFunction(nt->_t, y_, nullptr, branch);
+
+  // specify root func. and roots (AP-threshold reached from below)
+  /* TODO
+  int roots_direction[1] = {1};
+  flag = CVodeRootInit(cvode_mem, 1, VariableTimeStep::RootFunction);
+  CVodeSetRootDirection(cvode_mem, roots_direction);
+  assert(flag == CV_SUCCESS);
+  */
+
+#ifndef NDEBUG
+  for (int i = 0; i < NV_CONTENT_S(vardt->y_)->length; i++)
+    printf("BRUNO INIT END y[%d]=%f\n", i, NV_CONTENT_S(vardt->y_)->data[i]);
+#endif
+
 }
 
 void VariableTimeStep::Clear(Branch *branch) {
@@ -590,14 +605,15 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   hpx_t spikes_lco = HPX_NULL;
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
-  floble_t event_group_ms = input_params_->cvode_event_group_ + 1e-12;
+  const floble_t event_group_ms = input_params_->cvode_event_group_;
 
   double cvode_tstop = -1;
   while (nt->_t < tstop) {
-    // delivers all events whithin the next delivery-time-window
+    // delivers all events whithin the next delivery time-window
     branch->DeliverEvents(nt->_t + event_group_ms);
 
     // get tout as time of next undelivered event (if any)
+    cvode_tstop = tstop;
     hpx_lco_sema_p(branch->events_queue_mutex_);
     if (!branch->events_queue_.empty())
       cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
@@ -606,7 +622,10 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
       // perform several steps until hitting cvode_stop, or spiking
-      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+      //flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      // ======== IMPORTANT ==========
+      // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
+      flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {

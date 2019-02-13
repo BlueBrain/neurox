@@ -149,11 +149,12 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<floble_t> dt(
         "t", "dt",
         "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
-\n - CVODE with Preconditioned Diagonal Jacobian solver: default 0.0001 msecs\
-\n - CVODE with Dense Jacobian: default 0.001 msecs\
-\n - CVODE with Diagonal Jacobian solver: default 0.00001 msecs\
-\n - CVODE with Sparse Jacobian solver: default 0.0001 msecs\
-\n - Backward Euler: default 0.025",
+\n - Varible timestepping default (NEURON value) is 0:\
+\n   - CVODE with Preconditioned Diagonal Jacobian solver: recommended 0.0001 msecs\
+\n   - CVODE with Dense Jacobian: recommended 0.001 msecs\
+\n   - CVODE with Diagonal Jacobian solver: recommended 0.00001 msecs\
+\n   - CVODE with Sparse Jacobian solver: recommended 0.0001 msecs\
+\n - Backward Euler: default (NEURON value) 0.025",
         false, DEF_dt, "floble_t");
     cmd.add(dt);
 
@@ -165,9 +166,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
      * machine arithmetic (generally around 1.0E-15). */
     TCLAP::ValueArg<floble_t> cvode_rtol(
         "", "rtol",
-        "relative tolerance for variable timestepping. Default value is 1e-4. "
-        "NEURON value (not recommended by CVODE manual) is 0.",
-        false, 1e-6, "floble_t");
+        "relative tolerance for variable timestepping. Default value is 0 "
+        "(a la NEURON, not recommended by CVODE manual). Recommended: 1e-4.",
+        false, 0, "floble_t");
     cmd.add(cvode_rtol);
 
     TCLAP::ValueArg<floble_t> cvode_atol(
@@ -181,7 +182,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "", "queue_group",
         "interval (msecs) for grouping of events in variable timestepping. "
         "Default (NEURON) value is 0.",
-        false, 1e-12, "floble_t");
+        false, 0, "floble_t");
     cmd.add(cvode_event_group);
 
     TCLAP::ValueArg<floble_t> dt_io(
@@ -296,22 +297,8 @@ void CmdLineParser::Parse(int argc, char** argv) {
       this->cvode_atol_states_ = cvode_atol.getValue();
       this->cvode_event_group_ = cvode_event_group.getValue();
       if (!dt.isSet())  // if not user-provided
-      {
-        switch (this->interpolator_) {
-          case InterpolatorIds::kCvodePreConditionedDiagSolver:
-            this->dt_ = 1e-4;
-            break;
-          case InterpolatorIds::kCvodeDenseMatrix:
-            this->dt_ = 1e-3;
-            break;
-          case InterpolatorIds::kCvodeDiagonalMatrix:
-            this->dt_ = 1e-5;
-            break;
-          default:
-            this->dt_ = 1e-4;
-        }
-      }
-      if (this->dt_ <= 0)
+          this->dt_ = 0;
+      if (this->dt_ < 0)
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");
     }

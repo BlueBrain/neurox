@@ -43,8 +43,8 @@ ENDIF()
 find_package(CVODE 3.1.0 REQUIRED)
 include_directories(${CVODE_INCLUDE_DIRS})
 link_directories(${CVODE_LIBRARIES})
-#message(STATUS "  CVODE_INCLUDE_DIRS: ${CVODE_INCLUDE_DIRS}")
-#message(STATUS "  CVODE_LIBRARIES: ${CVODE_LIBRARIES}")
+message(STATUS "  CVODE_INCLUDE_DIRS: ${CVODE_INCLUDE_DIRS}")
+message(STATUS "  CVODE_LIBRARIES: ${CVODE_LIBRARIES}")
 
 #binary (copy from apps/CMakeLists.txt)
 include_directories(
