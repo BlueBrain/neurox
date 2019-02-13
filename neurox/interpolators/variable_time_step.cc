@@ -532,12 +532,10 @@ void VariableTimeStep::Init(Branch *branch) {
   // RHSFunction(nt->_t, y_, nullptr, branch);
 
   // specify root func. and roots (AP-threshold reached from below)
-  /* TODO
   int roots_direction[1] = {1};
   flag = CVodeRootInit(cvode_mem, 1, VariableTimeStep::RootFunction);
   CVodeSetRootDirection(cvode_mem, roots_direction);
   assert(flag == CV_SUCCESS);
-  */
 }
 
 void VariableTimeStep::Clear(Branch *branch) {
