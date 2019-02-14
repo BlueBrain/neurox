@@ -15,11 +15,11 @@ class TimeDependencySynchronizer : public Synchronizer {
   const SynchronizerIds GetId() override;
   const char* GetString() override;
 
-  void NeuronSyncEnd(Branch*, hpx_t) override;
+  void NeuronSyncEnd(Branch*) override;
   void ClearLocality() override;
 
   double GetNeuronMaxStep(Branch*) override;
-  hpx_t SendSpikes(Neuron* b, double tt, double t) override;
+  void SendSpikes(Neuron* b, double tt, double t) override;
   double LocalitySyncInterval();
 
   void StepSync(Branch*, const floble_t dt) override;

@@ -27,7 +27,7 @@ const char* TimeDependencySynchronizer::GetString() {
 
 void TimeDependencySynchronizer::ClearLocality() {}
 
-void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
+void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b) {
   if (!b->soma_) return;
   const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   const bool finished =
@@ -112,7 +112,7 @@ double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
     floble_t min_delay = td->GetDependencyMinDelay(gid);
     floble_t max_time = td->GetDependencyMaxTimeAllowed(gid);
     printf(
-        "   -- pre-syn neuron id %d min delay %.4f allows stepping to %.4f "
+        "-- %d.%d -- pre-syn neuron id %d min delay %.4f allows stepping to %.4f "
         "ms\n",
         wrappers::MyRankId(), wrappers::MyThreadId(), gid, min_delay, max_time);
   }
@@ -196,7 +196,7 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(
   }
 }
 
-hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
+void TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
                                              double t) {
   const floble_t notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
@@ -247,7 +247,6 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
             s->destination_gid_, t, s->next_notification_time_);
 #endif
   }
-  return HPX_NULL;
 }
 
 double TimeDependencySynchronizer::LocalitySyncInterval() {

@@ -87,12 +87,13 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
-  if (t>0.1) assert(0);
 
 #ifndef NDEBUG
+  /*
   printf("BRUNO RHS t=%f\n", t);
   for (int i = 0; i < 900; i+=1)
     printf("BRUNO RHS y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+    */
 #endif
 
   const double h = vardt->cvode_mem_->cv_h;
@@ -146,9 +147,11 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   VariableTimeStep::GatherYdot(branch, ydot);
 
 #ifndef NDEBUG
+  /*
   if (ydot)
     for (int i = 0; i < 900; i+=1)
       printf("BRUNO RHS ydot[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+      */
 #endif
 
   return CV_SUCCESS;
@@ -181,8 +184,10 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   // end of Cvode::lhs()
 
 #ifndef NDEBUG
+  /*
   for (int i = 0; i < 900; i+=1)
       printf("BRUNO JacBefore b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+      */
 #endif
 
   ScatterYdot(branch, b);
@@ -193,8 +198,10 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   branch->CallModFunction(Mechanism::ModFunctions::kODEMatSol);
   GatherYdot(branch, b);
 #ifndef NDEBUG
+  /*
   for (int i = 0; i < 900; i+=1)
       printf("BRUNO JacAfter  b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+      */
 #endif
   return CV_SUCCESS;
 }
@@ -591,11 +598,10 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
   }
 }
 
-hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
+void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
-  hpx_t spikes_lco = HPX_NULL;
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
   const floble_t event_group_ms = input_params_->cvode_event_group_;
@@ -615,10 +621,10 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
       // perform several steps until hitting cvode_stop, or spiking
-      //flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
       // ======== IMPORTANT ==========
       // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
-      flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+      //flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {
@@ -626,15 +632,8 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         assert(flag == CV_SUCCESS);
         assert(roots_found[0] != 0);  // only root: AP threshold reached
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
-        {
           // if root found, integrator time is now at time of root
-          hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
-          if (new_spikes_lco) {
-            // make sure only an AP occurred in between
-            assert(!spikes_lco);
-            spikes_lco = new_spikes_lco;
-          }
-        }
+          branch->soma_->SendSpikes(nt->_t);
       } else {
         // error test failed repeatedly or with |h| = hmin.
         if (flag == CV_ERR_FAILURE) {
@@ -655,6 +654,5 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
    * messages */
   synchronizer_->StepSync(branch, 0);
 
-  assert(fabs(nt->_t - tstop) < 0.001);  // equal
-  return spikes_lco;
+  //assert(fabs(nt->_t - tstop) < 0.01);  // equal
 }

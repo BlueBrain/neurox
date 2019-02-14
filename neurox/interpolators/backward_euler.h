@@ -27,7 +27,7 @@ class BackwardEuler : public Interpolator {
 
   const char* GetString() override;
   void Init(Branch*) override;
-  hpx_t StepTo(Branch* branch, const double tstop) override;
+  void StepTo(Branch* branch, const floble_t tstop) override;
 
   static hpx_t Step(Branch*, const bool benchmark = false);
 
@@ -35,8 +35,6 @@ class BackwardEuler : public Interpolator {
 
   static void Finitialize2(Branch*);  ///> finitialize.c::finitialize()
   static void SetupTreeMatrix(Branch*);
-  static int GetTotalSteps();
-  static int GetMinSynapticDelaySteps();
 
  private:
   static int Finitialize_handler();

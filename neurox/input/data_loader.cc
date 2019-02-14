@@ -1514,13 +1514,24 @@ double DataLoader::BenchmarkSubSection(
 
   // benchmark execution time of 10 times 0.1msec
   time_elapsed = 0;
-  double step_count = interpolators::BackwardEuler::GetMinSynapticDelaySteps();
-  for (int i = 0; i < 20; i++) {
-    hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < step_count; i++)
-      interpolators::BackwardEuler::Step(branch, true);
-    time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
+  hpx_time_t now = hpx_time_now();
+  if (input_params_->interpolator_ == interpolators::InterpolatorIds::kBackwardEuler)
+  {
+    const int comm_steps = (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
+    for (int i = 0; i < 20; i++) {
+      for (int i = 0; i < comm_steps; i++)
+        interpolators::BackwardEuler::Step(branch, true);
+    }
   }
+  else //variable time step
+  {
+      for (int i = 1; i <= 20; i++)
+      {
+        //TODO not implemented
+        //interpolators::VariableTimeStep::StepTo(branch,0.1*i);
+      }
+  }
+  time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
   time_elapsed /= 20;
 
   hpx_call_sync(temp_branch_addr, Branch::Clear, nullptr, 0);

@@ -20,9 +20,9 @@ class DebugSynchronizer : public Synchronizer {
   double LocalitySyncInterval() override;
 
   void NeuronSyncInit(Branch*) override;
-  void NeuronSyncEnd(Branch*, hpx_t) override;
+  void NeuronSyncEnd(Branch*) override;
   double GetNeuronMaxStep(Branch*) override;
-  hpx_t SendSpikes(Neuron*, double, double) override;
+  void SendSpikes(Neuron*, double, double) override;
 
   class CommunicationBarrier : public SynchronizerNeuronInfo {
    public:

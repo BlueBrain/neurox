@@ -225,7 +225,6 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
    * - it performs outgoing spikes handling
    */
   floble_t tpause = -1, dt_pause = -1;
-  hpx_t spikes_lco = HPX_NULL;
   const hpx_t step_trigger = local->soma_->scheduler_step_trigger_;
   const bool has_scheduler = step_trigger != HPX_NULL;
   NrnThread* nt = local->nt_;
@@ -260,10 +259,10 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
       fprintf(stderr, "step,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
               local->soma_->gid_, t, tpause, tpause - t);
 #endif
-    spikes_lco = interpolator->StepTo(local, tpause);
+    interpolator->StepTo(local, tpause);
 
     // do after-step operations e.g. wait for spike delivery
-    synchronizer_->NeuronSyncEnd(local, spikes_lco);
+    synchronizer_->NeuronSyncEnd(local);
     // if (fmod(t, dt_io) == 0) {  /*output*/ }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;

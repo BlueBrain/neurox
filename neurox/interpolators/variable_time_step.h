@@ -32,7 +32,7 @@ class VariableTimeStep : public Interpolator {
 
   const char *GetString() override;
   void Init(Branch *) override;
-  hpx_t StepTo(Branch *, const double) override;
+  void StepTo(Branch *, const double) override;
   void Clear(Branch *) override;
 
   static void PrintStatistics(const Branch *);

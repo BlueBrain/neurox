@@ -31,7 +31,7 @@ void AllreduceSynchronizer::NeuronSyncInit(Branch* b) {
   NeuronReduce(b, kAllReducesCount);
 }
 
-hpx_t AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
+void AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
@@ -47,11 +47,11 @@ void AllreduceSynchronizer::LocalitySyncInit() {
   AllReduceLocalityInfo::LocalityReduce(kAllReducesCount);
 }
 
-void AllreduceSynchronizer::NeuronSyncEnd(Branch* b, hpx_t spikesLco) {
-  WaitForSpikesDelivery(b, spikesLco);
+void AllreduceSynchronizer::NeuronSyncEnd(Branch* b) {
+  WaitForSpikesDelivery(b);
 }
 
-hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
+void AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
   hpx_action_t spike_action = input_params_->locality_comm_reduce_
                                   ? Branch::AddSpikeEventLocality
                                   : Branch::AddSpikeEvent;
@@ -68,7 +68,10 @@ hpx_t AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
     hpx_call(s->branch_addr_, spike_action, new_synapses_lco, &neuron->gid_,
              sizeof(neuron_id_t), &tt, sizeof(spike_time_t));
   }
-  return new_synapses_lco;
+
+  AllReduceNeuronInfo* stw =
+      (AllReduceNeuronInfo*)neuron->synchronizer_neuron_info_;
+  stw->spikes_lco_queue_.push(std::make_pair(tt+neurox::min_synaptic_delay_, new_synapses_lco));
 }
 
 void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
@@ -156,20 +159,19 @@ void AllreduceSynchronizer::UnsubscribeAllReduces(size_t allreduces_count) {
   allreduces_ = nullptr;
 }
 
-void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco) {
+void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b) {
   // wait for spikes sent 4 steps ago (queue has always size 3)
   if (b->soma_) {
+    const double t = b->nt_->_t;
     AllReduceNeuronInfo* stw =
         (AllReduceNeuronInfo*)b->soma_->synchronizer_neuron_info_;
-    assert(stw->spikes_lco_queue_.size() ==
-           BackwardEuler::GetMinSynapticDelaySteps() - 1);
-    stw->spikes_lco_queue_.push(spikes_lco);
-    hpx_t queued_spikes_lco = stw->spikes_lco_queue_.front();
-    stw->spikes_lco_queue_.pop();
-    if (queued_spikes_lco != HPX_NULL) {
-      hpx_lco_wait(queued_spikes_lco);
-      hpx_lco_delete_sync(queued_spikes_lco);
-    }
+      while (!stw->spikes_lco_queue_.empty() && t+0.01 > stw->spikes_lco_queue_.top().first)
+      {
+        TimedSpike queued_spike = stw->spikes_lco_queue_.top();
+        stw->spikes_lco_queue_.pop();
+        hpx_lco_wait(queued_spike.second);
+        hpx_lco_delete_sync(queued_spike.second);
+      }
   }
 }
 
@@ -205,19 +207,13 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
 
 AllreduceSynchronizer::AllReduceNeuronInfo::AllReduceNeuronInfo(
     const size_t allreduces_count) {
-  for (int s = 0; s < BackwardEuler::GetMinSynapticDelaySteps() - 1; s++)
-    this->spikes_lco_queue_.push(HPX_NULL);
-
   // negative value means ignore until it reaches 0
   next_allreduce_id_ = -allreduces_count;
 }
 
 AllreduceSynchronizer::AllReduceNeuronInfo::~AllReduceNeuronInfo() {
-  for (int i = 0; i < spikes_lco_queue_.size(); i++) {
-    hpx_t queued_spikes_lco = spikes_lco_queue_.front();
-    if (queued_spikes_lco != HPX_NULL) hpx_lco_delete_sync(queued_spikes_lco);
-    spikes_lco_queue_.pop();
-  }
+  for (int i = 0; i < spikes_lco_queue_.size(); i++)
+    hpx_lco_delete_sync(spikes_lco_queue_.top().second);
 }
 
 hpx_action_t AllreduceSynchronizer::AllReduceNeuronInfo::Subscribe = 0;

@@ -34,7 +34,7 @@ double DebugSynchronizer::GetNeuronMaxStep(Branch* b) { return b->nt_->_dt; }
 
 void DebugSynchronizer::NeuronSyncInit(Branch*) {}
 
-void DebugSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
+void DebugSynchronizer::NeuronSyncEnd(Branch* b) {
   if (b->soma_)  // end of comm-step (steps is the number of steps per commSize)
   {
     CommunicationBarrier* comm_barrier =
@@ -44,7 +44,7 @@ void DebugSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
   }
 }
 
-hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
+void DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   CommunicationBarrier* comm_barrier =
       (CommunicationBarrier*)neuron->synchronizer_neuron_info_;
 
@@ -55,6 +55,5 @@ hpx_t DebugSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   else
     hpx_lco_reset_sync(all_spikes_lco);  // reset to use after
 
-  all_spikes_lco = AllreduceSynchronizer::SendSpikes2(neuron, tt);
-  return HPX_NULL;
+  AllreduceSynchronizer::SendSpikes2(neuron, tt);
 }
