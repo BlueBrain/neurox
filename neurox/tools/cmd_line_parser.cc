@@ -302,24 +302,6 @@ void CmdLineParser::Parse(int argc, char** argv) {
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");
     }
-
-    /* variable step cannot be run with time-dependency synchronizer
-     * without a scheduler (because WaitForTimeDependencies does not
-     * know the step-size to wait for -- it's decided by CVODE).
-     * The scheduler indicates the step-size as the time of the
-     * dependency which is closest in time, so no need to perform the
-     * call to WaitForTimeDependencies. This condition enforces it.
-     */
-    /* //TODO
-    if (this->interpolator_ != InterpolatorIds::kBackwardEuler &&
-        this->synchronizer_ == SynchronizerIds::kTimeDependency &&
-        this->scheduler_ == false) {
-      throw TCLAP::ArgException(
-          "variable time-step size with time-dependency synchronizer "
-          "requires neurons scheduler",
-          "-S or --scheduler");
-    }
-    */
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());
     exit(1);
