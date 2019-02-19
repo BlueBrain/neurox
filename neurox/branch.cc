@@ -859,16 +859,18 @@ bool Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
   if (this->events_queue_linear_) {
     std::vector<TimedEvent> events;
     this->events_queue_linear_->PopAllBeforeTime(til, events);
-    events_exist = !events.empty();
     for (auto te : events) {
+      if (!events_exist)
+          events_exist=true;
       floble_t &tt = te.first;
       Event *&e = te.second;
       e->Deliver(tt, this);
     }
   } else {
-    events_exist = !this->events_queue_.empty();
     while (!this->events_queue_.empty() &&
            this->events_queue_.top().first <= til) {
+      if (!events_exist)
+          events_exist=true;
       auto event_it = this->events_queue_.top();
       floble_t &tt = event_it.first;
       Event *&e = event_it.second;
