@@ -55,15 +55,15 @@ void Statistics::CommCount::Reduce_handler(Counts* lhs, const Counts* rhs,
                                            const size_t) {
   lhs->point_to_point_count += rhs->point_to_point_count;
   lhs->spike_count += rhs->spike_count;
-  // reduces do not sum, they're global values
+  lhs->reduce_count += rhs->reduce_count;
 }
 
-void Statistics::CommCount::ReduceCounts(Counts* counts) {
+void Statistics::CommCount::ReduceCounts(Counts* counts_ptr) {
   hpx_t comm_count_reduce = hpx_process_collective_allreduce_new(
       sizeof(Counts), CommCount::Init, CommCount::Reduce);
   hpx_bcast_rsync(CommCount::Subscribe, &comm_count_reduce, sizeof(hpx_t));
   hpx_bcast_rsync(CommCount::Join);
-  hpx_lco_get_reset(CommCount::allreduce_future, sizeof(Counts), counts);
+  hpx_lco_get_reset(CommCount::allreduce_future, sizeof(Counts), counts_ptr);
   hpx_bcast_rsync(CommCount::Unsubscribe, &comm_count_reduce, sizeof(hpx_t));
   hpx_process_collective_allreduce_delete(comm_count_reduce);
 }

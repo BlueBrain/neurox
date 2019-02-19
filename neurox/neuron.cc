@@ -163,11 +163,19 @@ bool Neuron::CheckAPthresholdAndTransmissionFlag(floble_t v) {
 
 hpx_t Neuron::SendSpikes(floble_t t)  // netcvode.cpp::PreSyn::send()
 {
-  const spike_time_t tt =
-      (spike_time_t)t + 1e-10;  // Coreneuron logic, do not change!
+  const spike_time_t tt = (spike_time_t)t + 1e-10;  // Coreneuron logic
 #if !defined(NDEBUG) or defined(PRINT_NEURON_SPIKED)
   fprintf(stderr, "-- Neuron %d spiked at %.3f ms\n", this->gid_, tt);
 #endif
 
-  if (GetSynapsesCount() > 0) synchronizer_->SendSpikes(this, tt, t);
+  const size_t synapse_count = GetSynapsesCount();
+
+  if (input_params_->output_comm_count_) {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::counts.spike_count++;
+    Statistics::CommCount::counts.point_to_point_count += synapse_count;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
+
+  if (synapse_count > 0) synchronizer_->SendSpikes(this, tt, t);
 }

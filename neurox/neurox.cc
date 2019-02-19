@@ -136,7 +136,7 @@ static int Main_handler() {
     Statistics::CommCount::ReduceCounts(&counts);
     printf(
         "neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s; Avg spike "
-        "rate: %.2f Hz/neuron\n",
+        "rate: %.3f Hz/neuron\n",
         counts.point_to_point_count, counts.reduce_count,
         input_params_->locality_comm_reduce_ ? "comm-reduce" : "",
         (floble_t)counts.spike_count / (input_params_->tstop_ / 1000.) /

@@ -728,6 +728,10 @@ int DataLoader::Init_handler() {
   all_neurons_gids_ = new std::vector<int>();
   locality_mutex_ = hpx_lco_sema_new(1);
 
+  Statistics::CommCount::counts.point_to_point_count=0;
+  Statistics::CommCount::counts.reduce_count=0;
+  Statistics::CommCount::counts.spike_count=0;
+
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
   if (hpx_get_my_rank() == 0 &&
