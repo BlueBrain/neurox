@@ -58,7 +58,8 @@ void AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
   size_t syn_count = neuron->GetSynapsesCount();
   if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
-    Statistics::CommCount::point_to_point_count += syn_count;
+    Statistics::CommCount::counts.point_to_point_count += syn_count;
+    Statistics::CommCount::counts.spike_count++;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
   }
 
@@ -71,7 +72,8 @@ void AllreduceSynchronizer::SendSpikes2(Neuron* neuron, spike_time_t tt) {
 
   AllReduceNeuronInfo* stw =
       (AllReduceNeuronInfo*)neuron->synchronizer_neuron_info_;
-  stw->spikes_lco_queue_.push(std::make_pair(tt+neurox::min_synaptic_delay_, new_synapses_lco));
+  stw->spikes_lco_queue_.push(
+      std::make_pair(tt + neurox::min_synaptic_delay_, new_synapses_lco));
 }
 
 void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
@@ -82,7 +84,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
 
   if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
-    Statistics::CommCount::reduce_count++;
+    Statistics::CommCount::counts.reduce_count++;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
   }
 
@@ -165,13 +167,13 @@ void AllreduceSynchronizer::WaitForSpikesDelivery(Branch* b) {
     const double t = b->nt_->_t;
     AllReduceNeuronInfo* stw =
         (AllReduceNeuronInfo*)b->soma_->synchronizer_neuron_info_;
-      while (!stw->spikes_lco_queue_.empty() && t+0.01 > stw->spikes_lco_queue_.top().first)
-      {
-        TimedSpike queued_spike = stw->spikes_lco_queue_.top();
-        stw->spikes_lco_queue_.pop();
-        hpx_lco_wait(queued_spike.second);
-        hpx_lco_delete_sync(queued_spike.second);
-      }
+    while (!stw->spikes_lco_queue_.empty() &&
+           t + 0.01 > stw->spikes_lco_queue_.top().first) {
+      TimedSpike queued_spike = stw->spikes_lco_queue_.top();
+      stw->spikes_lco_queue_.pop();
+      hpx_lco_wait(queued_spike.second);
+      hpx_lco_delete_sync(queued_spike.second);
+    }
   }
 }
 
@@ -182,7 +184,7 @@ void AllreduceSynchronizer::AllReduceLocalityInfo::LocalityReduce(
 
   if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
-    Statistics::CommCount::reduce_count++;
+    Statistics::CommCount::counts.reduce_count++;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
   }
 

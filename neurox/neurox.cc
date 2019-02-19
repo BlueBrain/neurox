@@ -132,10 +132,15 @@ static int Main_handler() {
 #endif
 
   if (input_params_->output_comm_count_) {
-    unsigned p2p_comm_count = Statistics::CommCount::ReducePointToPointCount();
-    printf("neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s\n",
-           p2p_comm_count, Statistics::CommCount::reduce_count,
-           input_params_->locality_comm_reduce_ ? "comm-reduce" : "");
+    Statistics::CommCount::Counts counts;
+    Statistics::CommCount::ReduceCounts(&counts);
+    printf(
+        "neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s; Avg spike "
+        "rate: %.2f Hz/neuron\n",
+        counts.point_to_point_count, counts.reduce_count,
+        input_params_->locality_comm_reduce_ ? "comm-reduce" : "",
+        (floble_t)counts.spike_count / (input_params_->tstop_ / 1000.) /
+            (floble_t)neurox::neurons_count_);
   }
 
   CallAllNeurons(Synchronizer::CallClearNeuron);

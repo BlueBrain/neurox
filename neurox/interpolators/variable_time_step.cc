@@ -61,9 +61,9 @@ void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  if (ydot)
-      CopyState(branch, ydot, CopyOps::kGatherYdot);
-  //this if is a safeguard for first execution called from CVode::Init() -> RHSFuntion()
+  if (ydot) CopyState(branch, ydot, CopyOps::kGatherYdot);
+  // this if is a safeguard for first execution called from CVode::Init() ->
+  // RHSFuntion()
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
@@ -87,7 +87,6 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
-
 #ifndef NDEBUG
   /*
   printf("BRUNO RHS t=%f\n", t);
@@ -97,7 +96,7 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 #endif
 
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? 1e-8 : h; //important for events (?)
+  nt->_dt = h == 0 ? 1e-8 : h;  // important for events (?)
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
@@ -164,8 +163,8 @@ several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
 int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
                                                    N_Vector, N_Vector,
                                                    N_Vector) {
-
-  if (cv_mem->cv_gamma==0.) return 0; // i.e. (I - gamma * J)*x = b means x = b
+  if (cv_mem->cv_gamma == 0.)
+    return 0;  // i.e. (I - gamma * J)*x = b means x = b
 
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
@@ -480,10 +479,10 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
-  CVodeSetMaxStep(cvode_mem,  kNEURONMaxStep /*input_params_->tstop_*/);
+  CVodeSetMaxStep(cvode_mem, kNEURONMaxStep /*input_params_->tstop_*/);
   CVodeSetMinStep(cvode_mem, input_params_->dt_);
   CVodeSetStopTime(cvode_mem, kNEURONStopTime /*input_params_->tstop_*/);
-  //CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
+  // CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
 
   // from cvodeobj.cpp :: cvode_init()
   vardt->cvode_mem_->cv_gamma = 0.;
@@ -542,7 +541,7 @@ void VariableTimeStep::Init(Branch *branch) {
   }
   assert(flag == CV_SUCCESS);
 
-  //TODO dont understand why NEURON does one step at initialization
+  // TODO dont understand why NEURON does one step at initialization
   // cvodeobj.cpp :: cvode_init()
   // RHSFunction(nt->_t, y_, nullptr, branch);
 
@@ -605,16 +604,15 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
   const floble_t event_group_ms = input_params_->cvode_event_group_;
-  bool events_exist=false;
+  bool events_exist = false;
   double cvode_tstop = -1;
 
   while (nt->_t < tstop - 1e-8) {
     // delivers all events whithin the next delivery time-window
     events_exist = branch->DeliverEvents(nt->_t + event_group_ms);
 
-    //Reached RHS discontinuity, reset CVODE
-    if (events_exist && nt->_t > 0)
-    {
+    // Reached RHS discontinuity, reset CVODE
+    if (events_exist && nt->_t > 0) {
       VariableTimeStep::GatherY(branch, vardt->y_);
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
     }
@@ -629,7 +627,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
       // perform several steps until hitting cvode_stop, or spiking
-      //flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      // flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
       // ======== IMPORTANT ==========
       // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
       flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
@@ -662,5 +660,5 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
    * messages */
   synchronizer_->StepSync(branch, 0);
 
-  //assert(fabs(nt->_t - tstop) < 0.01);  // equal
+  // assert(fabs(nt->_t - tstop) < 0.01);  // equal
 }

@@ -66,7 +66,7 @@ class AllreduceSynchronizer : public Synchronizer {
     // (At time X wait for HPX synapses Y)
     std::priority_queue<TimedSpike, std::vector<TimedSpike>,
                         std::greater_equal<TimedSpike> >
-      spikes_lco_queue_;
+        spikes_lco_queue_;
     hpx_t* allreduce_future_;
     hpx_t* allreduce_lco_;
     int* allreduce_id_;

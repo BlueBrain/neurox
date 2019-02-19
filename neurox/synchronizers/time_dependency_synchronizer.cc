@@ -112,7 +112,8 @@ double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
     floble_t min_delay = td->GetDependencyMinDelay(gid);
     floble_t max_time = td->GetDependencyMaxTimeAllowed(gid);
     printf(
-        "-- %d.%d -- pre-syn neuron id %d min delay %.4f allows stepping to %.4f "
+        "-- %d.%d -- pre-syn neuron id %d min delay %.4f allows stepping to "
+        "%.4f "
         "ms\n",
         wrappers::MyRankId(), wrappers::MyThreadId(), gid, min_delay, max_time);
   }
@@ -197,7 +198,7 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(
 }
 
 void TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
-                                             double t) {
+                                            double t) {
   const floble_t notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
@@ -206,7 +207,7 @@ void TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
 
   if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
-    Statistics::CommCount::point_to_point_count += syn_count;
+    Statistics::CommCount::counts.point_to_point_count += syn_count;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
   }
 
@@ -570,7 +571,7 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
   size_t syn_count = neuron->GetSynapsesCount();
   if (input_params_->output_comm_count_) {
     hpx_lco_sema_p(Statistics::CommCount::mutex);
-    Statistics::CommCount::point_to_point_count += syn_count;
+    Statistics::CommCount::counts.point_to_point_count += syn_count;
     hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
   }
 

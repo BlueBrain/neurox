@@ -297,7 +297,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
       this->cvode_atol_states_ = cvode_atol.getValue();
       this->cvode_event_group_ = cvode_event_group.getValue();
       if (!dt.isSet())  // if not user-provided
-          this->dt_ = 0;
+        this->dt_ = 0;
       if (this->dt_ < 0)
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");

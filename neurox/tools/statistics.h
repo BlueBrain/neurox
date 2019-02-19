@@ -14,8 +14,11 @@ class Statistics {
   /// count of communication when cmd line flag "output comm counts" is enabled
   class CommCount {
    public:
-    static unsigned point_to_point_count;
-    static unsigned reduce_count;
+    static struct Counts {
+      unsigned point_to_point_count;
+      unsigned reduce_count;
+      unsigned spike_count;
+    } counts;
     static hpx_t mutex;
     static hpx_t allreduce_lco;
     static hpx_t allreduce_future;
@@ -26,13 +29,13 @@ class Statistics {
     static hpx_action_t Subscribe;
     static hpx_action_t Join;
     static hpx_action_t Unsubscribe;
-    static void Init_handler(unsigned*, const size_t);
-    static void Reduce_handler(unsigned*, const unsigned*, const size_t);
+    static void Init_handler(Counts*, const size_t);
+    static void Reduce_handler(Counts*, const Counts*, const size_t);
     static int Subscribe_handler(const hpx_t*, const size_t);
     static int Join_handler();
     static int Unsubscribe_handler(const hpx_t*, const size_t);
 
-    static unsigned ReducePointToPointCount();
+    static void ReduceCounts(Counts* s);
   };
 
   class SizeInfo {

@@ -83,7 +83,7 @@ class VariableTimeStep : public Interpolator {
   constexpr static double kNEURONStopTime = 1e5;
 
   /// This value allows for similar behavior to NEURON
-  constexpr static double kNEURONMaxStep= 1e9;
+  constexpr static double kNEURONMaxStep = 1e9;
 
   /// copy CVODES y to NrnThread->data (V and m)
   inline static void ScatterY(Branch *branch, N_Vector y);

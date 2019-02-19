@@ -472,8 +472,11 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
 
   // parallel execution only (serial execs are compared on-the-fly
   if (neurox::ParallelExecution()) {
-    const int total_steps = (input_params_->tstop_ + 0.00001) / input_params_->dt_;;
-    const int comm_steps = (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
+    const int total_steps =
+        (input_params_->tstop_ + 0.00001) / input_params_->dt_;
+    ;
+    const int comm_steps =
+        (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");
