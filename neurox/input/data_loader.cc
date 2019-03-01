@@ -132,6 +132,16 @@ bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type) {
           type == kProfileHelper);
 }
 
+bool DataLoader::HardCodedEventIsDiscontinuity(Event *e) {
+  // This works for the PCP circuit (for now);
+  if (e->Type() != EventTypes::kNetCon) return false;
+
+  const int type = ((NetconX *)e)->mech_type_;
+
+  return type == MechanismTypes::kProbAMPANMDA_EMS ||
+         type == MechanismTypes::kProbGABAAB_EMS;
+}
+
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
   return (neuron_id_t)nrn_threads[nrn_id].presyns[0].gid_;
 }
@@ -728,9 +738,9 @@ int DataLoader::Init_handler() {
   all_neurons_gids_ = new std::vector<int>();
   locality_mutex_ = hpx_lco_sema_new(1);
 
-  Statistics::CommCount::counts.point_to_point_count=0;
-  Statistics::CommCount::counts.reduce_count=0;
-  Statistics::CommCount::counts.spike_count=0;
+  Statistics::CommCount::counts.point_to_point_count = 0;
+  Statistics::CommCount::counts.reduce_count = 0;
+  Statistics::CommCount::counts.spike_count = 0;
 
   // even without load balancing, we may require the benchmark info for
   // outputting statistics

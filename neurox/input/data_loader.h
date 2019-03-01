@@ -69,6 +69,7 @@ class DataLoader {
   static int HardCodedRNGOffsetInVdata(int type);
   static bool HardCodedMechanismHasNoInstances(int index);
   static bool HardCodedMechanismForCoreneuronOnly(int index);
+  static bool HardCodedEventIsDiscontinuity(Event *);
 
  private:
   /// pointer of netcons.dot file

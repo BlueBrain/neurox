@@ -850,25 +850,29 @@ int Branch::ThreadTableCheck_handler() {
   NEUROX_MEM_UNPIN;
 }
 
-bool Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
+floble_t Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
   // delivers events between t and til
-  bool events_exist = false;
+  // (returns time of first discontinuity (not first event)
+
+  floble_t discontinuity_t = 0;
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
   if (this->events_queue_linear_) {
     std::vector<TimedEvent> events;
     this->events_queue_linear_->PopAllBeforeTime(til, events);
     for (auto te : events) {
-      if (!events_exist) events_exist = true;
       floble_t &tt = te.first;
       Event *&e = te.second;
       e->Deliver(tt, this);
+
+      if (!discontinuity_t &&
+          input::DataLoader::HardCodedEventIsDiscontinuity(e))
+        discontinuity_t = tt;
     }
   } else {
     while (!this->events_queue_.empty() &&
            this->events_queue_.top().first <= til) {
-      if (!events_exist) events_exist = true;
       auto event_it = this->events_queue_.top();
       floble_t &tt = event_it.first;
       Event *&e = event_it.second;
@@ -879,11 +883,15 @@ bool Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 
       e->Deliver(tt, this);
       this->events_queue_.pop();
+
+      if (!discontinuity_t &&
+          input::DataLoader::HardCodedEventIsDiscontinuity(e))
+        discontinuity_t = tt;
     }
   }
   hpx_lco_sema_v_sync(this->events_queue_mutex_);
   this->nt_->_t = tsav;
-  return events_exist;
+  return discontinuity_t;
 }
 
 void Branch::FixedPlayContinuous(double t) {

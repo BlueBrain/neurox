@@ -194,7 +194,13 @@ class Branch {
   static void CoreneuronNetEvent(NrnThread*, int, int, double);
 
   void AddEventToQueue(floble_t t, Event* e);
-  bool DeliverEvents(floble_t t);
+
+  /**
+   * @brief DeliverEvents
+   * @param til end time for events delivery
+   * @return  the time of first discontinuity event, or 0 if none
+   */
+  floble_t DeliverEvents(floble_t til);
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();

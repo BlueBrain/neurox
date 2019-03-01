@@ -604,15 +604,15 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
   const floble_t event_group_ms = input_params_->cvode_event_group_;
-  bool events_exist = false;
+  floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
 
   while (nt->_t < tstop - 1e-8) {
     // delivers all events whithin the next delivery time-window
-    events_exist = branch->DeliverEvents(nt->_t + event_group_ms);
+    discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
 
     // Reached RHS discontinuity, reset CVODE
-    if (events_exist && nt->_t > 0) {
+    if (discontinuity_t > 0 && nt->_t > 0) {
       VariableTimeStep::GatherY(branch, vardt->y_);
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
     }
