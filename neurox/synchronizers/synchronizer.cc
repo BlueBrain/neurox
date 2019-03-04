@@ -252,7 +252,7 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
     // step to the next possible time instant or wait for one if not scheduler
     dt_pause = synchronizer_->GetNeuronMaxStep(local);
-    tpause = std::min(t + dt_pause, tstop);
+    tpause = std::min(t + dt_pause, tstop) + 1e-8;
 
 #ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
     if (has_scheduler)

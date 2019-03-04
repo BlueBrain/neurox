@@ -627,10 +627,12 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
       // perform several steps until hitting cvode_stop, or spiking
-      // flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
       // ======== IMPORTANT ==========
       // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
-      flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+      // but may exceed barriers or events time, so requires back-stepping
+      // which is not part of our model!
+      // flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {
