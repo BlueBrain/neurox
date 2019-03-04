@@ -1627,7 +1627,7 @@ hpx_t DataLoader::CreateBranch(
                          branch_netcons_pre_id, branch_weights, NULL);
 
     /* For querying the table we use neuron's exec time */
-    // subsection = all_compartments;
+    subsection = all_compartments;
     subsection_runtime = neuron_runtime;
     if (input_params_->load_balancing_) {
       /* assign branch locally*/
