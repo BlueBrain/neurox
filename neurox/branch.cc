@@ -851,14 +851,21 @@ int Branch::ThreadTableCheck_handler() {
 }
 
 floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
-  // (returns time of first discontinuity (not first event)
-
   floble_t discontinuity_t = 0;
   hpx_lco_sema_p(this->events_queue_mutex_);
   if (this->events_queue_linear_) {
     assert(0);  // Needs an internal function to be implemented
   } else {
+    //easy way: is it better?
+    /*
+    if (!this->events_queue_.empty())
+        discontinuity_t = branch->events_queue_.top().first;
+    */
+
     TimedEvent te;
+    //temp storage for priority_queue elems iterated.
+    //to overcome lack of iterator in prioriqy_queue.
+    std::list<TimedEvent> queue_elems;
     while (!this->events_queue_.empty() &&
            this->events_queue_.top().first <= til) {
       te = this->events_queue_.top();
@@ -866,7 +873,11 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
         discontinuity_t = te.first;
         break;
       }
+      queue_elems.push_back(te);
+      this->events_queue_.pop();
     }
+    for (auto & e : queue_elems)
+      this->events_queue_.push(e);
   }
   hpx_lco_sema_v_sync(this->events_queue_mutex_);
   return discontinuity_t;

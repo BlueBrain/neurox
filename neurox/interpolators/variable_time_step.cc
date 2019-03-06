@@ -484,6 +484,10 @@ void VariableTimeStep::Init(Branch *branch) {
   CVodeSetStopTime(cvode_mem, kNEURONStopTime /*input_params_->tstop_*/);
   // CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
 
+  // Not part of NEURON. Avoids err msg on CVode with CV_NORMAL stepping
+  if (!input_params_->cvode_speculative_)
+    CVodeSetMaxNumSteps(cvode_mem, 1e3);
+
   // from cvodeobj.cpp :: cvode_init()
   vardt->cvode_mem_->cv_gamma = 0.;
   vardt->cvode_mem_->cv_h = 0.;
@@ -632,14 +636,8 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     }
 
     // get tout as next discontinuity or end of synchronizer limit
-    //discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
-    //cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
-
-    cvode_tstop = tstop;
-    hpx_lco_sema_p(branch->events_queue_mutex_);
-    if (!branch->events_queue_.empty())
-      cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
-    hpx_lco_sema_v_sync(branch->events_queue_mutex_);
+    discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
+    cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
@@ -697,6 +695,4 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   } else {
     synchronizer_->StepSync(branch, 0);
   }
-
-  // assert(fabs(nt->_t - tstop) < 0.01);  // equal
 }
