@@ -659,7 +659,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
           // if root found, integrator time is now at time of root
 
-          // no speculative spiking -- must step back to a correct time instant
+          // no speculative spiking -- step back to a correct time instant
           if (speculative_stepping && nt->_t > tstop) {
             flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_NORMAL);
             VariableTimeStep::ScatterY(branch, vardt->y_);

@@ -186,7 +186,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
     cmd.add(cvode_event_group);
 
     TCLAP::SwitchArg cvode_speculative(
-        "", "cvode-speculate", "perform CVODE speculative stepping", cmd,
+        "", "cvode-speculative", "perform CVODE speculative stepping", cmd,
         false);
 
     TCLAP::ValueArg<floble_t> dt_io(
