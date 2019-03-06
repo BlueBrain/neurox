@@ -31,8 +31,8 @@ void SlidingTimeWindowSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return AllreduceSynchronizer::SendSpikes2(n, tt);
 }
 
-double SlidingTimeWindowSynchronizer::GetNeuronMaxStep(Branch* b) {
-  return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
+double SlidingTimeWindowSynchronizer::GetNeuronMaxStep(Branch*) {
+  return AllreduceSynchronizer::NeuronReduceInterval2(kAllReducesCount);
 }
 
 double SlidingTimeWindowSynchronizer::LocalitySyncInterval() {

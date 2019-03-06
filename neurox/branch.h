@@ -195,11 +195,7 @@ class Branch {
 
   void AddEventToQueue(floble_t t, Event* e);
 
-  /**
-   * @brief DeliverEvents
-   * @param til end time for events delivery
-   * @return  the time of first discontinuity event, or 0 if none
-   */
+  floble_t TimeOfNextDiscontinuity(floble_t til);
   floble_t DeliverEvents(floble_t til);
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();

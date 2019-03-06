@@ -35,8 +35,8 @@ void AllreduceSynchronizer::SendSpikes(Neuron* n, double tt, double) {
   return SendSpikes2(n, tt);
 }
 
-double AllreduceSynchronizer::GetNeuronMaxStep(Branch* b) {
-  return AllreduceSynchronizer::NeuronReduceInterval2(b, kAllReducesCount);
+double AllreduceSynchronizer::GetNeuronMaxStep(Branch*) {
+  return AllreduceSynchronizer::NeuronReduceInterval2(kAllReducesCount);
 }
 
 double AllreduceSynchronizer::LocalitySyncInterval() {
@@ -106,7 +106,7 @@ void AllreduceSynchronizer::NeuronReduce(const Branch* branch,
 }
 
 double AllreduceSynchronizer::NeuronReduceInterval2(
-    const Branch* b, const int allreduces_count) {
+    const int allreduces_count) {
   return neurox::min_synaptic_delay_ / allreduces_count;
 }
 

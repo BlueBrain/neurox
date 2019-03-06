@@ -40,11 +40,10 @@ class CmdLineParser {
 
   // Execution parameters for CVODE
   floble_t cvode_atol_v_;  ///> CVODE absolute tolerance for voltage variables
-  floble_t
-      cvode_atol_states_;  ///> CVODE absolute tolerance for state variables
-  floble_t cvode_rtol_;    ///> CVODE relative tolerance
-  floble_t cvode_event_group_;  ///> CVODE interval of grouping of proximal
-                                /// events (ms)
+  floble_t cvode_atol_states_;    ///> CVODE absolute tolerance for states
+  floble_t cvode_rtol_;           ///> CVODE relative tolerance
+  floble_t cvode_event_group_;    ///> CVODE interval of grouping of events (ms)
+  bool cvode_speculative_;  ///> Allows speculative stepping
 
   char input_path_[512];    ///> path of input directory
   char output_path_[512];   ///> path of output directory

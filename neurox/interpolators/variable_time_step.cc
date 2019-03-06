@@ -604,20 +604,37 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
   const floble_t event_group_ms = input_params_->cvode_event_group_;
+  const bool speculative_stepping = input_params_->cvode_speculative_;
   floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
 
+  // step back if speculative stepping and advanced too much on previous step
+  if (speculative_stepping) {
+    discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
+    if (nt->_t > discontinuity_t + 1e-8) {
+      flag = CVode(cvode_mem, discontinuity_t, vardt->y_, &nt->_t, CV_NORMAL);
+      CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
+      VariableTimeStep::ScatterY(branch, vardt->y_);
+    }
+  }
+
+  // the 'stop' is the time limit of the synchronizer
+  //(only possible over-stepping happens in the next call to StepTo)
   while (nt->_t < tstop - 1e-8) {
     // delivers all events whithin the next delivery time-window
     discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
 
     // Reached RHS discontinuity, reset CVODE
+    // PS: here I could step to 1st discontinuity instant discontinuity_t
     if (discontinuity_t > 0 && nt->_t > 0) {
       VariableTimeStep::GatherY(branch, vardt->y_);
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
     }
 
-    // get tout as time of next undelivered event (if any)
+    // get tout as next discontinuity or end of synchronizer limit
+    //discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
+    //cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
+
     cvode_tstop = tstop;
     hpx_lco_sema_p(branch->events_queue_mutex_);
     if (!branch->events_queue_.empty())
@@ -626,13 +643,15 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
-      // perform several steps until hitting cvode_stop, or spiking
-      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
-      // ======== IMPORTANT ==========
-      // CV_ONE_STEP with input_params->tstop=100000 replicates NEURON
-      // but may exceed barriers or events time, so requires back-stepping
-      // which is not part of our model!
-      // flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+      if (speculative_stepping) {
+        // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
+        // but may exceed barriers or events time, so requires back-stepping
+        flag =
+            CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+      } else {
+        // perform several steps until hitting cvode_stop, or spiking
+        flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      }
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {
@@ -641,7 +660,14 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         assert(roots_found[0] != 0);  // only root: AP threshold reached
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
           // if root found, integrator time is now at time of root
-          branch->soma_->SendSpikes(nt->_t);
+
+          // no speculative spiking -- must step back to a correct time instant
+          if (speculative_stepping && nt->_t > tstop) {
+            flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_NORMAL);
+            VariableTimeStep::ScatterY(branch, vardt->y_);
+          } else {
+            branch->soma_->SendSpikes(nt->_t);
+          }
       } else {
         // error test failed repeatedly or with |h| = hmin.
         if (flag == CV_ERR_FAILURE) {
@@ -660,7 +686,17 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
    * They all depend on a step message that noone can send because its
    * to be send in the future. So now we send notifications for upcoming
    * messages */
-  synchronizer_->StepSync(branch, 0);
+
+  if (speculative_stepping && nt->_t > tstop) {
+    /* In case neuron overstepped, only notify of the instant he's sure of.
+     * He may have to backstep the overstepped interval in the next StepTo()*/
+    floble_t t_bak = nt->_t;
+    nt->_t = tstop;
+    synchronizer_->StepSync(branch, 0);
+    nt->_t = t_bak;
+  } else {
+    synchronizer_->StepSync(branch, 0);
+  }
 
   // assert(fabs(nt->_t - tstop) < 0.01);  // equal
 }

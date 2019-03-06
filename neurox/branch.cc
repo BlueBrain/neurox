@@ -850,12 +850,33 @@ int Branch::ThreadTableCheck_handler() {
   NEUROX_MEM_UNPIN;
 }
 
-floble_t Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
-{
-  // delivers events between t and til
+floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
   // (returns time of first discontinuity (not first event)
 
   floble_t discontinuity_t = 0;
+  hpx_lco_sema_p(this->events_queue_mutex_);
+  if (this->events_queue_linear_) {
+    assert(0);  // Needs an internal function to be implemented
+  } else {
+    TimedEvent te;
+    while (!this->events_queue_.empty() &&
+           this->events_queue_.top().first <= til) {
+      te = this->events_queue_.top();
+      if (input::DataLoader::HardCodedEventIsDiscontinuity(te.second)) {
+        discontinuity_t = te.first;
+        break;
+      }
+    }
+  }
+  hpx_lco_sema_v_sync(this->events_queue_mutex_);
+  return discontinuity_t;
+}
+
+floble_t Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
+{
+  // delivers events between t and til, returns FIRST discontinuity time
+  floble_t discontinuity_t=0;
+
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
   if (this->events_queue_linear_) {

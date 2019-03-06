@@ -185,6 +185,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 0, "floble_t");
     cmd.add(cvode_event_group);
 
+    TCLAP::SwitchArg cvode_speculative(
+        "", "cvode-speculate", "perform CVODE speculative stepping", cmd,
+        false);
+
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
         0.1, "floble_t");
@@ -296,6 +300,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
       this->cvode_atol_v_ = cvode_atol.getValue();
       this->cvode_atol_states_ = cvode_atol.getValue();
       this->cvode_event_group_ = cvode_event_group.getValue();
+      this->cvode_speculative_ = cvode_speculative.getValue();
       if (!dt.isSet())  // if not user-provided
         this->dt_ = 0;
       if (this->dt_ < 0)
