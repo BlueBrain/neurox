@@ -622,6 +622,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   const bool speculative_stepping = input_params_->cvode_speculative_;
   floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
+  const bool sync_barriers = neurox::synchronizer_->GetId() != synchronizers::SynchronizerIds::kTimeDependency;
 
   // reset last major step if speculative stepping advanced too much in time
   if (speculative_stepping && nt->_t > 0) {
@@ -660,7 +661,17 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         // but may exceed barriers or events time, so we backup state
         VariableTimeStep::CopyNVector(vardt->y_prev_step_, vardt->y_);
         vardt->t_prev_step_ = nt->_t;
-        flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+        if (sync_barriers)
+        {
+          //has to be called before each CV_ONE_STEP usage, see cvode.h
+          CVodeSetStopTime(cvode_mem, tstop);
+          flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
+        }
+        else
+        {
+          //copies NEURON behavior too
+          flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+        }
       } else {
         // perform several steps until hitting cvode_stop, or spiking
         flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
