@@ -231,7 +231,7 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
   double& t = nt->_t;
   // const double dt_io = input_params_->dt_io_;
 
-  while (t < tstop - 0.00001) {
+  while (t < tstop - 1e-5) {
     // do before-step operations e.g. mark step in all-reduces
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
     fprintf(stderr, "~~ %d.%d ~~ before NeuronSyncInit 3\n",

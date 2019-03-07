@@ -305,12 +305,15 @@ VariableTimeStep::VariableTimeStep()
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
+      y_prev_step_(nullptr),
       no_cap_child_ids_(nullptr),
       no_cap_node_ids_(nullptr),
       no_cap_ml_(nullptr) {}
 
 VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);
+  if (input_params_->cvode_speculative_)
+      N_VDestroy_Serial(y_prev_step_);
   CVodeFree((void **)(&cvode_mem_));
 
   delete no_cap_child_ids_;
@@ -451,6 +454,8 @@ void VariableTimeStep::Init(Branch *branch) {
   }
   assert(var_offset == equations_count);
   vardt->y_ = N_VNew_Serial(equations_count);
+  if (input_params_->cvode_speculative_)
+    vardt->y_prev_step_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
   // absolute tolerance array (low for voltages, high for mech states)
@@ -601,6 +606,12 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
   }
 }
 
+void VariableTimeStep::CopyNVector(N_Vector dest, N_Vector src)
+{
+    memcpy(NV_DATA_S(dest), NV_DATA_S(src), sizeof(floble_t) * NV_LENGTH_S(src));
+    NV_CONTENT_S(dest)->own_data = NV_OWN_DATA_S(src);
+}
+
 void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
@@ -612,11 +623,14 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
 
-  // step back if speculative stepping and advanced too much on previous step
-  if (speculative_stepping) {
+  // reset last major step if speculative stepping advanced too much in time
+  if (speculative_stepping && nt->_t > 0) {
     discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
-    if (nt->_t > discontinuity_t + 1e-8) {
-      flag = CVode(cvode_mem, discontinuity_t, vardt->y_, &nt->_t, CV_NORMAL);
+    if (discontinuity_t && nt->_t > discontinuity_t) {
+      //go back to known relieable time instant
+      assert(vardt->t_prev_step_<=discontinuity_t);
+      VariableTimeStep::CopyNVector(vardt->y_, vardt->y_prev_step_);
+      nt->_t = vardt->t_prev_step_;
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
       VariableTimeStep::ScatterY(branch, vardt->y_);
     }
@@ -630,7 +644,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // Reached RHS discontinuity, reset CVODE
     // PS: here I could step to 1st discontinuity instant discontinuity_t
-    if (discontinuity_t > 0 && nt->_t > 0) {
+    if (discontinuity_t && nt->_t > 0) {
       VariableTimeStep::GatherY(branch, vardt->y_);
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
     }
@@ -640,12 +654,13 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
-    while (nt->_t < cvode_tstop) {
-      if (speculative_stepping) {
+    while (nt->_t < cvode_tstop - 1e-8) {
+      if (speculative_stepping && nt->_t>0) {
         // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
-        // but may exceed barriers or events time, so requires back-stepping
-        flag =
-            CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+        // but may exceed barriers or events time, so we backup state
+        VariableTimeStep::CopyNVector(vardt->y_prev_step_, vardt->y_);
+        vardt->t_prev_step_ = nt->_t;
+        flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
       } else {
         // perform several steps until hitting cvode_stop, or spiking
         flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
@@ -659,13 +674,12 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
           // if root found, integrator time is now at time of root
 
-          // no speculative spiking -- step back to a correct time instant
+          // no speculative spiking, stop here
           if (speculative_stepping && nt->_t > tstop) {
-            flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_NORMAL);
-            VariableTimeStep::ScatterY(branch, vardt->y_);
-          } else {
-            branch->soma_->SendSpikes(nt->_t);
+            //TODO is this enough to force it to still spike in next iteration?
+            break;
           }
+          branch->soma_->SendSpikes(nt->_t);
       } else {
         // error test failed repeatedly or with |h| = hmin.
         if (flag == CV_ERR_FAILURE) {

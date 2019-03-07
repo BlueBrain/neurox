@@ -301,6 +301,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
       this->cvode_atol_states_ = cvode_atol.getValue();
       this->cvode_event_group_ = cvode_event_group.getValue();
       this->cvode_speculative_ = cvode_speculative.getValue();
+      if (this->cvode_speculative_ &&
+          neurox::synchronizer_->GetId() != SynchronizerIds::kTimeDependency)
+          throw TCLAP::ArgException("Speculative CVODE is only available for TimeDependency Synchronizer","cvode-speculative");
+
       if (!dt.isSet())  // if not user-provided
         this->dt_ = 0;
       if (this->dt_ < 0)

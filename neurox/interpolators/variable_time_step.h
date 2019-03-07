@@ -36,6 +36,7 @@ class VariableTimeStep : public Interpolator {
   void Clear(Branch *) override;
 
   static void PrintStatistics(const Branch *);
+  static void CopyNVector(N_Vector dest, N_Vector src);
 
   // Information of no-capacitance nodes
   int *no_cap_node_ids_;        ///> no-cap node ids
@@ -50,6 +51,12 @@ class VariableTimeStep : public Interpolator {
 
   /// Initial values (voltages)
   N_Vector y_;
+
+  /// copy of y, for speculative stepping
+  N_Vector y_prev_step_;
+
+  /// copy of nt->_t, for speculative stepping
+  floble_t t_prev_step_;
 
   /// CVODES structure
   CVodeMem cvode_mem_;
