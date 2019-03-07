@@ -627,7 +627,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   // reset last major step if speculative stepping advanced too much in time
   if (speculative_stepping && nt->_t > 0) {
     discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
-    if (discontinuity_t && nt->_t > discontinuity_t) {
+    if (discontinuity_t > 0 && nt->_t > discontinuity_t) {
       //go back to known relieable time instant
       assert(vardt->t_prev_step_<=discontinuity_t);
       VariableTimeStep::CopyNVector(vardt->y_, vardt->y_prev_step_);
@@ -645,14 +645,14 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // Reached RHS discontinuity, reset CVODE
     // PS: here I could step to 1st discontinuity instant discontinuity_t
-    if (discontinuity_t && nt->_t > 0) {
+    if (discontinuity_t > 0 && nt->_t > 0) {
       VariableTimeStep::GatherY(branch, vardt->y_);
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
     }
 
     // get tout as next discontinuity or end of synchronizer limit
     discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
-    cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
+    cvode_tstop = discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
