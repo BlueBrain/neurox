@@ -672,6 +672,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         assert(flag == CV_SUCCESS);
         assert(roots_found[0] != 0);  // only root: AP threshold reached
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
+        {
           // if root found, integrator time is now at time of root
 
           // no speculative spiking, stop here
@@ -680,6 +681,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
             break;
           }
           branch->soma_->SendSpikes(nt->_t);
+        }
       } else {
         // error test failed repeatedly or with |h| = hmin.
         if (flag == CV_ERR_FAILURE) {
