@@ -32,8 +32,13 @@ std::vector<hpx_t> *DataLoader::my_neurons_addr_ = nullptr;
 std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
 tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
+#ifdef NDEBUG
+bool silence_p_ptr_warning = true;
+bool silence_queue_item_warning = true;
+#else
 bool silence_p_ptr_warning = false;
 bool silence_queue_item_warning = false;
+#endif
 
 // TODO: hard-coded procedures
 int DataLoader::HardCodedVdataSize(int type) {

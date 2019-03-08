@@ -88,8 +88,10 @@ Mechanism::Mechanism(const int type, const short int data_size,
         // derivative description
         this->ode_spec_ = get_ode_spec_function(this->memb_func_.sym);
       } else {
+#ifndef NDEBUG
         fprintf(stderr, "Mechanism %d (%s) has no state variables.\n",
                 this->type_, this->memb_func_.sym);
+#endif
       }
     }
   }

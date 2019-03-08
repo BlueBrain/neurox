@@ -11,6 +11,9 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
+//Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL
+const double eps_time = 1e-6;
+
 const char *VariableTimeStep::GetString() { return "VariableTimeStep"; }
 
 void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
@@ -639,7 +642,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
   // the 'stop' is the time limit of the synchronizer
   //(only possible over-stepping happens in the next call to StepTo)
-  while (nt->_t < tstop) {
+  while (nt->_t < tstop - eps_time) {
     // delivers all events whithin the next delivery time-window
     discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
 
@@ -655,7 +658,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     cvode_tstop = discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
-    while (nt->_t < cvode_tstop) {
+    while (nt->_t < cvode_tstop - eps_time) {
       if (speculative_stepping && nt->_t>0) {
         // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
         // but may exceed barriers or events time, so we backup state
