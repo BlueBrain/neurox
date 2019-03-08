@@ -639,7 +639,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
   // the 'stop' is the time limit of the synchronizer
   //(only possible over-stepping happens in the next call to StepTo)
-  while (nt->_t < tstop - 1e-8) {
+  while (nt->_t < tstop) {
     // delivers all events whithin the next delivery time-window
     discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
 
@@ -655,7 +655,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
     cvode_tstop = discontinuity_t ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
-    while (nt->_t < cvode_tstop - 1e-8) {
+    while (nt->_t < cvode_tstop) {
       if (speculative_stepping && nt->_t>0) {
         // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
         // but may exceed barriers or events time, so we backup state
