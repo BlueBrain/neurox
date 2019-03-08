@@ -862,13 +862,12 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
         discontinuity_t = branch->events_queue_.top().first;
     */
 
-    TimedEvent te;
     //temp storage for priority_queue elems iterated.
     //to overcome lack of iterator in prioriqy_queue.
     std::list<TimedEvent> queue_elems;
     while (!this->events_queue_.empty() &&
            this->events_queue_.top().first <= til) {
-      te = this->events_queue_.top();
+      const TimedEvent & te = this->events_queue_.top();
       if (input::DataLoader::HardCodedEventIsDiscontinuity(te.second)) {
         discontinuity_t = te.first;
         break;
