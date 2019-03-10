@@ -11,7 +11,8 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
-//Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL
+//Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL.
+//Just a safeguard: CV_TOO_CLOSE should do the job
 const double eps_time = 1e-6;
 
 const char *VariableTimeStep::GetString() { return "VariableTimeStep"; }
@@ -696,18 +697,18 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
           }
           branch->soma_->SendSpikes(nt->_t);
         }
-      } else {
-        // error test failed repeatedly or with |h| = hmin.
-        if (flag == CV_ERR_FAILURE) {
-        }
-        // convergence test failed too many times, or min-step was reached
-        else if (flag == CV_CONV_FAILURE) {
-        }
-        // must have reached end, or we are into an unhandled error
-        else {
-          // success: nt->_t may have reached cvode_tstop or not;
-        }
       }
+      // error test failed repeatedly or with |h| = hmin.
+      else if (flag == CV_ERR_FAILURE) {
+      }
+      // convergence test failed too many times, or min-step was reached
+      else if (flag == CV_CONV_FAILURE) {
+      }
+      else if (flag == CV_TOO_CLOSE) {
+        //nt->_t too close to cvode_tstop
+        break; 
+      } 
+      // success (CV_SUCCESS) or we are into an unhandled error
     }
   }
   /* system deadlocks if neurons cant sent notifications a bit ahead.
