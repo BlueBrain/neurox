@@ -859,7 +859,7 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
     //easy way: is it better?
     /*
     if (!this->events_queue_.empty())
-        discontinuity_t = branch->events_queue_.top().first;
+        discontinuity_t = this->events_queue_.top().first;
     */
 
     //temp storage for priority_queue elems iterated.
