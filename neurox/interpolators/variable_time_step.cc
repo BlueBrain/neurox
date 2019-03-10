@@ -668,8 +668,8 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         if (sync_barriers)
         {
           //has to be called before each CV_ONE_STEP usage, see cvode.h
-          CVodeSetStopTime(cvode_mem, tstop);
-          flag = CVode(cvode_mem, tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
+          CVodeSetStopTime(cvode_mem, cvode_tstop);
+          flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
         }
         else
         {
