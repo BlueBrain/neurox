@@ -11,10 +11,6 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
-// Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL.
-// Just a safeguard: CV_TOO_CLOSE should do the job
-const double eps_time = 1e-8;
-
 const char *VariableTimeStep::GetString() { return "VariableTimeStep"; }
 
 void VariableTimeStep::CopyState(Branch *branch, N_Vector y, const CopyOp op) {
@@ -495,6 +491,10 @@ void VariableTimeStep::Init(Branch *branch) {
   // Not part of NEURON. Avoids err msg on CVode with CV_NORMAL stepping
   if (!input_params_->cvode_speculative_) CVodeSetMaxNumSteps(cvode_mem, 1e3);
 
+  // Not part of NEURON. Avoids CVODE error when using barrier synchronizers
+  // "tout too close to t0 to start integration" (CV_TOO_CLOSE)
+  CVodeSetMinStep(cvode_mem_, std::max(1e-5, input_params_->dt_) );
+
   // from cvodeobj.cpp :: cvode_init()
   vardt->cvode_mem_->cv_gamma = 0.;
   vardt->cvode_mem_->cv_h = 0.;
@@ -641,7 +641,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
   // the 'stop' is the time limit of the synchronizer
   //(only possible over-stepping happens in the next call to StepTo)
-  while (nt->_t < tstop - eps_time) {
+  while (nt->_t < tstop) {
     // delivers all events whithin the next delivery time-window
     discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
 
@@ -658,7 +658,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
-    while (nt->_t < cvode_tstop - eps_time) {
+    while (nt->_t < cvode_tstop) {
       if (speculative_stepping && nt->_t > 0) {
         // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
         // but may exceed barriers or events time, so we backup state
@@ -700,8 +700,10 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
       }
       // convergence test failed too many times, or min-step was reached
       else if (flag == CV_CONV_FAILURE) {
+      // failure in convergence
       } else if (flag == CV_TOO_CLOSE) {
-        // nt->_t too close to cvode_tstop
+        // Error "tout too close to t0 to start integration"
+        fprintf(stderr," === time %f cvode_tstop %f\n",nt->_t < cvode_tstop);
         break;
       }
       // success (CV_SUCCESS) or we are into an unhandled error
