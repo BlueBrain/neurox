@@ -856,18 +856,18 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
   if (this->events_queue_linear_) {
     assert(0);  // Needs an internal function to be implemented
   } else {
-    //easy way: is it better?
+    // easy way: is it better?
     /*
     if (!this->events_queue_.empty())
         discontinuity_t = this->events_queue_.top().first;
     */
 
-    //temp storage for priority_queue elems iterated.
-    //to overcome lack of iterator in prioriqy_queue.
+    // temp storage for priority_queue elems iterated.
+    // to overcome lack of iterator in prioriqy_queue.
     std::list<TimedEvent> queue_elems;
     while (!this->events_queue_.empty() &&
            this->events_queue_.top().first <= til) {
-      const TimedEvent & te = this->events_queue_.top();
+      const TimedEvent &te = this->events_queue_.top();
       if (input::DataLoader::HardCodedEventIsDiscontinuity(te.second)) {
         discontinuity_t = te.first;
         break;
@@ -875,8 +875,7 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
       queue_elems.push_back(te);
       this->events_queue_.pop();
     }
-    for (auto & e : queue_elems)
-      this->events_queue_.push(e);
+    for (auto &e : queue_elems) this->events_queue_.push(e);
   }
   hpx_lco_sema_v_sync(this->events_queue_mutex_);
   return discontinuity_t;
@@ -885,7 +884,7 @@ floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
 floble_t Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
   // delivers events between t and til, returns FIRST discontinuity time
-  floble_t discontinuity_t=0;
+  floble_t discontinuity_t = 0;
 
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);

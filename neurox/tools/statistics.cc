@@ -110,7 +110,10 @@ void Statistics::OutputSimulationSize(bool write_to_file) {
 
   FILE* outstream = stdout;
   if (write_to_file)
-    outstream = fopen(("neurons_memory_consumption_"+to_string(neurox::neurons_count_)+".csv").c_str(), "wt");
+    outstream = fopen(("neurons_memory_consumption_" +
+                       to_string(neurox::neurons_count_) + ".csv")
+                          .c_str(),
+                      "wt");
 
   fprintf(outstream,
           "gid,compartments,branches,mechs-instances,total-KB,morphologies-KB,"
@@ -278,7 +281,10 @@ void Statistics::OutputMechanismsDistribution(bool write_to_file) {
 
   FILE* outstream = stdout;
   if (write_to_file)
-    outstream = fopen(("mechs_distribution_" + to_string(neurox::neurons_count_) + ".csv").c_str(), "wt");
+    outstream = fopen(
+        ("mechs_distribution_" + to_string(neurox::neurons_count_) + ".csv")
+            .c_str(),
+        "wt");
   fprintf(outstream, "mech-type,name,instances,mean-per-neuron,stddev\n");
 
   for (int m = 0; m < mechanisms_count_; m++) {

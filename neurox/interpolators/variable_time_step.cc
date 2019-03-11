@@ -11,9 +11,9 @@ using namespace neurox;
 using namespace neurox::interpolators;
 using namespace neurox::tools;
 
-//Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL.
-//Just a safeguard: CV_TOO_CLOSE should do the job
-const double eps_time = 1e-6;
+// Used to fix error "tout too close to t0 to start  integration" in CV_NORMAL.
+// Just a safeguard: CV_TOO_CLOSE should do the job
+const double eps_time = 1e-8;
 
 const char *VariableTimeStep::GetString() { return "VariableTimeStep"; }
 
@@ -316,8 +316,7 @@ VariableTimeStep::VariableTimeStep()
 
 VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);
-  if (input_params_->cvode_speculative_)
-      N_VDestroy_Serial(y_prev_step_);
+  if (input_params_->cvode_speculative_) N_VDestroy_Serial(y_prev_step_);
   CVodeFree((void **)(&cvode_mem_));
 
   delete no_cap_child_ids_;
@@ -494,8 +493,7 @@ void VariableTimeStep::Init(Branch *branch) {
   // CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
 
   // Not part of NEURON. Avoids err msg on CVode with CV_NORMAL stepping
-  if (!input_params_->cvode_speculative_)
-    CVodeSetMaxNumSteps(cvode_mem, 1e3);
+  if (!input_params_->cvode_speculative_) CVodeSetMaxNumSteps(cvode_mem, 1e3);
 
   // from cvodeobj.cpp :: cvode_init()
   vardt->cvode_mem_->cv_gamma = 0.;
@@ -610,10 +608,9 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
   }
 }
 
-void VariableTimeStep::CopyNVector(N_Vector dest, N_Vector src)
-{
-    memcpy(NV_DATA_S(dest), NV_DATA_S(src), sizeof(floble_t) * NV_LENGTH_S(src));
-    NV_CONTENT_S(dest)->own_data = NV_OWN_DATA_S(src);
+void VariableTimeStep::CopyNVector(N_Vector dest, N_Vector src) {
+  memcpy(NV_DATA_S(dest), NV_DATA_S(src), sizeof(floble_t) * NV_LENGTH_S(src));
+  NV_CONTENT_S(dest)->own_data = NV_OWN_DATA_S(src);
 }
 
 void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
@@ -626,14 +623,15 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   const bool speculative_stepping = input_params_->cvode_speculative_;
   floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
-  const bool sync_barriers = neurox::synchronizer_->GetId() != synchronizers::SynchronizerIds::kTimeDependency;
+  const bool sync_barriers = neurox::synchronizer_->GetId() !=
+                             synchronizers::SynchronizerIds::kTimeDependency;
 
   // reset last major step if speculative stepping advanced too much in time
   if (speculative_stepping && nt->_t > 0) {
     discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
     if (discontinuity_t > 0 && nt->_t > discontinuity_t) {
-      //go back to known relieable time instant
-      assert(vardt->t_prev_step_<=discontinuity_t);
+      // go back to known relieable time instant
+      assert(vardt->t_prev_step_ <= discontinuity_t);
       VariableTimeStep::CopyNVector(vardt->y_, vardt->y_prev_step_);
       nt->_t = vardt->t_prev_step_;
       CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
@@ -656,25 +654,24 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
     // get tout as next discontinuity or end of synchronizer limit
     discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
-    cvode_tstop = discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
+    cvode_tstop =
+        discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop - eps_time) {
-      if (speculative_stepping && nt->_t>0) {
+      if (speculative_stepping && nt->_t > 0) {
         // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
         // but may exceed barriers or events time, so we backup state
         VariableTimeStep::CopyNVector(vardt->y_prev_step_, vardt->y_);
         vardt->t_prev_step_ = nt->_t;
-        if (sync_barriers)
-        {
-          //has to be called before each CV_ONE_STEP usage, see cvode.h
+        if (sync_barriers) {
+          // has to be called before each CV_ONE_STEP usage, see cvode.h
           CVodeSetStopTime(cvode_mem, cvode_tstop);
           flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
-        }
-        else
-        {
-          //copies NEURON behavior too
-          flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t, CV_ONE_STEP);
+        } else {
+          // copies NEURON behavior too
+          flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t,
+                       CV_ONE_STEP);
         }
       } else {
         // perform several steps until hitting cvode_stop, or spiking
@@ -692,7 +689,7 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
 
           // no speculative spiking, stop here
           if (speculative_stepping && nt->_t > tstop) {
-            //TODO is this enough to force it to still spike in next iteration?
+            // TODO is this enough to force it to still spike in next iteration?
             break;
           }
           branch->soma_->SendSpikes(nt->_t);
@@ -703,11 +700,10 @@ void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
       }
       // convergence test failed too many times, or min-step was reached
       else if (flag == CV_CONV_FAILURE) {
+      } else if (flag == CV_TOO_CLOSE) {
+        // nt->_t too close to cvode_tstop
+        break;
       }
-      else if (flag == CV_TOO_CLOSE) {
-        //nt->_t too close to cvode_tstop
-        break; 
-      } 
       // success (CV_SUCCESS) or we are into an unhandled error
     }
   }

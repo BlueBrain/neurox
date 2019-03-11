@@ -185,9 +185,9 @@ void CmdLineParser::Parse(int argc, char** argv) {
         false, 0, "floble_t");
     cmd.add(cvode_event_group);
 
-    TCLAP::SwitchArg cvode_speculative(
-        "", "cvode-speculative", "perform CVODE speculative stepping", cmd,
-        false);
+    TCLAP::SwitchArg cvode_speculative("", "cvode-speculative",
+                                       "perform CVODE speculative stepping",
+                                       cmd, false);
 
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
@@ -303,7 +303,10 @@ void CmdLineParser::Parse(int argc, char** argv) {
       this->cvode_speculative_ = cvode_speculative.getValue();
       if (this->cvode_speculative_ &&
           neurox::synchronizer_->GetId() != SynchronizerIds::kTimeDependency)
-          throw TCLAP::ArgException("Speculative CVODE is only available for TimeDependency Synchronizer","cvode-speculative");
+        throw TCLAP::ArgException(
+            "Speculative CVODE is only available for TimeDependency "
+            "Synchronizer",
+            "cvode-speculative");
 
       if (!dt.isSet())  // if not user-provided
         this->dt_ = 0;
