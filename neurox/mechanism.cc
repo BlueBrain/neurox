@@ -78,15 +78,21 @@ Mechanism::Mechanism(const int type, const short int data_size,
     if (!this->is_ion_ && this->type_ != MechanismTypes::kCapacitance) {
       // get state variables count, values and offsets
       state_vars_f_t stf = get_ode_state_vars_function(this->memb_func_.sym);
-      // if (stf != NULL)
-      stf(&this->state_vars_->count_, &this->state_vars_->var_offsets_,
-          &this->state_vars_->dv_offsets_);
+      if (stf != NULL) {
+        stf(&this->state_vars_->count_, &this->state_vars_->var_offsets_,
+            &this->state_vars_->dv_offsets_);
 
-      // state variables diagonal at given point
-      this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
+        // state variables diagonal at given point
+        this->ode_matsol_ = get_ode_matsol_function(this->memb_func_.sym);
 
-      // derivative description
-      this->ode_spec_ = get_ode_spec_function(this->memb_func_.sym);
+        // derivative description
+        this->ode_spec_ = get_ode_spec_function(this->memb_func_.sym);
+      } else {
+#ifndef NDEBUG
+        fprintf(stderr, "Mechanism %d (%s) has no state variables.\n",
+                this->type_, this->memb_func_.sym);
+#endif
+      }
     }
   }
 
@@ -176,9 +182,11 @@ void Mechanism::CallModFunction(
   // TODO: support parallel mechs for CVODE
   // TODO in Vectorizer we need to support 'other_ml' for threaded execution
   // TODO instance parallelism for mech_receive?
+  /*
   if (other_ml) {
     assert(input_params_->interpolator_ == InterpolatorIds::kBackwardEuler);
   }
+  */
 
   /* if net receive, it's a special function type: process now */
   if (function_id == Mechanism::ModFunctions::kNetReceive ||
@@ -315,7 +323,7 @@ void Mechanism::CallModFunction(
         if (memb_func_.thread_cleanup_)
           memb_func_.thread_cleanup_(memb_list->_thread);
         break;
-      case Mechanism::ModFunctions::kODEMatsol:  // CVODE-specific
+      case Mechanism::ModFunctions::kODEMatSol:  // CVODE-specific
         if (this->ode_matsol_ && this->state_vars_->count_ > 0)
           tools::Vectorizer::CallVecFunction(this->ode_matsol_, nt, memb_list,
                                              type_);

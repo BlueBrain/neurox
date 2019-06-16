@@ -6,9 +6,12 @@
 //#define PRINT_TIME_DEPENDENCY
 //#define PRINT_TIME_DEPENDENCY_MUTEX
 // #define PRINT_TIME_DEPENDENCY_STEP_SIZE
+// #define PRINT_TIME_DEPENDENCY_NEURON_FINISHED
+// #define PRINT_NEURON_SPIKED
+
+// debug flags for cache-efficiency
+#define DISABLE_LINEARIZATION
 #define DISABLE_LINEAR_PRIORITY_QUEUE
-#define PRINT_TIME_DEPENDENCY_NEURON_FINISHED
-#define PRINT_NEURON_SPIKED
 
 // typedefs
 typedef double floble_t;  ///> float or double (v, matrix values and mechanisms)

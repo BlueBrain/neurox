@@ -1,9 +1,9 @@
 #include "neurox/interpolators/variable_time_step.h"
 
 #include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver */
-#include "cvodes/cvodes.h"
+#include "cvode/cvode.h"
 
-#include "cvodes/cvodes_spils.h"
+#include "cvode/cvode_spils.h"
 
 #include <set>
 
@@ -61,13 +61,14 @@ void VariableTimeStep::ScatterYdot(Branch *branch, N_Vector ydot) {
 }
 
 void VariableTimeStep::GatherYdot(Branch *branch, N_Vector ydot) {
-  CopyState(branch, ydot, CopyOps::kGatherYdot);
+  if (ydot) CopyState(branch, ydot, CopyOps::kGatherYdot);
+  // this if is a safeguard for first execution called from CVode::Init() ->
+  // RHSFuntion()
 }
 
 int VariableTimeStep::RootFunction(realtype t, N_Vector y, realtype *gout,
                                    void *user_data) {
   Branch *branch = (Branch *)user_data;
-
   // get offset and voltage of Axon Initial Segment
   int ais_offset = branch->thvar_ptr_ - branch->nt_->_actual_v;
   double v_ais = NV_Ith_S(y, ais_offset);
@@ -86,8 +87,16 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
 
   //////// occvode.cpp: Cvode::fun_thread_transfer_part1
 
+#ifndef NDEBUG
+  /*
+  printf("BRUNO RHS t=%f\n", t);
+  for (int i = 0; i < 900; i+=1)
+    printf("BRUNO RHS y[%d]=%f\n", i, NV_CONTENT_S(y)->data[i]);
+    */
+#endif
+
   const double h = vardt->cvode_mem_->cv_h;
-  nt->_dt = h == 0 ? 1e-8 : h;
+  nt->_dt = h == 0 ? 1e-8 : h;  // important for events (?)
   nt->cj = 1 / nt->_dt;
   nt->_t = t;
 
@@ -136,6 +145,14 @@ int VariableTimeStep::RHSFunction(realtype t, N_Vector y, N_Vector ydot,
   // copies dV/dt (RHS) and state-vars-derivative to CVODES
   VariableTimeStep::GatherYdot(branch, ydot);
 
+#ifndef NDEBUG
+  /*
+  if (ydot)
+    for (int i = 0; i < 900; i+=1)
+      printf("BRUNO RHS ydot[%d]=%f\n", i, NV_CONTENT_S(ydot)->data[i]);
+      */
+#endif
+
   return CV_SUCCESS;
 }
 
@@ -144,16 +161,18 @@ approximation of the Newton matrix, I - gamma J, where J = df/dy,
 and the rhs-vector b is an input. Called once per newton, thus
 several times per time-step. (occvode.cpp: Cvode::solvex_thread) */
 int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
-                                                   N_Vector weight,
-                                                   N_Vector ycur,
-                                                   N_Vector fcur) {
+                                                   N_Vector, N_Vector,
+                                                   N_Vector) {
+  if (cv_mem->cv_gamma == 0.)
+    return 0;  // i.e. (I - gamma * J)*x = b means x = b
+
   // b is the right-hand-side vector, solution to be returned in b
   // ycur contains vector approximations to y(t_n)
   // ycur contains vector approximations to f(t_n, ycur)
   Branch *branch = (Branch *)cv_mem->cv_user_data;
   NrnThread *nt = branch->nt_;
+  nt->cj = 1. / cv_mem->cv_gamma;
   nt->_dt = cv_mem->cv_gamma;
-  nt->cj = 1.0 / nt->_dt;
 
   // Cvode::lhs()
   HinesSolver::ResetArray(branch, nt->_actual_d);
@@ -163,13 +182,26 @@ int VariableTimeStep::PreConditionedDiagonalSolver(CVodeMem cv_mem, N_Vector b,
   HinesSolver::SetupMatrixDiagonal(branch);
   // end of Cvode::lhs()
 
+#ifndef NDEBUG
+  /*
+  for (int i = 0; i < 900; i+=1)
+      printf("BRUNO JacBefore b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+      */
+#endif
+
   ScatterYdot(branch, b);
   branch->CallModFunction(Mechanism::ModFunctions::kMulCapacity);
   HinesSolver::ResetRHSNoCapacitors(branch);
   HinesSolver::BackwardTriangulation(branch);
   HinesSolver::ForwardSubstitution(branch);
-  branch->CallModFunction(Mechanism::ModFunctions::kODEMatsol);
+  branch->CallModFunction(Mechanism::ModFunctions::kODEMatSol);
   GatherYdot(branch, b);
+#ifndef NDEBUG
+  /*
+  for (int i = 0; i < 900; i+=1)
+      printf("BRUNO JacAfter  b[%d]=%f\n", i, NV_CONTENT_S(b)->data[i]);
+      */
+#endif
   return CV_SUCCESS;
 }
 
@@ -273,12 +305,14 @@ VariableTimeStep::VariableTimeStep()
       state_var_map_(nullptr),
       state_dv_map_(nullptr),
       y_(nullptr),
+      y_prev_step_(nullptr),
       no_cap_child_ids_(nullptr),
       no_cap_node_ids_(nullptr),
       no_cap_ml_(nullptr) {}
 
 VariableTimeStep::~VariableTimeStep() {
   N_VDestroy_Serial(y_);
+  if (input_params_->cvode_speculative_) N_VDestroy_Serial(y_prev_step_);
   CVodeFree((void **)(&cvode_mem_));
 
   delete no_cap_child_ids_;
@@ -419,21 +453,20 @@ void VariableTimeStep::Init(Branch *branch) {
   }
   assert(var_offset == equations_count);
   vardt->y_ = N_VNew_Serial(equations_count);
+  if (input_params_->cvode_speculative_)
+    vardt->y_prev_step_ = N_VNew_Serial(equations_count);
   VariableTimeStep::GatherY(branch, vardt->y_);
 
   // absolute tolerance array (low for voltages, high for mech states)
   vardt->absolute_tolerance_ = N_VNew_Serial(equations_count);
   for (int i = 0; i < equations_count; i++) {
-    double tol = i < cap_count ? kAbsToleranceVoltage : kAbsToleranceMechStates;
+    double tol = i < cap_count ? input_params_->cvode_atol_v_
+                               : input_params_->cvode_atol_states_;
     NV_Ith_S(vardt->absolute_tolerance_, i) = tol;
   }
 
   // Allocate mem block for BDF or Adams, with Newton solver (for stiff sol.)
   cvode_mem = (CVodeMem)CVodeCreate(CV_BDF, CV_NEWTON);
-
-  // from cvodeobj.cpp :: cvode_init()
-  vardt->cvode_mem_->cv_gamma = 0.;
-  vardt->cvode_mem_->cv_h = 0.;
 
   // CVodeInit allocates and initializes memory for a problem
   double t0 = input_params_->tstart_;
@@ -441,7 +474,7 @@ void VariableTimeStep::Init(Branch *branch) {
   assert(flag == CV_SUCCESS);
 
   // specify integration tolerances. MUST be called before CVode.
-  flag = CVodeSVtolerances(cvode_mem, kRelativeTolerance,
+  flag = CVodeSVtolerances(cvode_mem, input_params_->cvode_rtol_,
                            vardt->absolute_tolerance_);
   assert(flag == CV_SUCCESS);
 
@@ -449,11 +482,22 @@ void VariableTimeStep::Init(Branch *branch) {
   flag = CVodeSetUserData(cvode_mem, branch);
   assert(flag == CV_SUCCESS);
 
-  // specify root func. and roots (AP-threshold reached from below)
-  int roots_direction[1] = {1};
-  flag = CVodeRootInit(cvode_mem, 1, VariableTimeStep::RootFunction);
-  CVodeSetRootDirection(cvode_mem, roots_direction);
-  assert(flag == CV_SUCCESS);
+  CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
+  CVodeSetMaxStep(cvode_mem, kNEURONMaxStep /*input_params_->tstop_*/);
+  CVodeSetMinStep(cvode_mem, input_params_->dt_);
+  CVodeSetStopTime(cvode_mem, kNEURONStopTime /*input_params_->tstop_*/);
+  // CVodeSetInitStep(cvode_mem, .01); // commented in NEURON
+
+  // Not part of NEURON. Avoids err msg on CVode with CV_NORMAL stepping
+  if (!input_params_->cvode_speculative_) CVodeSetMaxNumSteps(cvode_mem, 1e3);
+
+  // Not part of NEURON. Avoids CVODE error when using barrier synchronizers
+  // "tout too close to t0 to start integration" (CV_TOO_CLOSE)
+  CVodeSetMinStep(cvode_mem_, std::max(1e-5, input_params_->dt_) );
+
+  // from cvodeobj.cpp :: cvode_init()
+  vardt->cvode_mem_->cv_gamma = 0.;
+  vardt->cvode_mem_->cv_h = 0.;
 
   // Reminder: direct solvers give the solution (LU-decomposition, etc)
   // Indirect solvers require iterations (eg Jacobi method)
@@ -496,9 +540,7 @@ void VariableTimeStep::Init(Branch *branch) {
       flag = CVDiag(cvode_mem);
       break;
     case InterpolatorIds::kCvodeSparseMatrix:
-      // TODO
       assert(0);
-
       // Requires installation of Superlumt or KLU
       // flag = CVSlsSetSparseJacFn(cvode_mem, nullptr);
       // int nnz = equations_count * equations_count;
@@ -510,10 +552,15 @@ void VariableTimeStep::Init(Branch *branch) {
   }
   assert(flag == CV_SUCCESS);
 
-  CVodeSetMinStep(cvode_mem, input_params_->dt_);
-  CVodeSetMaxStep(cvode_mem, neurox::min_synaptic_delay_);
-  CVodeSetStopTime(cvode_mem, input_params_->tstop_);
-  CVodeSetMaxOrd(cvode_mem, kBDFMaxOrder);
+  // TODO dont understand why NEURON does one step at initialization
+  // cvodeobj.cpp :: cvode_init()
+  // RHSFunction(nt->_t, y_, nullptr, branch);
+
+  // specify root func. and roots (AP-threshold reached from below)
+  int roots_direction[1] = {1};
+  flag = CVodeRootInit(cvode_mem, 1, VariableTimeStep::RootFunction);
+  CVodeSetRootDirection(cvode_mem, roots_direction);
+  assert(flag == CV_SUCCESS);
 }
 
 void VariableTimeStep::Clear(Branch *branch) {
@@ -561,29 +608,75 @@ void VariableTimeStep::PrintStatistics(const Branch *branch) {
   }
 }
 
-hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
+void VariableTimeStep::CopyNVector(N_Vector dest, N_Vector src) {
+  memcpy(NV_DATA_S(dest), NV_DATA_S(src), sizeof(floble_t) * NV_LENGTH_S(src));
+  NV_CONTENT_S(dest)->own_data = NV_OWN_DATA_S(src);
+}
+
+void VariableTimeStep::StepTo(Branch *branch, const double tstop) {
   VariableTimeStep *vardt = (VariableTimeStep *)branch->interpolator_;
   NrnThread *nt = branch->nt_;
   CVodeMem cvode_mem = vardt->cvode_mem_;
-  hpx_t spikes_lco = HPX_NULL;
   int roots_found[1];  // AP-threshold
   int flag = CV_ERR_FAILURE;
-
+  const floble_t event_group_ms = input_params_->cvode_event_group_;
+  const bool speculative_stepping = input_params_->cvode_speculative_;
+  floble_t discontinuity_t = 0;
   double cvode_tstop = -1;
-  while (nt->_t < tstop) {
-    // delivers all events whithin the next delivery-time-window
-    branch->DeliverEvents(nt->_t + VariableTimeStep::kEventsDeliveryTimeWindow);
+  const bool sync_barriers = neurox::synchronizer_->GetId() !=
+                             synchronizers::SynchronizerIds::kTimeDependency;
 
-    // get tout as time of next undelivered event (if any)
-    hpx_lco_sema_p(branch->events_queue_mutex_);
-    if (!branch->events_queue_.empty())
-      cvode_tstop = std::min(tstop, branch->events_queue_.top().first);
-    hpx_lco_sema_v_sync(branch->events_queue_mutex_);
+  // reset last major step if speculative stepping advanced too much in time
+  if (speculative_stepping && nt->_t > 0) {
+    discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
+    if (discontinuity_t > 0 && nt->_t > discontinuity_t) {
+      // go back to known relieable time instant
+      assert(vardt->t_prev_step_ <= discontinuity_t);
+      VariableTimeStep::CopyNVector(vardt->y_, vardt->y_prev_step_);
+      nt->_t = vardt->t_prev_step_;
+      CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
+      VariableTimeStep::ScatterY(branch, vardt->y_);
+    }
+  }
+
+  // the 'stop' is the time limit of the synchronizer
+  //(only possible over-stepping happens in the next call to StepTo)
+  while (nt->_t < tstop) {
+    // delivers all events whithin the next delivery time-window
+    discontinuity_t = branch->DeliverEvents(nt->_t + event_group_ms);
+
+    // Reached RHS discontinuity, reset CVODE
+    // PS: here I could step to 1st discontinuity instant discontinuity_t
+    if (discontinuity_t > 0 && nt->_t > 0) {
+      VariableTimeStep::GatherY(branch, vardt->y_);
+      CVodeReInit(vardt->cvode_mem_, nt->_t, vardt->y_);
+    }
+
+    // get tout as next discontinuity or end of synchronizer limit
+    discontinuity_t = branch->TimeOfNextDiscontinuity(tstop);
+    cvode_tstop =
+        discontinuity_t > 0 ? std::min(tstop, discontinuity_t) : tstop;
 
     // call CVODE method: steps until reaching tout, or hitting root;
     while (nt->_t < cvode_tstop) {
-      // perform several steps until hitting cvode_stop, or spiking
-      flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &(nt->_t), CV_NORMAL);
+      if (speculative_stepping && nt->_t > 0) {
+        // CV_ONE_STEP with step size kNEURONStopTime replicates NEURON
+        // but may exceed barriers or events time, so we backup state
+        VariableTimeStep::CopyNVector(vardt->y_prev_step_, vardt->y_);
+        vardt->t_prev_step_ = nt->_t;
+        if (sync_barriers) {
+          // has to be called before each CV_ONE_STEP usage, see cvode.h
+          CVodeSetStopTime(cvode_mem, cvode_tstop);
+          flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_ONE_STEP);
+        } else {
+          // copies NEURON behavior too
+          flag = CVode(cvode_mem, kNEURONStopTime, vardt->y_, &nt->_t,
+                       CV_ONE_STEP);
+        }
+      } else {
+        // perform several steps until hitting cvode_stop, or spiking
+        flag = CVode(cvode_mem, cvode_tstop, vardt->y_, &nt->_t, CV_NORMAL);
+      }
 
       // CVODE succeeded and roots found
       if (flag == CV_ROOT_RETURN) {
@@ -593,33 +686,42 @@ hpx_t VariableTimeStep::StepTo(Branch *branch, const double tstop) {
         if (roots_found[0] > 0)       // AP-threshold reached from below (>0)
         {
           // if root found, integrator time is now at time of root
-          hpx_t new_spikes_lco = branch->soma_->SendSpikes(nt->_t);
-          if (new_spikes_lco) {
-            // make sure only an AP occurred in between
-            assert(!spikes_lco);
-            spikes_lco = new_spikes_lco;
+
+          // no speculative spiking, stop here
+          if (speculative_stepping && nt->_t > tstop) {
+            // TODO is this enough to force it to still spike in next iteration?
+            break;
           }
-        }
-      } else {
-        // error test failed repeatedly or with |h| = hmin.
-        if (flag == CV_ERR_FAILURE) {
-        }
-        // convergence test failed too many times, or min-step was reached
-        else if (flag == CV_CONV_FAILURE) {
-        }
-        // must have reached end, or we are into an unhandled error
-        else {
-          // success: nt->_t may have reached cvode_tstop or not;
+          branch->soma_->SendSpikes(nt->_t);
         }
       }
+      // error test failed repeatedly or with |h| = hmin.
+      else if (flag == CV_ERR_FAILURE) {
+      }
+      // convergence test failed too many times, or min-step was reached
+      else if (flag == CV_CONV_FAILURE) {
+      // failure in convergence
+      } else if (flag == CV_TOO_CLOSE) {
+        // Error "tout too close to t0 to start integration"
+        fprintf(stderr," === time %f cvode_tstop %f\n",nt->_t < cvode_tstop);
+        break;
+      }
+      // success (CV_SUCCESS) or we are into an unhandled error
     }
   }
   /* system deadlocks if neurons cant sent notifications a bit ahead.
    * They all depend on a step message that noone can send because its
    * to be send in the future. So now we send notifications for upcoming
    * messages */
-  synchronizer_->StepSync(branch, 0);
 
-  assert(fabs(nt->_t - tstop) < 0.001);  // equal
-  return spikes_lco;
+  if (speculative_stepping && nt->_t > tstop) {
+    /* In case neuron overstepped, only notify of the instant he's sure of.
+     * He may have to backstep the overstepped interval in the next StepTo()*/
+    floble_t t_bak = nt->_t;
+    nt->_t = tstop;
+    synchronizer_->StepSync(branch, 0);
+    nt->_t = t_bak;
+  } else {
+    synchronizer_->StepSync(branch, 0);
+  }
 }

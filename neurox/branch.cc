@@ -50,9 +50,14 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
   size_t netcons_linear_size = 0;
   size_t events_queue_linear_size = 0;
   size_t *max_events_per_key = nullptr;
+#ifdef DISABLE_LINEARIZATION
+  if (false) {
+#else
   if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+#endif
+
 #if LAYOUT == 0
-    assert(0);
+    assert(0);  // linearization not implemented for SoA yet!
 #endif
     int vdata_ptrs_count = 0;
     buffer_size_ += is_soma ? Vectorizer::SizeOf(sizeof(Neuron)) : 0;
@@ -515,7 +520,7 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     weights_offset += netcons[nc].weights_count_;
   }
 
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
+  if (buffer_) {  // if linearization
     neuron_id_t *pre_gids = new neuron_id_t[netcons_.size()];
 
     int i = 0;
@@ -537,13 +542,13 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
     new (netcons_linear_)
         linear::Map<neuron_id_t, NetconX>(netcons_, &buffer_[buffer_it]);
 #ifndef NDEBUG
-    assert(netcons_.size() == netcons_linear_->KeysCount());
+    assert(netcons_.size() == netcons_linear_->Count());
     NetconX *ncs2;
     size_t nc2_count = -1;
     neuron_id_t nc_key_it = 0;
     for (auto gid_vec_it : netcons_) {
       neuron_id_t pre_gid = gid_vec_it.first;
-      assert(pre_gid == netcons_linear_->Keys()[nc_key_it]);
+      assert(pre_gid == netcons_linear_->KeyAt(nc_key_it));
       std::vector<NetconX *> ncs1 = gid_vec_it.second;
       netcons_linear_->At(pre_gid, nc2_count, ncs2);
       assert(ncs1.size() == nc2_count);
@@ -573,15 +578,6 @@ Branch::Branch(offset_t n, int nrn_thread_id, int threshold_v_offset,
         new Branch::BranchTree(top_branch_addr, branches, branches_count);
 
 #if LAYOUT == 0
-  // if using vector data structures, convert now
-  // TODO for now we only support LAYOUT==1
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency) {
-    fprintf(stderr,
-            "LAYOUT=0 (SoA) and Time-Dependency synchronizer not implemented "
-            "yet\n");
-    assert(0);  // not supported yet
-    exit(1);
-  }
   tools::Vectorizer::ConvertToSOA(this);
 #endif
 
@@ -854,9 +850,42 @@ int Branch::ThreadTableCheck_handler() {
   NEUROX_MEM_UNPIN;
 }
 
-void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
+floble_t Branch::TimeOfNextDiscontinuity(floble_t til) {
+  floble_t discontinuity_t = 0;
+  hpx_lco_sema_p(this->events_queue_mutex_);
+  if (this->events_queue_linear_) {
+    assert(0);  // Needs an internal function to be implemented
+  } else {
+    // easy way: is it better?
+    /*
+    if (!this->events_queue_.empty())
+        discontinuity_t = this->events_queue_.top().first;
+    */
+
+    // temp storage for priority_queue elems iterated.
+    // to overcome lack of iterator in prioriqy_queue.
+    std::list<TimedEvent> queue_elems;
+    while (!this->events_queue_.empty() &&
+           this->events_queue_.top().first <= til) {
+      const TimedEvent &te = this->events_queue_.top();
+      if (input::DataLoader::HardCodedEventIsDiscontinuity(te.second)) {
+        discontinuity_t = te.first;
+        break;
+      }
+      queue_elems.push_back(te);
+      this->events_queue_.pop();
+    }
+    for (auto &e : queue_elems) this->events_queue_.push(e);
+  }
+  hpx_lco_sema_v_sync(this->events_queue_mutex_);
+  return discontinuity_t;
+}
+
+floble_t Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 {
-  // delivers events in the previous half-step
+  // delivers events between t and til, returns FIRST discontinuity time
+  floble_t discontinuity_t = 0;
+
   floble_t tsav = this->nt_->_t;  // copying cvodestb.cpp logic
   hpx_lco_sema_p(this->events_queue_mutex_);
   if (this->events_queue_linear_) {
@@ -866,6 +895,10 @@ void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
       floble_t &tt = te.first;
       Event *&e = te.second;
       e->Deliver(tt, this);
+
+      if (!discontinuity_t &&
+          input::DataLoader::HardCodedEventIsDiscontinuity(e))
+        discontinuity_t = tt;
     }
   } else {
     while (!this->events_queue_.empty() &&
@@ -880,10 +913,15 @@ void Branch::DeliverEvents(floble_t til)  // Coreneuron: til=t+0.5*dt
 
       e->Deliver(tt, this);
       this->events_queue_.pop();
+
+      if (!discontinuity_t &&
+          input::DataLoader::HardCodedEventIsDiscontinuity(e))
+        discontinuity_t = tt;
     }
   }
   hpx_lco_sema_v_sync(this->events_queue_mutex_);
   this->nt_->_t = tsav;
+  return discontinuity_t;
 }
 
 void Branch::FixedPlayContinuous(double t) {

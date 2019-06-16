@@ -27,7 +27,7 @@ const char* TimeDependencySynchronizer::GetString() {
 
 void TimeDependencySynchronizer::ClearLocality() {}
 
-void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b, hpx_t) {
+void TimeDependencySynchronizer::NeuronSyncEnd(Branch* b) {
   if (!b->soma_) return;
   const bool has_scheduler = b->soma_->scheduler_step_trigger_;
   const bool finished =
@@ -112,7 +112,8 @@ double TimeDependencySynchronizer::TimeDependencies::PrintDependencies(
     floble_t min_delay = td->GetDependencyMinDelay(gid);
     floble_t max_time = td->GetDependencyMaxTimeAllowed(gid);
     printf(
-        "   -- pre-syn neuron id %d min delay %.4f allows stepping to %.4f "
+        "-- %d.%d -- pre-syn neuron id %d min delay %.4f allows stepping to "
+        "%.4f "
         "ms\n",
         wrappers::MyRankId(), wrappers::MyThreadId(), gid, min_delay, max_time);
   }
@@ -196,13 +197,14 @@ void TimeDependencySynchronizer::AfterReceiveSpikes(
   }
 }
 
-hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
-                                             double t) {
+void TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
+                                            double t) {
   const floble_t notification_ratio =
       TimeDependencySynchronizer::TimeDependencies::kNotificationIntervalRatio;
   const double teps = TimeDependencySynchronizer::TimeDependencies::kTEps;
 
   size_t syn_count = neuron->GetSynapsesCount();
+
   for (int i = 0; i < syn_count; i++) {
     Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 
@@ -240,12 +242,11 @@ hpx_t TimeDependencySynchronizer::SendSpikes(Neuron* neuron, double tt,
             s->destination_gid_, t, s->next_notification_time_);
 #endif
   }
-  return HPX_NULL;
 }
 
 double TimeDependencySynchronizer::LocalitySyncInterval() {
-  // -1 means advance last neuron first
-  return input_params_->neurons_scheduler_ ? -1 : 0;
+  // -1 means scheduler advances last neuron first
+  return input_params_->scheduler_ ? -1 : 0;
 }
 
 TimeDependencySynchronizer::TimeDependencies::TimeDependencies()
@@ -289,9 +290,9 @@ neuron_id_t
 TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
     size_t d) {
   if (dependencies_max_time_allowed_linear_) {
-    assert(dependencies_max_time_allowed_linear_->KeysCount() ==
-           dependencies_max_time_allowed_linear_->KeysCount());
-    return dependencies_max_time_allowed_linear_->Keys()[d];
+    assert(dependencies_max_time_allowed_linear_->Count() ==
+           dependencies_max_time_allowed_linear_->Count());
+    return dependencies_max_time_allowed_linear_->KeyAt(d);
   }
 
   assert(dependencies_max_time_allowed_.size() ==
@@ -301,7 +302,7 @@ TimeDependencySynchronizer::TimeDependencies::GetDependenciesKeyAtOffset(
 
 size_t TimeDependencySynchronizer::TimeDependencies::GetDependenciesCount() {
   size_t size = dependencies_min_delay_linear_
-                    ? dependencies_min_delay_linear_->KeysCount()
+                    ? dependencies_min_delay_linear_->Count()
                     : dependencies_min_delay_.size();
   assert(dependencies_min_delay_.size() ==
          dependencies_max_time_allowed_.size());
@@ -562,6 +563,12 @@ void TimeDependencySynchronizer::TimeDependencies::SendSteppingNotification(
           : TimeDependencySynchronizer::UpdateTimeDependency;
 
   size_t syn_count = neuron->GetSynapsesCount();
+  if (input_params_->output_comm_count_) {
+    hpx_lco_sema_p(Statistics::CommCount::mutex);
+    Statistics::CommCount::counts.point_to_point_count += syn_count;
+    hpx_lco_sema_v_sync(Statistics::CommCount::mutex);
+  }
+
   for (int i = 0; i < syn_count; i++) {
     Neuron::Synapse* s = neuron->GetSynapseAtOffset(i);
 

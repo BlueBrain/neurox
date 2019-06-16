@@ -100,7 +100,7 @@ static int Main_handler() {
   CallAllNeurons(Synchronizer::CallInitNeuron);
 
   hpx_time_t time_now = hpx_time_now();
-  if (input_params_->locality_comm_reduce_ || input_params_->neurons_scheduler_)
+  if (input_params_->locality_comm_reduce_ || input_params_->scheduler_)
     CallAllLocalities(Synchronizer::RunLocality, &tstop, sizeof(tstop));
   else
     CallAllNeurons(Synchronizer::RunNeuron, &tstop, sizeof(tstop));
@@ -130,6 +130,19 @@ static int Main_handler() {
          time_elapsed);
   fflush(stdout);
 #endif
+
+  if (input_params_->output_comm_count_) {
+    Statistics::CommCount::Counts counts;
+    Statistics::CommCount::ReduceCounts(&counts);
+    printf(
+        "neurox::Statistics::CommCount:: p2p: %d; reduce:%d; %s; Avg spike "
+        "rate: %.3f Hz/neuron\n",
+        counts.point_to_point_count, counts.reduce_count,
+        input_params_->locality_comm_reduce_ ? "comm-reduce" : "",
+        (floble_t)counts.spike_count / (input_params_->tstop_ / 1000.) /
+            (floble_t)neurox::neurons_count_);
+  }
+
   CallAllNeurons(Synchronizer::CallClearNeuron);
   CallAllLocalities(Synchronizer::CallClearLocality);
 
@@ -152,8 +165,7 @@ int Clear_handler() {
   delete[] neurox::mechanisms_map_;
   delete synchronizer_;
 
-  if (input_params_->locality_comm_reduce_ ||
-      input_params_->neurons_scheduler_) {
+  if (input_params_->locality_comm_reduce_ || input_params_->scheduler_) {
     (*neurox::locality::neurons_).clear();
     (*neurox::locality::netcons_branches_).clear();
     (*neurox::locality::netcons_somas_).clear();

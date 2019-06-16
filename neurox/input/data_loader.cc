@@ -32,8 +32,13 @@ std::vector<hpx_t> *DataLoader::my_neurons_addr_ = nullptr;
 std::vector<int> *DataLoader::my_neurons_gids_ = nullptr;
 std::vector<int> *DataLoader::all_neurons_gids_ = nullptr;
 tools::LoadBalancing *DataLoader::load_balancing_ = nullptr;
+#ifdef NDEBUG
+bool silence_p_ptr_warning = true;
+bool silence_queue_item_warning = true;
+#else
 bool silence_p_ptr_warning = false;
 bool silence_queue_item_warning = false;
+#endif
 
 // TODO: hard-coded procedures
 int DataLoader::HardCodedVdataSize(int type) {
@@ -128,7 +133,18 @@ bool DataLoader::HardCodedMechanismForCoreneuronOnly(int type) {
   // BinReportHelper, BinReport, MemUsage, CoreConfig and ProfileHelper
   // have nodecount 1 but no data and no nodeindices
   return (type == kBinReports || type == kBinReportHelper ||
-          type == kCoreConfig || type == kMemUsage || type == kProfileHelper);
+          type == kCoreConfig || type == kMemUsage || type == kMemUsage ||
+          type == kProfileHelper);
+}
+
+bool DataLoader::HardCodedEventIsDiscontinuity(Event *e) {
+  // This works for the PCP circuit (for now);
+  if (e->Type() != EventTypes::kNetCon) return false;
+
+  const int type = ((NetconX *)e)->mech_type_;
+
+  return type == MechanismTypes::kProbAMPANMDA_EMS ||
+         type == MechanismTypes::kProbGABAAB_EMS;
 }
 
 neuron_id_t DataLoader::GetNeuronIdFromNrnThreadId(int nrn_id) {
@@ -211,12 +227,6 @@ int DataLoader::CreateNeuron(int neuron_idx, void *) {
     }
     assert(tml->ml->data != NULL);
     assert(nt->ncell == 1);
-    /*
-    printf("HELLO neuron id %d, mech %d, data %d, data*nodecount %d, instances?
-    %d\n", nt->id, tml->index, GetMechanismFromType(tml->index)->data_size_,
-           GetMechanismFromType(tml->index)->data_size_*tml->ml->nodecount,
-           HardCodedMechanismHasNoInstances(tml->index));
-    */
     data_size_padded += Vectorizer::SizeOf(tml->ml->nodecount) *
                         mechanisms_[mechanisms_map_[tml->index]]->data_size_;
   }
@@ -733,6 +743,10 @@ int DataLoader::Init_handler() {
   all_neurons_gids_ = new std::vector<int>();
   locality_mutex_ = hpx_lco_sema_new(1);
 
+  Statistics::CommCount::counts.point_to_point_count = 0;
+  Statistics::CommCount::counts.reduce_count = 0;
+  Statistics::CommCount::counts.spike_count = 0;
+
   // even without load balancing, we may require the benchmark info for
   // outputting statistics
   if (hpx_get_my_rank() == 0 &&
@@ -865,8 +879,7 @@ int DataLoader::AddNeurons_handler(const int nargs, const void *args[],
 
   if (sender_rank == hpx_get_my_rank())  // if these are my neurons
   {
-    if (input_params_->locality_comm_reduce_ ||
-        input_params_->neurons_scheduler_) {
+    if (input_params_->locality_comm_reduce_ || input_params_->scheduler_) {
       assert(locality::neurons_->size() == 0);
       locality::neurons_->insert(locality::neurons_->end(), neurons_addr,
                                  neurons_addr + recv_neurons_count);
@@ -1520,13 +1533,23 @@ double DataLoader::BenchmarkSubSection(
 
   // benchmark execution time of 10 times 0.1msec
   time_elapsed = 0;
-  double step_count = interpolators::BackwardEuler::GetMinSynapticDelaySteps();
-  for (int i = 0; i < 20; i++) {
-    hpx_time_t now = hpx_time_now();
-    for (int i = 0; i < step_count; i++)
-      interpolators::BackwardEuler::Step(branch, true);
-    time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
+  hpx_time_t now = hpx_time_now();
+  if (input_params_->interpolator_ ==
+      interpolators::InterpolatorIds::kBackwardEuler) {
+    const int comm_steps =
+        (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
+    for (int i = 0; i < 20; i++) {
+      for (int i = 0; i < comm_steps; i++)
+        interpolators::BackwardEuler::Step(branch, true);
+    }
+  } else  // variable time step
+  {
+    for (int i = 1; i <= 20; i++) {
+      // TODO not implemented
+      // interpolators::VariableTimeStep::StepTo(branch,0.1*i);
+    }
   }
+  time_elapsed += hpx_time_elapsed_ms(now) / 1e3;
   time_elapsed /= 20;
 
   hpx_call_sync(temp_branch_addr, Branch::Clear, nullptr, 0);
@@ -1592,7 +1615,11 @@ hpx_t DataLoader::CreateBranch(
 
     /* compute total runtime of neuron */
     neuron_runtime =
-        BenchmarkSubSection(N, all_compartments, ions_instances_info);
+        input_params_->interpolator_ !=
+                interpolators::InterpolatorIds::kBackwardEuler
+            ? -1
+            :  // disable for CVODE
+            BenchmarkSubSection(N, all_compartments, ions_instances_info);
   }
 
   /* No branch-parallelism (a la Coreneuron) */
@@ -1605,7 +1632,7 @@ hpx_t DataLoader::CreateBranch(
                          branch_netcons_pre_id, branch_weights, NULL);
 
     /* For querying the table we use neuron's exec time */
-    // subsection = all_compartments;
+    subsection = all_compartments;
     subsection_runtime = neuron_runtime;
     if (input_params_->load_balancing_) {
       /* assign branch locally*/
@@ -1957,8 +1984,7 @@ int DataLoader::FilterRepeatedAndLinearizeContainers_handler() {
   }
 
   // convert synapses to linear synapses representation
-  if (input_params_->synchronizer_ == SynchronizerIds::kTimeDependency)
-    local->soma_->LinearizeContainers();
+  if (input_params_->linearize_containers_) local->soma_->LinearizeContainers();
 
   NEUROX_MEM_UNPIN
 }

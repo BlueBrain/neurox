@@ -216,12 +216,23 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
   for (int m = 0; m < neurox::mechanisms_count_; m++) {
     Mechanism* mech = neurox::mechanisms_[m];
     Memb_list* instances = &branch->mechs_instances_[m];
+    int data_size = mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
 
     // neuron: "only point processes with currents are possibilities"
+    if (input::DataLoader::HardCodedMechanismHasNoInstances(mech->type_)) {
+      ml_no_capacitors[m].nodecount = 0;
+      ml_no_capacitors[m]._nodecount_padded = 0;
+      ml_no_capacitors[m].nodeindices = nullptr;
+      ml_no_capacitors[m].data = nullptr;
+      ml_no_capacitors[m].nodeindices = nullptr;
+      ml_no_capacitors[m].pdata = nullptr;
+      total_data_offset += data_size;
+      continue;
+    }
+
     bool mech_valid_in_phase_1 = mech->pnt_map_ && mech->memb_func_.current;
 
     int n_new = 0;
-    int data_size = mech->data_size_ * Vectorizer::SizeOf(instances->nodecount);
     int pdata_size =
         mech->pdata_size_ * Vectorizer::SizeOf(instances->nodecount);
 
@@ -277,7 +288,7 @@ void tools::Vectorizer::GroupBranchInstancesByCapacitors(
               Vectorizer::SizeOf(instances->nodecount) * i + n_new;
 #endif
           int old_pdata = instances->pdata[old_pdata_offset];
-          assert(old_pdata >= 0);
+          assert(old_pdata >= -1);
 
           // if it points to an ion, get new pdata position
           int ptype = memb_func[mech->type_].dparam_semantics[i];

@@ -48,6 +48,9 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
                                            const size_t) {
   NEUROX_MEM_PIN(uint64_t);
 
+  if (input_params_->output_comm_count_)
+    Statistics::CommCount::mutex = hpx_lco_sema_new(1);
+
   // delete previous synchronizer (if any)
   delete neurox::synchronizer_;
 
@@ -57,8 +60,8 @@ int Synchronizer::CallInitLocality_handler(const int* synchronizer_id_ptr,
   neurox::synchronizer_->InitLocality();
 
   // if we use "last neuron advances first" methodology
-  if (input_params_->locality_comm_reduce_ ||
-      input_params_->neurons_scheduler_) {
+  if (  // input_params_->locality_comm_reduce_ ||
+      input_params_->scheduler_) {
     // scheduler semaphore (controls how many parallel jobs can run)
     size_t thread_count = hpx_get_num_threads();
     const int max_jobs = std::min(thread_count, locality::neurons_->size());
@@ -222,14 +225,13 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
    * - it performs outgoing spikes handling
    */
   floble_t tpause = -1, dt_pause = -1;
-  hpx_t spikes_lco = HPX_NULL;
   const hpx_t step_trigger = local->soma_->scheduler_step_trigger_;
   const bool has_scheduler = step_trigger != HPX_NULL;
   NrnThread* nt = local->nt_;
   double& t = nt->_t;
   // const double dt_io = input_params_->dt_io_;
 
-  while (t < tstop - 0.00001) {
+  while (t < tstop - 1e-5) {
     // do before-step operations e.g. mark step in all-reduces
 #ifdef PRINT_TIME_DEPENDENCY_MUTEX
     fprintf(stderr, "~~ %d.%d ~~ before NeuronSyncInit 3\n",
@@ -250,17 +252,17 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 
     // step to the next possible time instant or wait for one if not scheduler
     dt_pause = synchronizer_->GetNeuronMaxStep(local);
-    tpause = std::min(t + dt_pause, tstop);
+    tpause = std::min(t + dt_pause, tstop) + 1e-8;
 
 #ifdef PRINT_TIME_DEPENDENCY_STEP_SIZE
     if (has_scheduler)
       fprintf(stderr, "step,%d,%d,%.4f,%.4f,%.4f\n", neurox::neurons_count_,
               local->soma_->gid_, t, tpause, tpause - t);
 #endif
-    spikes_lco = interpolator->StepTo(local, tpause);
+    interpolator->StepTo(local, tpause);
 
     // do after-step operations e.g. wait for spike delivery
-    synchronizer_->NeuronSyncEnd(local, spikes_lco);
+    synchronizer_->NeuronSyncEnd(local);
     // if (fmod(t, dt_io) == 0) {  /*output*/ }
   }
   NEUROX_RECURSIVE_BRANCH_ASYNC_WAIT;
@@ -270,6 +272,9 @@ int Synchronizer::RunNeuron_handler(const double* tstop_ptr,
 hpx_action_t Synchronizer::CallClearLocality = 0;
 int Synchronizer::CallClearLocality_handler() {
   NEUROX_MEM_PIN(uint64_t);
+
+  if (input_params_->output_comm_count_)
+    hpx_lco_delete_sync(Statistics::CommCount::mutex);
 
   if (input_params_->locality_comm_reduce_ &&
       synchronizer_->LocalitySyncInterval() == -1) {

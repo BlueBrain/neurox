@@ -164,7 +164,8 @@ class Branch {
 
   /// for a neuron_id_t, gives the next Event* on the list
   /// (we use Event* cause it points to data structs thar are linearized)
-  linear::PriorityQueue<neuron_id_t, TimedEvent>* events_queue_linear_;
+  linear::PriorityQueue<neuron_id_t, floble_t, TimedEvent>*
+      events_queue_linear_;
 
   /// mutex to protect the memory access to eventsQueue
   hpx_t events_queue_mutex_;
@@ -193,7 +194,9 @@ class Branch {
   static void CoreneuronNetEvent(NrnThread*, int, int, double);
 
   void AddEventToQueue(floble_t t, Event* e);
-  void DeliverEvents(floble_t t);
+
+  floble_t TimeOfNextDiscontinuity(floble_t til);
+  floble_t DeliverEvents(floble_t til);
   void FixedPlayContinuous(double);
   void FixedPlayContinuous();
   void SetupTreeMatrix();

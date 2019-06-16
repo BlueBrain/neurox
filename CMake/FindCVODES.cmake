@@ -1,4 +1,4 @@
-# Tries to find Sundials CVODE.
+# Tries to find Sundials CVODES.
 #
 # This module will define the following variables:
 #  CVODES_INCLUDE_DIRS - Location of the CVODE includes

@@ -7,6 +7,8 @@ namespace neurox {
 
 namespace synchronizers {
 
+typedef std::pair<floble_t, hpx_t> TimedSpike;
+
 class AllreduceSynchronizer : public Synchronizer {
  public:
   AllreduceSynchronizer();
@@ -17,23 +19,23 @@ class AllreduceSynchronizer : public Synchronizer {
   void InitLocality() override;
   void ClearLocality() override;
   void NeuronSyncInit(Branch*) override;
-  hpx_t SendSpikes(Neuron*, double, double) override;
+  void SendSpikes(Neuron*, double, double) override;
   double GetNeuronMaxStep(Branch*) override;
-  void NeuronSyncEnd(Branch*, hpx_t) override;
+  void NeuronSyncEnd(Branch*) override;
   double LocalitySyncInterval() override;
   void LocalitySyncInit() override;
 
   static void SubscribeAllReduces(size_t allreduces_count);
   static void UnsubscribeAllReduces(size_t allreduces_count);
-  static void WaitForSpikesDelivery(Branch* b, hpx_t spikes_lco);
+  static void WaitForSpikesDelivery(Branch* b);
 
   static const size_t kAllReducesCount = 1;
   static hpx_t* allreduces_;
 
   static void NeuronReduce(const Branch*, const int);
-  static double NeuronReduceInterval2(const Branch*, const int);
+  static double NeuronReduceInterval2(const int);
   static double LocalityReduceInterval2(const double);
-  static hpx_t SendSpikes2(Neuron*, double);
+  static void SendSpikes2(Neuron*, spike_time_t t);
 
   static void RegisterHpxActions();  ///> Register all HPX actions
 
@@ -61,7 +63,10 @@ class AllreduceSynchronizer : public Synchronizer {
     ~AllReduceNeuronInfo();
 
     // initiated by constructor (one per neuron)
-    std::queue<hpx_t> spikes_lco_queue_;
+    // (At time X wait for HPX synapses Y)
+    std::priority_queue<TimedSpike, std::vector<TimedSpike>,
+                        std::greater_equal<TimedSpike> >
+        spikes_lco_queue_;
     hpx_t* allreduce_future_;
     hpx_t* allreduce_lco_;
     int* allreduce_id_;

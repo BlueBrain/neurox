@@ -1,23 +1,23 @@
 #pragma once
 #include "neurox.h"
 
-#include <cvodes/cvodes.h>           /* prototypes for CVODE fcts, consts*/
+#include <cvode/cvode.h>             /* prototypes for CVODE fcts, consts*/
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts, macros*/
 #include <sundials/sundials_types.h> /* definition of type realtype*/
-#include "cvodes/cvodes_impl.h"      /* definition of CVodeMem*/
+#include "cvode/cvode_impl.h"        /* definition of CVodeMem*/
 
 // For Sparse Matrix resolutions
 //#include <cvodes/cvodes_superlumt.h>  /* prototype for CVSUPERLUMT */
 #include <sundials/sundials_sparse.h> /* definitions SlsMat */
 
 // For Dense Matrix resolutions
-#include <cvodes/cvodes_direct.h>    /* access to CVDls interface            */
+#include <cvode/cvode_direct.h>      /* access to CVDls interface            */
 #include <sundials/sundials_types.h> /* defs. of realtype, sunindextype */
 #include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver */
 #include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix */
 
 // For Pre-conditioned matrix solvers
-#include <cvodes/cvodes_diag.h> /*For Approx Diagonal matrix*/
+#include <cvode/cvode_diag.h> /*For Approx Diagonal matrix*/
 
 using namespace neurox;
 
@@ -32,10 +32,11 @@ class VariableTimeStep : public Interpolator {
 
   const char *GetString() override;
   void Init(Branch *) override;
-  hpx_t StepTo(Branch *, const double) override;
+  void StepTo(Branch *, const double) override;
   void Clear(Branch *) override;
 
   static void PrintStatistics(const Branch *);
+  static void CopyNVector(N_Vector dest, N_Vector src);
 
   // Information of no-capacitance nodes
   int *no_cap_node_ids_;        ///> no-cap node ids
@@ -50,6 +51,12 @@ class VariableTimeStep : public Interpolator {
 
   /// Initial values (voltages)
   N_Vector y_;
+
+  /// copy of y, for speculative stepping
+  N_Vector y_prev_step_;
+
+  /// copy of nt->_t, for speculative stepping
+  floble_t t_prev_step_;
 
   /// CVODES structure
   CVodeMem cvode_mem_;
@@ -78,18 +85,12 @@ class VariableTimeStep : public Interpolator {
   /// CVODES BDF max-order (NEURON=5)
   const static int kBDFMaxOrder = 5;
 
-  /// CVODES Relative torelance (NEURON=1e-3 or 1e-4)
-  constexpr static double kRelativeTolerance = 1e-3;
+  /// CVODE initial step depends on the max step allowed;
+  /// This value allows for similar behavior to NEURON;
+  constexpr static double kNEURONStopTime = 1e5;
 
-  /// CVODES Absolute tolerance for voltage values (NEURON=1e-8)
-  constexpr static double kAbsToleranceVoltage = 1e-6;
-
-  /// CVODES Absolute tolerance for mechanism states (NEURON=1e-8)
-  constexpr static double kAbsToleranceMechStates = 1e-3;
-
-  /// Time-window size for grouping of events to be delivered
-  /// simmultaneously (0 for no grouping, Coreneuron=0.0125)
-  constexpr static double kEventsDeliveryTimeWindow = 0.0125;
+  /// This value allows for similar behavior to NEURON
+  constexpr static double kNEURONMaxStep = 1e9;
 
   /// copy CVODES y to NrnThread->data (V and m)
   inline static void ScatterY(Branch *branch, N_Vector y);

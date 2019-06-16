@@ -88,7 +88,7 @@ class Synchronizer {
   virtual void NeuronSyncInit(Branch* b) { assert(b->soma_); }
 
   /// Neuron-based reduction: called at the end of every neuron reduction
-  virtual void NeuronSyncEnd(Branch* b, hpx_t spikesLco) { assert(b->soma_); }
+  virtual void NeuronSyncEnd(Branch* b) { assert(b->soma_); }
 
   /*************** Methods specific to individual steps ******************/
 
@@ -97,7 +97,7 @@ class Synchronizer {
   virtual void StepSync(Branch* b) { return StepSync(b, b->nt_->_dt); };
 
   /// spikes handling: how it hadles outgoing spikes after Action-Potential
-  virtual hpx_t SendSpikes(Neuron* n, double tt, double t) = 0;
+  virtual void SendSpikes(Neuron* n, double tt, double t) = 0;
 
   /// spikes handling: how it reacts to receival of spikes
   virtual void AfterReceiveSpikes(Branch*, hpx_t, neuron_id_t, spike_time_t,

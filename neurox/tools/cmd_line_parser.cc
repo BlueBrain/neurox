@@ -39,9 +39,17 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // neurox only command line arguments
     //(NOTE: SwitchArg does not require cmd.add())
+    TCLAP::SwitchArg linearize_containers(
+        "W", "linearize-containers", "use linear represnetation containers",
+        cmd, false);
     TCLAP::SwitchArg output_statistics(
-        "S", "output-statistics",
+        "5", "output-statistics",
         "outputs files with memory consumption and mechanism distribution.",
+        cmd, false);
+    TCLAP::SwitchArg output_comm_count(
+        "4", "output-comm-count",
+        "outputs final information about number of point-to-point and reduce "
+        "operation.",
         cmd, false);
     TCLAP::SwitchArg output_compartments_dot(
         "3", "output-compartments",
@@ -62,7 +70,7 @@ void CmdLineParser::Parse(int argc, char** argv) {
                                           cmd, false);
 
     TCLAP::SwitchArg neurons_scheduler(
-        "H", "scheduler", "last neuron goes first scheduler", cmd, false);
+        "S", "scheduler", "last neuron goes first scheduler", cmd, false);
 
     TCLAP::SwitchArg graph_mechs_parallelism(
         "G", "graph-parallelism",
@@ -112,18 +120,17 @@ void CmdLineParser::Parse(int argc, char** argv) {
 \n[1] All-reduce barrier (default)\
 \n[2] Sliding Time Window\
 \n[3] MPI-based (a la Coreneuron)\
-\n[8] Sequential Single-step Barrier (debug  only)\
-\n[9] All methods sequentially (NOTE: neurons data does not reset)",
+\n[8] Sequential Single-step Barrier (debug  only)",
         false, (int)synchronizers::SynchronizerIds::kAllReduce, "int");
     cmd.add(synchronizer);
 
     TCLAP::ValueArg<int> interpolator(
         "I", "interpolator",
         "\
-[0] CVODES with Preconditioned Diagonal Jacobian (a la NEURON)\
-\n[1] CVODES with Dense Jacobian\
-\n[2] CVODES with Diagonal Jacobian\
-\n[3] CVODES with Sparse Jacobian\
+[0] CVODE with Preconditioned Diagonal Jacobian (a la NEURON)\
+\n[1] CVODE with Dense Jacobian\
+\n[2] CVODE with Diagonal Jacobian\
+\n[3] CVODE with Sparse Jacobian\
 \n[9] Backward Euler (default)",
         false, (int)interpolators::InterpolatorIds::kBackwardEuler, "int");
     cmd.add(interpolator);
@@ -142,13 +149,45 @@ void CmdLineParser::Parse(int argc, char** argv) {
     TCLAP::ValueArg<floble_t> dt(
         "t", "dt",
         "Fixed (or minimum) time step size for fixed (or variable) step interpolation:\
-\n - CVODES with Diagonal Jacobian solver: default 0.0001 msecs\
-\n - CVODES with Dense Jacobian: default 0.001 msecs\
-\n - CVODES with Diagonal Jacobian solver: default 0.00001 msecs\
-\n - CVODES with Sparse Jacobian solver: default 0.0001 msecs\
-\n - Backward Euler: default 0.025",
+\n - Varible timestepping default (NEURON value) is 0:\
+\n   - CVODE with Preconditioned Diagonal Jacobian solver: recommended 0.0001 msecs\
+\n   - CVODE with Dense Jacobian: recommended 0.001 msecs\
+\n   - CVODE with Diagonal Jacobian solver: recommended 0.00001 msecs\
+\n   - CVODE with Sparse Jacobian solver: recommended 0.0001 msecs\
+\n - Backward Euler: default (NEURON value) 0.025",
         false, DEF_dt, "floble_t");
     cmd.add(dt);
+
+    /* From CVODE 4.0.2 manual:
+     * The scalar relative tolerance reltol is to be set to control relative
+     * errors. So reltol=1e−4 means that errors are controlled to .01%. We do
+     * not recommend using reltol larger than 1e−3. On the other hand, reltol
+     * should not be so small that it is comparable to the unit roundoff of the
+     * machine arithmetic (generally around 1.0E-15). */
+    TCLAP::ValueArg<floble_t> cvode_rtol(
+        "", "rtol",
+        "relative tolerance for variable timestepping. Default value is 0 "
+        "(a la NEURON, not recommended by CVODE manual). Recommended: 1e-4.",
+        false, 0, "floble_t");
+    cmd.add(cvode_rtol);
+
+    TCLAP::ValueArg<floble_t> cvode_atol(
+        "", "atol",
+        "absolute tolerance for voltages and states in variable timestepping. "
+        "Default (NEURON) value is 1e-3.",
+        false, 1e-3, "floble_t");
+    cmd.add(cvode_atol);
+
+    TCLAP::ValueArg<floble_t> cvode_event_group(
+        "", "queue_group",
+        "interval (msecs) for grouping of events in variable timestepping. "
+        "Default (NEURON) value is 0.",
+        false, 0, "floble_t");
+    cmd.add(cvode_event_group);
+
+    TCLAP::SwitchArg cvode_speculative("", "cvode-speculative",
+                                       "perform CVODE speculative stepping",
+                                       cmd, false);
 
     TCLAP::ValueArg<floble_t> dt_io(
         "i", "dt_io", "I/O time step (msecs). The default value is 0.1", false,
@@ -178,11 +217,13 @@ void CmdLineParser::Parse(int argc, char** argv) {
         "Apply patternstim with the spike file. No default value", false, "",
         "string");
     cmd.add(pattern_stim);
+
     TCLAP::ValueArg<std::string> output_path(
         "o", "outputpath",
         "Path to output directory. The default value is ./output", false,
         "./output", "string");
     cmd.add(output_path);
+
     TCLAP::ValueArg<std::string> input_path("d", "inputpath",
                                             "Path to input files directory",
                                             true, "./input", "string");
@@ -207,14 +248,16 @@ void CmdLineParser::Parse(int argc, char** argv) {
     this->rev_dt_ = 1 / dt.getValue();
     this->celsius_ = DEF_celsius;
 
+    this->linearize_containers_ = linearize_containers.getValue();
     this->output_statistics_ = output_statistics.getValue();
+    this->output_comm_count_ = output_comm_count.getValue();
     this->output_mechanisms_dot_ = output_mechanisms_dot.getValue();
     this->output_netcons_dot = output_netcons_dot.getValue();
     this->output_compartments_dot_ = output_compartments_dot.getValue();
     this->graph_mechs_parallelism_ = graph_mechs_parallelism.getValue();
     this->mech_instances_parallelism_ = mech_instances_parallelism.getValue();
     this->locality_comm_reduce_ = locality_comm_reduce.getValue();
-    this->neurons_scheduler_ = neurons_scheduler.getValue();
+    this->scheduler_ = neurons_scheduler.getValue();
     this->load_balancing_ = load_balancing.getValue();
     this->branch_parallelism_ = branch_parallelism.getValue();
     this->synchronizer_ =
@@ -253,44 +296,23 @@ void CmdLineParser::Parse(int argc, char** argv) {
 
     // handling of default dt for variable-step interpolations
     if (this->interpolator_ != InterpolatorIds::kBackwardEuler) {
+      this->cvode_rtol_ = cvode_rtol.getValue();
+      this->cvode_atol_v_ = cvode_atol.getValue();
+      this->cvode_atol_states_ = cvode_atol.getValue();
+      this->cvode_event_group_ = cvode_event_group.getValue();
+      this->cvode_speculative_ = cvode_speculative.getValue();
+      if (this->cvode_speculative_ &&
+          neurox::synchronizer_->GetId() != SynchronizerIds::kTimeDependency)
+        throw TCLAP::ArgException(
+            "Speculative CVODE is only available for TimeDependency "
+            "Synchronizer",
+            "cvode-speculative");
+
       if (!dt.isSet())  // if not user-provided
-      {
-        switch (this->interpolator_) {
-          case InterpolatorIds::kCvodePreConditionedDiagSolver:
-            this->dt_ = 1e-4;
-            break;
-          case InterpolatorIds::kCvodeDenseMatrix:
-            this->dt_ = 1e-3;
-            break;
-          case InterpolatorIds::kCvodeDiagonalMatrix:
-            this->dt_ = 1e-5;
-            break;
-          default:
-            this->dt_ = 1e-4;
-        }
-      }
-    } else  // ... for fixed-step interpolation
-    {
-      if (this->dt_ <= 0)
+        this->dt_ = 0;
+      if (this->dt_ < 0)
         throw TCLAP::ArgException(
             "time-step size (ms) should be a positive value", "dt");
-    }
-
-    /* variable step cannot be run with time-dependency synchronizer
-     * without a scheduler (because WaitForTimeDependencies does not
-     * know the step-size to wait for -- it's decided by CVODE).
-     * The scheduler indicates the step-size as the time of the
-     * dependency which is closest in time, so no need to perform the
-     * call to WaitForTimeDependencies. This condition enforces it.
-     */
-    if (this->interpolator_ != InterpolatorIds::kBackwardEuler &&
-        this->synchronizer_ == SynchronizerIds::kTimeDependency &&
-        this->locality_comm_reduce_ == false) {
-      throw TCLAP::ArgException(
-          "variable time-step size with time-dependency synchronizer "
-          "requires locality-level communication reduction",
-          "-C or --comm-reduce");
-      this->locality_comm_reduce_ = true;
     }
   } catch (TCLAP::ArgException& e) {
     printf("TCLAP error: %s (%s).\n", e.error().c_str(), e.argId().c_str());

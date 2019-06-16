@@ -11,6 +11,33 @@ namespace tools {
  */
 class Statistics {
  public:
+  /// count of communication when cmd line flag "output comm counts" is enabled
+  class CommCount {
+   public:
+    static struct Counts {
+      unsigned point_to_point_count;
+      unsigned reduce_count;
+      unsigned spike_count;
+    } counts;
+    static hpx_t mutex;
+    static hpx_t allreduce_lco;
+    static hpx_t allreduce_future;
+    static int allreduce_id;
+
+    static hpx_action_t Init;
+    static hpx_action_t Reduce;
+    static hpx_action_t Subscribe;
+    static hpx_action_t Join;
+    static hpx_action_t Unsubscribe;
+    static void Init_handler(Counts*, const size_t);
+    static void Reduce_handler(Counts*, const Counts*, const size_t);
+    static int Subscribe_handler(const hpx_t*, const size_t);
+    static int Join_handler();
+    static int Unsubscribe_handler(const hpx_t*, const size_t);
+
+    static void ReduceCounts(Counts* s);
+  };
+
   class SizeInfo {
    public:
     SizeInfo();

@@ -21,28 +21,14 @@ void BackwardEuler::Init(Branch *b) {
 #endif
 }
 
-int BackwardEuler::GetTotalSteps() {
-  return (input_params_->tstop_ + 0.00001) / input_params_->dt_;
-}
-
-int BackwardEuler::GetMinSynapticDelaySteps() {
-  return (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
-}
-
-hpx_t BackwardEuler::StepTo(Branch *b, const double tstop) {
+void BackwardEuler::StepTo(Branch *b, const double tstop) {
   hpx_t spikes_lco = HPX_NULL;
   while (b->nt_->_t < tstop - 0.000001) {
     // spikes_lco |= BackwardEuler::Step(branch);
-    hpx_t new_spikes_lco = BackwardEuler::Step(b);
+    BackwardEuler::Step(b);
     input::Debugger::SingleNeuronStepAndCompare(&nrn_threads[b->nt_->id], b,
                                                 input_params_->second_order_);
-    if (new_spikes_lco) {
-      // make sure only one AP occurred in between
-      assert(!spikes_lco);
-      spikes_lco = new_spikes_lco;
-    }
   }
-  return spikes_lco;
 }
 
 // fadvance_core.c::nrn_fixed_step_thread

@@ -23,6 +23,7 @@ enum MechanismTypes {
   kBinReportHelper = 26,
   kBinReports = 27,
   kCoreConfig = 56,
+  kMemAccess = 130,
   kMemUsage = 131,
   kProfileHelper = 162,
   kVecStim = 181,
@@ -125,7 +126,7 @@ class Mechanism {
     kNetReceiveInit = 18,
     // CVODE-specific methods
     kODESpec = 19,
-    kODEMatsol = 20,
+    kODEMatSol = 20,
     kDivCapacity = 21,
     kMulCapacity = 22
   };

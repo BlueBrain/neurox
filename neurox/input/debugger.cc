@@ -340,8 +340,8 @@ void Debugger::CompareBranch2(Branch *branch) {
     NetconX *ncs;
     size_t nc_count;
     auto ncl = branch->netcons_linear_;
-    for (int i = 0; i < ncl->KeysCount(); i++) {
-      ncl->At(ncl->Keys()[i], nc_count, ncs);
+    for (int i = 0; i < ncl->Count(); i++) {
+      ncl->At(ncl->KeyAt(i), nc_count, ncs);
       netconsCount += nc_count;
     }
   } else {
@@ -472,8 +472,11 @@ void Debugger::RunCoreneuronAndCompareAllBranches() {
 
   // parallel execution only (serial execs are compared on-the-fly
   if (neurox::ParallelExecution()) {
-    const int total_steps = BackwardEuler::GetTotalSteps();
-    const int comm_steps = BackwardEuler::GetMinSynapticDelaySteps();
+    const int total_steps =
+        (input_params_->tstop_ + 0.00001) / input_params_->dt_;
+    ;
+    const int comm_steps =
+        (neurox::min_synaptic_delay_ + 0.00001) / input_params_->dt_;
     DebugMessage(
         "neurox::re-running simulation in Coreneuron to compare final "
         "result...\n");

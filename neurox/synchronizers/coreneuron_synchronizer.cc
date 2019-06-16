@@ -29,13 +29,12 @@ void CoreneuronSynchronizer::ClearLocality() {}
 
 void CoreneuronSynchronizer::NeuronSyncInit(Branch*) { assert(0); }
 
-void CoreneuronSynchronizer::NeuronSyncEnd(Branch* b, hpx_t) { assert(0); }
+void CoreneuronSynchronizer::NeuronSyncEnd(Branch*) { assert(0); }
 
 double CoreneuronSynchronizer::GetNeuronMaxStep(Branch* b) {
   return b->nt_->_dt;
 }
 
-hpx_t CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
+void CoreneuronSynchronizer::SendSpikes(Neuron* neuron, double tt, double) {
   assert(0);
-  return HPX_NULL;
 }
