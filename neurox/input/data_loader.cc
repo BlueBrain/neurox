@@ -1697,11 +1697,11 @@ hpx_t DataLoader::CreateBranch(
              bottom_compartment);
     }
 
-    //#ifndef NDEBUG
+#ifndef NDEBUG
     printf("--- nrn_id %d: %s %d, length %d, runtime %.5f ms\n", nrn_threadId,
            is_soma ? "soma" : (is_AIS ? "AIS" : "subsection"),
            top_compartment->id_, subsection.size(), subsection_runtime);
-    //#endif
+#endif
 
     /* create serialized sub-section from compartments in subsection*/
     // mech-offset -> ( map[old instance]->to new instance )
@@ -1727,11 +1727,11 @@ hpx_t DataLoader::CreateBranch(
                   /* TODO: check: soma and AIS cant be split due to AP threshold
                    * communication */
 
-      //#ifndef NDEBUG
+#ifndef NDEBUG
       if (is_soma)
         printf("==== neuron time %.5f ms, max runtime per locality %.5fms\n",
                neuron_runtime, max_work_per_subsection);
-      //#endif
+#endif
 
       /* if subsection_complexity == 0, keep all subtrees in the
        * same locality (get rank of soma, or use previously assigned
@@ -1765,7 +1765,7 @@ hpx_t DataLoader::CreateBranch(
                   &subsection_runtime, sizeof(double),  // input[0]
                   &assigned_locality, sizeof(int));     // input[1]
 
-    //#ifndef NDEBUG
+#ifndef NDEBUG
     printf(
         "- %s %d, length %d, nrn_id %d, actual runtime %.6f ms, allocated to "
         "%s rank "
@@ -1774,7 +1774,7 @@ hpx_t DataLoader::CreateBranch(
         top_compartment->id_, n, nrn_threadId, subsection_runtime,
         assigned_locality == hpx_get_my_rank() ? "local" : "remote",
         assigned_locality);
-    //#endif
+#endif
   }
 
   /* allocate GAS mem for subsection in the appropriate locality */

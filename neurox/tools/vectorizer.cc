@@ -450,7 +450,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
         // cluster count is the number of parallel threads to be spawned
         assert(cluster_count > 0);
       }
-      //#ifndef NDEBUG
+#ifndef NDEBUG
       assert(ml->nodecount <= cluster_size * cluster_count);
       assert(ml->nodecount >= cluster_size * (cluster_count - 1));
       printf(
@@ -458,7 +458,7 @@ void tools::Vectorizer::CreateMechInstancesThreads(Branch* b) {
           "cluster_count %d\n",
           b->soma_->gid_, mech->type_, f == funcs::State ? "state" : "current",
           ml->nodecount, cluster_size, cluster_count);
-      //#endif
+#endif
 
       /* if cluster_count==1, does not need threaded execution */
       if (instance_runtime == 0 || cluster_count == 1 || ml->nodecount == 0) {
