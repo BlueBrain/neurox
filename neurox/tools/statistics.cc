@@ -1,3 +1,10 @@
+/*
+# =============================================================================
+# Copyright (c) 2015 - 2021 Blue Brain Project/EPFL
+#
+# See top-level LICENSE file for details.
+# =============================================================================.
+*/
 #include <numeric>
 #include "coreneuron/utils/randoms/nrnran123.h"  //RNG data structures
 #include "neurox/neurox.h"

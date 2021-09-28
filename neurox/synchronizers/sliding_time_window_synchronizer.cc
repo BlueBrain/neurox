@@ -1,3 +1,10 @@
+/*
+# =============================================================================
+# Copyright (c) 2015 - 2021 Blue Brain Project/EPFL
+#
+# See top-level LICENSE file for details.
+# =============================================================================.
+*/
 #include "neurox/synchronizers/sliding_time_window_synchronizer.h"
 
 using namespace neurox;

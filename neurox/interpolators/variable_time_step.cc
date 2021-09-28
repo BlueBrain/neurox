@@ -1,3 +1,10 @@
+/*
+# =============================================================================
+# Copyright (c) 2015 - 2021 Blue Brain Project/EPFL
+#
+# See top-level LICENSE file for details.
+# =============================================================================.
+*/
 #include "neurox/interpolators/variable_time_step.h"
 
 #include <sunlinsol/sunlinsol_spgmr.h> /* access to SPGMR SUNLinearSolver */

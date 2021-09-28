@@ -91,7 +91,19 @@ find ./neurox -iname *.h -o -iname *.cc  | xargs cpplint.py
 amplxe-cl -collect hotspots -r r000hs srun -n 1 ./bin/neurox_exec -d /gpfs/bbp.cscs.ch/project/proj16/bmagalha/Circuits/PCP/1/coreneuron_input
 ```
 
+
+## Citations
+Please use following citation to reference this work: 
+
+B. R. C. Magalhães, T. Sterling, M. Hines, and F. Schürmann, “Asynchronous Branch-Parallel Simulation of Detailed Neuron Models,” Frontiers in Neuroinformatics, vol. 13, p. 54, 2019, doi: 10.3389/fninf.2019.00054.
+
+
+## Funding
+The work was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government's ETH Board of the Swiss Federal Institutes of Technology. A portion of Michael Hines efforts was supported by NINDS grant R01NS11613.
+
+
 ## Copyright
 
+Copyright (c) 2015-2021,
 - Blue Brain Project, École Polytechnique Fédérale de Lausanne (EPFL), Switzerland;
 - Center for Research in Extreme Scale Technologies (CREST), Indiana University

@@ -1,3 +1,10 @@
+/*
+# =============================================================================
+# Copyright (c) 2015 - 2021 Blue Brain Project/EPFL
+#
+# See top-level LICENSE file for details.
+# =============================================================================.
+*/
 #include <math.h>  // fabs
 #include <stdlib.h>
 #include <algorithm>  // std::random_shuffle

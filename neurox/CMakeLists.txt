@@ -1,3 +1,8 @@
+# =============================================================================
+# Copyright (c) 2015 - 2021 Blue Brain Project/EPFL
+#
+# See top-level LICENSE file for details.
+# =============================================================================.
 ## Automatically add C++11 flags (eg -libc++ or -lstdc++)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11) # C++11...
