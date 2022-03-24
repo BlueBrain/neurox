@@ -104,6 +104,4 @@ The work was supported by funding to the Blue Brain Project, a research center o
 
 ## Copyright
 
-Copyright (c) 2015-2021,
-- Blue Brain Project, École Polytechnique Fédérale de Lausanne (EPFL), Switzerland;
-- Center for Research in Extreme Scale Technologies (CREST), Indiana University
+Copyright (c) 2015-2022 Blue Brain Project/EPFL & Center for Research in Extreme Scale Technologies (CREST), Indiana University
